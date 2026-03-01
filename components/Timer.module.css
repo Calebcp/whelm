@@ -1,0 +1,126 @@
+.card {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 32px;
+  background: rgba(255, 255, 255, 0.82);
+  padding: 28px;
+  box-shadow: 0 24px 60px rgba(16, 32, 51, 0.1);
+}
+
+.header {
+  margin-bottom: 26px;
+}
+
+.eyebrow {
+  margin: 0 0 10px;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: #6d7c8f;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.timerFace {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 320px;
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at center, rgba(255, 255, 255, 0.9), rgba(233, 240, 248, 0.95));
+  overflow: hidden;
+}
+
+.ring {
+  position: absolute;
+  width: min(76vw, 236px);
+  aspect-ratio: 1;
+  border-radius: 999px;
+  border: 18px solid rgba(36, 74, 114, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.4);
+}
+
+.time {
+  position: relative;
+  z-index: 1;
+  font-size: clamp(3.2rem, 12vw, 5.8rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.08em;
+  font-variant-numeric: tabular-nums;
+}
+
+.status {
+  position: relative;
+  z-index: 1;
+  margin-top: 12px;
+  font-size: 0.96rem;
+  color: #5f6f82;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 24px;
+}
+
+.primaryButton,
+.secondaryButton,
+.completeButton {
+  border: 0;
+  border-radius: 999px;
+  padding: 13px 20px;
+  min-width: 132px;
+}
+
+.primaryButton {
+  background: #102033;
+  color: #ffffff;
+}
+
+.secondaryButton {
+  background: #e7edf4;
+  color: #102033;
+}
+
+.completeButton {
+  background: linear-gradient(135deg, #0f766e, #14b8a6);
+  color: #ffffff;
+}
+
+.completeButton:disabled {
+  opacity: 0.72;
+  cursor: wait;
+}
+
+.tip {
+  margin-top: 18px;
+  text-align: center;
+  font-size: 0.8rem;
+  color: #6d7c8f;
+}
+
+@media (max-width: 640px) {
+  .card {
+    padding: 20px;
+  }
+
+  .timerFace {
+    min-height: 270px;
+  }
+
+  .controls {
+    flex-direction: column;
+  }
+
+  .primaryButton,
+  .secondaryButton,
+  .completeButton {
+    width: 100%;
+  }
+}
