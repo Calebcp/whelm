@@ -5,6 +5,8 @@ export type SessionDoc = {
   completedAtISO: string;
   minutes: number;
   category?: SessionCategory;
+  note?: string;
+  noteSavedAtISO?: string;
 };
 
 function pad2(value: number) {

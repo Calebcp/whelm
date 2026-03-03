@@ -185,6 +185,10 @@
   margin-top: 4px;
   font-size: 0.84rem;
   color: #6d7c8f;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 
 .categoryBadge {
@@ -201,6 +205,18 @@
   white-space: nowrap;
   font-weight: 700;
   color: #36506f;
+}
+
+.noteTimestamp {
+  font-size: 0.75rem;
+  color: #7b8796;
+}
+
+.sessionNote {
+  margin-top: 10px;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: #314357;
 }
 
 .emptyState {

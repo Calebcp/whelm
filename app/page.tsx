@@ -123,14 +123,17 @@ export default function HomePage() {
     setSessions(nextSessions);
   }
 
-  async function completeSession(category: SessionCategory) {
+  async function completeSession(category: SessionCategory, note: string) {
     if (!user) return;
 
+    const now = new Date().toISOString();
     const session: SessionDoc = {
       uid: user.uid,
-      completedAtISO: new Date().toISOString(),
+      completedAtISO: now,
       minutes: 25,
       category,
+      note: note.trim(),
+      noteSavedAtISO: now,
     };
 
     setError("");
@@ -218,7 +221,7 @@ export default function HomePage() {
                 subtitle={config.subtitle}
                 actionLabel={config.actionLabel}
                 theme={config.theme}
-                onComplete={() => completeSession(config.category)}
+                onComplete={(note) => completeSession(config.category, note)}
               />
             ))}
           </div>
@@ -265,7 +268,13 @@ export default function HomePage() {
                             (config) => config.category === (session.category ?? "misc"),
                           )?.badgeLabel ?? "Misc"}
                         </span>
+                        {session.noteSavedAtISO && (
+                          <span className={styles.noteTimestamp}>
+                            {new Date(session.noteSavedAtISO).toLocaleString()}
+                          </span>
+                        )}
                       </div>
+                      {session.note && <div className={styles.sessionNote}>{session.note}</div>}
                     </div>
                     <div className={styles.sessionMinutes}>{session.minutes}m</div>
                   </div>

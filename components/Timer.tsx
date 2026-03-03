@@ -24,13 +24,15 @@ export default function Timer({
   subtitle: string;
   actionLabel: string;
   theme: TimerTheme;
-  onComplete: () => Promise<void> | void;
+  onComplete: (note: string) => Promise<void> | void;
 }) {
   const totalSeconds = minutes * 60;
   const [secondsLeft, setSecondsLeft] = useState(totalSeconds);
   const [running, setRunning] = useState(false);
   const [done, setDone] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [showNotebook, setShowNotebook] = useState(false);
+  const [note, setNote] = useState("");
   const intervalRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -69,17 +71,24 @@ export default function Timer({
     setRunning(false);
     setDone(false);
     setSecondsLeft(totalSeconds);
+    setShowNotebook(false);
+    setNote("");
   }
 
   async function handleComplete() {
     setSubmitting(true);
 
     try {
-      await onComplete();
+      await onComplete(note.trim());
       reset();
     } finally {
       setSubmitting(false);
     }
+  }
+
+  function openNotebook() {
+    setRunning(false);
+    setShowNotebook(true);
   }
 
   const themeVars = {
@@ -124,17 +133,55 @@ export default function Timer({
           Reset
         </button>
 
-        <button
-          onClick={handleComplete}
-          className={styles.completeButton}
-          disabled={submitting}
-        >
-          {submitting ? "Saving..." : actionLabel}
-        </button>
+        {!showNotebook && (
+          <button
+            onClick={openNotebook}
+            className={styles.completeButton}
+            disabled={submitting}
+          >
+            Add Session Note
+          </button>
+        )}
       </div>
 
+      {(done || showNotebook) && (
+        <div className={styles.notebook}>
+          <div className={styles.notebookHeader}>
+            <h3 className={styles.notebookTitle}>Session notebook</h3>
+            <p className={styles.notebookCopy}>
+              Write what this focus block was for. It will be saved with a timestamp.
+            </p>
+          </div>
+
+          <textarea
+            value={note}
+            onChange={(event) => setNote(event.target.value)}
+            placeholder="What did you work on? What mattered in this session?"
+            className={styles.notebookInput}
+            rows={4}
+          />
+
+          <div className={styles.notebookActions}>
+            <button
+              onClick={handleComplete}
+              className={styles.completeButton}
+              disabled={submitting}
+            >
+              {submitting ? "Saving..." : actionLabel}
+            </button>
+            <button
+              onClick={() => setShowNotebook(false)}
+              className={styles.secondaryButton}
+              disabled={submitting}
+            >
+              Keep editing later
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className={styles.tip}>
-        Tip: Only press &quot;Complete&quot; when you actually focused.
+        Tip: Finish the timer, write the note, then save the session.
       </div>
     </section>
   );
