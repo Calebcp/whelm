@@ -123,6 +123,22 @@ export default function HomePage() {
     setSessions(nextSessions);
   }
 
+  async function withTimeout<T>(promise: Promise<T>, label: string, ms = 12000) {
+    let timeoutId: number | undefined;
+
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = window.setTimeout(() => {
+        reject(new Error(`${label} timed out. Check Firestore rules and connection.`));
+      }, ms);
+    });
+
+    try {
+      return await Promise.race([promise, timeoutPromise]);
+    } finally {
+      if (timeoutId) window.clearTimeout(timeoutId);
+    }
+  }
+
   async function completeSession(category: SessionCategory, note: string) {
     if (!user) return;
 
@@ -139,8 +155,20 @@ export default function HomePage() {
     setError("");
 
     try {
-      await addDoc(collection(db, "sessions"), session);
-      await refreshSessions(user.uid);
+      await withTimeout(addDoc(collection(db, "sessions"), session), "Saving session");
+      setSessions((current) =>
+        [session, ...current].sort((a, b) => (a.completedAtISO < b.completedAtISO ? 1 : -1)),
+      );
+
+      // Keep the data source in sync, but don't trap the UI in a permanent loading state
+      // if the follow-up read gets stuck.
+      void refreshSessions(user.uid).catch((nextError: unknown) => {
+        setError(
+          nextError instanceof Error
+            ? nextError.message
+            : "Saved, but failed to refresh sessions.",
+        );
+      });
     } catch (nextError: unknown) {
       setError(
         nextError instanceof Error
