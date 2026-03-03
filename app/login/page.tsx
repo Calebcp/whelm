@@ -3,79 +3,81 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  isSignInWithEmailLink,
-  sendSignInLinkToEmail,
-  signInWithEmailLink,
+  createUserWithEmailAndPassword,
   onAuthStateChanged,
+  signInWithEmailAndPassword,
+  updateProfile,
 } from "firebase/auth";
 
 import { auth } from "@/lib/firebase";
 import styles from "./page.module.css";
 
-const EMAIL_STORAGE_KEY = "whelm_email_for_signin";
-
 export default function LoginPage() {
   const router = useRouter();
+  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [status, setStatus] = useState("");
-  const [sending, setSending] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
       if (user) router.push("/");
     });
 
-    const href = window.location.href;
-    if (!isSignInWithEmailLink(auth, href)) return () => unsub();
-
-    let storedEmail = window.localStorage.getItem(EMAIL_STORAGE_KEY) ?? "";
-    if (!storedEmail) {
-      storedEmail = window.prompt("Confirm your email to finish sign-in:") ?? "";
-    }
-    if (!storedEmail) return () => unsub();
-
-    setStatus("Signing you in...");
-
-    void signInWithEmailLink(auth, storedEmail, href)
-      .then(() => {
-        window.localStorage.removeItem(EMAIL_STORAGE_KEY);
-        router.push("/");
-      })
-      .catch((error: unknown) => {
-        const message =
-          error instanceof Error ? error.message : "Sign-in failed.";
-        setStatus(message);
-      });
-
     return () => unsub();
   }, [router]);
 
-  async function sendLink() {
+  async function handleSubmit() {
     const trimmedEmail = email.trim();
+    const trimmedUsername = username.trim();
+
     if (!trimmedEmail) {
-      setStatus("Enter your email first.");
+      setStatus("Enter your email.");
+      return;
+    }
+
+    if (mode === "signup" && !trimmedUsername) {
+      setStatus("Choose a username.");
+      return;
+    }
+
+    if (!password.trim()) {
+      setStatus("Enter your password.");
+      return;
+    }
+
+    if (password.length < 6) {
+      setStatus("Password must be at least 6 characters.");
       return;
     }
 
     setStatus("");
-    setSending(true);
-
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-    const actionCodeSettings = {
-      url: `${appUrl}/login`,
-      handleCodeInApp: true,
-    };
+    setSubmitting(true);
 
     try {
-      await sendSignInLinkToEmail(auth, trimmedEmail, actionCodeSettings);
-      window.localStorage.setItem(EMAIL_STORAGE_KEY, trimmedEmail);
-      setStatus("Magic link sent. Check your inbox.");
+      if (mode === "signup") {
+        const credentials = await createUserWithEmailAndPassword(
+          auth,
+          trimmedEmail,
+          password,
+        );
+
+        await updateProfile(credentials.user, {
+          displayName: trimmedUsername,
+        });
+      } else {
+        await signInWithEmailAndPassword(auth, trimmedEmail, password);
+      }
+
+      router.push("/");
     } catch (error: unknown) {
       const message =
-        error instanceof Error ? error.message : "Failed to send link.";
+        error instanceof Error ? error.message : "Authentication failed.";
       setStatus(message);
     } finally {
-      setSending(false);
+      setSubmitting(false);
     }
   }
 
@@ -86,19 +88,67 @@ export default function LoginPage() {
           <p className={styles.kicker}>WHELM</p>
           <h1 className={styles.title}>Underwhelm the overwhelm.</h1>
           <p className={styles.subtitle}>
-            One email. One timer. One completed focus block.
+            Real accounts. Saved sessions. Come back later and find your work.
           </p>
         </div>
 
         <div className={styles.formCard}>
           <div className={styles.formHeader}>
-            <h2 className={styles.formTitle}>Sign in with a magic link</h2>
+            <div className={styles.modeSwitch}>
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("login");
+                  setStatus("");
+                }}
+                className={`${styles.modeButton} ${
+                  mode === "login" ? styles.modeButtonActive : ""
+                }`}
+              >
+                Log in
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("signup");
+                  setStatus("");
+                }}
+                className={`${styles.modeButton} ${
+                  mode === "signup" ? styles.modeButtonActive : ""
+                }`}
+              >
+                Create account
+              </button>
+            </div>
+
+            <h2 className={styles.formTitle}>
+              {mode === "signup" ? "Create your account" : "Log in to your account"}
+            </h2>
             <p className={styles.formCopy}>
-              We send one link to your inbox. No password to remember.
+              {mode === "signup"
+                ? "Use a username, email, and password so your WHELM data stays attached to you."
+                : "Sign in with the same email and password you used when creating the account."}
             </p>
           </div>
 
           <div className={styles.fieldBlock}>
+            {mode === "signup" && (
+              <>
+                <label className={styles.label} htmlFor="username">
+                  Username
+                </label>
+                <input
+                  id="username"
+                  type="text"
+                  value={username}
+                  onChange={(event) => setUsername(event.target.value)}
+                  placeholder="yourname"
+                  className={styles.input}
+                  autoComplete="username"
+                />
+              </>
+            )}
+
             <label className={styles.label} htmlFor="email">
               Email
             </label>
@@ -112,12 +162,37 @@ export default function LoginPage() {
               autoComplete="email"
             />
 
-            <button onClick={sendLink} className={styles.submitButton} disabled={sending}>
-              {sending ? "Sending..." : "Send Magic Link"}
+            <label className={styles.label} htmlFor="password">
+              Password
+            </label>
+            <input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="At least 6 characters"
+              className={styles.input}
+              autoComplete={mode === "signup" ? "new-password" : "current-password"}
+            />
+
+            <button
+              onClick={handleSubmit}
+              className={styles.submitButton}
+              disabled={submitting}
+            >
+              {submitting
+                ? mode === "signup"
+                  ? "Creating account..."
+                  : "Logging in..."
+                : mode === "signup"
+                  ? "Create Account"
+                  : "Log In"}
             </button>
 
             <div className={styles.helperText}>
-              Open the link on the same device if possible.
+              {mode === "signup"
+                ? "After you create the account, you can log in from any browser later."
+                : "Your sessions are tied to your account and loaded after login."}
             </div>
 
             {status && <div className={styles.statusBox}>{status}</div>}

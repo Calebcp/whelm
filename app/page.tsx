@@ -13,8 +13,66 @@ import {
 
 import Timer from "@/components/Timer";
 import { auth, db } from "@/lib/firebase";
-import { computeStreak, type SessionDoc } from "@/lib/streak";
+import {
+  computeStreak,
+  type SessionCategory,
+  type SessionDoc,
+} from "@/lib/streak";
 import styles from "./page.module.css";
+
+const TIMER_CONFIGS: Array<{
+  category: SessionCategory;
+  title: string;
+  subtitle: string;
+  actionLabel: string;
+  badgeLabel: string;
+  theme: {
+    accent: string;
+    accentSoft: string;
+    accentStrong: string;
+    ring: string;
+  };
+}> = [
+  {
+    category: "misc",
+    title: "Miscellaneous tasks",
+    subtitle: "Reset the chaos",
+    actionLabel: "Complete Misc Session",
+    badgeLabel: "Misc",
+    theme: {
+      accent: "#9b5de5",
+      accentSoft: "#f4ebff",
+      accentStrong: "#5b2e91",
+      ring: "rgba(155, 93, 229, 0.18)",
+    },
+  },
+  {
+    category: "language",
+    title: "Language study",
+    subtitle: "Words, listening, memory",
+    actionLabel: "Complete Language Session",
+    badgeLabel: "Language",
+    theme: {
+      accent: "#ff8c42",
+      accentSoft: "#fff1e5",
+      accentStrong: "#a64900",
+      ring: "rgba(255, 140, 66, 0.2)",
+    },
+  },
+  {
+    category: "software",
+    title: "Software projects",
+    subtitle: "Ship something real",
+    actionLabel: "Complete Build Session",
+    badgeLabel: "Software",
+    theme: {
+      accent: "#00a896",
+      accentSoft: "#e6fbf7",
+      accentStrong: "#0f5c54",
+      ring: "rgba(0, 168, 150, 0.18)",
+    },
+  },
+];
 
 export default function HomePage() {
   const router = useRouter();
@@ -65,13 +123,14 @@ export default function HomePage() {
     setSessions(nextSessions);
   }
 
-  async function completeSession() {
+  async function completeSession(category: SessionCategory) {
     if (!user) return;
 
     const session: SessionDoc = {
       uid: user.uid,
       completedAtISO: new Date().toISOString(),
       minutes: 25,
+      category,
     };
 
     setError("");
@@ -137,7 +196,11 @@ export default function HomePage() {
             <span className={styles.statLabel}>Last session</span>
             <strong className={styles.statValueSmall}>
               {lastSession
-                ? new Date(lastSession.completedAtISO).toLocaleString()
+                ? `${new Date(lastSession.completedAtISO).toLocaleString()} · ${
+                    TIMER_CONFIGS.find(
+                      (config) => config.category === (lastSession.category ?? "misc"),
+                    )?.badgeLabel ?? "Misc"
+                  }`
                 : "Not yet started"}
             </strong>
           </article>
@@ -146,12 +209,27 @@ export default function HomePage() {
         {error && <div className={styles.errorBanner}>{error}</div>}
 
         <section className={styles.mainGrid}>
-          <Timer minutes={25} onComplete={completeSession} />
+          <div className={styles.timersGrid}>
+            {TIMER_CONFIGS.map((config) => (
+              <Timer
+                key={config.category}
+                minutes={25}
+                title={config.title}
+                subtitle={config.subtitle}
+                actionLabel={config.actionLabel}
+                theme={config.theme}
+                onComplete={() => completeSession(config.category)}
+              />
+            ))}
+          </div>
 
           <aside className={styles.sessionsCard}>
             <div>
               <p className={styles.sectionLabel}>Your account</p>
-              <p className={styles.email}>{user.email}</p>
+              <p className={styles.email}>
+                {user.displayName || user.email?.split("@")[0] || "WHELM user"}
+              </p>
+              <p className={styles.accountMeta}>{user.email}</p>
             </div>
 
             <div className={styles.sessionsBlock}>
@@ -162,15 +240,32 @@ export default function HomePage() {
 
               <div className={styles.sessionList}>
                 {sessions.slice(0, 5).map((session, index) => (
-                  <div
-                    key={`${session.completedAtISO}-${index}`}
-                    className={styles.sessionItem}
-                  >
+                  <div key={`${session.completedAtISO}-${index}`} className={styles.sessionItem}>
                     <div>
                       <div className={styles.sessionPrimary}>
                         {new Date(session.completedAtISO).toLocaleString()}
                       </div>
-                      <div className={styles.sessionSecondary}>Focused session</div>
+                      <div className={styles.sessionSecondary}>
+                        <span
+                          className={styles.categoryBadge}
+                          style={{
+                            backgroundColor:
+                              TIMER_CONFIGS.find(
+                                (config) =>
+                                  config.category === (session.category ?? "misc"),
+                              )?.theme.accentSoft,
+                            color:
+                              TIMER_CONFIGS.find(
+                                (config) =>
+                                  config.category === (session.category ?? "misc"),
+                              )?.theme.accentStrong,
+                          }}
+                        >
+                          {TIMER_CONFIGS.find(
+                            (config) => config.category === (session.category ?? "misc"),
+                          )?.badgeLabel ?? "Misc"}
+                        </span>
+                      </div>
                     </div>
                     <div className={styles.sessionMinutes}>{session.minutes}m</div>
                   </div>
@@ -178,8 +273,8 @@ export default function HomePage() {
 
                 {sessions.length === 0 && (
                   <div className={styles.emptyState}>
-                    No sessions yet. Start your first WHELM cycle and complete it to
-                    begin the streak.
+                    No sessions yet. Pick a lane: miscellaneous, language study, or
+                    software projects.
                   </div>
                 )}
               </div>

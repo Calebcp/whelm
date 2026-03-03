@@ -6,7 +6,8 @@ service cloud.firestore {
       allow create: if request.auth != null
         && request.auth.uid == request.resource.data.uid
         && request.resource.data.minutes is int
-        && request.resource.data.completedAtISO is string;
+        && request.resource.data.completedAtISO is string
+        && request.resource.data.category is string;
 
       allow read, update, delete: if request.auth != null
         && request.auth.uid == resource.data.uid;

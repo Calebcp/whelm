@@ -1,4 +1,8 @@
 .card {
+  --timer-accent: #244a72;
+  --timer-accent-soft: #edf4fb;
+  --timer-accent-strong: #102033;
+  --timer-ring: rgba(36, 74, 114, 0.12);
   border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: 32px;
   background: rgba(255, 255, 255, 0.82);
@@ -15,7 +19,7 @@
   font-size: 0.78rem;
   text-transform: uppercase;
   letter-spacing: 0.18em;
-  color: #6d7c8f;
+  color: var(--timer-accent);
 }
 
 .title {
@@ -30,7 +34,7 @@
   min-height: 320px;
   border-radius: 28px;
   background:
-    radial-gradient(circle at center, rgba(255, 255, 255, 0.9), rgba(233, 240, 248, 0.95));
+    radial-gradient(circle at center, rgba(255, 255, 255, 0.94), var(--timer-accent-soft));
   overflow: hidden;
 }
 
@@ -39,7 +43,7 @@
   width: min(76vw, 236px);
   aspect-ratio: 1;
   border-radius: 999px;
-  border: 18px solid rgba(36, 74, 114, 0.12);
+  border: 18px solid var(--timer-ring);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.4);
 }
 
@@ -51,6 +55,7 @@
   line-height: 1;
   letter-spacing: -0.08em;
   font-variant-numeric: tabular-nums;
+  color: var(--timer-accent-strong);
 }
 
 .status {
@@ -58,7 +63,7 @@
   z-index: 1;
   margin-top: 12px;
   font-size: 0.96rem;
-  color: #5f6f82;
+  color: color-mix(in srgb, var(--timer-accent-strong) 55%, #5f6f82);
 }
 
 .controls {
@@ -79,7 +84,7 @@
 }
 
 .primaryButton {
-  background: #102033;
+  background: var(--timer-accent-strong);
   color: #ffffff;
 }
 
@@ -89,7 +94,7 @@
 }
 
 .completeButton {
-  background: linear-gradient(135deg, #0f766e, #14b8a6);
+  background: linear-gradient(135deg, var(--timer-accent), var(--timer-accent-strong));
   color: #ffffff;
 }
 

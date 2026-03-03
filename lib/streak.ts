@@ -1,7 +1,10 @@
+export type SessionCategory = "misc" | "language" | "software";
+
 export type SessionDoc = {
   uid: string;
   completedAtISO: string;
   minutes: number;
+  category?: SessionCategory;
 };
 
 function pad2(value: number) {

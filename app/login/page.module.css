@@ -73,6 +73,29 @@
   margin-bottom: 20px;
 }
 
+.modeSwitch {
+  display: inline-flex;
+  gap: 8px;
+  padding: 6px;
+  margin-bottom: 18px;
+  border-radius: 999px;
+  background: rgba(241, 245, 249, 0.96);
+}
+
+.modeButton {
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  padding: 10px 14px;
+  color: #52667d;
+}
+
+.modeButtonActive {
+  background: #ffffff;
+  color: #102033;
+  box-shadow: 0 8px 22px rgba(16, 32, 51, 0.08);
+}
+
 .formTitle {
   margin: 0;
   font-size: 1.5rem;
@@ -139,6 +162,7 @@
   padding: 12px 14px;
   color: #314357;
   line-height: 1.5;
+  white-space: pre-wrap;
 }
 
 @media (max-width: 840px) {

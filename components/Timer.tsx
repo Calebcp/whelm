@@ -1,13 +1,29 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
 import styles from "./Timer.module.css";
 
+type TimerTheme = {
+  accent: string;
+  accentSoft: string;
+  accentStrong: string;
+  ring: string;
+};
+
 export default function Timer({
   minutes = 25,
+  title,
+  subtitle,
+  actionLabel,
+  theme,
   onComplete,
 }: {
   minutes?: number;
+  title: string;
+  subtitle: string;
+  actionLabel: string;
+  theme: TimerTheme;
   onComplete: () => Promise<void> | void;
 }) {
   const totalSeconds = minutes * 60;
@@ -66,11 +82,18 @@ export default function Timer({
     }
   }
 
+  const themeVars = {
+    "--timer-accent": theme.accent,
+    "--timer-accent-soft": theme.accentSoft,
+    "--timer-accent-strong": theme.accentStrong,
+    "--timer-ring": theme.ring,
+  } as CSSProperties;
+
   return (
-    <section className={styles.card}>
+    <section className={styles.card} style={themeVars}>
       <div className={styles.header}>
-        <p className={styles.eyebrow}>Current focus block</p>
-        <h2 className={styles.title}>25-minute session</h2>
+        <p className={styles.eyebrow}>{subtitle}</p>
+        <h2 className={styles.title}>{title}</h2>
       </div>
 
       <div className={styles.timerFace}>
@@ -106,7 +129,7 @@ export default function Timer({
           className={styles.completeButton}
           disabled={submitting}
         >
-          {submitting ? "Saving..." : "Complete Session"}
+          {submitting ? "Saving..." : actionLabel}
         </button>
       </div>
 

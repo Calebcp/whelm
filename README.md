@@ -1,9 +1,9 @@
 # WHELM
 
-Minimal focus timer with:
+Minimal focus tracker with:
 
-- Email magic-link login via Firebase Auth
-- 25-minute session timer
+- Username + email/password login via Firebase Auth
+- Multiple focus timers
 - Firestore session history
 - Daily streak counter
 
@@ -13,16 +13,11 @@ In Firebase Console:
 
 1. Go to `Authentication` -> `Sign-in method`
 2. Enable `Email/Password`
-3. Enable `Email link (passwordless sign-in)`
-4. Go to `Authentication` -> `Settings` -> `Authorized domains`
-5. Make sure `localhost` is listed
-6. Go to `Firestore Database` -> `Rules`
-7. Paste the contents of [firestore.rules](/Users/calebroemhildtsultan/Documents/MainWhelm/firestore.rules)
-8. Publish the rules
+3. Go to `Firestore Database` -> `Rules`
+4. Paste the contents of [firestore.rules](/Users/calebroemhildtsultan/Documents/MainWhelm/firestore.rules)
+5. Publish the rules
 
 ## Run locally on Mac
-
-Open Terminal, then run:
 
 ```bash
 cd /Users/calebroemhildtsultan/Documents/MainWhelm
@@ -30,26 +25,17 @@ npm install
 npm run dev
 ```
 
-Then open:
-
-- [http://localhost:3000](http://localhost:3000)
+Then open [http://localhost:3000](http://localhost:3000)
 
 ## Test flow
 
 1. Visit `/login`
-2. Enter your email
-3. Click `Send Magic Link`
-4. Open the email on the same MacBook if possible
-5. Click the sign-in link
-6. You should land on the WHELM dashboard
-7. Start a timer, then click `Complete Session`
-8. Confirm a session appears in the recent sessions list
-9. Confirm your streak increases to `1 day`
+2. Create an account with username, email, and password
+3. You should land on the dashboard
+4. Sign out
+5. Log back in with the same email and password
+6. Complete a session and confirm it appears in history
 
-## Production note
+## Netlify note
 
-If you deploy later, set:
-
-- `NEXT_PUBLIC_APP_URL` to your real domain
-
-And add that same domain to Firebase Auth authorized domains.
+If the deployed site shows `auth/api-key-not-valid`, the Firebase environment variables in Netlify are wrong or missing.
