@@ -15,7 +15,8 @@ const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
 export const db = initializeFirestore(app, {
-  // Safari and some hosted environments can hang on Firestore's default
-  // transport. Long polling is slower, but substantially more reliable here.
+  // VPNs, proxies, and some hosted/browser environments can break Firestore's
+  // default transport stack. Forced long polling is slower, but substantially
+  // more reliable for this app's small payloads.
   experimentalForceLongPolling: true,
 });

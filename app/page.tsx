@@ -6,6 +6,7 @@ import { onAuthStateChanged, signOut, type User } from "firebase/auth";
 import {
   addDoc,
   collection,
+  type FirestoreError,
   getDocs,
   query,
   where,
@@ -82,6 +83,53 @@ export default function HomePage() {
   const [error, setError] = useState("");
   const streak = computeStreak(sessions);
 
+  function withTimeout<T>(promise: Promise<T>, label: string, ms = 12000) {
+    let timeoutId: number | undefined;
+
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = window.setTimeout(() => {
+        const online = navigator.onLine;
+        reject(
+          new Error(
+            online
+              ? `${label} timed out. Firestore is reachable slowly or being blocked by your network/VPN.`
+              : `${label} timed out because the browser is offline.`,
+          ),
+        );
+      }, ms);
+    });
+
+    return Promise.race([promise, timeoutPromise]).finally(() => {
+      if (timeoutId) window.clearTimeout(timeoutId);
+    });
+  }
+
+  function formatFirestoreError(nextError: unknown, fallback: string) {
+    if (
+      typeof nextError === "object" &&
+      nextError !== null &&
+      "code" in nextError &&
+      typeof (nextError as FirestoreError).code === "string"
+    ) {
+      const firestoreError = nextError as FirestoreError;
+
+      switch (firestoreError.code) {
+        case "permission-denied":
+          return "Firestore rejected the request. Check that your published rules still allow this user to access their own sessions.";
+        case "unauthenticated":
+          return "Your Firebase session is missing or expired. Sign out and log back in, then try again.";
+        case "unavailable":
+          return "Firestore is currently unreachable. This often happens when a VPN, proxy, or regional network path blocks the connection.";
+        case "deadline-exceeded":
+          return "Firestore took too long to respond. The current network path may be unstable.";
+        default:
+          return firestoreError.message || fallback;
+      }
+    }
+
+    return nextError instanceof Error ? nextError.message : fallback;
+  }
+
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (nextUser) => {
       if (!nextUser) {
@@ -97,11 +145,7 @@ export default function HomePage() {
         await refreshSessions(nextUser.uid);
         setError("");
       } catch (nextError: unknown) {
-        setError(
-          nextError instanceof Error
-            ? nextError.message
-            : "Failed to load sessions.",
-        );
+        setError(formatFirestoreError(nextError, "Failed to load sessions."));
       } finally {
         setAuthChecked(true);
       }
@@ -115,28 +159,16 @@ export default function HomePage() {
       collection(db, "sessions"),
       where("uid", "==", uid),
     );
-    const snap = await getDocs(sessionsQuery);
+    const snap = await withTimeout(
+      getDocs(sessionsQuery),
+      "Loading sessions",
+      12000,
+    );
     const nextSessions = snap.docs
       .map((doc) => doc.data() as SessionDoc)
       .sort((a, b) => (a.completedAtISO < b.completedAtISO ? 1 : -1));
 
     setSessions(nextSessions);
-  }
-
-  async function withTimeout<T>(promise: Promise<T>, label: string, ms = 12000) {
-    let timeoutId: number | undefined;
-
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      timeoutId = window.setTimeout(() => {
-        reject(new Error(`${label} timed out. Check Firestore rules and connection.`));
-      }, ms);
-    });
-
-    try {
-      return await Promise.race([promise, timeoutPromise]);
-    } finally {
-      if (timeoutId) window.clearTimeout(timeoutId);
-    }
   }
 
   async function completeSession(category: SessionCategory, note: string) {
@@ -163,18 +195,10 @@ export default function HomePage() {
       // Keep the data source in sync, but don't trap the UI in a permanent loading state
       // if the follow-up read gets stuck.
       void refreshSessions(user.uid).catch((nextError: unknown) => {
-        setError(
-          nextError instanceof Error
-            ? nextError.message
-            : "Saved, but failed to refresh sessions.",
-        );
+        setError(formatFirestoreError(nextError, "Saved, but failed to refresh sessions."));
       });
     } catch (nextError: unknown) {
-      setError(
-        nextError instanceof Error
-          ? nextError.message
-          : "Failed to save session.",
-      );
+      setError(formatFirestoreError(nextError, "Failed to save session."));
       throw nextError;
     }
   }
