@@ -3,17 +3,10 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged, signOut, type User } from "firebase/auth";
-import {
-  addDoc,
-  collection,
-  type FirestoreError,
-  getDocs,
-  query,
-  where,
-} from "firebase/firestore";
 
 import Timer from "@/components/Timer";
-import { auth, db } from "@/lib/firebase";
+import { auth } from "@/lib/firebase";
+import { loadSessions, saveSession } from "@/lib/session-store";
 import {
   computeStreak,
   type SessionCategory,
@@ -83,51 +76,25 @@ export default function HomePage() {
   const [error, setError] = useState("");
   const streak = computeStreak(sessions);
 
-  function withTimeout<T>(promise: Promise<T>, label: string, ms = 12000) {
-    let timeoutId: number | undefined;
+  function formatSessionError(nextError: unknown, fallback: string) {
+    if (!(nextError instanceof Error)) return fallback;
 
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      timeoutId = window.setTimeout(() => {
-        const online = navigator.onLine;
-        reject(
-          new Error(
-            online
-              ? `${label} timed out. Firestore is reachable slowly or being blocked by your network/VPN.`
-              : `${label} timed out because the browser is offline.`,
-          ),
-        );
-      }, ms);
-    });
-
-    return Promise.race([promise, timeoutPromise]).finally(() => {
-      if (timeoutId) window.clearTimeout(timeoutId);
-    });
-  }
-
-  function formatFirestoreError(nextError: unknown, fallback: string) {
-    if (
-      typeof nextError === "object" &&
-      nextError !== null &&
-      "code" in nextError &&
-      typeof (nextError as FirestoreError).code === "string"
-    ) {
-      const firestoreError = nextError as FirestoreError;
-
-      switch (firestoreError.code) {
-        case "permission-denied":
-          return "Firestore rejected the request. Check that your published rules still allow this user to access their own sessions.";
-        case "unauthenticated":
-          return "Your Firebase session is missing or expired. Sign out and log back in, then try again.";
-        case "unavailable":
-          return "Firestore is currently unreachable. This often happens when a VPN, proxy, or regional network path blocks the connection.";
-        case "deadline-exceeded":
-          return "Firestore took too long to respond. The current network path may be unstable.";
-        default:
-          return firestoreError.message || fallback;
-      }
+    if (nextError.message.includes("PERMISSION_DENIED")) {
+      return "Firestore rejected the request. Publish the current rules in Firebase, then try again.";
     }
 
-    return nextError instanceof Error ? nextError.message : fallback;
+    if (nextError.message.includes("UNAUTHENTICATED")) {
+      return "Your login session expired. Sign out and back in, then retry.";
+    }
+
+    if (
+      nextError.message.includes("Failed to fetch") ||
+      nextError.message.includes("timed out")
+    ) {
+      return "Saving over Google APIs is still being blocked by the current VPN or network path.";
+    }
+
+    return nextError.message || fallback;
   }
 
   useEffect(() => {
@@ -145,7 +112,7 @@ export default function HomePage() {
         await refreshSessions(nextUser.uid);
         setError("");
       } catch (nextError: unknown) {
-        setError(formatFirestoreError(nextError, "Failed to load sessions."));
+        setError(formatSessionError(nextError, "Failed to load sessions."));
       } finally {
         setAuthChecked(true);
       }
@@ -155,20 +122,13 @@ export default function HomePage() {
   }, [router]);
 
   async function refreshSessions(uid: string) {
-    const sessionsQuery = query(
-      collection(db, "sessions"),
-      where("uid", "==", uid),
-    );
-    const snap = await withTimeout(
-      getDocs(sessionsQuery),
-      "Loading sessions",
-      12000,
-    );
-    const nextSessions = snap.docs
-      .map((doc) => doc.data() as SessionDoc)
-      .sort((a, b) => (a.completedAtISO < b.completedAtISO ? 1 : -1));
+    const currentUser = auth.currentUser;
 
-    setSessions(nextSessions);
+    if (!currentUser || currentUser.uid !== uid) {
+      throw new Error("Your login session is missing. Sign in again.");
+    }
+
+    setSessions(await loadSessions(currentUser));
   }
 
   async function completeSession(category: SessionCategory, note: string) {
@@ -187,7 +147,7 @@ export default function HomePage() {
     setError("");
 
     try {
-      await withTimeout(addDoc(collection(db, "sessions"), session), "Saving session");
+      await saveSession(user, session);
       setSessions((current) =>
         [session, ...current].sort((a, b) => (a.completedAtISO < b.completedAtISO ? 1 : -1)),
       );
@@ -195,10 +155,10 @@ export default function HomePage() {
       // Keep the data source in sync, but don't trap the UI in a permanent loading state
       // if the follow-up read gets stuck.
       void refreshSessions(user.uid).catch((nextError: unknown) => {
-        setError(formatFirestoreError(nextError, "Saved, but failed to refresh sessions."));
+        setError(formatSessionError(nextError, "Saved, but failed to refresh sessions."));
       });
     } catch (nextError: unknown) {
-      setError(formatFirestoreError(nextError, "Failed to save session."));
+      setError(formatSessionError(nextError, "Failed to save session."));
       throw nextError;
     }
   }
