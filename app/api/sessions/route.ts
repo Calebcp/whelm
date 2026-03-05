@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
 const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+const databaseId = process.env.FIREBASE_DATABASE_ID?.trim() || "(default)";
 
 type SessionDoc = {
   uid: string;
@@ -30,7 +31,7 @@ function requireConfig() {
     throw new Error("Missing Firebase environment variables on the server.");
   }
 
-  return `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`;
+  return `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${databaseId}/documents`;
 }
 
 function getAuthHeader(request: NextRequest) {

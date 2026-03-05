@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
 const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+const databaseId = process.env.FIREBASE_DATABASE_ID?.trim() || "(default)";
 const resendApiKey = process.env.RESEND_API_KEY;
 const feedbackEmailTo = "smalltek317@gmail.com";
 const feedbackEmailFrom =
@@ -23,7 +24,7 @@ function requireConfig() {
     throw new Error("Missing Firebase environment variables on the server.");
   }
 
-  return `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`;
+  return `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${databaseId}/documents`;
 }
 
 function jsonError(message: string, status = 500) {

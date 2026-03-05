@@ -47,6 +47,7 @@ The feedback modal posts to `/api/feedback` and sends email via Resend.
 Required Netlify env var:
 
 - `RESEND_API_KEY`
+- `FIREBASE_DATABASE_ID` (use `(default)` or your named database id, e.g. `whelm-16d5c`)
 
 Optional env vars:
 
