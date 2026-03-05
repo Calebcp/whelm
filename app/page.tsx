@@ -327,12 +327,12 @@ export default function HomePage() {
           <div>
             <p className={styles.kicker}>WHELM</p>
             <h1 className={styles.title}>
-              {activeView === "focus" ? "Focus. Don&apos;t drown." : "Write. Organize. Ship."}
+              {activeView === "focus" ? "Focus. No Distractions." : "Capture. Stay Sharp."}
             </h1>
             <p className={styles.subtitle}>
               {activeView === "focus"
-                ? "A stripped-down focus session for one thing at a time."
-                : "Create as many notes as you need across projects, classes, and daily work."}
+                ? "One task. Full attention."
+                : "Think clearly. Keep your notes ready."}
             </p>
           </div>
 
