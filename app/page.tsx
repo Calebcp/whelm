@@ -370,7 +370,6 @@ export default function HomePage() {
 
             <div className={styles.feedbackMeta}>
               <span>{user.email || "Unknown email"}</span>
-              <span>{user.uid}</span>
             </div>
 
             <label className={styles.feedbackLabel} htmlFor="feedback-category">

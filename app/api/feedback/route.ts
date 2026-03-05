@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
 const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
 const resendApiKey = process.env.RESEND_API_KEY;
-const feedbackEmailTo = process.env.FEEDBACK_EMAIL_TO || "smalltek317@gmail.com";
+const feedbackEmailTo = "smalltek317@gmail.com";
 const feedbackEmailFrom =
   process.env.FEEDBACK_EMAIL_FROM || "Whelm Feedback <onboarding@resend.dev>";
 
@@ -106,7 +106,19 @@ async function sendFeedbackEmail(payload: FeedbackPayload) {
     const body = (await response.json().catch(() => null)) as
       | { message?: string; error?: string }
       | null;
-    throw new Error(body?.message || body?.error || "Failed to send feedback email.");
+    const rawMessage = body?.message || body?.error || "Failed to send feedback email.";
+
+    if (
+      rawMessage.toLowerCase().includes("verify") ||
+      rawMessage.toLowerCase().includes("testing emails") ||
+      rawMessage.toLowerCase().includes("domain")
+    ) {
+      throw new Error(
+        "Feedback email is blocked by current Resend sender settings. Verify a sending domain in Resend and set FEEDBACK_EMAIL_FROM to that domain.",
+      );
+    }
+
+    throw new Error(rawMessage);
   }
 }
 
@@ -142,7 +154,13 @@ export async function POST(request: NextRequest) {
     if (validationError) return jsonError(validationError, 400);
 
     await sendFeedbackEmail(payload);
-    await saveFeedbackToFirestore(payload, request, authHeader);
+
+    // Do not fail user feedback if optional Firestore logging is unavailable.
+    try {
+      await saveFeedbackToFirestore(payload, request, authHeader);
+    } catch {
+      // noop
+    }
 
     return NextResponse.json({ ok: true });
   } catch (error: unknown) {
