@@ -24,5 +24,16 @@ service cloud.firestore {
 
       allow read, update, delete: if false;
     }
+
+    match /userNotes/{uid} {
+      allow read: if request.auth != null
+        && request.auth.uid == uid;
+
+      allow create, update: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.data.uid == request.auth.uid;
+
+      allow delete: if false;
+    }
   }
 }

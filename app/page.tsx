@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged, signOut, type User } from "firebase/auth";
 
 import Timer from "@/components/Timer";
 import { auth } from "@/lib/firebase";
+import { loadNotes, saveNotes, type WorkspaceNote } from "@/lib/notes-store";
 import { loadSessions, saveSession } from "@/lib/session-store";
 import {
   computeStreak,
@@ -31,7 +32,7 @@ const TIMER_CONFIGS: Array<{
     category: "misc",
     title: "Miscellaneous tasks",
     subtitle: "Reset the chaos",
-    actionLabel: "Complete Misc Session",
+    actionLabel: "Save Misc Session",
     badgeLabel: "Misc",
     theme: {
       accent: "#9b5de5",
@@ -44,7 +45,7 @@ const TIMER_CONFIGS: Array<{
     category: "language",
     title: "Language study",
     subtitle: "Words, listening, memory",
-    actionLabel: "Complete Language Session",
+    actionLabel: "Save Language Session",
     badgeLabel: "Language",
     theme: {
       accent: "#ff8c42",
@@ -57,7 +58,7 @@ const TIMER_CONFIGS: Array<{
     category: "software",
     title: "Software projects",
     subtitle: "Ship something real",
-    actionLabel: "Complete Build Session",
+    actionLabel: "Save Build Session",
     badgeLabel: "Software",
     theme: {
       accent: "#00a896",
@@ -69,11 +70,27 @@ const TIMER_CONFIGS: Array<{
 ];
 
 type FeedbackCategory = "bug" | "feature" | "other";
+type WorkspaceView = "focus" | "notes";
+
+function createNote(): WorkspaceNote {
+  const now = new Date().toISOString();
+  return {
+    id: typeof crypto !== "undefined" ? crypto.randomUUID() : `${Date.now()}`,
+    title: "Untitled note",
+    body: "",
+    createdAtISO: now,
+    updatedAtISO: now,
+  };
+}
 
 export default function HomePage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [sessions, setSessions] = useState<SessionDoc[]>([]);
+  const [notes, setNotes] = useState<WorkspaceNote[]>([]);
+  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
+  const [activeView, setActiveView] = useState<WorkspaceView>("focus");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [feedbackCategory, setFeedbackCategory] = useState<FeedbackCategory>("bug");
@@ -82,11 +99,18 @@ export default function HomePage() {
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
   const streak = computeStreak(sessions);
 
+  const selectedNote = useMemo(
+    () => notes.find((note) => note.id === selectedNoteId) ?? null,
+    [notes, selectedNoteId],
+  );
+
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (nextUser) => {
       if (!nextUser) {
         setUser(null);
         setSessions([]);
+        setNotes([]);
+        setSelectedNoteId(null);
         setAuthChecked(true);
         router.push("/login");
         return;
@@ -94,7 +118,7 @@ export default function HomePage() {
 
       setUser(nextUser);
       try {
-        await refreshSessions(nextUser.uid);
+        await Promise.all([refreshSessions(nextUser.uid), refreshNotes(nextUser.uid)]);
       } finally {
         setAuthChecked(true);
       }
@@ -113,14 +137,30 @@ export default function HomePage() {
     setSessions(await loadSessions(currentUser));
   }
 
-  async function completeSession(category: SessionCategory, note: string) {
+  async function refreshNotes(uid: string) {
+    const currentUser = auth.currentUser;
+
+    if (!currentUser || currentUser.uid !== uid) {
+      throw new Error("Your login session is missing. Sign in again.");
+    }
+
+    const loadedNotes = await loadNotes(currentUser);
+    setNotes(loadedNotes);
+    setSelectedNoteId((current) => current ?? loadedNotes[0]?.id ?? null);
+  }
+
+  async function completeSession(
+    category: SessionCategory,
+    note: string,
+    minutesSpent: number,
+  ) {
     if (!user) return;
 
     const now = new Date().toISOString();
     const session: SessionDoc = {
       uid: user.uid,
       completedAtISO: now,
-      minutes: 25,
+      minutes: minutesSpent,
       category,
       note: note.trim(),
       noteSavedAtISO: now,
@@ -134,6 +174,42 @@ export default function HomePage() {
     } catch {
       // Local storage writes are expected to succeed in normal browser contexts.
     }
+  }
+
+  async function createWorkspaceNote() {
+    if (!user) return;
+
+    const nextNote = createNote();
+    const nextNotes = [nextNote, ...notes];
+    setNotes(nextNotes);
+    setSelectedNoteId(nextNote.id);
+    setActiveView("notes");
+    await saveNotes(user, nextNotes);
+  }
+
+  async function updateSelectedNote(patch: Partial<Pick<WorkspaceNote, "title" | "body">>) {
+    if (!user || !selectedNote) return;
+
+    const now = new Date().toISOString();
+    const nextNotes = notes.map((note) =>
+      note.id === selectedNote.id
+        ? { ...note, ...patch, updatedAtISO: now }
+        : note,
+    );
+    setNotes(nextNotes);
+    await saveNotes(user, nextNotes);
+  }
+
+  async function deleteNote(noteId: string) {
+    if (!user) return;
+
+    const nextNotes = notes.filter((note) => note.id !== noteId);
+    setNotes(nextNotes);
+    setSelectedNoteId((current) => {
+      if (current !== noteId) return current;
+      return nextNotes[0]?.id ?? null;
+    });
+    await saveNotes(user, nextNotes);
   }
 
   async function submitFeedback() {
@@ -209,123 +285,246 @@ export default function HomePage() {
         <header className={styles.header}>
           <div>
             <p className={styles.kicker}>WHELM</p>
-            <h1 className={styles.title}>Focus. Don&apos;t drown.</h1>
+            <h1 className={styles.title}>
+              {activeView === "focus" ? "Focus. Don&apos;t drown." : "Write. Organize. Ship."}
+            </h1>
             <p className={styles.subtitle}>
-              A stripped-down focus session for one thing at a time.
+              {activeView === "focus"
+                ? "A stripped-down focus session for one thing at a time."
+                : "Create as many notes as you need across projects, classes, and daily work."}
             </p>
           </div>
 
-          <button onClick={() => signOut(auth)} className={styles.signOutButton}>
-            Sign out
-          </button>
+          <div className={styles.headerActions}>
+            <button
+              type="button"
+              className={styles.menuButton}
+              onClick={() => setMobileMenuOpen((open) => !open)}
+            >
+              ☰
+            </button>
+            <button onClick={() => signOut(auth)} className={styles.signOutButton}>
+              Sign out
+            </button>
+          </div>
         </header>
 
-        <section className={styles.statsGrid}>
-          <article className={styles.statCard}>
-            <span className={styles.statLabel}>Current streak</span>
-            <strong className={styles.statValue}>
-              {streak} day{streak === 1 ? "" : "s"}
-            </strong>
-          </article>
+        <nav className={`${styles.topNav} ${mobileMenuOpen ? styles.topNavOpen : ""}`}>
+          <button
+            type="button"
+            className={`${styles.topNavButton} ${
+              activeView === "focus" ? styles.topNavButtonActive : ""
+            }`}
+            onClick={() => {
+              setActiveView("focus");
+              setMobileMenuOpen(false);
+            }}
+          >
+            Focus
+          </button>
+          <button
+            type="button"
+            className={`${styles.topNavButton} ${
+              activeView === "notes" ? styles.topNavButtonActive : ""
+            }`}
+            onClick={() => {
+              setActiveView("notes");
+              setMobileMenuOpen(false);
+            }}
+          >
+            Notes
+          </button>
+          <button
+            type="button"
+            className={styles.topNavAction}
+            onClick={createWorkspaceNote}
+          >
+            + Add Note
+          </button>
+        </nav>
 
-          <article className={styles.statCard}>
-            <span className={styles.statLabel}>Completed sessions</span>
-            <strong className={styles.statValue}>{sessions.length}</strong>
-          </article>
+        {activeView === "focus" ? (
+          <>
+            <section className={styles.statsGrid}>
+              <article className={styles.statCard}>
+                <span className={styles.statLabel}>Current streak</span>
+                <strong className={styles.statValue}>
+                  {streak} day{streak === 1 ? "" : "s"}
+                </strong>
+              </article>
 
-          <article className={styles.statCard}>
-            <span className={styles.statLabel}>Last session</span>
-            <strong className={styles.statValueSmall}>
-              {lastSession
-                ? `${new Date(lastSession.completedAtISO).toLocaleString()} · ${
-                    TIMER_CONFIGS.find(
-                      (config) => config.category === (lastSession.category ?? "misc"),
-                    )?.badgeLabel ?? "Misc"
-                  }`
-                : "Not yet started"}
-            </strong>
-          </article>
-        </section>
+              <article className={styles.statCard}>
+                <span className={styles.statLabel}>Completed sessions</span>
+                <strong className={styles.statValue}>{sessions.length}</strong>
+              </article>
 
-        <section className={styles.mainGrid}>
-          <div className={styles.timersGrid}>
-            {TIMER_CONFIGS.map((config) => (
-              <Timer
-                key={config.category}
-                minutes={25}
-                title={config.title}
-                subtitle={config.subtitle}
-                actionLabel={config.actionLabel}
-                theme={config.theme}
-                onComplete={(note) => completeSession(config.category, note)}
-              />
-            ))}
-          </div>
+              <article className={styles.statCard}>
+                <span className={styles.statLabel}>Last session</span>
+                <strong className={styles.statValueSmall}>
+                  {lastSession
+                    ? `${new Date(lastSession.completedAtISO).toLocaleString()} · ${
+                        TIMER_CONFIGS.find(
+                          (config) => config.category === (lastSession.category ?? "misc"),
+                        )?.badgeLabel ?? "Misc"
+                      }`
+                    : "Not yet started"}
+                </strong>
+              </article>
+            </section>
 
-          <aside className={styles.sessionsCard}>
-            <div>
-              <p className={styles.sectionLabel}>Your account</p>
-              <p className={styles.email}>
-                {user.displayName || user.email?.split("@")[0] || "WHELM user"}
-              </p>
-              <p className={styles.accountMeta}>{user.email}</p>
-            </div>
-
-            <div className={styles.sessionsBlock}>
-              <div className={styles.sessionsHeadingRow}>
-                <h2 className={styles.sessionsHeading}>Recent sessions</h2>
-                <span className={styles.sessionsHint}>Latest 5</span>
-              </div>
-
-              <div className={styles.sessionList}>
-                {sessions.slice(0, 5).map((session, index) => (
-                  <div key={`${session.completedAtISO}-${index}`} className={styles.sessionItem}>
-                    <div>
-                      <div className={styles.sessionPrimary}>
-                        {new Date(session.completedAtISO).toLocaleString()}
-                      </div>
-                      <div className={styles.sessionSecondary}>
-                        <span
-                          className={styles.categoryBadge}
-                          style={{
-                            backgroundColor:
-                              TIMER_CONFIGS.find(
-                                (config) =>
-                                  config.category === (session.category ?? "misc"),
-                              )?.theme.accentSoft,
-                            color:
-                              TIMER_CONFIGS.find(
-                                (config) =>
-                                  config.category === (session.category ?? "misc"),
-                              )?.theme.accentStrong,
-                          }}
-                        >
-                          {TIMER_CONFIGS.find(
-                            (config) => config.category === (session.category ?? "misc"),
-                          )?.badgeLabel ?? "Misc"}
-                        </span>
-                        {session.noteSavedAtISO && (
-                          <span className={styles.noteTimestamp}>
-                            {new Date(session.noteSavedAtISO).toLocaleString()}
-                          </span>
-                        )}
-                      </div>
-                      {session.note && <div className={styles.sessionNote}>{session.note}</div>}
-                    </div>
-                    <div className={styles.sessionMinutes}>{session.minutes}m</div>
-                  </div>
+            <section className={styles.mainGrid}>
+              <div className={styles.timersGrid}>
+                {TIMER_CONFIGS.map((config) => (
+                  <Timer
+                    key={config.category}
+                    minutes={25}
+                    title={config.title}
+                    subtitle={config.subtitle}
+                    actionLabel={config.actionLabel}
+                    theme={config.theme}
+                    onComplete={(note, minutesSpent) =>
+                      completeSession(config.category, note, minutesSpent)
+                    }
+                  />
                 ))}
-
-                {sessions.length === 0 && (
-                  <div className={styles.emptyState}>
-                    No sessions yet. Pick a lane: miscellaneous, language study, or
-                    software projects.
-                  </div>
-                )}
               </div>
-            </div>
-          </aside>
-        </section>
+
+              <aside className={styles.sessionsCard}>
+                <div>
+                  <p className={styles.sectionLabel}>Your account</p>
+                  <p className={styles.email}>
+                    {user.displayName || user.email?.split("@")[0] || "WHELM user"}
+                  </p>
+                  <p className={styles.accountMeta}>{user.email}</p>
+                </div>
+
+                <div className={styles.sessionsBlock}>
+                  <div className={styles.sessionsHeadingRow}>
+                    <h2 className={styles.sessionsHeading}>Recent sessions</h2>
+                    <span className={styles.sessionsHint}>Latest 5</span>
+                  </div>
+
+                  <div className={styles.sessionList}>
+                    {sessions.slice(0, 5).map((session, index) => (
+                      <div
+                        key={`${session.completedAtISO}-${index}`}
+                        className={styles.sessionItem}
+                      >
+                        <div>
+                          <div className={styles.sessionPrimary}>
+                            {new Date(session.completedAtISO).toLocaleString()}
+                          </div>
+                          <div className={styles.sessionSecondary}>
+                            <span
+                              className={styles.categoryBadge}
+                              style={{
+                                backgroundColor:
+                                  TIMER_CONFIGS.find(
+                                    (config) =>
+                                      config.category === (session.category ?? "misc"),
+                                  )?.theme.accentSoft,
+                                color:
+                                  TIMER_CONFIGS.find(
+                                    (config) =>
+                                      config.category === (session.category ?? "misc"),
+                                  )?.theme.accentStrong,
+                              }}
+                            >
+                              {TIMER_CONFIGS.find(
+                                (config) => config.category === (session.category ?? "misc"),
+                              )?.badgeLabel ?? "Misc"}
+                            </span>
+                            {session.noteSavedAtISO && (
+                              <span className={styles.noteTimestamp}>
+                                {new Date(session.noteSavedAtISO).toLocaleString()}
+                              </span>
+                            )}
+                          </div>
+                          {session.note && <div className={styles.sessionNote}>{session.note}</div>}
+                        </div>
+                        <div className={styles.sessionMinutes}>{session.minutes}m</div>
+                      </div>
+                    ))}
+
+                    {sessions.length === 0 && (
+                      <div className={styles.emptyState}>
+                        No sessions yet. Pick a lane: miscellaneous, language study, or
+                        software projects.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </aside>
+            </section>
+          </>
+        ) : (
+          <section className={styles.notesWorkspace}>
+            <aside className={styles.notesSidebar}>
+              <button
+                type="button"
+                className={styles.newNoteButton}
+                onClick={createWorkspaceNote}
+              >
+                + Add Note
+              </button>
+
+              <div className={styles.noteList}>
+                {notes.map((note) => (
+                  <button
+                    type="button"
+                    key={note.id}
+                    className={`${styles.noteListItem} ${
+                      selectedNoteId === note.id ? styles.noteListItemActive : ""
+                    }`}
+                    onClick={() => setSelectedNoteId(note.id)}
+                  >
+                    <span className={styles.noteListTitle}>{note.title || "Untitled note"}</span>
+                    <span className={styles.noteListMeta}>
+                      {new Date(note.updatedAtISO).toLocaleString()}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </aside>
+
+            <article className={styles.notesEditorCard}>
+              {!selectedNote ? (
+                <div className={styles.notesEmptyEditor}>
+                  <p>Start by creating your first note.</p>
+                </div>
+              ) : (
+                <>
+                  <input
+                    value={selectedNote.title}
+                    onChange={(event) => {
+                      void updateSelectedNote({ title: event.target.value });
+                    }}
+                    placeholder="Note title"
+                    className={styles.noteTitleInput}
+                  />
+                  <textarea
+                    value={selectedNote.body}
+                    onChange={(event) => {
+                      void updateSelectedNote({ body: event.target.value });
+                    }}
+                    placeholder="Write anything here..."
+                    className={styles.noteBodyInput}
+                  />
+                  <div className={styles.noteEditorFooter}>
+                    <span>Synced to your account when online. Local fallback stays available.</span>
+                    <button
+                      type="button"
+                      className={styles.deleteNoteButton}
+                      onClick={() => void deleteNote(selectedNote.id)}
+                    >
+                      Delete note
+                    </button>
+                  </div>
+                </>
+              )}
+            </article>
+          </section>
+        )}
       </div>
 
       <button

@@ -24,16 +24,28 @@ export default function Timer({
   subtitle: string;
   actionLabel: string;
   theme: TimerTheme;
-  onComplete: (note: string) => Promise<void> | void;
+  onComplete: (note: string, minutesSpent: number) => Promise<void> | void;
 }) {
-  const totalSeconds = minutes * 60;
-  const [secondsLeft, setSecondsLeft] = useState(totalSeconds);
+  const [mode, setMode] = useState<"countdown" | "stopwatch">("countdown");
+  const [configuredMinutes, setConfiguredMinutes] = useState(minutes);
+  const [secondsLeft, setSecondsLeft] = useState(minutes * 60);
+  const [secondsElapsed, setSecondsElapsed] = useState(0);
   const [running, setRunning] = useState(false);
   const [done, setDone] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [showNotebook, setShowNotebook] = useState(false);
   const [note, setNote] = useState("");
   const intervalRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (mode === "countdown") {
+      setSecondsLeft(configuredMinutes * 60);
+    } else {
+      setSecondsElapsed(0);
+    }
+    setRunning(false);
+    setDone(false);
+  }, [configuredMinutes, mode]);
 
   useEffect(() => {
     if (!running) {
@@ -45,15 +57,19 @@ export default function Timer({
     }
 
     intervalRef.current = window.setInterval(() => {
-      setSecondsLeft((previous) => {
-        if (previous <= 1) {
-          setRunning(false);
-          setDone(true);
-          return 0;
-        }
+      if (mode === "countdown") {
+        setSecondsLeft((previous) => {
+          if (previous <= 1) {
+            setRunning(false);
+            setDone(true);
+            return 0;
+          }
 
-        return previous - 1;
-      });
+          return previous - 1;
+        });
+      } else {
+        setSecondsElapsed((previous) => previous + 1);
+      }
     }, 1000);
 
     return () => {
@@ -62,24 +78,36 @@ export default function Timer({
         intervalRef.current = null;
       }
     };
-  }, [running]);
+  }, [mode, running]);
 
-  const mm = Math.floor(secondsLeft / 60);
-  const ss = secondsLeft % 60;
+  const displaySeconds = mode === "countdown" ? secondsLeft : secondsElapsed;
+  const mm = Math.floor(displaySeconds / 60);
+  const ss = displaySeconds % 60;
 
   function reset() {
     setRunning(false);
     setDone(false);
-    setSecondsLeft(totalSeconds);
+    if (mode === "countdown") {
+      setSecondsLeft(configuredMinutes * 60);
+    } else {
+      setSecondsElapsed(0);
+    }
     setShowNotebook(false);
     setNote("");
+  }
+
+  function calculateMinutesSpent() {
+    const elapsedSeconds =
+      mode === "countdown" ? configuredMinutes * 60 - secondsLeft : secondsElapsed;
+
+    return Math.max(1, Math.ceil(elapsedSeconds / 60));
   }
 
   async function handleComplete() {
     setSubmitting(true);
 
     try {
-      await onComplete(note.trim());
+      await onComplete(note.trim(), calculateMinutesSpent());
       reset();
     } finally {
       setSubmitting(false);
@@ -105,6 +133,48 @@ export default function Timer({
         <h2 className={styles.title}>{title}</h2>
       </div>
 
+      <div className={styles.modeRow}>
+        <div className={styles.modeTabs}>
+          <button
+            type="button"
+            onClick={() => setMode("countdown")}
+            className={`${styles.modeTab} ${
+              mode === "countdown" ? styles.modeTabActive : ""
+            }`}
+          >
+            Countdown
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("stopwatch")}
+            className={`${styles.modeTab} ${
+              mode === "stopwatch" ? styles.modeTabActive : ""
+            }`}
+          >
+            Stopwatch
+          </button>
+        </div>
+
+        {mode === "countdown" && (
+          <label className={styles.minutesPicker}>
+            Min
+            <input
+              type="number"
+              min={1}
+              max={480}
+              value={configuredMinutes}
+              onChange={(event) => {
+                const next = Number(event.target.value);
+                if (Number.isFinite(next)) {
+                  setConfiguredMinutes(Math.min(480, Math.max(1, next)));
+                }
+              }}
+              disabled={running}
+            />
+          </label>
+        )}
+      </div>
+
       <div className={styles.timerFace}>
         <div className={styles.ring} />
         <div className={styles.time}>
@@ -112,7 +182,13 @@ export default function Timer({
         </div>
 
         <div className={styles.status}>
-          {done ? "Session ended. Lock it in." : running ? "In WHELM." : "Ready."}
+          {done
+            ? "Session ended. Lock it in."
+            : running
+              ? mode === "countdown"
+                ? "In WHELM."
+                : "Stopwatch running."
+              : "Ready."}
         </div>
       </div>
 
@@ -181,7 +257,7 @@ export default function Timer({
       )}
 
       <div className={styles.tip}>
-        Tip: Finish the timer, write the note, then save the session.
+        Tip: run a countdown or stopwatch, then save notes for that block.
       </div>
     </section>
   );
