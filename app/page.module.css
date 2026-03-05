@@ -244,6 +244,127 @@
   color: #5f6f82;
 }
 
+.feedbackButton {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 20;
+  border: 0;
+  border-radius: 999px;
+  background: #102033;
+  color: #ffffff;
+  padding: 12px 18px;
+  font-weight: 600;
+  box-shadow: 0 16px 36px rgba(16, 32, 51, 0.28);
+}
+
+.feedbackButton:hover {
+  background: #0d1a2b;
+}
+
+.feedbackOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(4, 11, 20, 0.42);
+  display: grid;
+  place-items: center;
+  padding: 16px;
+}
+
+.feedbackModal {
+  width: min(520px, 100%);
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  border-radius: 24px;
+  background: #f8fbff;
+  padding: 18px;
+  box-shadow: 0 22px 60px rgba(7, 18, 31, 0.34);
+}
+
+.feedbackHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.feedbackTitle {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.feedbackClose {
+  border: 0;
+  border-radius: 999px;
+  background: #e5edf6;
+  color: #25384f;
+  padding: 8px 12px;
+}
+
+.feedbackMeta {
+  margin-top: 10px;
+  margin-bottom: 14px;
+  color: #607185;
+  font-size: 0.8rem;
+  display: grid;
+  gap: 3px;
+}
+
+.feedbackLabel {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: #5f6f82;
+}
+
+.feedbackSelect,
+.feedbackTextarea {
+  width: 100%;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font: inherit;
+  background: #ffffff;
+  color: #102033;
+}
+
+.feedbackSelect {
+  margin-bottom: 14px;
+}
+
+.feedbackTextarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.feedbackFooter {
+  margin-top: 14px;
+  display: grid;
+  gap: 8px;
+}
+
+.feedbackSubmit {
+  border: 0;
+  border-radius: 12px;
+  background: #102033;
+  color: #ffffff;
+  padding: 10px 12px;
+  font-weight: 600;
+}
+
+.feedbackSubmit:disabled,
+.feedbackClose:disabled {
+  opacity: 0.6;
+}
+
+.feedbackStatus {
+  margin: 0;
+  color: #3f536a;
+  font-size: 0.9rem;
+}
+
 @media (max-width: 900px) {
   .statsGrid,
   .mainGrid {
@@ -267,5 +388,10 @@
 
   .timersGrid {
     grid-template-columns: 1fr;
+  }
+
+  .feedbackButton {
+    right: 14px;
+    bottom: 14px;
   }
 }

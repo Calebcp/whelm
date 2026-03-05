@@ -68,11 +68,18 @@ const TIMER_CONFIGS: Array<{
   },
 ];
 
+type FeedbackCategory = "bug" | "feature" | "other";
+
 export default function HomePage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [sessions, setSessions] = useState<SessionDoc[]>([]);
   const [authChecked, setAuthChecked] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [feedbackCategory, setFeedbackCategory] = useState<FeedbackCategory>("bug");
+  const [feedbackMessage, setFeedbackMessage] = useState("");
+  const [feedbackStatus, setFeedbackStatus] = useState("");
+  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
   const streak = computeStreak(sessions);
 
   useEffect(() => {
@@ -126,6 +133,59 @@ export default function HomePage() {
       );
     } catch {
       // Local storage writes are expected to succeed in normal browser contexts.
+    }
+  }
+
+  async function submitFeedback() {
+    if (!user || feedbackSubmitting) return;
+
+    const message = feedbackMessage.trim();
+    if (!message) {
+      setFeedbackStatus("Please write a short message before sending.");
+      return;
+    }
+
+    setFeedbackSubmitting(true);
+    setFeedbackStatus("");
+
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch("/api/feedback", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          uid: user.uid,
+          email: user.email ?? "",
+          displayName: user.displayName ?? "",
+          category: feedbackCategory,
+          message,
+          pagePath: window.location.pathname,
+        }),
+      });
+
+      const body = (await response.json().catch(() => null)) as
+        | { error?: string }
+        | null;
+
+      if (!response.ok) {
+        throw new Error(body?.error || "Failed to submit feedback.");
+      }
+
+      setFeedbackMessage("");
+      setFeedbackStatus("Thanks. Feedback submitted.");
+      window.setTimeout(() => {
+        setFeedbackOpen(false);
+        setFeedbackStatus("");
+      }, 900);
+    } catch (error: unknown) {
+      setFeedbackStatus(
+        error instanceof Error ? error.message : "Failed to submit feedback.",
+      );
+    } finally {
+      setFeedbackSubmitting(false);
     }
   }
 
@@ -267,6 +327,98 @@ export default function HomePage() {
           </aside>
         </section>
       </div>
+
+      <button
+        type="button"
+        className={styles.feedbackButton}
+        onClick={() => {
+          setFeedbackOpen(true);
+          setFeedbackStatus("");
+        }}
+      >
+        Feedback
+      </button>
+
+      {feedbackOpen && (
+        <div
+          className={styles.feedbackOverlay}
+          onClick={() => {
+            if (!feedbackSubmitting) {
+              setFeedbackOpen(false);
+              setFeedbackStatus("");
+            }
+          }}
+        >
+          <div
+            className={styles.feedbackModal}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className={styles.feedbackHeader}>
+              <h2 className={styles.feedbackTitle}>Send feedback</h2>
+              <button
+                type="button"
+                className={styles.feedbackClose}
+                disabled={feedbackSubmitting}
+                onClick={() => {
+                  setFeedbackOpen(false);
+                  setFeedbackStatus("");
+                }}
+              >
+                Close
+              </button>
+            </div>
+
+            <div className={styles.feedbackMeta}>
+              <span>{user.email || "Unknown email"}</span>
+              <span>{user.uid}</span>
+            </div>
+
+            <label className={styles.feedbackLabel} htmlFor="feedback-category">
+              Category
+            </label>
+            <select
+              id="feedback-category"
+              value={feedbackCategory}
+              onChange={(event) =>
+                setFeedbackCategory(event.target.value as FeedbackCategory)
+              }
+              className={styles.feedbackSelect}
+              disabled={feedbackSubmitting}
+            >
+              <option value="bug">Bug</option>
+              <option value="feature">Feature</option>
+              <option value="other">Other</option>
+            </select>
+
+            <label className={styles.feedbackLabel} htmlFor="feedback-message">
+              Message
+            </label>
+            <textarea
+              id="feedback-message"
+              value={feedbackMessage}
+              onChange={(event) => setFeedbackMessage(event.target.value)}
+              className={styles.feedbackTextarea}
+              placeholder="What happened? What should change?"
+              maxLength={2000}
+              disabled={feedbackSubmitting}
+            />
+
+            <div className={styles.feedbackFooter}>
+              <button
+                type="button"
+                className={styles.feedbackSubmit}
+                onClick={submitFeedback}
+                disabled={feedbackSubmitting}
+              >
+                {feedbackSubmitting ? "Sending..." : "Send feedback"}
+              </button>
+              {feedbackStatus && (
+                <p className={styles.feedbackStatus}>{feedbackStatus}</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
