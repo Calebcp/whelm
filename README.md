@@ -39,3 +39,16 @@ Then open [http://localhost:3000](http://localhost:3000)
 ## Netlify note
 
 If the deployed site shows `auth/api-key-not-valid`, the Firebase environment variables in Netlify are wrong or missing.
+
+## Feedback email setup
+
+The feedback modal posts to `/api/feedback` and sends email via Resend.
+
+Required Netlify env var:
+
+- `RESEND_API_KEY`
+
+Optional env vars:
+
+- `FEEDBACK_EMAIL_TO` (default: `smalltek317@gmail.com`)
+- `FEEDBACK_EMAIL_FROM` (default: `Whelm Feedback <onboarding@resend.dev>`)
