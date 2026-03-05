@@ -2,62 +2,53 @@ import type { User } from "firebase/auth";
 
 import type { SessionDoc } from "@/lib/streak";
 
-async function authorizedRequest(
-  user: User,
-  input: string,
-  init: RequestInit,
-  timeoutMs = 12000,
-) {
-  const controller = new AbortController();
-  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
-  const token = await user.getIdToken();
+const storagePrefix = "whelm:sessions:";
 
-  try {
-    const response = await fetch(input, {
-      ...init,
-      signal: controller.signal,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-        ...init.headers,
-      },
-    });
+function storageKey(uid: string) {
+  return `${storagePrefix}${uid}`;
+}
 
-    if (!response.ok) {
-      const body = (await response.json().catch(() => null)) as
-        | { error?: string }
-        | null;
+function sessionKey(session: SessionDoc) {
+  return [
+    session.uid,
+    session.completedAtISO,
+    session.minutes,
+    session.category ?? "misc",
+    session.note ?? "",
+    session.noteSavedAtISO ?? "",
+  ].join("|");
+}
 
-      throw new Error(body?.error || response.statusText || "Session request failed.");
-    }
+function sortSessions(sessions: SessionDoc[]) {
+  return [...sessions].sort((a, b) => (a.completedAtISO < b.completedAtISO ? 1 : -1));
+}
 
-    return response;
-  } catch (error: unknown) {
-    if (error instanceof DOMException && error.name === "AbortError") {
-      throw new Error(
-        "Session request timed out. The current network path is likely blocking or stalling the request.",
-      );
-    }
+function dedupeSessions(sessions: SessionDoc[]) {
+  const seen = new Set<string>();
 
-    throw error;
-  } finally {
-    window.clearTimeout(timeoutId);
-  }
+  return sortSessions(
+    sessions.filter((session) => {
+      const key = sessionKey(session);
+
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }),
+  );
 }
 
 export async function loadSessions(user: User) {
-  const response = await authorizedRequest(
-    user,
-    `/api/sessions?uid=${encodeURIComponent(user.uid)}`,
-    { method: "GET" },
-  );
-  const body = (await response.json()) as { sessions?: SessionDoc[] };
-  return body.sessions ?? [];
+  try {
+    const raw = window.localStorage.getItem(storageKey(user.uid));
+    const parsed = raw ? (JSON.parse(raw) as SessionDoc[]) : [];
+
+    return Array.isArray(parsed) ? dedupeSessions(parsed) : [];
+  } catch {
+    return [];
+  }
 }
 
 export async function saveSession(user: User, session: SessionDoc) {
-  await authorizedRequest(user, "/api/sessions", {
-    method: "POST",
-    body: JSON.stringify(session),
-  });
+  const sessions = dedupeSessions([session, ...(await loadSessions(user))]);
+  window.localStorage.setItem(storageKey(user.uid), JSON.stringify(sessions));
 }

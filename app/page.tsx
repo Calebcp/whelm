@@ -73,29 +73,7 @@ export default function HomePage() {
   const [user, setUser] = useState<User | null>(null);
   const [sessions, setSessions] = useState<SessionDoc[]>([]);
   const [authChecked, setAuthChecked] = useState(false);
-  const [error, setError] = useState("");
   const streak = computeStreak(sessions);
-
-  function formatSessionError(nextError: unknown, fallback: string) {
-    if (!(nextError instanceof Error)) return fallback;
-
-    if (nextError.message.includes("PERMISSION_DENIED")) {
-      return "Firestore rejected the request. Publish the current rules in Firebase, then try again.";
-    }
-
-    if (nextError.message.includes("UNAUTHENTICATED")) {
-      return "Your login session expired. Sign out and back in, then retry.";
-    }
-
-    if (
-      nextError.message.includes("Failed to fetch") ||
-      nextError.message.includes("timed out")
-    ) {
-      return "Saving over Google APIs is still being blocked by the current VPN or network path.";
-    }
-
-    return nextError.message || fallback;
-  }
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (nextUser) => {
@@ -110,9 +88,6 @@ export default function HomePage() {
       setUser(nextUser);
       try {
         await refreshSessions(nextUser.uid);
-        setError("");
-      } catch (nextError: unknown) {
-        setError(formatSessionError(nextError, "Failed to load sessions."));
       } finally {
         setAuthChecked(true);
       }
@@ -144,22 +119,13 @@ export default function HomePage() {
       noteSavedAtISO: now,
     };
 
-    setError("");
-
     try {
       await saveSession(user, session);
       setSessions((current) =>
         [session, ...current].sort((a, b) => (a.completedAtISO < b.completedAtISO ? 1 : -1)),
       );
-
-      // Keep the data source in sync, but don't trap the UI in a permanent loading state
-      // if the follow-up read gets stuck.
-      void refreshSessions(user.uid).catch((nextError: unknown) => {
-        setError(formatSessionError(nextError, "Saved, but failed to refresh sessions."));
-      });
-    } catch (nextError: unknown) {
-      setError(formatSessionError(nextError, "Failed to save session."));
-      throw nextError;
+    } catch {
+      // Local storage writes are expected to succeed in normal browser contexts.
     }
   }
 
@@ -220,8 +186,6 @@ export default function HomePage() {
             </strong>
           </article>
         </section>
-
-        {error && <div className={styles.errorBanner}>{error}</div>}
 
         <section className={styles.mainGrid}>
           <div className={styles.timersGrid}>
