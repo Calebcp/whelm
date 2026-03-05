@@ -6,7 +6,12 @@ import { onAuthStateChanged, signOut, type User } from "firebase/auth";
 
 import Timer from "@/components/Timer";
 import { auth } from "@/lib/firebase";
-import { loadNotes, saveNotes, type WorkspaceNote } from "@/lib/notes-store";
+import {
+  loadNotes,
+  retryNotesSync,
+  saveNotes,
+  type WorkspaceNote,
+} from "@/lib/notes-store";
 import { loadSessions, saveSession } from "@/lib/session-store";
 import {
   computeStreak,
@@ -89,6 +94,10 @@ export default function HomePage() {
   const [sessions, setSessions] = useState<SessionDoc[]>([]);
   const [notes, setNotes] = useState<WorkspaceNote[]>([]);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
+  const [notesSyncStatus, setNotesSyncStatus] = useState<
+    "synced" | "local-only" | "syncing"
+  >("syncing");
+  const [notesSyncMessage, setNotesSyncMessage] = useState("");
   const [activeView, setActiveView] = useState<WorkspaceView>("focus");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
@@ -127,6 +136,16 @@ export default function HomePage() {
     return () => unsub();
   }, [router]);
 
+  useEffect(() => {
+    function onOnline() {
+      if (!user || notes.length === 0) return;
+      void handleRetrySync();
+    }
+
+    window.addEventListener("online", onOnline);
+    return () => window.removeEventListener("online", onOnline);
+  }, [notes, user]);
+
   async function refreshSessions(uid: string) {
     const currentUser = auth.currentUser;
 
@@ -144,9 +163,11 @@ export default function HomePage() {
       throw new Error("Your login session is missing. Sign in again.");
     }
 
-    const loadedNotes = await loadNotes(currentUser);
-    setNotes(loadedNotes);
-    setSelectedNoteId((current) => current ?? loadedNotes[0]?.id ?? null);
+    const result = await loadNotes(currentUser);
+    setNotes(result.notes);
+    setSelectedNoteId((current) => current ?? result.notes[0]?.id ?? null);
+    setNotesSyncStatus(result.synced ? "synced" : "local-only");
+    setNotesSyncMessage(result.message ?? "");
   }
 
   async function completeSession(
@@ -184,7 +205,9 @@ export default function HomePage() {
     setNotes(nextNotes);
     setSelectedNoteId(nextNote.id);
     setActiveView("notes");
-    await saveNotes(user, nextNotes);
+    const result = await saveNotes(user, nextNotes);
+    setNotesSyncStatus(result.synced ? "synced" : "local-only");
+    setNotesSyncMessage(result.message ?? "");
   }
 
   async function updateSelectedNote(patch: Partial<Pick<WorkspaceNote, "title" | "body">>) {
@@ -197,7 +220,9 @@ export default function HomePage() {
         : note,
     );
     setNotes(nextNotes);
-    await saveNotes(user, nextNotes);
+    const result = await saveNotes(user, nextNotes);
+    setNotesSyncStatus(result.synced ? "synced" : "local-only");
+    setNotesSyncMessage(result.message ?? "");
   }
 
   async function deleteNote(noteId: string) {
@@ -209,7 +234,23 @@ export default function HomePage() {
       if (current !== noteId) return current;
       return nextNotes[0]?.id ?? null;
     });
-    await saveNotes(user, nextNotes);
+    const result = await saveNotes(user, nextNotes);
+    setNotesSyncStatus(result.synced ? "synced" : "local-only");
+    setNotesSyncMessage(result.message ?? "");
+  }
+
+  async function handleRetrySync() {
+    if (!user) return;
+    setNotesSyncStatus("syncing");
+    const result = await retryNotesSync(user, notes);
+
+    if (result.synced) {
+      setNotesSyncStatus("synced");
+      setNotesSyncMessage("");
+    } else {
+      setNotesSyncStatus("local-only");
+      setNotesSyncMessage(result.message ?? "Retry failed.");
+    }
   }
 
   async function submitFeedback() {
@@ -511,7 +552,23 @@ export default function HomePage() {
                     className={styles.noteBodyInput}
                   />
                   <div className={styles.noteEditorFooter}>
-                    <span>Synced to your account when online. Local fallback stays available.</span>
+                    <span>
+                      {notesSyncStatus === "synced"
+                        ? "Synced to your account."
+                        : notesSyncStatus === "syncing"
+                          ? "Syncing notes..."
+                          : "Saved locally only. Sync needed for other devices."}
+                      {notesSyncMessage ? ` ${notesSyncMessage}` : ""}
+                    </span>
+                    {notesSyncStatus !== "synced" && (
+                      <button
+                        type="button"
+                        className={styles.retrySyncButton}
+                        onClick={() => void handleRetrySync()}
+                      >
+                        Retry sync
+                      </button>
+                    )}
                     <button
                       type="button"
                       className={styles.deleteNoteButton}

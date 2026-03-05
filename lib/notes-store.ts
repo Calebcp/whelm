@@ -8,6 +8,12 @@ export type WorkspaceNote = {
   createdAtISO: string;
 };
 
+export type NotesSyncResult = {
+  notes: WorkspaceNote[];
+  synced: boolean;
+  message?: string;
+};
+
 const storagePrefix = "whelm:notes:";
 
 function storageKey(uid: string) {
@@ -123,9 +129,19 @@ export async function loadNotes(user: User) {
       await pushNotesToCloud(user, merged);
     }
 
-    return merged;
-  } catch {
-    return localNotes;
+    return {
+      notes: merged,
+      synced: true,
+    } as NotesSyncResult;
+  } catch (error: unknown) {
+    return {
+      notes: localNotes,
+      synced: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Cloud sync unavailable. Local notes are still saved.",
+    } as NotesSyncResult;
   }
 }
 
@@ -135,7 +151,34 @@ export async function saveNotes(user: User, notes: WorkspaceNote[]) {
 
   try {
     await pushNotesToCloud(user, normalized);
+    return {
+      notes: normalized,
+      synced: true,
+    } as NotesSyncResult;
   } catch {
-    // Keep local data when network/cloud sync fails.
+    return {
+      notes: normalized,
+      synced: false,
+      message: "Saved locally. Cloud sync is currently unavailable.",
+    } as NotesSyncResult;
+  }
+}
+
+export async function retryNotesSync(user: User, notes: WorkspaceNote[]) {
+  const normalized = normalizeNotes(notes);
+
+  try {
+    await pushNotesToCloud(user, normalized);
+    return {
+      synced: true,
+    };
+  } catch (error: unknown) {
+    return {
+      synced: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Retry failed. Local notes are still safe.",
+    };
   }
 }
