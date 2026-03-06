@@ -115,6 +115,7 @@ export default function HomePage() {
   const [feedbackStatus, setFeedbackStatus] = useState("");
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
   const editorRef = useRef<HTMLDivElement | null>(null);
+  const savedSelectionRef = useRef<Range | null>(null);
   const streak = computeStreak(sessions);
 
   const selectedNote = useMemo(
@@ -258,11 +259,42 @@ export default function HomePage() {
     setEditorBodyDraft(editorRef.current.innerHTML);
   }
 
+  function saveEditorSelection() {
+    const editor = editorRef.current;
+    const selection = window.getSelection();
+    if (!editor || !selection || selection.rangeCount === 0) return;
+
+    const range = selection.getRangeAt(0);
+    if (!editor.contains(range.startContainer) || !editor.contains(range.endContainer)) {
+      return;
+    }
+
+    savedSelectionRef.current = range.cloneRange();
+  }
+
+  function restoreEditorSelection() {
+    const editor = editorRef.current;
+    const selection = window.getSelection();
+    const savedRange = savedSelectionRef.current;
+    if (!editor || !selection || !savedRange) return false;
+    if (!editor.contains(savedRange.startContainer) || !editor.contains(savedRange.endContainer)) {
+      return false;
+    }
+
+    editor.focus();
+    selection.removeAllRanges();
+    selection.addRange(savedRange);
+    return true;
+  }
+
   function applyEditorCommand(command: string, value?: string) {
     if (!selectedNote) return;
-    editorRef.current?.focus();
+    if (!restoreEditorSelection()) {
+      editorRef.current?.focus();
+    }
     document.execCommand("styleWithCSS", false, "true");
     document.execCommand(command, false, value);
+    saveEditorSelection();
     captureEditorDraft();
   }
 
@@ -592,7 +624,10 @@ export default function HomePage() {
                     <button
                       type="button"
                       className={styles.noteToolButton}
-                      onMouseDown={(event) => event.preventDefault()}
+                      onMouseDown={(event) => {
+                        event.preventDefault();
+                        saveEditorSelection();
+                      }}
                       onClick={() => applyEditorCommand("bold")}
                     >
                       Bold
@@ -600,7 +635,10 @@ export default function HomePage() {
                     <button
                       type="button"
                       className={styles.noteToolButton}
-                      onMouseDown={(event) => event.preventDefault()}
+                      onMouseDown={(event) => {
+                        event.preventDefault();
+                        saveEditorSelection();
+                      }}
                       onClick={() => applyEditorCommand("italic")}
                     >
                       Italic
@@ -608,7 +646,10 @@ export default function HomePage() {
                     <button
                       type="button"
                       className={styles.noteToolButton}
-                      onMouseDown={(event) => event.preventDefault()}
+                      onMouseDown={(event) => {
+                        event.preventDefault();
+                        saveEditorSelection();
+                      }}
                       onClick={() => applyEditorCommand("underline")}
                     >
                       Underline
@@ -616,7 +657,10 @@ export default function HomePage() {
                     <button
                       type="button"
                       className={styles.noteToolButton}
-                      onMouseDown={(event) => event.preventDefault()}
+                      onMouseDown={(event) => {
+                        event.preventDefault();
+                        saveEditorSelection();
+                      }}
                       onClick={() => applyEditorCommand("insertUnorderedList")}
                     >
                       List
@@ -625,8 +669,11 @@ export default function HomePage() {
                     <select
                       className={styles.noteToolSelect}
                       value={selectedNote.fontFamily}
+                      onMouseDown={() => saveEditorSelection()}
                       onChange={(event) => {
-                        void updateSelectedNote({ fontFamily: event.target.value });
+                        const nextFont = event.target.value;
+                        applyEditorCommand("fontName", nextFont);
+                        void updateSelectedNote({ fontFamily: nextFont });
                       }}
                     >
                       <option value="Avenir Next">Avenir</option>
@@ -638,8 +685,17 @@ export default function HomePage() {
                     <select
                       className={styles.noteToolSelect}
                       value={String(selectedNote.fontSizePx)}
+                      onMouseDown={() => saveEditorSelection()}
                       onChange={(event) => {
-                        void updateSelectedNote({ fontSizePx: Number(event.target.value) });
+                        const nextSize = Number(event.target.value);
+                        const sizeMap: Record<number, string> = {
+                          14: "3",
+                          16: "4",
+                          18: "5",
+                          22: "6",
+                        };
+                        applyEditorCommand("fontSize", sizeMap[nextSize] ?? "4");
+                        void updateSelectedNote({ fontSizePx: nextSize });
                       }}
                     >
                       <option value="14">Small</option>
@@ -653,6 +709,7 @@ export default function HomePage() {
                       <input
                         type="color"
                         defaultValue="#111827"
+                        onMouseDown={() => saveEditorSelection()}
                         onChange={(event) =>
                           applyEditorCommand("foreColor", event.target.value)
                         }
@@ -664,6 +721,7 @@ export default function HomePage() {
                       <input
                         type="color"
                         defaultValue="#fff59d"
+                        onMouseDown={() => saveEditorSelection()}
                         onChange={(event) => {
                           applyEditorCommand("hiliteColor", event.target.value);
                           applyEditorCommand("backColor", event.target.value);
@@ -692,10 +750,14 @@ export default function HomePage() {
                     }}
                     onInput={() => {
                       captureEditorDraft();
+                      saveEditorSelection();
                     }}
                     onBlur={() => {
                       captureEditorDraft();
                     }}
+                    onMouseUp={() => saveEditorSelection()}
+                    onKeyUp={() => saveEditorSelection()}
+                    onFocus={() => saveEditorSelection()}
                   />
 
                   <div className={styles.noteEditorFooter}>
