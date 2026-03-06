@@ -62,6 +62,8 @@ function createNote(): WorkspaceNote {
     title: "Untitled note",
     body: "",
     color: "#e7e5e4",
+    fontFamily: "Avenir Next",
+    fontSizePx: 16,
     createdAtISO: now,
     updatedAtISO: now,
   };
@@ -99,6 +101,7 @@ export default function HomePage() {
   const [notes, setNotes] = useState<WorkspaceNote[]>([]);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
+  const [editorBodyDraft, setEditorBodyDraft] = useState("");
   const [notesSyncStatus, setNotesSyncStatus] = useState<
     "synced" | "local-only" | "syncing"
   >("syncing");
@@ -157,17 +160,18 @@ export default function HomePage() {
   }, [selectedNoteId]);
 
   useEffect(() => {
-    if (!editorRef.current) return;
-
     const nextHtml = selectedNote ? normalizeBodyForEditor(selectedNote.body) : "";
-    if (editorRef.current.innerHTML !== nextHtml) {
-      editorRef.current.innerHTML = nextHtml;
-    }
-
-    if (selectedNote && selectedNote.body !== nextHtml) {
-      void updateSelectedNote({ body: nextHtml });
-    }
+    setEditorBodyDraft(nextHtml);
   }, [selectedNote, selectedNoteId]);
+
+  useEffect(() => {
+    if (!editorRef.current) return;
+    if (document.activeElement === editorRef.current) return;
+
+    if (editorRef.current.innerHTML !== editorBodyDraft) {
+      editorRef.current.innerHTML = editorBodyDraft;
+    }
+  }, [editorBodyDraft, selectedNoteId]);
 
   async function refreshSessions(uid: string) {
     const currentUser = auth.currentUser;
@@ -222,7 +226,9 @@ export default function HomePage() {
   }
 
   async function updateSelectedNote(
-    patch: Partial<Pick<WorkspaceNote, "title" | "body" | "color">>,
+    patch: Partial<
+      Pick<WorkspaceNote, "title" | "body" | "color" | "fontFamily" | "fontSizePx">
+    >,
   ) {
     if (!user || !selectedNote) return;
 
@@ -236,11 +242,20 @@ export default function HomePage() {
     setNotesSyncMessage(result.message ?? "");
   }
 
-  async function syncEditorBody() {
-    if (!selectedNote || !editorRef.current) return;
-    const nextBody = editorRef.current.innerHTML;
-    if (nextBody === selectedNote.body) return;
-    await updateSelectedNote({ body: nextBody });
+  useEffect(() => {
+    if (!selectedNote) return;
+    if (editorBodyDraft === selectedNote.body) return;
+
+    const timeoutId = window.setTimeout(() => {
+      void updateSelectedNote({ body: editorBodyDraft });
+    }, 500);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [editorBodyDraft, selectedNote]);
+
+  function captureEditorDraft() {
+    if (!editorRef.current) return;
+    setEditorBodyDraft(editorRef.current.innerHTML);
   }
 
   function applyEditorCommand(command: string, value?: string) {
@@ -248,7 +263,7 @@ export default function HomePage() {
     editorRef.current?.focus();
     document.execCommand("styleWithCSS", false, "true");
     document.execCommand(command, false, value);
-    void syncEditorBody();
+    captureEditorDraft();
   }
 
   async function deleteNote(noteId: string) {
@@ -577,6 +592,7 @@ export default function HomePage() {
                     <button
                       type="button"
                       className={styles.noteToolButton}
+                      onMouseDown={(event) => event.preventDefault()}
                       onClick={() => applyEditorCommand("bold")}
                     >
                       Bold
@@ -584,6 +600,7 @@ export default function HomePage() {
                     <button
                       type="button"
                       className={styles.noteToolButton}
+                      onMouseDown={(event) => event.preventDefault()}
                       onClick={() => applyEditorCommand("italic")}
                     >
                       Italic
@@ -591,6 +608,7 @@ export default function HomePage() {
                     <button
                       type="button"
                       className={styles.noteToolButton}
+                      onMouseDown={(event) => event.preventDefault()}
                       onClick={() => applyEditorCommand("underline")}
                     >
                       Underline
@@ -598,6 +616,7 @@ export default function HomePage() {
                     <button
                       type="button"
                       className={styles.noteToolButton}
+                      onMouseDown={(event) => event.preventDefault()}
                       onClick={() => applyEditorCommand("insertUnorderedList")}
                     >
                       List
@@ -605,10 +624,10 @@ export default function HomePage() {
 
                     <select
                       className={styles.noteToolSelect}
-                      defaultValue="Avenir Next"
-                      onChange={(event) =>
-                        applyEditorCommand("fontName", event.target.value)
-                      }
+                      value={selectedNote.fontFamily}
+                      onChange={(event) => {
+                        void updateSelectedNote({ fontFamily: event.target.value });
+                      }}
                     >
                       <option value="Avenir Next">Avenir</option>
                       <option value="Georgia">Georgia</option>
@@ -618,15 +637,15 @@ export default function HomePage() {
 
                     <select
                       className={styles.noteToolSelect}
-                      defaultValue="3"
-                      onChange={(event) =>
-                        applyEditorCommand("fontSize", event.target.value)
-                      }
+                      value={String(selectedNote.fontSizePx)}
+                      onChange={(event) => {
+                        void updateSelectedNote({ fontSizePx: Number(event.target.value) });
+                      }}
                     >
-                      <option value="2">Small</option>
-                      <option value="3">Normal</option>
-                      <option value="4">Large</option>
-                      <option value="5">XL</option>
+                      <option value="14">Small</option>
+                      <option value="16">Normal</option>
+                      <option value="18">Large</option>
+                      <option value="22">XL</option>
                     </select>
 
                     <label className={styles.noteToolColor}>
@@ -667,11 +686,15 @@ export default function HomePage() {
                     className={styles.noteBodyInput}
                     contentEditable
                     suppressContentEditableWarning
+                    style={{
+                      fontFamily: selectedNote.fontFamily,
+                      fontSize: `${selectedNote.fontSizePx}px`,
+                    }}
                     onInput={() => {
-                      void syncEditorBody();
+                      captureEditorDraft();
                     }}
                     onBlur={() => {
-                      void syncEditorBody();
+                      captureEditorDraft();
                     }}
                   />
 

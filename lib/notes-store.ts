@@ -5,6 +5,8 @@ export type WorkspaceNote = {
   title: string;
   body: string;
   color: string;
+  fontFamily: string;
+  fontSizePx: number;
   updatedAtISO: string;
   createdAtISO: string;
 };
@@ -46,6 +48,14 @@ function normalizeNotes(notes: WorkspaceNote[]) {
           typeof note.color === "string" && note.color
             ? legacyColorMap[note.color] || note.color
             : "#e7e5e4",
+        fontFamily:
+          typeof note.fontFamily === "string" && note.fontFamily
+            ? note.fontFamily
+            : "Avenir Next",
+        fontSizePx:
+          typeof note.fontSizePx === "number" && Number.isFinite(note.fontSizePx)
+            ? Math.min(32, Math.max(12, Math.round(note.fontSizePx)))
+            : 16,
         updatedAtISO: note.updatedAtISO,
         createdAtISO: note.createdAtISO,
       })),

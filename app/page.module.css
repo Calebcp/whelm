@@ -465,6 +465,8 @@
   font: inherit;
   line-height: 1.58;
   background: #ffffff;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .noteBodyInput:focus {
