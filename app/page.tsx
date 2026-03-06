@@ -35,43 +35,27 @@ const TIMER_CONFIGS: Array<{
 }> = [
   {
     category: "misc",
-    title: "Miscellaneous tasks",
-    subtitle: "Reset the chaos",
-    actionLabel: "Save Misc Session",
-    badgeLabel: "Misc",
+    title: "Multipurpose focus timer",
+    subtitle: "Use countdown or stopwatch for any work",
+    actionLabel: "Save Session",
+    badgeLabel: "Focus",
     theme: {
-      accent: "#9b5de5",
-      accentSoft: "#f4ebff",
-      accentStrong: "#5b2e91",
-      ring: "rgba(155, 93, 229, 0.18)",
+      accent: "#145da0",
+      accentSoft: "#e7f1fc",
+      accentStrong: "#0d3b66",
+      ring: "rgba(20, 93, 160, 0.18)",
     },
   },
-  {
-    category: "language",
-    title: "Language study",
-    subtitle: "Words, listening, memory",
-    actionLabel: "Save Language Session",
-    badgeLabel: "Language",
-    theme: {
-      accent: "#ff8c42",
-      accentSoft: "#fff1e5",
-      accentStrong: "#a64900",
-      ring: "rgba(255, 140, 66, 0.2)",
-    },
-  },
-  {
-    category: "software",
-    title: "Software projects",
-    subtitle: "Ship something real",
-    actionLabel: "Save Build Session",
-    badgeLabel: "Software",
-    theme: {
-      accent: "#00a896",
-      accentSoft: "#e6fbf7",
-      accentStrong: "#0f5c54",
-      ring: "rgba(0, 168, 150, 0.18)",
-    },
-  },
+];
+
+const NOTE_COLORS: Array<{ id: string; label: string; value: string }> = [
+  { id: "red", label: "Red", value: "#fee2e2" },
+  { id: "green", label: "Green", value: "#dcfce7" },
+  { id: "yellow", label: "Yellow", value: "#fef9c3" },
+  { id: "blue", label: "Blue", value: "#dbeafe" },
+  { id: "gray", label: "Gray", value: "#e5e7eb" },
+  { id: "violet", label: "Violet", value: "#ede9fe" },
+  { id: "pink", label: "Pink", value: "#fce7f3" },
 ];
 
 type FeedbackCategory = "bug" | "feature" | "other";
@@ -83,6 +67,7 @@ function createNote(): WorkspaceNote {
     id: typeof crypto !== "undefined" ? crypto.randomUUID() : `${Date.now()}`,
     title: "Untitled note",
     body: "",
+    color: "gray",
     createdAtISO: now,
     updatedAtISO: now,
   };
@@ -210,7 +195,9 @@ export default function HomePage() {
     setNotesSyncMessage(result.message ?? "");
   }
 
-  async function updateSelectedNote(patch: Partial<Pick<WorkspaceNote, "title" | "body">>) {
+  async function updateSelectedNote(
+    patch: Partial<Pick<WorkspaceNote, "title" | "body" | "color">>,
+  ) {
     if (!user || !selectedNote) return;
 
     const now = new Date().toISOString();
@@ -489,8 +476,7 @@ export default function HomePage() {
 
                     {sessions.length === 0 && (
                       <div className={styles.emptyState}>
-                        No sessions yet. Pick a lane: miscellaneous, language study, or
-                        software projects.
+                        No sessions yet. Start your timer and save your first focus block.
                       </div>
                     )}
                   </div>
@@ -517,6 +503,10 @@ export default function HomePage() {
                     className={`${styles.noteListItem} ${
                       selectedNoteId === note.id ? styles.noteListItemActive : ""
                     }`}
+                    style={{
+                      backgroundColor:
+                        NOTE_COLORS.find((color) => color.id === note.color)?.value || "#f8fafc",
+                    }}
                     onClick={() => setSelectedNoteId(note.id)}
                   >
                     <span className={styles.noteListTitle}>{note.title || "Untitled note"}</span>
@@ -535,6 +525,25 @@ export default function HomePage() {
                 </div>
               ) : (
                 <>
+                  <div className={styles.noteColorRow}>
+                    <span className={styles.noteColorLabel}>Color</span>
+                    <div className={styles.noteColorPalette}>
+                      {NOTE_COLORS.map((color) => (
+                        <button
+                          type="button"
+                          key={color.id}
+                          className={`${styles.noteColorSwatch} ${
+                            selectedNote.color === color.id ? styles.noteColorSwatchActive : ""
+                          }`}
+                          style={{ backgroundColor: color.value }}
+                          title={color.label}
+                          onClick={() => {
+                            void updateSelectedNote({ color: color.id });
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </div>
                   <input
                     value={selectedNote.title}
                     onChange={(event) => {

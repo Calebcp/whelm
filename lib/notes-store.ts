@@ -4,6 +4,7 @@ export type WorkspaceNote = {
   id: string;
   title: string;
   body: string;
+  color: string;
   updatedAtISO: string;
   createdAtISO: string;
 };
@@ -32,6 +33,7 @@ function normalizeNotes(notes: WorkspaceNote[]) {
         id: note.id,
         title: note.title.slice(0, 200),
         body: note.body.slice(0, 20000),
+        color: typeof note.color === "string" && note.color ? note.color : "gray",
         updatedAtISO: note.updatedAtISO,
         createdAtISO: note.createdAtISO,
       })),

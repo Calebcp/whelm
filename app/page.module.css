@@ -146,7 +146,7 @@
 
 .timersGrid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 18px;
 }
 
@@ -353,6 +353,39 @@
   font-size: 1.08rem;
   font-weight: 700;
   margin-bottom: 10px;
+}
+
+.noteColorRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.noteColorLabel {
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #5f6f82;
+}
+
+.noteColorPalette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.noteColorSwatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 2px solid rgba(15, 23, 42, 0.14);
+}
+
+.noteColorSwatchActive {
+  border-color: #0f172a;
+  box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.18);
 }
 
 .noteBodyInput {
@@ -572,6 +605,11 @@
 
   .timersGrid {
     grid-template-columns: 1fr;
+  }
+
+  .noteColorRow {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .noteBodyInput {

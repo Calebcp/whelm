@@ -24,31 +24,105 @@ function sortSessions(sessions: SessionDoc[]) {
 }
 
 function dedupeSessions(sessions: SessionDoc[]) {
-  const seen = new Set<string>();
+  const byKey = new Map<string, SessionDoc>();
 
-  return sortSessions(
-    sessions.filter((session) => {
-      const key = sessionKey(session);
+  for (const session of sessions) {
+    byKey.set(sessionKey(session), session);
+  }
 
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    }),
-  );
+  return sortSessions([...byKey.values()]);
 }
 
-export async function loadSessions(user: User) {
+function readLocalSessions(uid: string) {
   try {
-    const raw = window.localStorage.getItem(storageKey(user.uid));
+    const raw = window.localStorage.getItem(storageKey(uid));
     const parsed = raw ? (JSON.parse(raw) as SessionDoc[]) : [];
-
     return Array.isArray(parsed) ? dedupeSessions(parsed) : [];
   } catch {
     return [];
   }
 }
 
+function writeLocalSessions(uid: string, sessions: SessionDoc[]) {
+  window.localStorage.setItem(storageKey(uid), JSON.stringify(dedupeSessions(sessions)));
+}
+
+async function authorizedRequest(
+  user: User,
+  input: string,
+  init: RequestInit,
+  timeoutMs = 12000,
+) {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+  const token = await user.getIdToken();
+
+  try {
+    const response = await fetch(input, {
+      ...init,
+      signal: controller.signal,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        ...init.headers,
+      },
+    });
+
+    if (!response.ok) {
+      const body = (await response.json().catch(() => null)) as
+        | { error?: string }
+        | null;
+      throw new Error(body?.error || response.statusText || "Session request failed.");
+    }
+
+    return response;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
+
+async function saveSessionToCloud(user: User, session: SessionDoc) {
+  await authorizedRequest(user, "/api/sessions", {
+    method: "POST",
+    body: JSON.stringify(session),
+  });
+}
+
+export async function loadSessions(user: User) {
+  const localSessions = readLocalSessions(user.uid);
+
+  try {
+    const response = await authorizedRequest(
+      user,
+      `/api/sessions?uid=${encodeURIComponent(user.uid)}`,
+      { method: "GET" },
+    );
+    const body = (await response.json()) as { sessions?: SessionDoc[] };
+    const cloudSessions = Array.isArray(body.sessions) ? body.sessions : [];
+    const merged = dedupeSessions([...cloudSessions, ...localSessions]);
+    writeLocalSessions(user.uid, merged);
+
+    const cloudKeys = new Set(cloudSessions.map(sessionKey));
+    const missingInCloud = localSessions.filter((session) => !cloudKeys.has(sessionKey(session)));
+    if (missingInCloud.length > 0) {
+      await Promise.all(missingInCloud.map((session) => saveSessionToCloud(user, session)));
+    }
+
+    return merged;
+  } catch {
+    return localSessions;
+  }
+}
+
 export async function saveSession(user: User, session: SessionDoc) {
-  const sessions = dedupeSessions([session, ...(await loadSessions(user))]);
-  window.localStorage.setItem(storageKey(user.uid), JSON.stringify(sessions));
+  const mergedLocal = dedupeSessions([session, ...readLocalSessions(user.uid)]);
+  writeLocalSessions(user.uid, mergedLocal);
+
+  try {
+    await saveSessionToCloud(user, session);
+  } catch {
+    // Keep local history when cloud sync is unavailable.
+  }
+
+  return mergedLocal;
 }
