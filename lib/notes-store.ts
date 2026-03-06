@@ -16,6 +16,15 @@ export type NotesSyncResult = {
 };
 
 const storagePrefix = "whelm:notes:";
+const legacyColorMap: Record<string, string> = {
+  red: "#fecaca",
+  green: "#bbf7d0",
+  yellow: "#fef08a",
+  blue: "#bfdbfe",
+  gray: "#e7e5e4",
+  violet: "#ddd6fe",
+  pink: "#fbcfe8",
+};
 
 function storageKey(uid: string) {
   return `${storagePrefix}${uid}`;
@@ -33,7 +42,10 @@ function normalizeNotes(notes: WorkspaceNote[]) {
         id: note.id,
         title: note.title.slice(0, 200),
         body: note.body.slice(0, 20000),
-        color: typeof note.color === "string" && note.color ? note.color : "gray",
+        color:
+          typeof note.color === "string" && note.color
+            ? legacyColorMap[note.color] || note.color
+            : "#e7e5e4",
         updatedAtISO: note.updatedAtISO,
         createdAtISO: note.createdAtISO,
       })),

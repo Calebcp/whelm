@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged, signOut, type User } from "firebase/auth";
 
@@ -13,49 +13,43 @@ import {
   type WorkspaceNote,
 } from "@/lib/notes-store";
 import { loadSessions, saveSession } from "@/lib/session-store";
-import {
-  computeStreak,
-  type SessionCategory,
-  type SessionDoc,
-} from "@/lib/streak";
+import { computeStreak, type SessionDoc } from "@/lib/streak";
 import styles from "./page.module.css";
 
-const TIMER_CONFIGS: Array<{
-  category: SessionCategory;
-  title: string;
-  subtitle: string;
-  actionLabel: string;
-  badgeLabel: string;
+const FOCUS_TIMER = {
+  title: "Multipurpose focus timer",
+  subtitle: "Use countdown or stopwatch for any work",
+  actionLabel: "Save Session",
+  badgeLabel: "Focus",
   theme: {
-    accent: string;
-    accentSoft: string;
-    accentStrong: string;
-    ring: string;
-  };
-}> = [
-  {
-    category: "misc",
-    title: "Multipurpose focus timer",
-    subtitle: "Use countdown or stopwatch for any work",
-    actionLabel: "Save Session",
-    badgeLabel: "Focus",
-    theme: {
-      accent: "#145da0",
-      accentSoft: "#e7f1fc",
-      accentStrong: "#0d3b66",
-      ring: "rgba(20, 93, 160, 0.18)",
-    },
+    accent: "#145da0",
+    accentSoft: "#e7f1fc",
+    accentStrong: "#0d3b66",
+    ring: "rgba(20, 93, 160, 0.18)",
   },
-];
+};
 
-const NOTE_COLORS: Array<{ id: string; label: string; value: string }> = [
-  { id: "red", label: "Red", value: "#fee2e2" },
-  { id: "green", label: "Green", value: "#dcfce7" },
-  { id: "yellow", label: "Yellow", value: "#fef9c3" },
-  { id: "blue", label: "Blue", value: "#dbeafe" },
-  { id: "gray", label: "Gray", value: "#e5e7eb" },
-  { id: "violet", label: "Violet", value: "#ede9fe" },
-  { id: "pink", label: "Pink", value: "#fce7f3" },
+const NOTE_COLORS: Array<{ label: string; value: string }> = [
+  { label: "Cherry", value: "#fecaca" },
+  { label: "Rose", value: "#fda4af" },
+  { label: "Tangerine", value: "#fed7aa" },
+  { label: "Amber", value: "#fcd34d" },
+  { label: "Sun", value: "#fef08a" },
+  { label: "Lime", value: "#d9f99d" },
+  { label: "Mint", value: "#bbf7d0" },
+  { label: "Emerald", value: "#6ee7b7" },
+  { label: "Aqua", value: "#a5f3fc" },
+  { label: "Sky", value: "#bae6fd" },
+  { label: "Blue", value: "#bfdbfe" },
+  { label: "Indigo", value: "#c7d2fe" },
+  { label: "Violet", value: "#ddd6fe" },
+  { label: "Purple", value: "#e9d5ff" },
+  { label: "Fuchsia", value: "#f5d0fe" },
+  { label: "Pink", value: "#fbcfe8" },
+  { label: "Stone", value: "#e7e5e4" },
+  { label: "Slate", value: "#cbd5e1" },
+  { label: "Cloud", value: "#f1f5f9" },
+  { label: "Paper", value: "#f8fafc" },
 ];
 
 type FeedbackCategory = "bug" | "feature" | "other";
@@ -67,10 +61,21 @@ function createNote(): WorkspaceNote {
     id: typeof crypto !== "undefined" ? crypto.randomUUID() : `${Date.now()}`,
     title: "Untitled note",
     body: "",
-    color: "gray",
+    color: "#e7e5e4",
     createdAtISO: now,
     updatedAtISO: now,
   };
+}
+
+function toEditorHtml(body: string) {
+  if (!body) return "";
+  if (/[<][a-z!/]/i.test(body)) return body;
+
+  return body
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll("\n", "<br/>");
 }
 
 export default function HomePage() {
@@ -79,6 +84,7 @@ export default function HomePage() {
   const [sessions, setSessions] = useState<SessionDoc[]>([]);
   const [notes, setNotes] = useState<WorkspaceNote[]>([]);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
+  const [colorPickerOpen, setColorPickerOpen] = useState(false);
   const [notesSyncStatus, setNotesSyncStatus] = useState<
     "synced" | "local-only" | "syncing"
   >("syncing");
@@ -91,6 +97,7 @@ export default function HomePage() {
   const [feedbackMessage, setFeedbackMessage] = useState("");
   const [feedbackStatus, setFeedbackStatus] = useState("");
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
+  const editorRef = useRef<HTMLDivElement | null>(null);
   const streak = computeStreak(sessions);
 
   const selectedNote = useMemo(
@@ -131,9 +138,20 @@ export default function HomePage() {
     return () => window.removeEventListener("online", onOnline);
   }, [notes, user]);
 
+  useEffect(() => {
+    setColorPickerOpen(false);
+  }, [selectedNoteId]);
+
+  useEffect(() => {
+    if (!editorRef.current) return;
+    const nextHtml = selectedNote ? toEditorHtml(selectedNote.body) : "";
+    if (editorRef.current.innerHTML !== nextHtml) {
+      editorRef.current.innerHTML = nextHtml;
+    }
+  }, [selectedNote, selectedNoteId]);
+
   async function refreshSessions(uid: string) {
     const currentUser = auth.currentUser;
-
     if (!currentUser || currentUser.uid !== uid) {
       throw new Error("Your login session is missing. Sign in again.");
     }
@@ -143,7 +161,6 @@ export default function HomePage() {
 
   async function refreshNotes(uid: string) {
     const currentUser = auth.currentUser;
-
     if (!currentUser || currentUser.uid !== uid) {
       throw new Error("Your login session is missing. Sign in again.");
     }
@@ -155,11 +172,7 @@ export default function HomePage() {
     setNotesSyncMessage(result.message ?? "");
   }
 
-  async function completeSession(
-    category: SessionCategory,
-    note: string,
-    minutesSpent: number,
-  ) {
+  async function completeSession(note: string, minutesSpent: number) {
     if (!user) return;
 
     const now = new Date().toISOString();
@@ -167,19 +180,13 @@ export default function HomePage() {
       uid: user.uid,
       completedAtISO: now,
       minutes: minutesSpent,
-      category,
+      category: "misc",
       note: note.trim(),
       noteSavedAtISO: now,
     };
 
-    try {
-      await saveSession(user, session);
-      setSessions((current) =>
-        [session, ...current].sort((a, b) => (a.completedAtISO < b.completedAtISO ? 1 : -1)),
-      );
-    } catch {
-      // Local storage writes are expected to succeed in normal browser contexts.
-    }
+    const nextSessions = await saveSession(user, session);
+    setSessions(nextSessions);
   }
 
   async function createWorkspaceNote() {
@@ -202,9 +209,7 @@ export default function HomePage() {
 
     const now = new Date().toISOString();
     const nextNotes = notes.map((note) =>
-      note.id === selectedNote.id
-        ? { ...note, ...patch, updatedAtISO: now }
-        : note,
+      note.id === selectedNote.id ? { ...note, ...patch, updatedAtISO: now } : note,
     );
     setNotes(nextNotes);
     const result = await saveNotes(user, nextNotes);
@@ -212,15 +217,27 @@ export default function HomePage() {
     setNotesSyncMessage(result.message ?? "");
   }
 
+  async function syncEditorBody() {
+    if (!selectedNote || !editorRef.current) return;
+    const nextBody = editorRef.current.innerHTML;
+    if (nextBody === selectedNote.body) return;
+    await updateSelectedNote({ body: nextBody });
+  }
+
+  function applyEditorCommand(command: string, value?: string) {
+    if (!selectedNote) return;
+    editorRef.current?.focus();
+    document.execCommand("styleWithCSS", false, "true");
+    document.execCommand(command, false, value);
+    void syncEditorBody();
+  }
+
   async function deleteNote(noteId: string) {
     if (!user) return;
 
     const nextNotes = notes.filter((note) => note.id !== noteId);
     setNotes(nextNotes);
-    setSelectedNoteId((current) => {
-      if (current !== noteId) return current;
-      return nextNotes[0]?.id ?? null;
-    });
+    setSelectedNoteId((current) => (current === noteId ? nextNotes[0]?.id ?? null : current));
     const result = await saveNotes(user, nextNotes);
     setNotesSyncStatus(result.synced ? "synced" : "local-only");
     setNotesSyncMessage(result.message ?? "");
@@ -362,11 +379,7 @@ export default function HomePage() {
           >
             Notes
           </button>
-          <button
-            type="button"
-            className={styles.topNavAction}
-            onClick={createWorkspaceNote}
-          >
+          <button type="button" className={styles.topNavAction} onClick={createWorkspaceNote}>
             + Add Note
           </button>
         </nav>
@@ -391,9 +404,7 @@ export default function HomePage() {
                 <strong className={styles.statValueSmall}>
                   {lastSession
                     ? `${new Date(lastSession.completedAtISO).toLocaleString()} · ${
-                        TIMER_CONFIGS.find(
-                          (config) => config.category === (lastSession.category ?? "misc"),
-                        )?.badgeLabel ?? "Misc"
+                        FOCUS_TIMER.badgeLabel
                       }`
                     : "Not yet started"}
                 </strong>
@@ -402,19 +413,14 @@ export default function HomePage() {
 
             <section className={styles.mainGrid}>
               <div className={styles.timersGrid}>
-                {TIMER_CONFIGS.map((config) => (
-                  <Timer
-                    key={config.category}
-                    minutes={25}
-                    title={config.title}
-                    subtitle={config.subtitle}
-                    actionLabel={config.actionLabel}
-                    theme={config.theme}
-                    onComplete={(note, minutesSpent) =>
-                      completeSession(config.category, note, minutesSpent)
-                    }
-                  />
-                ))}
+                <Timer
+                  minutes={25}
+                  title={FOCUS_TIMER.title}
+                  subtitle={FOCUS_TIMER.subtitle}
+                  actionLabel={FOCUS_TIMER.actionLabel}
+                  theme={FOCUS_TIMER.theme}
+                  onComplete={(note, minutesSpent) => completeSession(note, minutesSpent)}
+                />
               </div>
 
               <aside className={styles.sessionsCard}>
@@ -446,21 +452,11 @@ export default function HomePage() {
                             <span
                               className={styles.categoryBadge}
                               style={{
-                                backgroundColor:
-                                  TIMER_CONFIGS.find(
-                                    (config) =>
-                                      config.category === (session.category ?? "misc"),
-                                  )?.theme.accentSoft,
-                                color:
-                                  TIMER_CONFIGS.find(
-                                    (config) =>
-                                      config.category === (session.category ?? "misc"),
-                                  )?.theme.accentStrong,
+                                backgroundColor: FOCUS_TIMER.theme.accentSoft,
+                                color: FOCUS_TIMER.theme.accentStrong,
                               }}
                             >
-                              {TIMER_CONFIGS.find(
-                                (config) => config.category === (session.category ?? "misc"),
-                              )?.badgeLabel ?? "Misc"}
+                              {FOCUS_TIMER.badgeLabel}
                             </span>
                             {session.noteSavedAtISO && (
                               <span className={styles.noteTimestamp}>
@@ -503,10 +499,7 @@ export default function HomePage() {
                     className={`${styles.noteListItem} ${
                       selectedNoteId === note.id ? styles.noteListItemActive : ""
                     }`}
-                    style={{
-                      backgroundColor:
-                        NOTE_COLORS.find((color) => color.id === note.color)?.value || "#f8fafc",
-                    }}
+                    style={{ backgroundColor: note.color || "#f8fafc" }}
                     onClick={() => setSelectedNoteId(note.id)}
                   >
                     <span className={styles.noteListTitle}>{note.title || "Untitled note"}</span>
@@ -526,24 +519,121 @@ export default function HomePage() {
               ) : (
                 <>
                   <div className={styles.noteColorRow}>
-                    <span className={styles.noteColorLabel}>Color</span>
-                    <div className={styles.noteColorPalette}>
-                      {NOTE_COLORS.map((color) => (
-                        <button
-                          type="button"
-                          key={color.id}
-                          className={`${styles.noteColorSwatch} ${
-                            selectedNote.color === color.id ? styles.noteColorSwatchActive : ""
-                          }`}
-                          style={{ backgroundColor: color.value }}
-                          title={color.label}
-                          onClick={() => {
-                            void updateSelectedNote({ color: color.id });
-                          }}
-                        />
-                      ))}
-                    </div>
+                    <button
+                      type="button"
+                      className={styles.noteColorPickerTrigger}
+                      onClick={() => setColorPickerOpen((open) => !open)}
+                    >
+                      <span
+                        className={styles.noteColorPickerPreview}
+                        style={{ backgroundColor: selectedNote.color || "#e7e5e4" }}
+                      />
+                      Note color
+                    </button>
+
+                    {colorPickerOpen && (
+                      <div className={styles.noteColorPickerPopover}>
+                        {NOTE_COLORS.map((color) => (
+                          <button
+                            type="button"
+                            key={color.value}
+                            className={`${styles.noteColorSwatch} ${
+                              selectedNote.color === color.value
+                                ? styles.noteColorSwatchActive
+                                : ""
+                            }`}
+                            style={{ backgroundColor: color.value }}
+                            title={color.label}
+                            onClick={() => {
+                              void updateSelectedNote({ color: color.value });
+                              setColorPickerOpen(false);
+                            }}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
+
+                  <div className={styles.noteEditorToolbar}>
+                    <button
+                      type="button"
+                      className={styles.noteToolButton}
+                      onClick={() => applyEditorCommand("bold")}
+                    >
+                      Bold
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.noteToolButton}
+                      onClick={() => applyEditorCommand("italic")}
+                    >
+                      Italic
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.noteToolButton}
+                      onClick={() => applyEditorCommand("underline")}
+                    >
+                      Underline
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.noteToolButton}
+                      onClick={() => applyEditorCommand("insertUnorderedList")}
+                    >
+                      List
+                    </button>
+
+                    <select
+                      className={styles.noteToolSelect}
+                      defaultValue="Avenir Next"
+                      onChange={(event) =>
+                        applyEditorCommand("fontName", event.target.value)
+                      }
+                    >
+                      <option value="Avenir Next">Avenir</option>
+                      <option value="Georgia">Georgia</option>
+                      <option value="Trebuchet MS">Trebuchet</option>
+                      <option value="Courier New">Courier</option>
+                    </select>
+
+                    <select
+                      className={styles.noteToolSelect}
+                      defaultValue="3"
+                      onChange={(event) =>
+                        applyEditorCommand("fontSize", event.target.value)
+                      }
+                    >
+                      <option value="2">Small</option>
+                      <option value="3">Normal</option>
+                      <option value="4">Large</option>
+                      <option value="5">XL</option>
+                    </select>
+
+                    <label className={styles.noteToolColor}>
+                      Text
+                      <input
+                        type="color"
+                        defaultValue="#111827"
+                        onChange={(event) =>
+                          applyEditorCommand("foreColor", event.target.value)
+                        }
+                      />
+                    </label>
+
+                    <label className={styles.noteToolColor}>
+                      Highlight
+                      <input
+                        type="color"
+                        defaultValue="#fff59d"
+                        onChange={(event) => {
+                          applyEditorCommand("hiliteColor", event.target.value);
+                          applyEditorCommand("backColor", event.target.value);
+                        }}
+                      />
+                    </label>
+                  </div>
+
                   <input
                     value={selectedNote.title}
                     onChange={(event) => {
@@ -552,14 +642,20 @@ export default function HomePage() {
                     placeholder="Note title"
                     className={styles.noteTitleInput}
                   />
-                  <textarea
-                    value={selectedNote.body}
-                    onChange={(event) => {
-                      void updateSelectedNote({ body: event.target.value });
-                    }}
-                    placeholder="Write anything here..."
+
+                  <div
+                    ref={editorRef}
                     className={styles.noteBodyInput}
+                    contentEditable
+                    suppressContentEditableWarning
+                    onInput={() => {
+                      void syncEditorBody();
+                    }}
+                    onBlur={() => {
+                      void syncEditorBody();
+                    }}
                   />
+
                   <div className={styles.noteEditorFooter}>
                     <span>
                       {notesSyncStatus === "synced"
@@ -676,9 +772,7 @@ export default function HomePage() {
               >
                 {feedbackSubmitting ? "Sending..." : "Send feedback"}
               </button>
-              {feedbackStatus && (
-                <p className={styles.feedbackStatus}>{feedbackStatus}</p>
-              )}
+              {feedbackStatus && <p className={styles.feedbackStatus}>{feedbackStatus}</p>}
             </div>
           </div>
         </div>
