@@ -67,15 +67,29 @@ function createNote(): WorkspaceNote {
   };
 }
 
-function toEditorHtml(body: string) {
-  if (!body) return "";
-  if (/[<][a-z!/]/i.test(body)) return body;
+function decodeHtmlEntities(value: string) {
+  const textarea = document.createElement("textarea");
+  textarea.innerHTML = value;
+  return textarea.value;
+}
 
-  return body
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll("\n", "<br/>");
+function normalizeBodyForEditor(body: string) {
+  if (!body) return "";
+
+  let next = body;
+  const hasHtmlTags = /<[a-z!/]/i.test(next);
+  if (!hasHtmlTags) {
+    next = next.replaceAll("\n", "<br/>");
+  }
+
+  // Migrate legacy notes that ended up double-escaped (e.g. "&amp;nbsp;").
+  for (let i = 0; i < 3; i += 1) {
+    const decoded = decodeHtmlEntities(next);
+    if (decoded === next) break;
+    next = decoded;
+  }
+
+  return next;
 }
 
 export default function HomePage() {
@@ -144,9 +158,14 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!editorRef.current) return;
-    const nextHtml = selectedNote ? toEditorHtml(selectedNote.body) : "";
+
+    const nextHtml = selectedNote ? normalizeBodyForEditor(selectedNote.body) : "";
     if (editorRef.current.innerHTML !== nextHtml) {
       editorRef.current.innerHTML = nextHtml;
+    }
+
+    if (selectedNote && selectedNote.body !== nextHtml) {
+      void updateSelectedNote({ body: nextHtml });
     }
   }, [selectedNote, selectedNoteId]);
 
