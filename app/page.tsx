@@ -62,6 +62,7 @@ function createNote(): WorkspaceNote {
     title: "Untitled note",
     body: "",
     color: "#e7e5e4",
+    isPinned: false,
     fontFamily: "Avenir Next",
     fontSizePx: 16,
     createdAtISO: now,
@@ -121,6 +122,14 @@ export default function HomePage() {
   const selectedNote = useMemo(
     () => notes.find((note) => note.id === selectedNoteId) ?? null,
     [notes, selectedNoteId],
+  );
+  const orderedNotes = useMemo(
+    () =>
+      [...notes].sort((a, b) => {
+        if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
+        return a.updatedAtISO < b.updatedAtISO ? 1 : -1;
+      }),
+    [notes],
   );
 
   useEffect(() => {
@@ -228,7 +237,10 @@ export default function HomePage() {
 
   async function updateSelectedNote(
     patch: Partial<
-      Pick<WorkspaceNote, "title" | "body" | "color" | "fontFamily" | "fontSizePx">
+      Pick<
+        WorkspaceNote,
+        "title" | "body" | "color" | "isPinned" | "fontFamily" | "fontSizePx"
+      >
     >,
   ) {
     if (!user || !selectedNote) return;
@@ -236,6 +248,23 @@ export default function HomePage() {
     const now = new Date().toISOString();
     const nextNotes = notes.map((note) =>
       note.id === selectedNote.id ? { ...note, ...patch, updatedAtISO: now } : note,
+    );
+    setNotes(nextNotes);
+    const result = await saveNotes(user, nextNotes);
+    setNotesSyncStatus(result.synced ? "synced" : "local-only");
+    setNotesSyncMessage(result.message ?? "");
+  }
+
+  async function togglePinned(noteId: string) {
+    if (!user) return;
+    const target = notes.find((note) => note.id === noteId);
+    if (!target) return;
+
+    const now = new Date().toISOString();
+    const nextNotes = notes.map((note) =>
+      note.id === noteId
+        ? { ...note, isPinned: !note.isPinned, updatedAtISO: now }
+        : note,
     );
     setNotes(nextNotes);
     const result = await saveNotes(user, nextNotes);
@@ -558,21 +587,34 @@ export default function HomePage() {
               </button>
 
               <div className={styles.noteList}>
-                {notes.map((note) => (
-                  <button
-                    type="button"
-                    key={note.id}
-                    className={`${styles.noteListItem} ${
-                      selectedNoteId === note.id ? styles.noteListItemActive : ""
-                    }`}
-                    style={{ backgroundColor: note.color || "#f8fafc" }}
-                    onClick={() => setSelectedNoteId(note.id)}
-                  >
-                    <span className={styles.noteListTitle}>{note.title || "Untitled note"}</span>
-                    <span className={styles.noteListMeta}>
-                      {new Date(note.updatedAtISO).toLocaleString()}
-                    </span>
-                  </button>
+                {orderedNotes.map((note) => (
+                  <div key={note.id} className={styles.noteListRow}>
+                    <button
+                      type="button"
+                      className={`${styles.noteListItem} ${
+                        selectedNoteId === note.id ? styles.noteListItemActive : ""
+                      }`}
+                      style={{ backgroundColor: note.color || "#f8fafc" }}
+                      onClick={() => setSelectedNoteId(note.id)}
+                    >
+                      <span className={styles.noteListTitle}>
+                        {note.isPinned ? "★ " : ""}
+                        {note.title || "Untitled note"}
+                      </span>
+                      <span className={styles.noteListMeta}>
+                        {new Date(note.updatedAtISO).toLocaleString()}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.notePinButton}
+                      onClick={() => void togglePinned(note.id)}
+                      title={note.isPinned ? "Unpin note" : "Pin note"}
+                      aria-label={note.isPinned ? "Unpin note" : "Pin note"}
+                    >
+                      {note.isPinned ? "★" : "☆"}
+                    </button>
+                  </div>
                 ))}
               </div>
             </aside>

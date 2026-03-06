@@ -9,6 +9,7 @@ type WorkspaceNote = {
   title: string;
   body: string;
   color: string;
+  isPinned: boolean;
   fontFamily: string;
   fontSizePx: number;
   updatedAtISO: string;
@@ -65,6 +66,7 @@ function normalizeNotes(notes: WorkspaceNote[]) {
         typeof note.color === "string" && note.color
           ? legacyColorMap[note.color] || note.color
           : "#e7e5e4",
+      isPinned: typeof note.isPinned === "boolean" ? note.isPinned : false,
       fontFamily:
         typeof note.fontFamily === "string" && note.fontFamily
           ? note.fontFamily
@@ -76,7 +78,10 @@ function normalizeNotes(notes: WorkspaceNote[]) {
       createdAtISO: note.createdAtISO,
       updatedAtISO: note.updatedAtISO,
     }))
-    .sort((a, b) => (a.updatedAtISO < b.updatedAtISO ? 1 : -1));
+    .sort((a, b) => {
+      if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
+      return a.updatedAtISO < b.updatedAtISO ? 1 : -1;
+    });
 }
 
 function parseNotesFromDocument(document: FirestoreDocumentResponse) {

@@ -300,7 +300,14 @@
   gap: 8px;
 }
 
+.noteListRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 38px;
+  gap: 6px;
+}
+
 .noteListItem {
+  width: 100%;
   text-align: left;
   border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: 12px;
@@ -323,6 +330,19 @@
 .noteListMeta {
   font-size: 0.76rem;
   color: #6d7c8f;
+}
+
+.notePinButton {
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 12px;
+  background: #ffffff;
+  color: #1f2937;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.notePinButton:hover {
+  background: #f1f5f9;
 }
 
 .notesEditorCard {
