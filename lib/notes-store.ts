@@ -67,19 +67,6 @@ function normalizeNotes(notes: WorkspaceNote[]) {
   );
 }
 
-function dedupeById(notes: WorkspaceNote[]) {
-  const byId = new Map<string, WorkspaceNote>();
-
-  for (const note of notes) {
-    const existing = byId.get(note.id);
-    if (!existing || existing.updatedAtISO < note.updatedAtISO) {
-      byId.set(note.id, note);
-    }
-  }
-
-  return sortNotes([...byId.values()]);
-}
-
 function readLocalNotes(uid: string) {
   try {
     const raw = window.localStorage.getItem(storageKey(uid));
@@ -151,15 +138,10 @@ export async function loadNotes(user: User) {
     );
     const body = (await response.json()) as { notes?: WorkspaceNote[] };
     const cloudNotes = Array.isArray(body.notes) ? normalizeNotes(body.notes) : [];
-    const merged = dedupeById([...cloudNotes, ...localNotes]);
-
-    writeLocalNotes(user.uid, merged);
-    if (JSON.stringify(cloudNotes) !== JSON.stringify(merged)) {
-      await pushNotesToCloud(user, merged);
-    }
+    writeLocalNotes(user.uid, cloudNotes);
 
     return {
-      notes: merged,
+      notes: cloudNotes,
       synced: true,
     } as NotesSyncResult;
   } catch (error: unknown) {

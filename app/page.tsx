@@ -117,6 +117,7 @@ export default function HomePage() {
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
   const editorRef = useRef<HTMLDivElement | null>(null);
   const savedSelectionRef = useRef<Range | null>(null);
+  const syncInFlightRef = useRef(false);
   const streak = computeStreak(sessions);
 
   const selectedNote = useMemo(
@@ -164,6 +165,43 @@ export default function HomePage() {
     window.addEventListener("online", onOnline);
     return () => window.removeEventListener("online", onOnline);
   }, [notes, user]);
+
+  useEffect(() => {
+    async function pullLatest() {
+      if (!user || syncInFlightRef.current) return;
+      if (selectedNote && editorBodyDraft !== selectedNote.body) return;
+
+      syncInFlightRef.current = true;
+      try {
+        await Promise.all([refreshSessions(user.uid), refreshNotes(user.uid)]);
+      } finally {
+        syncInFlightRef.current = false;
+      }
+    }
+
+    const intervalId = window.setInterval(() => {
+      void pullLatest();
+    }, 15000);
+
+    function onFocus() {
+      void pullLatest();
+    }
+
+    function onVisibilityChange() {
+      if (document.visibilityState === "visible") {
+        void pullLatest();
+      }
+    }
+
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [editorBodyDraft, selectedNote, user]);
 
   useEffect(() => {
     setColorPickerOpen(false);
