@@ -54,6 +54,23 @@ const NOTE_COLORS: Array<{ label: string; value: string }> = [
 
 type FeedbackCategory = "bug" | "feature" | "other";
 type WorkspaceView = "focus" | "notes";
+type CalendarDay = {
+  label: string;
+  dateKey: string;
+  minutes: number;
+  level: 0 | 1 | 2 | 3;
+};
+type MonthCell = {
+  key: string;
+  dayNumber: number | null;
+  minutes: number;
+  level: 0 | 1 | 2 | 3;
+  isCurrentMonth: boolean;
+};
+type TrendPoint = {
+  label: string;
+  minutes: number;
+};
 
 function createNote(): WorkspaceNote {
   const now = new Date().toISOString();
@@ -95,6 +112,44 @@ function normalizeBodyForEditor(body: string) {
   return next;
 }
 
+function dayKeyLocal(dateInput: string | Date) {
+  const value = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function startOfDayLocal(dateInput: string | Date) {
+  const value = typeof dateInput === "string" ? new Date(dateInput) : new Date(dateInput);
+  return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+}
+
+function summarizeDisciplineScore({
+  todayMinutes,
+  todaySessions,
+  streak,
+  weekMinutes,
+}: {
+  todayMinutes: number;
+  todaySessions: number;
+  streak: number;
+  weekMinutes: number;
+}) {
+  const timeScore = Math.min(40, Math.round((todayMinutes / 120) * 40));
+  const sessionScore = Math.min(20, todaySessions * 5);
+  const streakScore = Math.min(25, Math.round((streak / 30) * 25));
+  const consistencyScore = Math.min(15, Math.round((weekMinutes / 420) * 15));
+  return Math.min(100, timeScore + sessionScore + streakScore + consistencyScore);
+}
+
+function focusLevel(minutes: number): 0 | 1 | 2 | 3 {
+  if (minutes === 0) return 0;
+  if (minutes < 30) return 1;
+  if (minutes < 75) return 2;
+  return 3;
+}
+
 export default function HomePage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
@@ -115,10 +170,137 @@ export default function HomePage() {
   const [feedbackMessage, setFeedbackMessage] = useState("");
   const [feedbackStatus, setFeedbackStatus] = useState("");
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
+  const [reportCopyStatus, setReportCopyStatus] = useState("");
+  const [paywallOpen, setPaywallOpen] = useState(false);
+  const [isPro] = useState(false);
   const editorRef = useRef<HTMLDivElement | null>(null);
   const savedSelectionRef = useRef<Range | null>(null);
   const syncInFlightRef = useRef(false);
   const streak = computeStreak(sessions);
+
+  const focusMetrics = useMemo(() => {
+    const now = new Date();
+    const todayKey = dayKeyLocal(now);
+    const todayStart = startOfDayLocal(now);
+    const weekStart = new Date(todayStart);
+    weekStart.setDate(weekStart.getDate() - 6);
+    const monthStart = new Date(todayStart);
+    monthStart.setDate(monthStart.getDate() - 29);
+    const thisMonthStart = new Date(todayStart.getFullYear(), todayStart.getMonth(), 1);
+    const daysInMonth = new Date(
+      todayStart.getFullYear(),
+      todayStart.getMonth() + 1,
+      0,
+    ).getDate();
+
+    let todayMinutes = 0;
+    let todaySessions = 0;
+    let weekMinutes = 0;
+    const byDay = new Map<string, number>();
+
+    for (const session of sessions) {
+      const sessionDate = new Date(session.completedAtISO);
+      const dayKey = dayKeyLocal(sessionDate);
+      byDay.set(dayKey, (byDay.get(dayKey) ?? 0) + session.minutes);
+
+      if (dayKey === todayKey) {
+        todayMinutes += session.minutes;
+        todaySessions += 1;
+      }
+
+      if (sessionDate >= weekStart && sessionDate <= now) {
+        weekMinutes += session.minutes;
+      }
+    }
+
+    let activeDaysInMonth = 0;
+    for (let i = 0; i < 30; i += 1) {
+      const day = new Date(monthStart);
+      day.setDate(monthStart.getDate() + i);
+      if ((byDay.get(dayKeyLocal(day)) ?? 0) > 0) {
+        activeDaysInMonth += 1;
+      }
+    }
+
+    const calendar: CalendarDay[] = [];
+    for (let i = 27; i >= 0; i -= 1) {
+      const day = new Date(todayStart);
+      day.setDate(todayStart.getDate() - i);
+      const dateKey = dayKeyLocal(day);
+      const minutes = byDay.get(dateKey) ?? 0;
+      const level: CalendarDay["level"] = focusLevel(minutes);
+      calendar.push({
+        label: day.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+        dateKey,
+        minutes,
+        level,
+      });
+    }
+
+    const monthCalendar: MonthCell[] = [];
+    const leadingSpaces = thisMonthStart.getDay();
+    for (let i = 0; i < leadingSpaces; i += 1) {
+      monthCalendar.push({
+        key: `leading-${i}`,
+        dayNumber: null,
+        minutes: 0,
+        level: 0,
+        isCurrentMonth: false,
+      });
+    }
+
+    for (let dayNumber = 1; dayNumber <= daysInMonth; dayNumber += 1) {
+      const day = new Date(todayStart.getFullYear(), todayStart.getMonth(), dayNumber);
+      const dateKey = dayKeyLocal(day);
+      const minutes = byDay.get(dateKey) ?? 0;
+      monthCalendar.push({
+        key: dateKey,
+        dayNumber,
+        minutes,
+        level: focusLevel(minutes),
+        isCurrentMonth: true,
+      });
+    }
+
+    while (monthCalendar.length < 42) {
+      monthCalendar.push({
+        key: `trailing-${monthCalendar.length}`,
+        dayNumber: null,
+        minutes: 0,
+        level: 0,
+        isCurrentMonth: false,
+      });
+    }
+
+    const trendPoints: TrendPoint[] = [];
+    for (let i = 6; i >= 0; i -= 1) {
+      const day = new Date(todayStart);
+      day.setDate(todayStart.getDate() - i);
+      const dateKey = dayKeyLocal(day);
+      trendPoints.push({
+        label: day.toLocaleDateString(undefined, { weekday: "short" }),
+        minutes: byDay.get(dateKey) ?? 0,
+      });
+    }
+
+    const disciplineScore = summarizeDisciplineScore({
+      todayMinutes,
+      todaySessions,
+      streak,
+      weekMinutes,
+    });
+
+    return {
+      todayMinutes,
+      todaySessions,
+      weekMinutes,
+      activeDaysInMonth,
+      disciplineScore,
+      calendar,
+      monthCalendar,
+      trendPoints,
+    };
+  }, [sessions, streak]);
 
   const selectedNote = useMemo(
     () => notes.find((note) => note.id === selectedNoteId) ?? null,
@@ -443,6 +625,29 @@ export default function HomePage() {
     }
   }
 
+  async function copyWeeklyReport() {
+    const userLabel = user?.displayName || user?.email || "WHELM user";
+    const report = [
+      "Whelm Weekly Report",
+      `Focus today: ${focusMetrics.todayMinutes}m`,
+      `Focus this week: ${focusMetrics.weekMinutes}m`,
+      `Sessions today: ${focusMetrics.todaySessions}`,
+      `Discipline score: ${focusMetrics.disciplineScore}/100`,
+      `Current streak: ${streak} day${streak === 1 ? "" : "s"}`,
+      `Active days (30d): ${focusMetrics.activeDaysInMonth}/30`,
+      `User: ${userLabel}`,
+    ].join("\n");
+
+    try {
+      await navigator.clipboard.writeText(report);
+      setReportCopyStatus("Copied");
+    } catch {
+      setReportCopyStatus("Copy failed");
+    } finally {
+      window.setTimeout(() => setReportCopyStatus(""), 1200);
+    }
+  }
+
   if (!authChecked) {
     return (
       <main className={styles.pageShell}>
@@ -456,6 +661,14 @@ export default function HomePage() {
   if (!user) return null;
 
   const lastSession = sessions[0];
+  const maxTrendMinutes = Math.max(30, ...focusMetrics.trendPoints.map((point) => point.minutes));
+  const trendPath = focusMetrics.trendPoints
+    .map((point, index) => {
+      const x = (index / Math.max(1, focusMetrics.trendPoints.length - 1)) * 100;
+      const y = 100 - (point.minutes / maxTrendMinutes) * 100;
+      return `${x},${y}`;
+    })
+    .join(" ");
 
   return (
     <main className={styles.pageShell}>
@@ -515,11 +728,33 @@ export default function HomePage() {
           <button type="button" className={styles.topNavAction} onClick={createWorkspaceNote}>
             + Add Note
           </button>
+          {!isPro && (
+            <button
+              type="button"
+              className={styles.topNavUpgrade}
+              onClick={() => setPaywallOpen(true)}
+            >
+              Upgrade
+            </button>
+          )}
         </nav>
 
         {activeView === "focus" ? (
           <>
             <section className={styles.statsGrid}>
+              <article className={styles.statCard}>
+                <span className={styles.statLabel}>Daily Discipline Score</span>
+                <strong className={styles.statValue}>
+                  {focusMetrics.disciplineScore}
+                  <span className={styles.statSuffix}>/100</span>
+                </strong>
+              </article>
+
+              <article className={styles.statCard}>
+                <span className={styles.statLabel}>Focus Today</span>
+                <strong className={styles.statValue}>{focusMetrics.todayMinutes}m</strong>
+              </article>
+
               <article className={styles.statCard}>
                 <span className={styles.statLabel}>Current streak</span>
                 <strong className={styles.statValue}>
@@ -528,19 +763,143 @@ export default function HomePage() {
               </article>
 
               <article className={styles.statCard}>
-                <span className={styles.statLabel}>Completed sessions</span>
-                <strong className={styles.statValue}>{sessions.length}</strong>
+                <span className={styles.statLabel}>Focus This Week</span>
+                <strong className={styles.statValueSmall}>
+                  {focusMetrics.weekMinutes} minutes across {focusMetrics.activeDaysInMonth}/30
+                  active days
+                </strong>
+              </article>
+            </section>
+
+            <section className={styles.controlCenterGrid}>
+              <article className={styles.controlCard}>
+                <div className={styles.controlHeader}>
+                  <div>
+                    <p className={styles.sectionLabel}>Control Center</p>
+                    <h2 className={styles.controlTitle}>Today at a glance</h2>
+                  </div>
+                  <button
+                    type="button"
+                    className={styles.reportButton}
+                    onClick={() => void copyWeeklyReport()}
+                  >
+                    {reportCopyStatus || "Copy weekly report"}
+                  </button>
+                </div>
+
+                <ul className={styles.commandList}>
+                  <li>
+                    <strong>{focusMetrics.todaySessions}</strong> sessions logged today
+                  </li>
+                  <li>
+                    <strong>{focusMetrics.todayMinutes}m</strong> focused today
+                  </li>
+                  <li>
+                    <strong>{orderedNotes.filter((note) => note.isPinned).length}</strong> pinned
+                    notes ready
+                  </li>
+                  <li>
+                    Last session:{" "}
+                    <strong>
+                      {lastSession
+                        ? new Date(lastSession.completedAtISO).toLocaleTimeString([], {
+                            hour: "numeric",
+                            minute: "2-digit",
+                          })
+                        : "not started"}
+                    </strong>
+                  </li>
+                </ul>
               </article>
 
-              <article className={styles.statCard}>
-                <span className={styles.statLabel}>Last session</span>
-                <strong className={styles.statValueSmall}>
-                  {lastSession
-                    ? `${new Date(lastSession.completedAtISO).toLocaleString()} · ${
-                        FOCUS_TIMER.badgeLabel
-                      }`
-                    : "Not yet started"}
-                </strong>
+              <article className={styles.controlCard}>
+                <p className={styles.sectionLabel}>Streak Calendar</p>
+                <h2 className={styles.controlTitle}>This month</h2>
+                <div className={styles.calendarHeader}>
+                  <span>Sun</span>
+                  <span>Mon</span>
+                  <span>Tue</span>
+                  <span>Wed</span>
+                  <span>Thu</span>
+                  <span>Fri</span>
+                  <span>Sat</span>
+                </div>
+                <div className={styles.monthGrid}>
+                  {focusMetrics.monthCalendar.map((day) => (
+                    <div
+                      key={day.key}
+                      className={`${styles.streakCell} ${styles[`streakLevel${day.level}`]}`}
+                      title={
+                        day.dayNumber
+                          ? `${day.dayNumber}: ${day.minutes}m`
+                          : "Outside current month"
+                      }
+                    >
+                      {day.dayNumber && <span>{day.dayNumber}</span>}
+                    </div>
+                  ))}
+                </div>
+                <div className={styles.streakLegend}>
+                  <span>No focus</span>
+                  <span>Light</span>
+                  <span>Strong</span>
+                  <span>Deep</span>
+                </div>
+                {!isPro && (
+                  <div className={styles.cardGateRow}>
+                    <span>Detailed monthly trend insights are Pro.</span>
+                    <button
+                      type="button"
+                      className={styles.inlineUpgrade}
+                      onClick={() => setPaywallOpen(true)}
+                    >
+                      Unlock
+                    </button>
+                  </div>
+                )}
+              </article>
+            </section>
+
+            <section className={styles.insightsGrid}>
+              <article className={styles.controlCard}>
+                <p className={styles.sectionLabel}>Focus Trend</p>
+                <h2 className={styles.controlTitle}>Last 7 days</h2>
+                <div className={styles.chartFrame}>
+                  <svg viewBox="0 0 100 100" className={styles.trendChart} preserveAspectRatio="none">
+                    <polyline
+                      points={trendPath}
+                      className={styles.trendLine}
+                    />
+                  </svg>
+                  <div className={styles.chartAxis}>
+                    {focusMetrics.trendPoints.map((point) => (
+                      <span key={point.label}>{point.label}</span>
+                    ))}
+                  </div>
+                  {isPro ? null : (
+                    <div className={styles.chartLock}>
+                      <p>Pro unlocks full trend analytics and score breakdowns.</p>
+                      <button
+                        type="button"
+                        className={styles.inlineUpgrade}
+                        onClick={() => setPaywallOpen(true)}
+                      >
+                        Upgrade to Pro
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </article>
+
+              <article className={styles.controlCard}>
+                <p className={styles.sectionLabel}>Habit Engine</p>
+                <h2 className={styles.controlTitle}>Keep your streak alive</h2>
+                <ul className={styles.commandList}>
+                  <li>Open Whelm daily and complete one focus block.</li>
+                  <li>Protect your streak with at least 20 focused minutes.</li>
+                  <li>Beat yesterday&apos;s discipline score.</li>
+                  <li>Share your weekly report for accountability.</li>
+                </ul>
               </article>
             </section>
 
@@ -554,6 +913,27 @@ export default function HomePage() {
                   theme={FOCUS_TIMER.theme}
                   onComplete={(note, minutesSpent) => completeSession(note, minutesSpent)}
                 />
+
+                <article className={styles.proPreviewCard}>
+                  <div className={styles.proPreviewTop}>
+                    <p className={styles.proEyebrow}>WHELM PRO PREVIEW</p>
+                    <span className={styles.proBadge}>$3.99/mo</span>
+                  </div>
+                  <h3 className={styles.proTitle}>Unlock the advanced discipline system</h3>
+                  <ul className={styles.proList}>
+                    <li>Weekly performance trends and progress breakdown</li>
+                    <li>Custom score weights for deep work and routine habits</li>
+                    <li>Clean focus mode with no ads</li>
+                    <li>Motivation prompts and precision planning tools</li>
+                  </ul>
+                  <button
+                    type="button"
+                    className={styles.proCta}
+                    onClick={() => setPaywallOpen(true)}
+                  >
+                    See Pro plan
+                  </button>
+                </article>
               </div>
 
               <aside className={styles.sessionsCard}>
@@ -883,6 +1263,46 @@ export default function HomePage() {
       >
         Feedback
       </button>
+
+      {paywallOpen && (
+        <div className={styles.feedbackOverlay} onClick={() => setPaywallOpen(false)}>
+          <div className={styles.paywallModal} onClick={(event) => event.stopPropagation()}>
+            <div className={styles.feedbackHeader}>
+              <h2 className={styles.feedbackTitle}>Upgrade to Whelm Pro</h2>
+              <button
+                type="button"
+                className={styles.feedbackClose}
+                onClick={() => setPaywallOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+            <p className={styles.paywallCopy}>
+              Remove ads and unlock full analytics, trend intelligence, and precision planning.
+            </p>
+            <div className={styles.planGrid}>
+              <article className={styles.planCard}>
+                <p className={styles.planName}>Monthly</p>
+                <p className={styles.planPrice}>$3.99</p>
+                <p className={styles.planMeta}>per month</p>
+              </article>
+              <article className={`${styles.planCard} ${styles.planCardFeatured}`}>
+                <p className={styles.planName}>Yearly</p>
+                <p className={styles.planPrice}>$29.99</p>
+                <p className={styles.planMeta}>best value</p>
+              </article>
+            </div>
+            <ul className={styles.proList}>
+              <li>Advanced discipline insights and score history</li>
+              <li>Monthly streak intelligence and weekly reports</li>
+              <li>Premium focus workflows and no ads</li>
+            </ul>
+            <button type="button" className={styles.feedbackSubmit} disabled>
+              Billing setup coming next
+            </button>
+          </div>
+        </div>
+      )}
 
       {feedbackOpen && (
         <div
