@@ -12,6 +12,8 @@ type WorkspaceNote = {
   isPinned: boolean;
   fontFamily: string;
   fontSizePx: number;
+  category: "personal" | "school" | "work";
+  reminderAtISO: string;
   updatedAtISO: string;
   createdAtISO: string;
 };
@@ -75,6 +77,11 @@ function normalizeNotes(notes: WorkspaceNote[]) {
         typeof note.fontSizePx === "number" && Number.isFinite(note.fontSizePx)
           ? Math.min(32, Math.max(12, Math.round(note.fontSizePx)))
           : 16,
+      category:
+        note.category === "school" || note.category === "work" || note.category === "personal"
+          ? note.category
+          : "personal",
+      reminderAtISO: typeof note.reminderAtISO === "string" ? note.reminderAtISO : "",
       createdAtISO: note.createdAtISO,
       updatedAtISO: note.updatedAtISO,
     }))
