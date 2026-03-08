@@ -109,6 +109,32 @@
   font-weight: 700;
 }
 
+.adStrip {
+  margin-bottom: 18px;
+  border: 1px dashed rgba(15, 23, 42, 0.2);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.68);
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.adBadge {
+  margin: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.adCopy {
+  margin: 0;
+  color: #4b6078;
+  font-size: 0.85rem;
+  flex: 1;
+}
+
 .statsGrid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -186,6 +212,28 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: 10px;
+}
+
+.rangeTabs {
+  display: inline-flex;
+  border-radius: 999px;
+  background: #e7eef8;
+  padding: 4px;
+}
+
+.rangeTab {
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #4b6078;
+  font-size: 0.78rem;
+  padding: 6px 10px;
+}
+
+.rangeTabActive {
+  background: #ffffff;
+  color: #102033;
+  box-shadow: 0 4px 12px rgba(16, 32, 51, 0.08);
 }
 
 .controlTitle {
@@ -321,8 +369,8 @@
 
 .chartAxis {
   margin-top: 8px;
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  display: flex;
+  justify-content: space-between;
   gap: 6px;
   text-align: center;
   font-size: 0.72rem;
@@ -399,6 +447,16 @@
   color: #102033;
   padding: 10px 14px;
   font-weight: 700;
+}
+
+.notesAdCard {
+  margin-top: 12px;
+  border: 1px dashed rgba(15, 23, 42, 0.18);
+  border-radius: 14px;
+  padding: 10px;
+  background: #f8fbff;
+  display: grid;
+  gap: 8px;
 }
 
 .sessionsCard {
@@ -839,6 +897,26 @@
   color: #4b6078;
 }
 
+.paywallActions {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.secondaryPlanButton {
+  border: 1px solid rgba(15, 23, 42, 0.16);
+  border-radius: 12px;
+  background: #ffffff;
+  color: #1f2937;
+  padding: 10px 12px;
+}
+
+.paywallHint {
+  margin: 10px 0 0;
+  font-size: 0.82rem;
+  color: #5f6f82;
+}
+
 .planGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1005,6 +1083,11 @@
 
   .topNavUpgrade {
     margin-left: 0;
+  }
+
+  .adStrip {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .timersGrid {

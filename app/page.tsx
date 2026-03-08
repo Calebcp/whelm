@@ -14,6 +14,12 @@ import {
 } from "@/lib/notes-store";
 import { loadSessions, saveSession } from "@/lib/session-store";
 import { computeStreak, type SessionDoc } from "@/lib/streak";
+import {
+  getProState,
+  isStorePurchaseSupported,
+  restoreFreeTier,
+  startProPreview,
+} from "@/lib/subscription";
 import styles from "./page.module.css";
 
 const FOCUS_TIMER = {
@@ -71,6 +77,7 @@ type TrendPoint = {
   label: string;
   minutes: number;
 };
+type TrendRange = 7 | 30 | 90;
 
 function createNote(): WorkspaceNote {
   const now = new Date().toISOString();
@@ -172,7 +179,9 @@ export default function HomePage() {
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
   const [reportCopyStatus, setReportCopyStatus] = useState("");
   const [paywallOpen, setPaywallOpen] = useState(false);
-  const [isPro] = useState(false);
+  const [isPro, setIsPro] = useState(false);
+  const [proSource, setProSource] = useState<"preview" | "store" | "none">("none");
+  const [trendRange, setTrendRange] = useState<TrendRange>(7);
   const editorRef = useRef<HTMLDivElement | null>(null);
   const savedSelectionRef = useRef<Range | null>(null);
   const syncInFlightRef = useRef(false);
@@ -272,15 +281,20 @@ export default function HomePage() {
       });
     }
 
-    const trendPoints: TrendPoint[] = [];
-    for (let i = 6; i >= 0; i -= 1) {
-      const day = new Date(todayStart);
-      day.setDate(todayStart.getDate() - i);
-      const dateKey = dayKeyLocal(day);
-      trendPoints.push({
-        label: day.toLocaleDateString(undefined, { weekday: "short" }),
-        minutes: byDay.get(dateKey) ?? 0,
-      });
+    function buildTrendPoints(days: number): TrendPoint[] {
+      const points: TrendPoint[] = [];
+      for (let i = days - 1; i >= 0; i -= 1) {
+        const day = new Date(todayStart);
+        day.setDate(todayStart.getDate() - i);
+        const dateKey = dayKeyLocal(day);
+        points.push({
+          label: days <= 7
+            ? day.toLocaleDateString(undefined, { weekday: "short" })
+            : day.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+          minutes: byDay.get(dateKey) ?? 0,
+        });
+      }
+      return points;
     }
 
     const disciplineScore = summarizeDisciplineScore({
@@ -298,7 +312,9 @@ export default function HomePage() {
       disciplineScore,
       calendar,
       monthCalendar,
-      trendPoints,
+      trendPoints7: buildTrendPoints(7),
+      trendPoints30: buildTrendPoints(30),
+      trendPoints90: buildTrendPoints(90),
     };
   }, [sessions, streak]);
 
@@ -306,6 +322,11 @@ export default function HomePage() {
     () => notes.find((note) => note.id === selectedNoteId) ?? null,
     [notes, selectedNoteId],
   );
+  const trendPoints = useMemo(() => {
+    if (trendRange === 30) return focusMetrics.trendPoints30;
+    if (trendRange === 90) return focusMetrics.trendPoints90;
+    return focusMetrics.trendPoints7;
+  }, [focusMetrics, trendRange]);
   const orderedNotes = useMemo(
     () =>
       [...notes].sort((a, b) => {
@@ -314,6 +335,18 @@ export default function HomePage() {
       }),
     [notes],
   );
+
+  useEffect(() => {
+    let active = true;
+    void getProState().then((state) => {
+      if (!active) return;
+      setIsPro(state.isPro);
+      setProSource(state.source);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (nextUser) => {
@@ -648,6 +681,19 @@ export default function HomePage() {
     }
   }
 
+  async function handlePreviewUpgrade() {
+    const next = await startProPreview();
+    setIsPro(next.isPro);
+    setProSource(next.source);
+    setPaywallOpen(false);
+  }
+
+  async function handleRestoreFreeTier() {
+    const next = await restoreFreeTier();
+    setIsPro(next.isPro);
+    setProSource(next.source);
+  }
+
   if (!authChecked) {
     return (
       <main className={styles.pageShell}>
@@ -661,10 +707,10 @@ export default function HomePage() {
   if (!user) return null;
 
   const lastSession = sessions[0];
-  const maxTrendMinutes = Math.max(30, ...focusMetrics.trendPoints.map((point) => point.minutes));
-  const trendPath = focusMetrics.trendPoints
+  const maxTrendMinutes = Math.max(30, ...trendPoints.map((point) => point.minutes));
+  const trendPath = trendPoints
     .map((point, index) => {
-      const x = (index / Math.max(1, focusMetrics.trendPoints.length - 1)) * 100;
+      const x = (index / Math.max(1, trendPoints.length - 1)) * 100;
       const y = 100 - (point.minutes / maxTrendMinutes) * 100;
       return `${x},${y}`;
     })
@@ -770,6 +816,21 @@ export default function HomePage() {
                 </strong>
               </article>
             </section>
+            {!isPro && (
+              <section className={styles.adStrip}>
+                <div className={styles.adBadge}>Free Tier Ad Slot</div>
+                <p className={styles.adCopy}>
+                  Upgrade to Whelm Pro to remove ads and unlock advanced productivity analytics.
+                </p>
+                <button
+                  type="button"
+                  className={styles.inlineUpgrade}
+                  onClick={() => setPaywallOpen(true)}
+                >
+                  Go Pro
+                </button>
+              </section>
+            )}
 
             <section className={styles.controlCenterGrid}>
               <article className={styles.controlCard}>
@@ -863,7 +924,32 @@ export default function HomePage() {
             <section className={styles.insightsGrid}>
               <article className={styles.controlCard}>
                 <p className={styles.sectionLabel}>Focus Trend</p>
-                <h2 className={styles.controlTitle}>Last 7 days</h2>
+                <div className={styles.controlHeader}>
+                  <h2 className={styles.controlTitle}>Trend overview</h2>
+                  <div className={styles.rangeTabs}>
+                    <button
+                      type="button"
+                      className={`${styles.rangeTab} ${trendRange === 7 ? styles.rangeTabActive : ""}`}
+                      onClick={() => setTrendRange(7)}
+                    >
+                      7d
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.rangeTab} ${trendRange === 30 ? styles.rangeTabActive : ""}`}
+                      onClick={() => setTrendRange(30)}
+                    >
+                      30d
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.rangeTab} ${trendRange === 90 ? styles.rangeTabActive : ""}`}
+                      onClick={() => setTrendRange(90)}
+                    >
+                      90d
+                    </button>
+                  </div>
+                </div>
                 <div className={styles.chartFrame}>
                   <svg viewBox="0 0 100 100" className={styles.trendChart} preserveAspectRatio="none">
                     <polyline
@@ -872,9 +958,15 @@ export default function HomePage() {
                     />
                   </svg>
                   <div className={styles.chartAxis}>
-                    {focusMetrics.trendPoints.map((point) => (
-                      <span key={point.label}>{point.label}</span>
-                    ))}
+                    {trendPoints.map((point, index) => (
+                      <span key={`${point.label}-${index}`}>{point.label}</span>
+                    )).filter((_, index) =>
+                      trendRange === 7
+                        ? true
+                        : trendRange === 30
+                          ? index % 5 === 0 || index === trendPoints.length - 1
+                          : index % 15 === 0 || index === trendPoints.length - 1,
+                    )}
                   </div>
                   {isPro ? null : (
                     <div className={styles.chartLock}>
@@ -943,6 +1035,9 @@ export default function HomePage() {
                     {user.displayName || user.email?.split("@")[0] || "WHELM user"}
                   </p>
                   <p className={styles.accountMeta}>{user.email}</p>
+                  <p className={styles.accountMeta}>
+                    Plan: {isPro ? "Pro" : "Free"}{proSource === "preview" ? " (preview)" : ""}
+                  </p>
                 </div>
 
                 <div className={styles.sessionsBlock}>
@@ -1035,6 +1130,19 @@ export default function HomePage() {
                   </div>
                 ))}
               </div>
+              {!isPro && (
+                <div className={styles.notesAdCard}>
+                  <p className={styles.adBadge}>Ad Slot</p>
+                  <p className={styles.adCopy}>Free plan includes lightweight ads.</p>
+                  <button
+                    type="button"
+                    className={styles.inlineUpgrade}
+                    onClick={() => setPaywallOpen(true)}
+                  >
+                    Remove ads
+                  </button>
+                </div>
+              )}
             </aside>
 
             <article className={styles.notesEditorCard}>
@@ -1297,9 +1405,27 @@ export default function HomePage() {
               <li>Monthly streak intelligence and weekly reports</li>
               <li>Premium focus workflows and no ads</li>
             </ul>
-            <button type="button" className={styles.feedbackSubmit} disabled>
-              Billing setup coming next
-            </button>
+            <div className={styles.paywallActions}>
+              <button
+                type="button"
+                className={styles.feedbackSubmit}
+                onClick={() => void handlePreviewUpgrade()}
+              >
+                Unlock Pro Preview
+              </button>
+              <button
+                type="button"
+                className={styles.secondaryPlanButton}
+                onClick={() => void handleRestoreFreeTier()}
+              >
+                Restore Free Tier
+              </button>
+            </div>
+            <p className={styles.paywallHint}>
+              {isStorePurchaseSupported()
+                ? "Store billing supported on iOS build. Next step is wiring StoreKit/RevenueCat products."
+                : "Preview unlock active for development. Native billing wiring comes in iOS integration step."}
+            </p>
           </div>
         </div>
       )}
