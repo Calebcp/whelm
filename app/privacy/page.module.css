@@ -1,0 +1,60 @@
+.pageShell {
+  min-height: 100vh;
+  padding: 40px 20px 56px;
+}
+
+.card {
+  width: min(860px, 100%);
+  margin: 0 auto;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 24px 60px rgba(16, 32, 51, 0.1);
+  padding: clamp(20px, 4vw, 44px);
+  line-height: 1.62;
+  color: #102033;
+}
+
+.kicker {
+  margin: 0 0 10px;
+  font-size: 0.75rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #5f6f82;
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(2rem, 5vw, 3rem);
+  line-height: 1.03;
+  letter-spacing: -0.04em;
+}
+
+.updated {
+  margin: 10px 0 22px;
+  color: #5f6f82;
+}
+
+.card h2 {
+  margin: 26px 0 10px;
+  font-size: 1.1rem;
+  letter-spacing: -0.02em;
+}
+
+.card p {
+  margin: 0 0 12px;
+}
+
+.card ul {
+  margin: 0 0 16px;
+  padding-left: 20px;
+}
+
+.card li {
+  margin-bottom: 8px;
+}
+
+.card a {
+  color: #145da0;
+  text-decoration: underline;
+}
