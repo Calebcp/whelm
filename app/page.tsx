@@ -1,146 +1,76 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged, signOut, type User } from "firebase/auth";
 
 import Timer from "@/components/Timer";
 import { auth } from "@/lib/firebase";
-import {
-  loadNotes,
-  retryNotesSync,
-  saveNotes,
-  type WorkspaceNote,
-} from "@/lib/notes-store";
+import { loadNotes, saveNotes, type WorkspaceNote } from "@/lib/notes-store";
 import { loadSessions, saveSession } from "@/lib/session-store";
-import { computeStreak, type SessionDoc } from "@/lib/streak";
 import {
-  getProState,
-  isStorePurchaseSupported,
-  restoreFreeTier,
-  startProPreview,
-} from "@/lib/subscription";
-import {
-  getScreenTimeCapability,
-  openScreenTimeSystemSettings,
-  requestScreenTimeAuthorization,
-  type ScreenTimeAuthorizationStatus,
-} from "@/lib/screentime";
+  computeStreak,
+  type SessionCategory,
+  type SessionDoc,
+} from "@/lib/streak";
 import styles from "./page.module.css";
 
-const FOCUS_TIMER = {
-  title: "Multipurpose focus timer",
-  subtitle: "Use countdown or stopwatch for any work",
-  actionLabel: "Save Session",
-  badgeLabel: "Focus",
+const TIMER_CONFIGS: Array<{
+  category: SessionCategory;
+  title: string;
+  subtitle: string;
+  actionLabel: string;
+  badgeLabel: string;
   theme: {
-    accent: "#145da0",
-    accentSoft: "#e7f1fc",
-    accentStrong: "#0d3b66",
-    ring: "rgba(20, 93, 160, 0.18)",
+    accent: string;
+    accentSoft: string;
+    accentStrong: string;
+    ring: string;
+  };
+}> = [
+  {
+    category: "misc",
+    title: "Miscellaneous tasks",
+    subtitle: "Reset the chaos",
+    actionLabel: "Save Misc Session",
+    badgeLabel: "Misc",
+    theme: {
+      accent: "#9b5de5",
+      accentSoft: "#f4ebff",
+      accentStrong: "#5b2e91",
+      ring: "rgba(155, 93, 229, 0.18)",
+    },
   },
-};
-
-const NOTE_COLORS: Array<{ label: string; value: string }> = [
-  { label: "Cherry", value: "#fecaca" },
-  { label: "Rose", value: "#fda4af" },
-  { label: "Tangerine", value: "#fed7aa" },
-  { label: "Amber", value: "#fcd34d" },
-  { label: "Sun", value: "#fef08a" },
-  { label: "Lime", value: "#d9f99d" },
-  { label: "Mint", value: "#bbf7d0" },
-  { label: "Emerald", value: "#6ee7b7" },
-  { label: "Aqua", value: "#a5f3fc" },
-  { label: "Sky", value: "#bae6fd" },
-  { label: "Blue", value: "#bfdbfe" },
-  { label: "Indigo", value: "#c7d2fe" },
-  { label: "Violet", value: "#ddd6fe" },
-  { label: "Purple", value: "#e9d5ff" },
-  { label: "Fuchsia", value: "#f5d0fe" },
-  { label: "Pink", value: "#fbcfe8" },
-  { label: "Stone", value: "#e7e5e4" },
-  { label: "Slate", value: "#cbd5e1" },
-  { label: "Cloud", value: "#f1f5f9" },
-  { label: "Paper", value: "#f8fafc" },
+  {
+    category: "language",
+    title: "Language study",
+    subtitle: "Words, listening, memory",
+    actionLabel: "Save Language Session",
+    badgeLabel: "Language",
+    theme: {
+      accent: "#ff8c42",
+      accentSoft: "#fff1e5",
+      accentStrong: "#a64900",
+      ring: "rgba(255, 140, 66, 0.2)",
+    },
+  },
+  {
+    category: "software",
+    title: "Software projects",
+    subtitle: "Build something real",
+    actionLabel: "Save Build Session",
+    badgeLabel: "Software",
+    theme: {
+      accent: "#00a896",
+      accentSoft: "#e6fbf7",
+      accentStrong: "#0f5c54",
+      ring: "rgba(0, 168, 150, 0.18)",
+    },
+  },
 ];
 
 type FeedbackCategory = "bug" | "feature" | "other";
-type TrendRange = 7 | 30 | 90;
-type AppTab =
-  | "today"
-  | "calendar"
-  | "notes"
-  | "insights"
-  | "history"
-  | "reports"
-  | "settings";
-type NoteCategory = "personal" | "school" | "work";
-type InsightMetric = "focus" | "notes" | "planned" | "reminders";
-
-type CalendarDay = {
-  label: string;
-  dateKey: string;
-  minutes: number;
-  level: 0 | 1 | 2 | 3;
-};
-
-type MonthCell = {
-  key: string;
-  dayNumber: number | null;
-  minutes: number;
-  level: 0 | 1 | 2 | 3;
-  isCurrentMonth: boolean;
-};
-
-type TrendPoint = {
-  label: string;
-  minutes: number;
-};
-
-type SessionDayGroup = {
-  key: string;
-  label: string;
-  totalMinutes: number;
-  items: SessionDoc[];
-};
-
-type PlannedBlock = {
-  id: string;
-  dateKey: string;
-  title: string;
-  durationMinutes: number;
-  timeOfDay: string;
-  sortOrder: number;
-  createdAtISO: string;
-};
-
-type KpiDetailKey =
-  | "totalFocus"
-  | "totalSessions"
-  | "averageSession"
-  | "bestDay"
-  | "weeklyProgress";
-
-const INSIGHT_CATEGORY_META: Record<
-  NoteCategory,
-  { label: string; color: string; description: string }
-> = {
-  personal: {
-    label: "Personal",
-    color: "#4f9cf9",
-    description: "Lifestyle, habits, and self notes",
-  },
-  school: {
-    label: "School",
-    color: "#2cc9a5",
-    description: "Classes, study, assignments, and exams",
-  },
-  work: {
-    label: "Work",
-    color: "#ffaf45",
-    description: "Projects, clients, meetings, and delivery",
-  },
-};
+type WorkspaceView = "focus" | "notes";
 
 function createNote(): WorkspaceNote {
   const now = new Date().toISOString();
@@ -148,668 +78,31 @@ function createNote(): WorkspaceNote {
     id: typeof crypto !== "undefined" ? crypto.randomUUID() : `${Date.now()}`,
     title: "Untitled note",
     body: "",
-    color: "#e7e5e4",
-    isPinned: false,
-    fontFamily: "Avenir Next",
-    fontSizePx: 16,
-    category: "personal",
-    reminderAtISO: "",
     createdAtISO: now,
     updatedAtISO: now,
   };
 }
 
-function decodeHtmlEntities(value: string) {
-  const textarea = document.createElement("textarea");
-  textarea.innerHTML = value;
-  return textarea.value;
-}
-
-function normalizeBodyForEditor(body: string) {
-  if (!body) return "";
-
-  let next = body;
-  const hasHtmlTags = /<[a-z!/]/i.test(next);
-  if (!hasHtmlTags) {
-    next = next.replaceAll("\n", "<br/>");
-  }
-
-  for (let i = 0; i < 3; i += 1) {
-    const decoded = decodeHtmlEntities(next);
-    if (decoded === next) break;
-    next = decoded;
-  }
-
-  return next;
-}
-
-function dayKeyLocal(dateInput: string | Date) {
-  const value = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
-  const year = value.getFullYear();
-  const month = String(value.getMonth() + 1).padStart(2, "0");
-  const day = String(value.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function startOfDayLocal(dateInput: string | Date) {
-  const value = typeof dateInput === "string" ? new Date(dateInput) : new Date(dateInput);
-  return new Date(value.getFullYear(), value.getMonth(), value.getDate());
-}
-
-function monthInputFromDate(date: Date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  return `${year}-${month}`;
-}
-
-function parseMonthInput(value: string) {
-  const [yearRaw, monthRaw] = value.split("-");
-  const year = Number(yearRaw);
-  const monthIndex = Number(monthRaw) - 1;
-  if (!Number.isInteger(year) || !Number.isInteger(monthIndex)) return null;
-  if (monthIndex < 0 || monthIndex > 11) return null;
-  return new Date(year, monthIndex, 1);
-}
-
-function shiftMonth(date: Date, amount: number) {
-  return new Date(date.getFullYear(), date.getMonth() + amount, 1);
-}
-
-function summarizeDisciplineScore({
-  todayMinutes,
-  todaySessions,
-  streak,
-  weekMinutes,
-}: {
-  todayMinutes: number;
-  todaySessions: number;
-  streak: number;
-  weekMinutes: number;
-}) {
-  const timeScore = Math.min(40, Math.round((todayMinutes / 120) * 40));
-  const sessionScore = Math.min(20, todaySessions * 5);
-  const streakScore = Math.min(25, Math.round((streak / 30) * 25));
-  const consistencyScore = Math.min(15, Math.round((weekMinutes / 420) * 15));
-  return Math.min(100, timeScore + sessionScore + streakScore + consistencyScore);
-}
-
-function focusLevel(minutes: number): 0 | 1 | 2 | 3 {
-  if (minutes === 0) return 0;
-  if (minutes < 30) return 1;
-  if (minutes < 75) return 2;
-  return 3;
-}
-
-function isHexColor(value: string) {
-  return /^#([0-9a-f]{6}|[0-9a-f]{3})$/i.test(value.trim());
-}
-
-function inferCategoryFromText(text: string): NoteCategory {
-  const value = text.toLowerCase();
-  const schoolKeywords = [
-    "study",
-    "school",
-    "class",
-    "exam",
-    "quiz",
-    "assignment",
-    "homework",
-    "lecture",
-    "course",
-    "university",
-    "college",
-    "lab",
-  ];
-  const workKeywords = [
-    "work",
-    "client",
-    "project",
-    "meeting",
-    "deadline",
-    "email",
-    "report",
-    "office",
-    "business",
-    "proposal",
-  ];
-
-  if (schoolKeywords.some((keyword) => value.includes(keyword))) return "school";
-  if (workKeywords.some((keyword) => value.includes(keyword))) return "work";
-  return "personal";
-}
-
-function iconForTab(tab: AppTab) {
-  switch (tab) {
-    case "today":
-      return "◉";
-    case "calendar":
-      return "▦";
-    case "notes":
-      return "✎";
-    case "insights":
-      return "◍";
-    case "history":
-      return "☰";
-    case "reports":
-      return "◔";
-    case "settings":
-      return "⚙";
-  }
-}
-
-function tabTitle(tab: AppTab) {
-  switch (tab) {
-    case "today":
-      return "Today";
-    case "calendar":
-      return "Calendar";
-    case "notes":
-      return "Notes";
-    case "insights":
-      return "Insights";
-    case "history":
-      return "History";
-    case "reports":
-      return "Reports";
-    case "settings":
-      return "Settings";
-  }
-}
-
-function plannedBlocksStorageKey(uid: string) {
-  return `whelm:planned-focus:${uid}`;
-}
-
-function loadPlannedBlocks(uid: string): PlannedBlock[] {
-  try {
-    const raw = window.localStorage.getItem(plannedBlocksStorageKey(uid));
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as PlannedBlock[];
-    if (!Array.isArray(parsed)) return [];
-    return parsed
-      .filter((item) => item.id && item.dateKey && item.title)
-      .map((item) => ({
-        id: item.id,
-        dateKey: item.dateKey,
-        title: String(item.title).slice(0, 80),
-        durationMinutes: Math.min(240, Math.max(5, Number(item.durationMinutes) || 25)),
-        timeOfDay: String(item.timeOfDay || "09:00").slice(0, 5),
-        sortOrder: Number((item as Partial<PlannedBlock>).sortOrder) || 0,
-        createdAtISO: item.createdAtISO || new Date().toISOString(),
-      }))
-      .sort((a, b) =>
-        a.dateKey === b.dateKey
-          ? a.sortOrder - b.sortOrder || a.timeOfDay.localeCompare(b.timeOfDay)
-          : a.dateKey.localeCompare(b.dateKey),
-      )
-      .map((item, index) => ({
-        ...item,
-        sortOrder: Number.isFinite(item.sortOrder) ? item.sortOrder : index,
-      }));
-  } catch {
-    return [];
-  }
-}
-
-function savePlannedBlocks(uid: string, items: PlannedBlock[]) {
-  window.localStorage.setItem(plannedBlocksStorageKey(uid), JSON.stringify(items));
-}
-
-const TAB_META: Array<{ key: AppTab; label: string }> = [
-  { key: "today", label: "Today" },
-  { key: "calendar", label: "Calendar" },
-  { key: "notes", label: "Notes" },
-  { key: "insights", label: "Insights" },
-  { key: "history", label: "History" },
-  { key: "reports", label: "Reports" },
-  { key: "settings", label: "Settings" },
-];
-
 export default function HomePage() {
   const router = useRouter();
-
   const [user, setUser] = useState<User | null>(null);
   const [sessions, setSessions] = useState<SessionDoc[]>([]);
   const [notes, setNotes] = useState<WorkspaceNote[]>([]);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
-  const [colorPickerOpen, setColorPickerOpen] = useState(false);
-  const [editorBodyDraft, setEditorBodyDraft] = useState("");
-  const [notesSyncStatus, setNotesSyncStatus] = useState<
-    "synced" | "local-only" | "syncing"
-  >("syncing");
-  const [notesSyncMessage, setNotesSyncMessage] = useState("");
+  const [activeView, setActiveView] = useState<WorkspaceView>("focus");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [feedbackCategory, setFeedbackCategory] = useState<FeedbackCategory>("bug");
   const [feedbackMessage, setFeedbackMessage] = useState("");
   const [feedbackStatus, setFeedbackStatus] = useState("");
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
-  const [reportCopyStatus, setReportCopyStatus] = useState("");
-  const [paywallOpen, setPaywallOpen] = useState(false);
-  const [isPro, setIsPro] = useState(false);
-  const [proSource, setProSource] = useState<"preview" | "store" | "none">("none");
-  const [trendRange, setTrendRange] = useState<TrendRange>(7);
-  const [activeTab, setActiveTab] = useState<AppTab>("today");
-  const [insightRange, setInsightRange] = useState<TrendRange>(30);
-  const [insightMetric, setInsightMetric] = useState<InsightMetric>("focus");
-  const [selectedInsightCategory, setSelectedInsightCategory] = useState<NoteCategory | null>(
-    null,
-  );
-  const [notesSearch, setNotesSearch] = useState("");
-  const [notesCategoryFilter, setNotesCategoryFilter] = useState<"all" | NoteCategory>("all");
-  const [plannedBlocks, setPlannedBlocks] = useState<PlannedBlock[]>([]);
-  const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
-  const [calendarCursor, setCalendarCursor] = useState<Date>(() => {
-    const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), 1);
-  });
-  const [planTitle, setPlanTitle] = useState("");
-  const [planDuration, setPlanDuration] = useState(25);
-  const [planTime, setPlanTime] = useState("09:00");
-  const [planStatus, setPlanStatus] = useState("");
-  const [calendarJumpDate, setCalendarJumpDate] = useState<string>(() => dayKeyLocal(new Date()));
-  const [kpiDetailOpen, setKpiDetailOpen] = useState<KpiDetailKey | null>(null);
-  const [draggedPlanId, setDraggedPlanId] = useState<string | null>(null);
-  const [noteUndoItem, setNoteUndoItem] = useState<WorkspaceNote | null>(null);
-  const [deletedPlanUndo, setDeletedPlanUndo] = useState<PlannedBlock | null>(null);
-  const [screenTimeStatus, setScreenTimeStatus] =
-    useState<ScreenTimeAuthorizationStatus>("unsupported");
-  const [screenTimeSupported, setScreenTimeSupported] = useState(false);
-  const [screenTimeReason, setScreenTimeReason] = useState("");
-  const [screenTimeBusy, setScreenTimeBusy] = useState(false);
-
-  const editorRef = useRef<HTMLDivElement | null>(null);
-  const savedSelectionRef = useRef<Range | null>(null);
-  const syncInFlightRef = useRef(false);
-
   const streak = computeStreak(sessions);
-
-  const focusMetrics = useMemo(() => {
-    const now = new Date();
-    const todayKey = dayKeyLocal(now);
-    const todayStart = startOfDayLocal(now);
-    const weekStart = new Date(todayStart);
-    weekStart.setDate(weekStart.getDate() - 6);
-    const monthStart = new Date(todayStart);
-    monthStart.setDate(monthStart.getDate() - 29);
-    const thisMonthStart = new Date(todayStart.getFullYear(), todayStart.getMonth(), 1);
-    const daysInMonth = new Date(
-      todayStart.getFullYear(),
-      todayStart.getMonth() + 1,
-      0,
-    ).getDate();
-
-    let todayMinutes = 0;
-    let todaySessions = 0;
-    let weekMinutes = 0;
-    const byDay = new Map<string, number>();
-
-    for (const session of sessions) {
-      const sessionDate = new Date(session.completedAtISO);
-      const dayKey = dayKeyLocal(sessionDate);
-      byDay.set(dayKey, (byDay.get(dayKey) ?? 0) + session.minutes);
-
-      if (dayKey === todayKey) {
-        todayMinutes += session.minutes;
-        todaySessions += 1;
-      }
-
-      if (sessionDate >= weekStart && sessionDate <= now) {
-        weekMinutes += session.minutes;
-      }
-    }
-
-    let activeDaysInMonth = 0;
-    for (let i = 0; i < 30; i += 1) {
-      const day = new Date(monthStart);
-      day.setDate(monthStart.getDate() + i);
-      if ((byDay.get(dayKeyLocal(day)) ?? 0) > 0) {
-        activeDaysInMonth += 1;
-      }
-    }
-
-    const calendar: CalendarDay[] = [];
-    for (let i = 27; i >= 0; i -= 1) {
-      const day = new Date(todayStart);
-      day.setDate(todayStart.getDate() - i);
-      const dateKey = dayKeyLocal(day);
-      const minutes = byDay.get(dateKey) ?? 0;
-      const level: CalendarDay["level"] = focusLevel(minutes);
-      calendar.push({
-        label: day.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
-        dateKey,
-        minutes,
-        level,
-      });
-    }
-
-    const monthCalendar: MonthCell[] = [];
-    const leadingSpaces = thisMonthStart.getDay();
-    for (let i = 0; i < leadingSpaces; i += 1) {
-      monthCalendar.push({
-        key: `leading-${i}`,
-        dayNumber: null,
-        minutes: 0,
-        level: 0,
-        isCurrentMonth: false,
-      });
-    }
-
-    for (let dayNumber = 1; dayNumber <= daysInMonth; dayNumber += 1) {
-      const day = new Date(todayStart.getFullYear(), todayStart.getMonth(), dayNumber);
-      const dateKey = dayKeyLocal(day);
-      const minutes = byDay.get(dateKey) ?? 0;
-      monthCalendar.push({
-        key: dateKey,
-        dayNumber,
-        minutes,
-        level: focusLevel(minutes),
-        isCurrentMonth: true,
-      });
-    }
-
-    while (monthCalendar.length < 42) {
-      monthCalendar.push({
-        key: `trailing-${monthCalendar.length}`,
-        dayNumber: null,
-        minutes: 0,
-        level: 0,
-        isCurrentMonth: false,
-      });
-    }
-
-    function buildTrendPoints(days: number): TrendPoint[] {
-      const points: TrendPoint[] = [];
-      for (let i = days - 1; i >= 0; i -= 1) {
-        const day = new Date(todayStart);
-        day.setDate(todayStart.getDate() - i);
-        const dateKey = dayKeyLocal(day);
-        points.push({
-          label:
-            days <= 7
-              ? day.toLocaleDateString(undefined, { weekday: "short" })
-              : day.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
-          minutes: byDay.get(dateKey) ?? 0,
-        });
-      }
-      return points;
-    }
-
-    const disciplineScore = summarizeDisciplineScore({
-      todayMinutes,
-      todaySessions,
-      streak,
-      weekMinutes,
-    });
-
-    return {
-      todayMinutes,
-      todaySessions,
-      weekMinutes,
-      activeDaysInMonth,
-      disciplineScore,
-      calendar,
-      monthCalendar,
-      trendPoints7: buildTrendPoints(7),
-      trendPoints30: buildTrendPoints(30),
-      trendPoints90: buildTrendPoints(90),
-    };
-  }, [sessions, streak]);
 
   const selectedNote = useMemo(
     () => notes.find((note) => note.id === selectedNoteId) ?? null,
     [notes, selectedNoteId],
   );
-
-  const trendPoints = useMemo(() => {
-    if (trendRange === 30) return focusMetrics.trendPoints30;
-    if (trendRange === 90) return focusMetrics.trendPoints90;
-    return focusMetrics.trendPoints7;
-  }, [focusMetrics, trendRange]);
-
-  const orderedNotes = useMemo(
-    () =>
-      [...notes].sort((a, b) => {
-        if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
-        return a.updatedAtISO < b.updatedAtISO ? 1 : -1;
-      }),
-    [notes],
-  );
-
-  const filteredNotes = useMemo(() => {
-    const query = notesSearch.trim().toLowerCase();
-    return orderedNotes.filter((note) => {
-      const categoryMatch =
-        notesCategoryFilter === "all" || (note.category || "personal") === notesCategoryFilter;
-      const textMatch =
-        query.length === 0 ||
-        note.title.toLowerCase().includes(query) ||
-        note.body.toLowerCase().includes(query);
-      return categoryMatch && textMatch;
-    });
-  }, [notesCategoryFilter, notesSearch, orderedNotes]);
-
-  const dueReminderNotes = useMemo(() => {
-    const todayKey = dayKeyLocal(new Date());
-    return orderedNotes.filter((note) => {
-      if (!note.reminderAtISO) return false;
-      return dayKeyLocal(note.reminderAtISO) === todayKey;
-    });
-  }, [orderedNotes]);
-
-  const sessionGroups = useMemo<SessionDayGroup[]>(() => {
-    const grouped = new Map<string, SessionDoc[]>();
-
-    for (const session of sessions) {
-      const key = dayKeyLocal(session.completedAtISO);
-      const existing = grouped.get(key) ?? [];
-      existing.push(session);
-      grouped.set(key, existing);
-    }
-
-    return [...grouped.entries()]
-      .sort(([a], [b]) => (a < b ? 1 : -1))
-      .map(([key, items]) => ({
-        key,
-        label: new Date(items[0]?.completedAtISO ?? `${key}T00:00:00`).toLocaleDateString(
-          undefined,
-          {
-            weekday: "short",
-            month: "short",
-            day: "numeric",
-          },
-        ),
-        totalMinutes: items.reduce((sum, item) => sum + item.minutes, 0),
-        items: [...items].sort((a, b) => (a.completedAtISO < b.completedAtISO ? 1 : -1)),
-      }));
-  }, [sessions]);
-
-  const reportMetrics = useMemo(() => {
-    const sessionCount = sessions.length;
-    const totalMinutes = sessions.reduce((sum, session) => sum + session.minutes, 0);
-    const averageSession = sessionCount === 0 ? 0 : Math.round(totalMinutes / sessionCount);
-    const bestTrend = [...trendPoints].sort((a, b) => b.minutes - a.minutes)[0];
-    const weeklyTarget = 420;
-    const weeklyProgress = Math.min(
-      100,
-      Math.round((focusMetrics.weekMinutes / weeklyTarget) * 100),
-    );
-    const plannedCompletionCount = sessions.filter((session) =>
-      (session.note || "").startsWith("Planned block completed:"),
-    ).length;
-    const notesUpdated7d = notes.filter((note) => {
-      const updated = new Date(note.updatedAtISO);
-      const now = new Date();
-      const ms = now.getTime() - updated.getTime();
-      return ms <= 7 * 24 * 60 * 60 * 1000;
-    }).length;
-    const notesWithReminders = notes.filter((note) => Boolean(note.reminderAtISO)).length;
-
-    return {
-      sessionCount,
-      totalMinutes,
-      averageSession,
-      bestTrendLabel: bestTrend?.label ?? "N/A",
-      bestTrendMinutes: bestTrend?.minutes ?? 0,
-      weeklyProgress,
-      plannedCompletionCount,
-      notesUpdated7d,
-      notesWithReminders,
-    };
-  }, [focusMetrics.weekMinutes, notes, sessions, trendPoints]);
-
-  const insightsChart = useMemo(() => {
-    const windowDays = insightRange;
-    const end = new Date();
-    const start = new Date();
-    start.setDate(end.getDate() - (windowDays - 1));
-
-    const values: Record<NoteCategory, number> = {
-      personal: 0,
-      school: 0,
-      work: 0,
-    };
-    const colorWeights: Record<NoteCategory, Record<string, number>> = {
-      personal: {},
-      school: {},
-      work: {},
-    };
-
-    const inRange = (iso: string) => {
-      if (!iso) return false;
-      const value = new Date(iso);
-      return value >= start && value <= end;
-    };
-
-    const addColorWeight = (category: NoteCategory, color: string, weight = 1) => {
-      const fallback = INSIGHT_CATEGORY_META[category].color;
-      const next = isHexColor(color) ? color : fallback;
-      colorWeights[category][next] = (colorWeights[category][next] || 0) + weight;
-    };
-
-    notes.forEach((note) => {
-      const category = note.category || "personal";
-      const colorSourceDate = insightMetric === "reminders" ? note.reminderAtISO : note.updatedAtISO;
-      if (!inRange(colorSourceDate)) return;
-      addColorWeight(category, note.color || INSIGHT_CATEGORY_META[category].color);
-    });
-
-    if (insightMetric === "notes") {
-      notes.forEach((note) => {
-        if (!inRange(note.updatedAtISO)) return;
-        const category = note.category || "personal";
-        values[category] += 1;
-      });
-    } else if (insightMetric === "focus") {
-      sessions.forEach((session) => {
-        if (!inRange(session.completedAtISO)) return;
-        const category = inferCategoryFromText(session.note || "");
-        values[category] += session.minutes;
-      });
-    } else if (insightMetric === "planned") {
-      plannedBlocks.forEach((item) => {
-        if (!inRange(item.createdAtISO)) return;
-        const category = inferCategoryFromText(item.title);
-        values[category] += item.durationMinutes;
-      });
-    } else {
-      notes.forEach((note) => {
-        if (!note.reminderAtISO || !inRange(note.reminderAtISO)) return;
-        const category = note.category || "personal";
-        values[category] += 1;
-      });
-    }
-
-    const dominantColor = (category: NoteCategory) => {
-      const entries = Object.entries(colorWeights[category]);
-      if (entries.length === 0) return INSIGHT_CATEGORY_META[category].color;
-      return entries.sort((a, b) => b[1] - a[1])[0]?.[0] || INSIGHT_CATEGORY_META[category].color;
-    };
-
-    const segments = (Object.keys(INSIGHT_CATEGORY_META) as NoteCategory[]).map((key) => ({
-      key,
-      label: INSIGHT_CATEGORY_META[key].label,
-      color: dominantColor(key),
-      description: INSIGHT_CATEGORY_META[key].description,
-      value: values[key],
-    }));
-
-    const total = segments.reduce((sum, segment) => sum + segment.value, 0);
-    const ranked = [...segments].sort((a, b) => b.value - a.value);
-
-    let cumulative = 0;
-    const activeSegments = ranked.filter((segment) => segment.value > 0);
-    const donutGradient =
-      total === 0 || activeSegments.length === 0
-        ? "conic-gradient(#dbeafe 0 100%)"
-        : `conic-gradient(${activeSegments
-            .map((segment) => {
-              const startPct = (cumulative / total) * 100;
-              cumulative += segment.value;
-              const endPct = (cumulative / total) * 100;
-              return `${segment.color} ${startPct}% ${endPct}%`;
-            })
-            .join(", ")})`;
-
-    const topCategory = ranked[0];
-
-    return {
-      total,
-      segments,
-      ranked,
-      donutGradient,
-      topCategory,
-      windowLabel: `${windowDays} day window`,
-      metricLabel:
-        insightMetric === "focus"
-          ? "Focus Minutes"
-          : insightMetric === "notes"
-            ? "Notes Updated"
-            : insightMetric === "planned"
-              ? "Planned Minutes"
-              : "Reminder Count",
-      unitSuffix: insightMetric === "focus" || insightMetric === "planned" ? "m" : "",
-    };
-  }, [insightMetric, insightRange, notes, plannedBlocks, sessions]);
-
-  useEffect(() => {
-    if (!selectedInsightCategory) {
-      setSelectedInsightCategory(insightsChart.ranked[0]?.key ?? "personal");
-      return;
-    }
-    const stillExists = insightsChart.segments.some(
-      (segment) => segment.key === selectedInsightCategory,
-    );
-    if (!stillExists) {
-      setSelectedInsightCategory(insightsChart.ranked[0]?.key ?? "personal");
-    }
-  }, [insightsChart.ranked, insightsChart.segments, selectedInsightCategory]);
-
-  useEffect(() => {
-    let active = true;
-    void getProState().then((state) => {
-      if (!active) return;
-      setIsPro(state.isPro);
-      setProSource(state.source);
-    });
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    let active = true;
-    void getScreenTimeCapability().then((capability) => {
-      if (!active) return;
-      setScreenTimeSupported(capability.supported);
-      setScreenTimeStatus(capability.status);
-      setScreenTimeReason(capability.reason || "");
-    });
-
-    return () => {
-      active = false;
-    };
-  }, []);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (nextUser) => {
@@ -817,9 +110,7 @@ export default function HomePage() {
         setUser(null);
         setSessions([]);
         setNotes([]);
-        setPlannedBlocks([]);
         setSelectedNoteId(null);
-        setSelectedCalendarDate(null);
         setAuthChecked(true);
         router.push("/login");
         return;
@@ -836,79 +127,9 @@ export default function HomePage() {
     return () => unsub();
   }, [router]);
 
-  useEffect(() => {
-    if (!user) return;
-    const loaded = loadPlannedBlocks(user.uid);
-    setPlannedBlocks(loaded);
-  }, [user]);
-
-  useEffect(() => {
-    function onOnline() {
-      if (!user || notes.length === 0) return;
-      void handleRetrySync();
-    }
-
-    window.addEventListener("online", onOnline);
-    return () => window.removeEventListener("online", onOnline);
-  }, [notes, user]);
-
-  useEffect(() => {
-    async function pullLatest() {
-      if (!user || syncInFlightRef.current) return;
-      if (selectedNote && editorBodyDraft !== selectedNote.body) return;
-
-      syncInFlightRef.current = true;
-      try {
-        await Promise.all([refreshSessions(user.uid), refreshNotes(user.uid)]);
-      } finally {
-        syncInFlightRef.current = false;
-      }
-    }
-
-    const intervalId = window.setInterval(() => {
-      void pullLatest();
-    }, 15000);
-
-    function onFocus() {
-      void pullLatest();
-    }
-
-    function onVisibilityChange() {
-      if (document.visibilityState === "visible") {
-        void pullLatest();
-      }
-    }
-
-    window.addEventListener("focus", onFocus);
-    document.addEventListener("visibilitychange", onVisibilityChange);
-
-    return () => {
-      window.clearInterval(intervalId);
-      window.removeEventListener("focus", onFocus);
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-    };
-  }, [editorBodyDraft, selectedNote, user]);
-
-  useEffect(() => {
-    setColorPickerOpen(false);
-  }, [selectedNoteId]);
-
-  useEffect(() => {
-    const nextHtml = selectedNote ? normalizeBodyForEditor(selectedNote.body) : "";
-    setEditorBodyDraft(nextHtml);
-  }, [selectedNote, selectedNoteId]);
-
-  useEffect(() => {
-    if (!editorRef.current) return;
-    if (document.activeElement === editorRef.current) return;
-
-    if (editorRef.current.innerHTML !== editorBodyDraft) {
-      editorRef.current.innerHTML = editorBodyDraft;
-    }
-  }, [editorBodyDraft, selectedNoteId]);
-
   async function refreshSessions(uid: string) {
     const currentUser = auth.currentUser;
+
     if (!currentUser || currentUser.uid !== uid) {
       throw new Error("Your login session is missing. Sign in again.");
     }
@@ -918,18 +139,21 @@ export default function HomePage() {
 
   async function refreshNotes(uid: string) {
     const currentUser = auth.currentUser;
+
     if (!currentUser || currentUser.uid !== uid) {
       throw new Error("Your login session is missing. Sign in again.");
     }
 
-    const result = await loadNotes(currentUser);
-    setNotes(result.notes);
-    setSelectedNoteId((current) => current ?? result.notes[0]?.id ?? null);
-    setNotesSyncStatus(result.synced ? "synced" : "local-only");
-    setNotesSyncMessage(result.message ?? "");
+    const loadedNotes = await loadNotes(currentUser);
+    setNotes(loadedNotes);
+    setSelectedNoteId((current) => current ?? loadedNotes[0]?.id ?? null);
   }
 
-  async function completeSession(note: string, minutesSpent: number) {
+  async function completeSession(
+    category: SessionCategory,
+    note: string,
+    minutesSpent: number,
+  ) {
     if (!user) return;
 
     const now = new Date().toISOString();
@@ -937,13 +161,19 @@ export default function HomePage() {
       uid: user.uid,
       completedAtISO: now,
       minutes: minutesSpent,
-      category: "misc",
+      category,
       note: note.trim(),
       noteSavedAtISO: now,
     };
 
-    const nextSessions = await saveSession(user, session);
-    setSessions(nextSessions);
+    try {
+      await saveSession(user, session);
+      setSessions((current) =>
+        [session, ...current].sort((a, b) => (a.completedAtISO < b.completedAtISO ? 1 : -1)),
+      );
+    } catch {
+      // Local storage writes are expected to succeed in normal browser contexts.
+    }
   }
 
   async function createWorkspaceNote() {
@@ -953,147 +183,33 @@ export default function HomePage() {
     const nextNotes = [nextNote, ...notes];
     setNotes(nextNotes);
     setSelectedNoteId(nextNote.id);
-    setActiveTab("notes");
-    const result = await saveNotes(user, nextNotes);
-    setNotesSyncStatus(result.synced ? "synced" : "local-only");
-    setNotesSyncMessage(result.message ?? "");
+    setActiveView("notes");
+    await saveNotes(user, nextNotes);
   }
 
-  async function updateSelectedNote(
-    patch: Partial<
-      Pick<
-        WorkspaceNote,
-        | "title"
-        | "body"
-        | "color"
-        | "isPinned"
-        | "fontFamily"
-        | "fontSizePx"
-        | "category"
-        | "reminderAtISO"
-      >
-    >,
-  ) {
+  async function updateSelectedNote(patch: Partial<Pick<WorkspaceNote, "title" | "body">>) {
     if (!user || !selectedNote) return;
 
     const now = new Date().toISOString();
     const nextNotes = notes.map((note) =>
-      note.id === selectedNote.id ? { ...note, ...patch, updatedAtISO: now } : note,
-    );
-    setNotes(nextNotes);
-    const result = await saveNotes(user, nextNotes);
-    setNotesSyncStatus(result.synced ? "synced" : "local-only");
-    setNotesSyncMessage(result.message ?? "");
-  }
-
-  async function togglePinned(noteId: string) {
-    if (!user) return;
-    const target = notes.find((note) => note.id === noteId);
-    if (!target) return;
-
-    const now = new Date().toISOString();
-    const nextNotes = notes.map((note) =>
-      note.id === noteId
-        ? { ...note, isPinned: !note.isPinned, updatedAtISO: now }
+      note.id === selectedNote.id
+        ? { ...note, ...patch, updatedAtISO: now }
         : note,
     );
     setNotes(nextNotes);
-    const result = await saveNotes(user, nextNotes);
-    setNotesSyncStatus(result.synced ? "synced" : "local-only");
-    setNotesSyncMessage(result.message ?? "");
-  }
-
-  useEffect(() => {
-    if (!selectedNote) return;
-    if (editorBodyDraft === selectedNote.body) return;
-
-    const timeoutId = window.setTimeout(() => {
-      void updateSelectedNote({ body: editorBodyDraft });
-    }, 500);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [editorBodyDraft, selectedNote]);
-
-  function captureEditorDraft() {
-    if (!editorRef.current) return;
-    setEditorBodyDraft(editorRef.current.innerHTML);
-  }
-
-  function saveEditorSelection() {
-    const editor = editorRef.current;
-    const selection = window.getSelection();
-    if (!editor || !selection || selection.rangeCount === 0) return;
-
-    const range = selection.getRangeAt(0);
-    if (!editor.contains(range.startContainer) || !editor.contains(range.endContainer)) {
-      return;
-    }
-
-    savedSelectionRef.current = range.cloneRange();
-  }
-
-  function restoreEditorSelection() {
-    const editor = editorRef.current;
-    const selection = window.getSelection();
-    const savedRange = savedSelectionRef.current;
-    if (!editor || !selection || !savedRange) return false;
-    if (!editor.contains(savedRange.startContainer) || !editor.contains(savedRange.endContainer)) {
-      return false;
-    }
-
-    editor.focus();
-    selection.removeAllRanges();
-    selection.addRange(savedRange);
-    return true;
-  }
-
-  function applyEditorCommand(command: string, value?: string) {
-    if (!selectedNote) return;
-    if (!restoreEditorSelection()) {
-      editorRef.current?.focus();
-    }
-    document.execCommand("styleWithCSS", false, "true");
-    document.execCommand(command, false, value);
-    saveEditorSelection();
-    captureEditorDraft();
+    await saveNotes(user, nextNotes);
   }
 
   async function deleteNote(noteId: string) {
     if (!user) return;
-    const deleted = notes.find((note) => note.id === noteId) || null;
+
     const nextNotes = notes.filter((note) => note.id !== noteId);
     setNotes(nextNotes);
-    setSelectedNoteId((current) => (current === noteId ? nextNotes[0]?.id ?? null : current));
-    const result = await saveNotes(user, nextNotes);
-    setNotesSyncStatus(result.synced ? "synced" : "local-only");
-    setNotesSyncMessage(result.message ?? "");
-    setNoteUndoItem(deleted);
-    window.setTimeout(() => setNoteUndoItem(null), 5000);
-  }
-
-  async function undoDeleteNote() {
-    if (!user || !noteUndoItem) return;
-    const restored = [noteUndoItem, ...notes];
-    setNotes(restored);
-    setSelectedNoteId(noteUndoItem.id);
-    const result = await saveNotes(user, restored);
-    setNotesSyncStatus(result.synced ? "synced" : "local-only");
-    setNotesSyncMessage(result.message ?? "");
-    setNoteUndoItem(null);
-  }
-
-  async function handleRetrySync() {
-    if (!user) return;
-    setNotesSyncStatus("syncing");
-    const result = await retryNotesSync(user, notes);
-
-    if (result.synced) {
-      setNotesSyncStatus("synced");
-      setNotesSyncMessage("");
-    } else {
-      setNotesSyncStatus("local-only");
-      setNotesSyncMessage(result.message ?? "Retry failed.");
-    }
+    setSelectedNoteId((current) => {
+      if (current !== noteId) return current;
+      return nextNotes[0]?.id ?? null;
+    });
+    await saveNotes(user, nextNotes);
   }
 
   async function submitFeedback() {
@@ -1149,345 +265,6 @@ export default function HomePage() {
     }
   }
 
-  async function copyWeeklyReport() {
-    const userLabel = user?.displayName || user?.email || "WHELM user";
-    const report = [
-      "Whelm Weekly Report",
-      `Focus today: ${focusMetrics.todayMinutes}m`,
-      `Focus this week: ${focusMetrics.weekMinutes}m`,
-      `Sessions today: ${focusMetrics.todaySessions}`,
-      `Discipline score: ${focusMetrics.disciplineScore}/100`,
-      `Current streak: ${streak} day${streak === 1 ? "" : "s"}`,
-      `Active days (30d): ${focusMetrics.activeDaysInMonth}/30`,
-      `User: ${userLabel}`,
-    ].join("\n");
-
-    try {
-      await navigator.clipboard.writeText(report);
-      setReportCopyStatus("Copied");
-    } catch {
-      setReportCopyStatus("Copy failed");
-    } finally {
-      window.setTimeout(() => setReportCopyStatus(""), 1200);
-    }
-  }
-
-  async function handlePreviewUpgrade() {
-    const next = await startProPreview();
-    setIsPro(next.isPro);
-    setProSource(next.source);
-    setPaywallOpen(false);
-  }
-
-  async function handleRestoreFreeTier() {
-    const next = await restoreFreeTier();
-    setIsPro(next.isPro);
-    setProSource(next.source);
-  }
-
-  async function handleRequestScreenTimeAuth() {
-    try {
-      setScreenTimeBusy(true);
-      const status = await requestScreenTimeAuthorization();
-      setScreenTimeStatus(status);
-      setScreenTimeReason(
-        status === "approved"
-          ? "Screen Time permission granted."
-          : "Screen Time permission was not approved.",
-      );
-    } catch (error) {
-      setScreenTimeReason(
-        error instanceof Error ? error.message : "Unable to request Screen Time permission.",
-      );
-    } finally {
-      setScreenTimeBusy(false);
-    }
-  }
-
-  async function handleOpenScreenTimeSettings() {
-    try {
-      setScreenTimeBusy(true);
-      await openScreenTimeSystemSettings();
-    } catch (error) {
-      setScreenTimeReason(
-        error instanceof Error ? error.message : "Unable to open iOS settings.",
-      );
-    } finally {
-      setScreenTimeBusy(false);
-    }
-  }
-
-  function openUpgradeFlow() {
-    setPaywallOpen(true);
-  }
-
-  function openNotesTab() {
-    setActiveTab("notes");
-  }
-
-  function convertNoteToPlannedBlock(note: WorkspaceNote) {
-    if (!user) return;
-    const next: PlannedBlock = {
-      id: typeof crypto !== "undefined" ? crypto.randomUUID() : `${Date.now()}`,
-      dateKey: selectedDateKey,
-      title: note.title || "Untitled note task",
-      durationMinutes: 25,
-      timeOfDay: "09:00",
-      sortOrder:
-        selectedDatePlans.length === 0
-          ? 0
-          : Math.max(...selectedDatePlans.map((item) => item.sortOrder)) + 1,
-      createdAtISO: new Date().toISOString(),
-    };
-    const updated = [...plannedBlocks, next];
-    setPlannedBlocks(updated);
-    savePlannedBlocks(user.uid, updated);
-    setActiveTab("calendar");
-    setPlanStatus("Note converted to a planned block.");
-    window.setTimeout(() => setPlanStatus(""), 1400);
-  }
-
-  const selectedDateKey = selectedCalendarDate || dayKeyLocal(new Date());
-  const calendarMonthLabel = calendarCursor.toLocaleDateString(undefined, {
-    month: "long",
-    year: "numeric",
-  });
-  const calendarMonthInput = monthInputFromDate(calendarCursor);
-  const sessionMinutesByDay = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const session of sessions) {
-      const key = dayKeyLocal(session.completedAtISO);
-      map.set(key, (map.get(key) ?? 0) + session.minutes);
-    }
-    return map;
-  }, [sessions]);
-  const dynamicMonthCalendar = useMemo<MonthCell[]>(() => {
-    const monthStart = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth(), 1);
-    const daysInMonth = new Date(
-      calendarCursor.getFullYear(),
-      calendarCursor.getMonth() + 1,
-      0,
-    ).getDate();
-    const leadingSpaces = monthStart.getDay();
-    const cells: MonthCell[] = [];
-
-    for (let i = 0; i < leadingSpaces; i += 1) {
-      cells.push({
-        key: `leading-${i}`,
-        dayNumber: null,
-        minutes: 0,
-        level: 0,
-        isCurrentMonth: false,
-      });
-    }
-
-    for (let dayNumber = 1; dayNumber <= daysInMonth; dayNumber += 1) {
-      const day = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth(), dayNumber);
-      const dateKey = dayKeyLocal(day);
-      const minutes = sessionMinutesByDay.get(dateKey) ?? 0;
-      cells.push({
-        key: dateKey,
-        dayNumber,
-        minutes,
-        level: focusLevel(minutes),
-        isCurrentMonth: true,
-      });
-    }
-
-    while (cells.length % 7 !== 0 || cells.length < 35) {
-      cells.push({
-        key: `trailing-${cells.length}`,
-        dayNumber: null,
-        minutes: 0,
-        level: 0,
-        isCurrentMonth: false,
-      });
-    }
-
-    return cells;
-  }, [calendarCursor, sessionMinutesByDay]);
-  const selectedDatePlans = plannedBlocks
-    .filter((item) => item.dateKey === selectedDateKey)
-    .sort((a, b) => a.sortOrder - b.sortOrder || a.timeOfDay.localeCompare(b.timeOfDay));
-
-  useEffect(() => {
-    setCalendarJumpDate(selectedDateKey);
-  }, [selectedDateKey]);
-
-  const kpiDetailContent = useMemo<
-    Record<KpiDetailKey, { title: string; summary: string; bullets: string[] }>
-  >(
-    () => ({
-      totalFocus: {
-        title: "Total Focus",
-        summary: `${reportMetrics.totalMinutes} focused minutes logged so far.`,
-        bullets: [
-          "Use this to track overall lifetime momentum.",
-          "Raise this by adding one extra focus block daily.",
-          "Large total focus usually correlates with stronger retention.",
-        ],
-      },
-      totalSessions: {
-        title: "Total Sessions",
-        summary: `${reportMetrics.sessionCount} saved sessions in your history.`,
-        bullets: [
-          "More sessions means more behavior repetition.",
-          "Short sessions are fine if they happen consistently.",
-          "Aim for a stable daily session count first.",
-        ],
-      },
-      averageSession: {
-        title: "Average Session Length",
-        summary: `Current average is ${reportMetrics.averageSession} minutes per session.`,
-        bullets: [
-          "This reveals your natural deep-work capacity.",
-          "If this drops, reduce context switching.",
-          "For many users, 20–40 minutes is a healthy range.",
-        ],
-      },
-      bestDay: {
-        title: "Best Day",
-        summary: `${reportMetrics.bestTrendLabel} had your top focus at ${reportMetrics.bestTrendMinutes} minutes.`,
-        bullets: [
-          "Review what worked on that day and repeat it.",
-          "Use that day as your benchmark for next week.",
-          "Great best-days come from fewer switches and clearer priorities.",
-        ],
-      },
-      weeklyProgress: {
-        title: "Weekly Progress",
-        summary: `${reportMetrics.weeklyProgress}% of your 420-minute weekly target is complete.`,
-        bullets: [
-          "420 minutes per week equals 60 minutes per day.",
-          "Progress bars turn planning into a clear finish line.",
-          "Use calendar planning to close weekly gaps earlier.",
-        ],
-      },
-    }),
-    [reportMetrics],
-  );
-
-  function addPlannedBlock() {
-    if (!user) return;
-    const title = planTitle.trim();
-    if (!title) {
-      setPlanStatus("Write a task title first.");
-      return;
-    }
-
-    const next: PlannedBlock = {
-      id: typeof crypto !== "undefined" ? crypto.randomUUID() : `${Date.now()}`,
-      dateKey: selectedDateKey,
-      title,
-      durationMinutes: Math.min(240, Math.max(5, planDuration)),
-      timeOfDay: planTime || "09:00",
-      sortOrder:
-        selectedDatePlans.length === 0
-          ? 0
-          : Math.max(...selectedDatePlans.map((item) => item.sortOrder)) + 1,
-      createdAtISO: new Date().toISOString(),
-    };
-    const updated = [...plannedBlocks, next];
-    setPlannedBlocks(updated);
-    savePlannedBlocks(user.uid, updated);
-    setPlanTitle("");
-    setPlanStatus("Planned block added.");
-    window.setTimeout(() => setPlanStatus(""), 1200);
-  }
-
-  function deletePlannedBlock(id: string) {
-    if (!user) return;
-    const removed = plannedBlocks.find((item) => item.id === id) || null;
-    const updated = plannedBlocks.filter((item) => item.id !== id);
-    setPlannedBlocks(updated);
-    savePlannedBlocks(user.uid, updated);
-    setDeletedPlanUndo(removed);
-    window.setTimeout(() => setDeletedPlanUndo(null), 5000);
-  }
-
-  function undoDeletePlannedBlock() {
-    if (!user || !deletedPlanUndo) return;
-    const updated = [...plannedBlocks, deletedPlanUndo];
-    setPlannedBlocks(updated);
-    savePlannedBlocks(user.uid, updated);
-    setDeletedPlanUndo(null);
-  }
-
-  function updatePlannedBlockTime(id: string, timeOfDay: string) {
-    if (!user) return;
-    const updated = plannedBlocks.map((item) =>
-      item.id === id ? { ...item, timeOfDay } : item,
-    );
-    setPlannedBlocks(updated);
-    savePlannedBlocks(user.uid, updated);
-  }
-
-  function reorderPlannedBlocks(sourceId: string, targetId: string) {
-    if (!user || sourceId === targetId) return;
-
-    const sameDate = plannedBlocks
-      .filter((item) => item.dateKey === selectedDateKey)
-      .sort((a, b) => a.sortOrder - b.sortOrder || a.timeOfDay.localeCompare(b.timeOfDay));
-
-    const sourceIndex = sameDate.findIndex((item) => item.id === sourceId);
-    const targetIndex = sameDate.findIndex((item) => item.id === targetId);
-    if (sourceIndex < 0 || targetIndex < 0) return;
-
-    const reordered = [...sameDate];
-    const [moved] = reordered.splice(sourceIndex, 1);
-    reordered.splice(targetIndex, 0, moved);
-
-    const withOrder = reordered.map((item, index) => ({
-      ...item,
-      sortOrder: index,
-    }));
-
-    const untouched = plannedBlocks.filter((item) => item.dateKey !== selectedDateKey);
-    const updated = [...untouched, ...withOrder];
-    setPlannedBlocks(updated);
-    savePlannedBlocks(user.uid, updated);
-  }
-
-  async function completePlannedBlock(item: PlannedBlock) {
-    if (!user) return;
-
-    const localDateTime = new Date(`${item.dateKey}T${item.timeOfDay}:00`);
-    const completedAtISO = Number.isNaN(localDateTime.getTime())
-      ? new Date().toISOString()
-      : localDateTime.toISOString();
-
-    const session: SessionDoc = {
-      uid: user.uid,
-      completedAtISO,
-      minutes: item.durationMinutes,
-      category: "misc",
-      note: `Planned block completed: ${item.title}`,
-      noteSavedAtISO: new Date().toISOString(),
-    };
-
-    const nextSessions = await saveSession(user, session);
-    setSessions(nextSessions);
-    const updated = plannedBlocks.filter((block) => block.id !== item.id);
-    setPlannedBlocks(updated);
-    savePlannedBlocks(user.uid, updated);
-    setPlanStatus("Session saved from plan.");
-    window.setTimeout(() => setPlanStatus(""), 1200);
-  }
-
-  function selectCalendarDate(dateKey: string) {
-    const parsed = new Date(`${dateKey}T00:00:00`);
-    if (Number.isNaN(parsed.getTime())) return;
-    setSelectedCalendarDate(dateKey);
-    setCalendarJumpDate(dateKey);
-    setCalendarCursor(new Date(parsed.getFullYear(), parsed.getMonth(), 1));
-  }
-
-  function jumpToToday() {
-    const today = new Date();
-    const key = dayKeyLocal(today);
-    selectCalendarDate(key);
-  }
-
   if (!authChecked) {
     return (
       <main className={styles.pageShell}>
@@ -1501,18 +278,6 @@ export default function HomePage() {
   if (!user) return null;
 
   const lastSession = sessions[0];
-  const maxTrendMinutes = Math.max(30, ...trendPoints.map((point) => point.minutes));
-  const trendPath = trendPoints
-    .map((point, index) => {
-      const x = (index / Math.max(1, trendPoints.length - 1)) * 100;
-      const y = 100 - (point.minutes / maxTrendMinutes) * 100;
-      return `${x},${y}`;
-    })
-    .join(" ");
-  const activeInsight =
-    insightsChart.segments.find((segment) => segment.key === selectedInsightCategory) ??
-    insightsChart.ranked[0] ??
-    insightsChart.segments[0];
 
   return (
     <main className={styles.pageShell}>
@@ -1520,1390 +285,258 @@ export default function HomePage() {
         <header className={styles.header}>
           <div>
             <p className={styles.kicker}>WHELM</p>
-            <h1 className={styles.title}>Discipline Dashboard</h1>
+            <h1 className={styles.title}>
+              {activeView === "focus" ? "Focus. No Distractions" : "Write. Organize. Grind."}
+            </h1>
             <p className={styles.subtitle}>
-              One app for focus, notes, insights, history, and progress.
+              {activeView === "focus"
+                ? "A stripped-down focus session for one thing at a time."
+                : "Create as many notes as you need across projects, classes, and daily work."}
             </p>
           </div>
+
           <div className={styles.headerActions}>
-            {!isPro && (
-              <button type="button" className={styles.upgradeButton} onClick={openUpgradeFlow}>
-                Upgrade
-              </button>
-            )}
-            <button type="button" onClick={() => signOut(auth)} className={styles.signOutButton}>
+            <button
+              type="button"
+              className={styles.menuButton}
+              onClick={() => setMobileMenuOpen((open) => !open)}
+            >
+              ☰
+            </button>
+            <button onClick={() => signOut(auth)} className={styles.signOutButton}>
               Sign out
             </button>
           </div>
         </header>
 
-        <nav className={styles.tabRail}>
-          {TAB_META.map((tab) => (
-            <button
-              key={tab.key}
-              type="button"
-              className={`${styles.tabButton} ${activeTab === tab.key ? styles.tabButtonActive : ""}`}
-              onClick={() => setActiveTab(tab.key)}
-            >
-              <span className={styles.tabIcon}>{iconForTab(tab.key)}</span>
-              <span>{tab.label}</span>
-            </button>
-          ))}
+        <nav className={`${styles.topNav} ${mobileMenuOpen ? styles.topNavOpen : ""}`}>
+          <button
+            type="button"
+            className={`${styles.topNavButton} ${
+              activeView === "focus" ? styles.topNavButtonActive : ""
+            }`}
+            onClick={() => {
+              setActiveView("focus");
+              setMobileMenuOpen(false);
+            }}
+          >
+            Focus
+          </button>
+          <button
+            type="button"
+            className={`${styles.topNavButton} ${
+              activeView === "notes" ? styles.topNavButtonActive : ""
+            }`}
+            onClick={() => {
+              setActiveView("notes");
+              setMobileMenuOpen(false);
+            }}
+          >
+            Notes
+          </button>
+          <button
+            type="button"
+            className={styles.topNavAction}
+            onClick={createWorkspaceNote}
+          >
+            + Add Note
+          </button>
         </nav>
 
-        <section className={styles.screen}>
-          <div className={styles.topAppBar}>
-            <div>
-              <p className={styles.topAppBarLabel}>Whelm OS</p>
-              <h2 className={styles.topAppBarTitle}>{tabTitle(activeTab)}</h2>
-            </div>
-            <div className={styles.topAppBarRight}>
-              <span className={styles.topAppBarDate}>
-                {new Date().toLocaleDateString(undefined, {
-                  weekday: "short",
-                  month: "short",
-                  day: "numeric",
-                })}
-              </span>
-              <button
-                type="button"
-                className={styles.topAppBarAction}
-                onClick={() => {
-                  setFeedbackOpen(true);
-                  setFeedbackStatus("");
-                }}
-              >
-                Feedback
-              </button>
-            </div>
-          </div>
+        {activeView === "focus" ? (
+          <>
+            <section className={styles.statsGrid}>
+              <article className={styles.statCard}>
+                <span className={styles.statLabel}>Current streak</span>
+                <strong className={styles.statValue}>
+                  {streak} day{streak === 1 ? "" : "s"}
+                </strong>
+              </article>
 
-          {activeTab === "today" && (
-            <>
-              <section className={styles.statsGrid}>
-                <article className={styles.statCard}>
-                  <span className={styles.statLabel}>Discipline Score</span>
-                  <strong className={styles.statValue}>
-                    {focusMetrics.disciplineScore}
-                    <span className={styles.statSuffix}>/100</span>
-                  </strong>
-                </article>
-                <article className={styles.statCard}>
-                  <span className={styles.statLabel}>Focus Today</span>
-                  <strong className={styles.statValue}>{focusMetrics.todayMinutes}m</strong>
-                </article>
-                <article className={styles.statCard}>
-                  <span className={styles.statLabel}>Current Streak</span>
-                  <strong className={styles.statValue}>
-                    {streak} day{streak === 1 ? "" : "s"}
-                  </strong>
-                </article>
-                <article className={styles.statCard}>
-                  <span className={styles.statLabel}>Focus Week</span>
-                  <strong className={styles.statValueSmall}>{focusMetrics.weekMinutes} minutes</strong>
-                </article>
-              </section>
+              <article className={styles.statCard}>
+                <span className={styles.statLabel}>Completed sessions</span>
+                <strong className={styles.statValue}>{sessions.length}</strong>
+              </article>
 
-              {!isPro && (
-                <section className={styles.adStrip}>
-                  <p className={styles.adBadge}>Free Tier Ad Slot</p>
-                  <p className={styles.adCopy}>Upgrade removes ads and unlocks advanced analytics.</p>
-                  <button type="button" className={styles.inlineUpgrade} onClick={openUpgradeFlow}>
-                    Go Pro
-                  </button>
-                </section>
-              )}
+              <article className={styles.statCard}>
+                <span className={styles.statLabel}>Last session</span>
+                <strong className={styles.statValueSmall}>
+                  {lastSession
+                    ? `${new Date(lastSession.completedAtISO).toLocaleString()} · ${
+                        TIMER_CONFIGS.find(
+                          (config) => config.category === (lastSession.category ?? "misc"),
+                        )?.badgeLabel ?? "Misc"
+                      }`
+                    : "Not yet started"}
+                </strong>
+              </article>
+            </section>
 
-              <section className={styles.mainGrid}>
-                <div className={styles.leftColumn}>
+            <section className={styles.mainGrid}>
+              <div className={styles.timersGrid}>
+                {TIMER_CONFIGS.map((config) => (
                   <Timer
+                    key={config.category}
                     minutes={25}
-                    title={FOCUS_TIMER.title}
-                    subtitle={FOCUS_TIMER.subtitle}
-                    actionLabel={FOCUS_TIMER.actionLabel}
-                    theme={FOCUS_TIMER.theme}
-                    onComplete={(note, minutesSpent) => completeSession(note, minutesSpent)}
+                    title={config.title}
+                    subtitle={config.subtitle}
+                    actionLabel={config.actionLabel}
+                    theme={config.theme}
+                    onComplete={(note, minutesSpent) =>
+                      completeSession(config.category, note, minutesSpent)
+                    }
                   />
+                ))}
+              </div>
 
-                  <article className={styles.card}>
-                    <div className={styles.cardHeader}>
-                      <div>
-                        <p className={styles.sectionLabel}>Command Center</p>
-                        <h2 className={styles.cardTitle}>Today at a glance</h2>
-                      </div>
-                      <button type="button" className={styles.reportButton} onClick={() => void copyWeeklyReport()}>
-                        {reportCopyStatus || "Copy weekly report"}
-                      </button>
-                    </div>
-                    <ul className={styles.commandList}>
-                      <li>
-                        <strong>{focusMetrics.todaySessions}</strong> sessions completed
-                      </li>
-                      <li>
-                        <strong>{focusMetrics.todayMinutes}m</strong> focused
-                      </li>
-                      <li>
-                        Last session:{" "}
-                        <strong>
-                          {lastSession
-                            ? new Date(lastSession.completedAtISO).toLocaleTimeString([], {
-                                hour: "numeric",
-                                minute: "2-digit",
-                              })
-                            : "not started"}
-                        </strong>
-                      </li>
-                      <li>
-                        <strong>{orderedNotes.filter((note) => note.isPinned).length}</strong> pinned notes
-                      </li>
-                    </ul>
-                  </article>
+              <aside className={styles.sessionsCard}>
+                <div>
+                  <p className={styles.sectionLabel}>Your account</p>
+                  <p className={styles.email}>
+                    {user.displayName || user.email?.split("@")[0] || "WHELM user"}
+                  </p>
+                  <p className={styles.accountMeta}>{user.email}</p>
                 </div>
 
-                <aside className={styles.rightColumn}>
-                  <article className={styles.card}>
-                    <p className={styles.sectionLabel}>Quick Notes</p>
-                    <h2 className={styles.cardTitle}>Capture fast</h2>
-                    <div className={styles.quickNoteList}>
-                      {orderedNotes.slice(0, 4).map((note) => (
-                        <button
-                          key={note.id}
-                          type="button"
-                          className={styles.quickNoteItem}
-                            onClick={() => {
-                              setSelectedNoteId(note.id);
-                              openNotesTab();
-                            }}
-                          style={{ backgroundColor: note.color || "#f8fafc" }}
-                        >
-                          <strong>{note.title || "Untitled note"}</strong>
-                          <span>{new Date(note.updatedAtISO).toLocaleDateString()}</span>
-                        </button>
-                      ))}
-                      {orderedNotes.length === 0 && (
-                        <p className={styles.emptyText}>No notes yet. Create your first note.</p>
-                      )}
-                    </div>
-                    <button type="button" className={styles.newNoteButton} onClick={createWorkspaceNote}>
-                      + Add Note
-                    </button>
-                  </article>
-
-                  <article className={styles.card}>
-                    <p className={styles.sectionLabel}>Due Today</p>
-                    <h2 className={styles.cardTitle}>Note reminders</h2>
-                    {dueReminderNotes.length === 0 ? (
-                      <p className={styles.emptyText}>No note reminders due today.</p>
-                    ) : (
-                      <div className={styles.reminderList}>
-                        {dueReminderNotes.slice(0, 5).map((note) => (
-                          <button
-                            key={note.id}
-                            type="button"
-                            className={styles.reminderItem}
-                            onClick={() => {
-                              setSelectedNoteId(note.id);
-                              openNotesTab();
-                            }}
-                          >
-                            <strong>{note.title || "Untitled note"}</strong>
-                            <span>
-                              {new Date(note.reminderAtISO || "").toLocaleTimeString([], {
-                                hour: "numeric",
-                                minute: "2-digit",
-                              })}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </article>
-
-                  <article className={styles.card}>
-                    <p className={styles.sectionLabel}>Plan</p>
-                    <p className={styles.accountMeta}>
-                      {isPro ? "Whelm Pro" : "Whelm Free"}
-                      {proSource === "preview" ? " (preview)" : ""}
-                    </p>
-                    <p className={styles.accountMeta}>{user.email}</p>
-                    {!isPro && (
-                      <button type="button" className={styles.inlineUpgrade} onClick={openUpgradeFlow}>
-                        Unlock Pro ($3.99/mo)
-                      </button>
-                    )}
-                  </article>
-                </aside>
-              </section>
-            </>
-          )}
-
-          {activeTab === "calendar" && (
-            <section className={styles.calendarGrid}>
-              <article className={styles.card}>
-                <p className={styles.sectionLabel}>Month View</p>
-                <h2 className={styles.cardTitle}>Focus calendar</h2>
-                <div className={styles.calendarToolbar}>
-                  <div className={styles.calendarNav}>
-                    <button
-                      type="button"
-                      className={styles.secondaryPlanButton}
-                      onClick={() => setCalendarCursor((current) => shiftMonth(current, -1))}
-                    >
-                      Prev
-                    </button>
-                    <strong className={styles.calendarMonthLabel}>{calendarMonthLabel}</strong>
-                    <button
-                      type="button"
-                      className={styles.secondaryPlanButton}
-                      onClick={() => setCalendarCursor((current) => shiftMonth(current, 1))}
-                    >
-                      Next
-                    </button>
+                <div className={styles.sessionsBlock}>
+                  <div className={styles.sessionsHeadingRow}>
+                    <h2 className={styles.sessionsHeading}>Recent sessions</h2>
+                    <span className={styles.sessionsHint}>Latest 5</span>
                   </div>
-                  <div className={styles.calendarJumpRow}>
-                    <label className={styles.planLabel}>
-                      Month / Year
-                      <input
-                        type="month"
-                        className={styles.planControl}
-                        value={calendarMonthInput}
-                        onChange={(event) => {
-                          const next = parseMonthInput(event.target.value);
-                          if (!next) return;
-                          setCalendarCursor(next);
-                        }}
-                      />
-                    </label>
-                    <label className={styles.planLabel}>
-                      Jump to date
-                      <input
-                        type="date"
-                        className={styles.planControl}
-                        value={calendarJumpDate}
-                        onChange={(event) => setCalendarJumpDate(event.target.value)}
-                      />
-                    </label>
-                    <button
-                      type="button"
-                      className={styles.planAddButton}
-                      onClick={() => {
-                        if (!calendarJumpDate) return;
-                        selectCalendarDate(calendarJumpDate);
-                      }}
-                    >
-                      Go
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.secondaryPlanButton}
-                      onClick={jumpToToday}
-                    >
-                      Today
-                    </button>
-                  </div>
-                </div>
-                <div className={styles.calendarHeader}>
-                  <span>Sun</span>
-                  <span>Mon</span>
-                  <span>Tue</span>
-                  <span>Wed</span>
-                  <span>Thu</span>
-                  <span>Fri</span>
-                  <span>Sat</span>
-                </div>
-                <div className={styles.monthGrid}>
-                  {dynamicMonthCalendar.map((day) => (
-                    <button
-                      type="button"
-                      key={day.key}
-                      className={`${styles.streakCell} ${styles[`streakLevel${day.level}`]} ${
-                        day.dayNumber && day.key === selectedDateKey ? styles.streakCellSelected : ""
-                      }`}
-                      disabled={!day.dayNumber}
-                      title={
-                        day.dayNumber
-                          ? `${day.dayNumber}: ${day.minutes}m`
-                          : "Outside current month"
-                      }
-                      onClick={() => {
-                        if (!day.dayNumber) return;
-                        selectCalendarDate(day.key);
-                      }}
-                    >
-                      {day.dayNumber && <span>{day.dayNumber}</span>}
-                    </button>
-                  ))}
-                </div>
-              </article>
 
-              <article className={styles.card}>
-                <p className={styles.sectionLabel}>Last 4 Weeks</p>
-                <h2 className={styles.cardTitle}>Streak heatmap</h2>
-                <div className={styles.streakGrid}>
-                  {focusMetrics.calendar.map((day) => (
-                    <div
-                      key={day.dateKey}
-                      className={`${styles.streakCell} ${styles[`streakLevel${day.level}`]}`}
-                      title={`${day.label}: ${day.minutes}m`}
-                    />
-                  ))}
-                </div>
-                <div className={styles.streakLegend}>
-                  <span>No focus</span>
-                  <span>Light</span>
-                  <span>Strong</span>
-                  <span>Deep</span>
-                </div>
-              </article>
-
-              <article className={styles.card}>
-                <p className={styles.sectionLabel}>Scheduler</p>
-                <h2 className={styles.cardTitle}>
-                  Planned focus blocks for{" "}
-                  {new Date(`${selectedDateKey}T00:00:00`).toLocaleDateString(undefined, {
-                    weekday: "short",
-                    month: "short",
-                    day: "numeric",
-                  })}
-                </h2>
-                <div className={styles.planForm}>
-                  <input
-                    value={planTitle}
-                    onChange={(event) => setPlanTitle(event.target.value)}
-                    placeholder="Task title (e.g. Deep work sprint)"
-                    className={styles.planInput}
-                  />
-                  <div className={styles.planFormRow}>
-                    <label className={styles.planLabel}>
-                      Time
-                      <input
-                        type="time"
-                        value={planTime}
-                        onChange={(event) => setPlanTime(event.target.value)}
-                        className={styles.planControl}
-                      />
-                    </label>
-                    <label className={styles.planLabel}>
-                      Minutes
-                      <input
-                        type="number"
-                        min={5}
-                        max={240}
-                        value={planDuration}
-                        onChange={(event) => {
-                          const next = Number(event.target.value);
-                          if (Number.isFinite(next)) {
-                            setPlanDuration(next);
-                          }
-                        }}
-                        className={styles.planControl}
-                      />
-                    </label>
-                    <button type="button" className={styles.planAddButton} onClick={addPlannedBlock}>
-                      Add Block
-                    </button>
-                  </div>
-                  {planStatus && <p className={styles.accountMeta}>{planStatus}</p>}
-                </div>
-
-                <div className={styles.planList}>
-                  {selectedDatePlans.length === 0 ? (
-                    <p className={styles.emptyText}>No planned blocks yet for this day.</p>
-                  ) : (
-                    selectedDatePlans.map((item) => (
+                  <div className={styles.sessionList}>
+                    {sessions.slice(0, 5).map((session, index) => (
                       <div
-                        key={item.id}
-                        className={styles.planItem}
-                        draggable
-                        onDragStart={() => setDraggedPlanId(item.id)}
-                        onDragEnd={() => setDraggedPlanId(null)}
-                        onDragOver={(event) => event.preventDefault()}
-                        onDrop={() => {
-                          if (!draggedPlanId) return;
-                          reorderPlannedBlocks(draggedPlanId, item.id);
-                          setDraggedPlanId(null);
-                        }}
+                        key={`${session.completedAtISO}-${index}`}
+                        className={styles.sessionItem}
                       >
                         <div>
-                          <strong>{item.title}</strong>
-                          <div className={styles.planMetaRow}>
-                            <input
-                              type="time"
-                              value={item.timeOfDay}
-                              className={styles.planItemTime}
-                              onChange={(event) =>
-                                updatePlannedBlockTime(item.id, event.target.value)
-                              }
-                            />
-                            <span>{item.durationMinutes}m</span>
+                          <div className={styles.sessionPrimary}>
+                            {new Date(session.completedAtISO).toLocaleString()}
                           </div>
+                          <div className={styles.sessionSecondary}>
+                            <span
+                              className={styles.categoryBadge}
+                              style={{
+                                backgroundColor:
+                                  TIMER_CONFIGS.find(
+                                    (config) =>
+                                      config.category === (session.category ?? "misc"),
+                                  )?.theme.accentSoft,
+                                color:
+                                  TIMER_CONFIGS.find(
+                                    (config) =>
+                                      config.category === (session.category ?? "misc"),
+                                  )?.theme.accentStrong,
+                              }}
+                            >
+                              {TIMER_CONFIGS.find(
+                                (config) => config.category === (session.category ?? "misc"),
+                              )?.badgeLabel ?? "Misc"}
+                            </span>
+                            {session.noteSavedAtISO && (
+                              <span className={styles.noteTimestamp}>
+                                {new Date(session.noteSavedAtISO).toLocaleString()}
+                              </span>
+                            )}
+                          </div>
+                          {session.note && <div className={styles.sessionNote}>{session.note}</div>}
                         </div>
-                        <div className={styles.planActions}>
-                          <button
-                            type="button"
-                            className={styles.planCompleteButton}
-                            onClick={() => void completePlannedBlock(item)}
-                          >
-                            Complete
-                          </button>
-                          <button
-                            type="button"
-                            className={styles.planDeleteButton}
-                            onClick={() => deletePlannedBlock(item.id)}
-                          >
-                            Remove
-                          </button>
-                        </div>
+                        <div className={styles.sessionMinutes}>{session.minutes}m</div>
                       </div>
-                    ))
-                  )}
-                </div>
-              </article>
-            </section>
-          )}
+                    ))}
 
-          {activeTab === "notes" && (
-            <section className={styles.notesWorkspace}>
-              <aside className={styles.notesSidebar}>
-                <button type="button" className={styles.newNoteButton} onClick={createWorkspaceNote}>
-                  + Add Note
-                </button>
-                <input
-                  value={notesSearch}
-                  onChange={(event) => setNotesSearch(event.target.value)}
-                  placeholder="Search notes"
-                  className={styles.notesSearchInput}
-                />
-                <div className={styles.notesFilterRow}>
-                  <select
-                    className={styles.noteToolSelect}
-                    value={notesCategoryFilter}
-                    onChange={(event) =>
-                      setNotesCategoryFilter(event.target.value as "all" | NoteCategory)
-                    }
-                    disabled={!isPro}
-                  >
-                    <option value="all">All categories</option>
-                    <option value="personal">Personal</option>
-                    <option value="school">School</option>
-                    <option value="work">Work</option>
-                  </select>
-                  {!isPro && (
-                    <button type="button" className={styles.inlineUpgrade} onClick={openUpgradeFlow}>
-                      Pro Filter
-                    </button>
-                  )}
-                </div>
-                <div className={styles.noteList}>
-                  {filteredNotes.map((note) => (
-                    <div key={note.id} className={styles.noteListRow}>
-                      <button
-                        type="button"
-                        className={`${styles.noteListItem} ${selectedNoteId === note.id ? styles.noteListItemActive : ""}`}
-                        style={{ backgroundColor: note.color || "#f8fafc" }}
-                        onClick={() => setSelectedNoteId(note.id)}
-                      >
-                        <span className={styles.noteListTitle}>
-                          {note.isPinned ? "★ " : ""}
-                          {note.title || "Untitled note"}
-                        </span>
-                        <span className={styles.noteListMeta}>
-                          {(note.category || "personal").toUpperCase()} ·{" "}
-                          {new Date(note.updatedAtISO).toLocaleDateString()}
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        className={styles.notePinButton}
-                        onClick={() => void togglePinned(note.id)}
-                        title={note.isPinned ? "Unpin note" : "Pin note"}
-                        aria-label={note.isPinned ? "Unpin note" : "Pin note"}
-                      >
-                        {note.isPinned ? "★" : "☆"}
-                      </button>
-                    </div>
-                  ))}
-                  {filteredNotes.length === 0 && (
-                    <p className={styles.emptyText}>No notes match your filters.</p>
-                  )}
+                    {sessions.length === 0 && (
+                      <div className={styles.emptyState}>
+                        No sessions yet. Pick a lane: miscellaneous, language study, or
+                        software projects.
+                      </div>
+                    )}
+                  </div>
                 </div>
               </aside>
-
-              <article className={styles.notesEditorCard}>
-                {!selectedNote ? (
-                  <div className={styles.notesEmptyEditor}>
-                    <p>Start by creating your first note.</p>
-                  </div>
-                ) : (
-                  <>
-                    <div className={styles.noteColorRow}>
-                      <button
-                        type="button"
-                        className={styles.noteColorPickerTrigger}
-                        onClick={() => setColorPickerOpen((open) => !open)}
-                      >
-                        <span
-                          className={styles.noteColorPickerPreview}
-                          style={{ backgroundColor: selectedNote.color || "#e7e5e4" }}
-                        />
-                        Note color
-                      </button>
-
-                      {colorPickerOpen && (
-                        <div className={styles.noteColorPickerPopover}>
-                          {NOTE_COLORS.map((color) => (
-                            <button
-                              type="button"
-                              key={color.value}
-                              className={`${styles.noteColorSwatch} ${
-                                selectedNote.color === color.value ? styles.noteColorSwatchActive : ""
-                              }`}
-                              style={{ backgroundColor: color.value }}
-                              title={color.label}
-                              onClick={() => {
-                                void updateSelectedNote({ color: color.value });
-                                setColorPickerOpen(false);
-                              }}
-                            />
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className={styles.noteMetaRow}>
-                      <label className={styles.noteMetaLabel}>
-                        Category
-                        <select
-                          className={styles.noteToolSelect}
-                          value={selectedNote.category || "personal"}
-                          onChange={(event) =>
-                            void updateSelectedNote({
-                              category: event.target.value as NoteCategory,
-                            })
-                          }
-                        >
-                          <option value="personal">Personal</option>
-                          <option value="school">School</option>
-                          <option value="work">Work</option>
-                        </select>
-                      </label>
-                      <label className={styles.noteMetaLabel}>
-                        Reminder
-                        <input
-                          type="datetime-local"
-                          className={styles.planControl}
-                          value={
-                            selectedNote.reminderAtISO
-                              ? new Date(selectedNote.reminderAtISO)
-                                  .toISOString()
-                                  .slice(0, 16)
-                              : ""
-                          }
-                          onChange={(event) =>
-                            void updateSelectedNote({
-                              reminderAtISO: event.target.value
-                                ? new Date(event.target.value).toISOString()
-                                : "",
-                            })
-                          }
-                        />
-                      </label>
-                    </div>
-
-                    <div className={styles.noteEditorToolbar}>
-                      <button
-                        type="button"
-                        className={styles.noteToolButton}
-                        onMouseDown={(event) => {
-                          event.preventDefault();
-                          saveEditorSelection();
-                        }}
-                        onClick={() => applyEditorCommand("bold")}
-                      >
-                        Bold
-                      </button>
-                      <button
-                        type="button"
-                        className={styles.noteToolButton}
-                        onMouseDown={(event) => {
-                          event.preventDefault();
-                          saveEditorSelection();
-                        }}
-                        onClick={() => applyEditorCommand("italic")}
-                      >
-                        Italic
-                      </button>
-                      <button
-                        type="button"
-                        className={styles.noteToolButton}
-                        onMouseDown={(event) => {
-                          event.preventDefault();
-                          saveEditorSelection();
-                        }}
-                        onClick={() => applyEditorCommand("underline")}
-                      >
-                        Underline
-                      </button>
-                      <button
-                        type="button"
-                        className={styles.noteToolButton}
-                        onMouseDown={(event) => {
-                          event.preventDefault();
-                          saveEditorSelection();
-                        }}
-                        onClick={() => applyEditorCommand("insertUnorderedList")}
-                      >
-                        List
-                      </button>
-
-                      <select
-                        className={styles.noteToolSelect}
-                        value={selectedNote.fontFamily}
-                        onMouseDown={() => saveEditorSelection()}
-                        onChange={(event) => {
-                          const nextFont = event.target.value;
-                          applyEditorCommand("fontName", nextFont);
-                          void updateSelectedNote({ fontFamily: nextFont });
-                        }}
-                      >
-                        <option value="Avenir Next">Avenir</option>
-                        <option value="Georgia">Georgia</option>
-                        <option value="Trebuchet MS">Trebuchet</option>
-                        <option value="Courier New">Courier</option>
-                      </select>
-
-                      <select
-                        className={styles.noteToolSelect}
-                        value={String(selectedNote.fontSizePx)}
-                        onMouseDown={() => saveEditorSelection()}
-                        onChange={(event) => {
-                          const nextSize = Number(event.target.value);
-                          const sizeMap: Record<number, string> = {
-                            14: "3",
-                            16: "4",
-                            18: "5",
-                            22: "6",
-                          };
-                          applyEditorCommand("fontSize", sizeMap[nextSize] ?? "4");
-                          void updateSelectedNote({ fontSizePx: nextSize });
-                        }}
-                      >
-                        <option value="14">Small</option>
-                        <option value="16">Normal</option>
-                        <option value="18">Large</option>
-                        <option value="22">XL</option>
-                      </select>
-                    </div>
-
-                    <input
-                      value={selectedNote.title}
-                      onChange={(event) => {
-                        void updateSelectedNote({ title: event.target.value });
-                      }}
-                      placeholder="Note title"
-                      className={styles.noteTitleInput}
-                    />
-
-                    <div
-                      ref={editorRef}
-                      className={styles.noteBodyInput}
-                      contentEditable
-                      suppressContentEditableWarning
-                      style={{
-                        fontFamily: selectedNote.fontFamily,
-                        fontSize: `${selectedNote.fontSizePx}px`,
-                      }}
-                      onInput={() => {
-                        captureEditorDraft();
-                        saveEditorSelection();
-                      }}
-                      onBlur={() => {
-                        captureEditorDraft();
-                      }}
-                      onMouseUp={() => saveEditorSelection()}
-                      onKeyUp={() => saveEditorSelection()}
-                      onFocus={() => saveEditorSelection()}
-                    />
-
-                    <div className={styles.noteEditorFooter}>
-                      <span>
-                        {notesSyncStatus === "synced"
-                          ? "Synced to your account."
-                          : notesSyncStatus === "syncing"
-                            ? "Syncing notes..."
-                            : "Saved locally only. Sync needed for other devices."}
-                        {notesSyncMessage ? ` ${notesSyncMessage}` : ""}
-                      </span>
-                      <div className={styles.noteFooterActions}>
-                        <button
-                          type="button"
-                          className={styles.reportButton}
-                          onClick={() => convertNoteToPlannedBlock(selectedNote)}
-                        >
-                          Convert to Plan
-                        </button>
-                        {notesSyncStatus !== "synced" && (
-                          <button type="button" className={styles.retrySyncButton} onClick={() => void handleRetrySync()}>
-                            Retry sync
-                          </button>
-                        )}
-                        <button type="button" className={styles.deleteNoteButton} onClick={() => void deleteNote(selectedNote.id)}>
-                          Delete note
-                        </button>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </article>
             </section>
-          )}
-
-          {activeTab === "insights" && (
-            <section className={styles.insightsGrid}>
-              <article className={`${styles.card} ${styles.insightsHeroCard}`}>
-                <div className={styles.cardHeader}>
-                  <div>
-                    <p className={styles.sectionLabel}>Insights</p>
-                    <h2 className={styles.cardTitle}>Productivity pie chart</h2>
-                    <p className={styles.accountMeta}>
-                      Visual breakdown by category for your most important behavior signals.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    className={styles.reportButton}
-                    onClick={() => setActiveTab("reports")}
-                  >
-                    Open full reports
-                  </button>
-                </div>
-
-                <div className={styles.insightControls}>
-                  <div className={styles.rangeTabs}>
-                    <button
-                      type="button"
-                      className={`${styles.rangeTab} ${insightRange === 7 ? styles.rangeTabActive : ""}`}
-                      onClick={() => setInsightRange(7)}
-                    >
-                      7d
-                    </button>
-                    <button
-                      type="button"
-                      className={`${styles.rangeTab} ${insightRange === 30 ? styles.rangeTabActive : ""}`}
-                      onClick={() => setInsightRange(30)}
-                    >
-                      30d
-                    </button>
-                    <button
-                      type="button"
-                      className={`${styles.rangeTab} ${insightRange === 90 ? styles.rangeTabActive : ""}`}
-                      onClick={() => setInsightRange(90)}
-                    >
-                      90d
-                    </button>
-                  </div>
-                  <div className={styles.rangeTabs}>
-                    <button
-                      type="button"
-                      className={`${styles.rangeTab} ${insightMetric === "focus" ? styles.rangeTabActive : ""}`}
-                      onClick={() => setInsightMetric("focus")}
-                    >
-                      Focus
-                    </button>
-                    <button
-                      type="button"
-                      className={`${styles.rangeTab} ${insightMetric === "notes" ? styles.rangeTabActive : ""}`}
-                      onClick={() => setInsightMetric("notes")}
-                    >
-                      Notes
-                    </button>
-                    <button
-                      type="button"
-                      className={`${styles.rangeTab} ${insightMetric === "planned" ? styles.rangeTabActive : ""}`}
-                      onClick={() => setInsightMetric("planned")}
-                    >
-                      Planned
-                    </button>
-                    <button
-                      type="button"
-                      className={`${styles.rangeTab} ${insightMetric === "reminders" ? styles.rangeTabActive : ""}`}
-                      onClick={() => setInsightMetric("reminders")}
-                    >
-                      Reminders
-                    </button>
-                  </div>
-                </div>
-
-                <div className={styles.insightBody}>
-                  <div className={styles.insightDonutWrap}>
-                    <button
-                      type="button"
-                      className={styles.insightDonut}
-                      style={{ backgroundImage: insightsChart.donutGradient }}
-                      onClick={() =>
-                        setSelectedInsightCategory(
-                          insightsChart.topCategory?.key ?? selectedInsightCategory ?? "personal",
-                        )
-                      }
-                    >
-                      <span className={styles.insightDonutCenter}>
-                        <strong>
-                          {insightsChart.total}
-                          {insightsChart.unitSuffix}
-                        </strong>
-                        <small>{insightsChart.metricLabel}</small>
-                      </span>
-                    </button>
-                    <p className={styles.accountMeta}>{insightsChart.windowLabel}</p>
-                  </div>
-
-                  <div className={styles.insightLegend}>
-                    {insightsChart.ranked.map((segment) => {
-                      const share =
-                        insightsChart.total === 0
-                          ? 0
-                          : Math.round((segment.value / insightsChart.total) * 100);
-                      const isSelected = activeInsight?.key === segment.key;
-
-                      return (
-                        <button
-                          type="button"
-                          key={segment.key}
-                          className={`${styles.insightLegendItem} ${
-                            isSelected ? styles.insightLegendItemActive : ""
-                          }`}
-                          onClick={() => setSelectedInsightCategory(segment.key)}
-                        >
-                          <span
-                            className={styles.insightLegendSwatch}
-                            style={{ backgroundColor: segment.color }}
-                          />
-                          <span className={styles.insightLegendLabel}>{segment.label}</span>
-                          <strong className={styles.insightLegendValue}>
-                            {segment.value}
-                            {insightsChart.unitSuffix}
-                          </strong>
-                          <small className={styles.insightLegendShare}>{share}%</small>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </article>
-
-              <article className={styles.card}>
-                <p className={styles.sectionLabel}>Selected Category</p>
-                <h2 className={styles.cardTitle}>{activeInsight?.label ?? "Category detail"}</h2>
-                <p className={styles.accountMeta}>
-                  {activeInsight?.description ?? "No category detail available yet."}
-                </p>
-                <ul className={styles.commandList}>
-                  <li>
-                    Metric value:{" "}
-                    <strong>
-                      {activeInsight?.value ?? 0}
-                      {insightsChart.unitSuffix}
-                    </strong>
-                  </li>
-                  <li>
-                    Share of window:{" "}
-                    <strong>
-                      {insightsChart.total === 0 || !activeInsight
-                        ? 0
-                        : Math.round((activeInsight.value / insightsChart.total) * 100)}
-                      %
-                    </strong>
-                  </li>
-                  <li>Top category: <strong>{insightsChart.topCategory?.label ?? "None yet"}</strong></li>
-                </ul>
-              </article>
-
-              <article className={styles.card}>
-                <p className={styles.sectionLabel}>Action Tip</p>
-                <h2 className={styles.cardTitle}>How to use this tab daily</h2>
-                <ul className={styles.commandList}>
-                  <li>Check which category is dominating this week.</li>
-                  <li>Rebalance by scheduling at least one focus block in your weakest category.</li>
-                  <li>Use Notes reminders to increase follow-through.</li>
-                </ul>
-              </article>
-
-              <article className={styles.card}>
-                <p className={styles.sectionLabel}>Apple Screen Time</p>
-                <h2 className={styles.cardTitle}>System usage integration</h2>
-                <p className={styles.accountMeta}>
-                  {screenTimeStatus === "approved"
-                    ? "Permission granted. Next: attach Device Activity report extension in Xcode."
-                    : "Grant permission to connect Apple Screen Time data into Whelm."}
-                </p>
-                <div className={styles.noteFooterActions}>
-                  <button
-                    type="button"
-                    className={styles.reportButton}
-                    onClick={() => void handleRequestScreenTimeAuth()}
-                    disabled={!screenTimeSupported || screenTimeBusy}
-                  >
-                    {screenTimeBusy ? "Working..." : "Enable Screen Time"}
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.secondaryPlanButton}
-                    onClick={() => setActiveTab("settings")}
-                  >
-                    Open setup panel
-                  </button>
-                </div>
-              </article>
-            </section>
-          )}
-
-          {activeTab === "history" && (
-            <section className={styles.historyShell}>
-              <article className={styles.card}>
-                <p className={styles.sectionLabel}>History</p>
-                <h2 className={styles.cardTitle}>Session log</h2>
-                {sessionGroups.length === 0 ? (
-                  <p className={styles.emptyText}>No sessions yet. Start your timer and save your first block.</p>
-                ) : (
-                  <div className={styles.groupList}>
-                    {sessionGroups.map((group) => (
-                      <section key={group.key} className={styles.sessionGroup}>
-                        <header className={styles.groupHeader}>
-                          <h3>{group.label}</h3>
-                          <span>{group.totalMinutes}m</span>
-                        </header>
-                        <div className={styles.sessionList}>
-                          {group.items.map((session, index) => (
-                            <div key={`${session.completedAtISO}-${index}`} className={styles.sessionItem}>
-                              <div>
-                                <div className={styles.sessionPrimary}>
-                                  {new Date(session.completedAtISO).toLocaleTimeString([], {
-                                    hour: "numeric",
-                                    minute: "2-digit",
-                                  })}
-                                </div>
-                                {session.note && <div className={styles.sessionNote}>{session.note}</div>}
-                              </div>
-                              <div className={styles.sessionMinutes}>{session.minutes}m</div>
-                            </div>
-                          ))}
-                        </div>
-                      </section>
-                    ))}
-                  </div>
-                )}
-              </article>
-            </section>
-          )}
-
-          {activeTab === "reports" && (
-            <section className={styles.reportsGrid}>
-              <article className={styles.card}>
-                <p className={styles.sectionLabel}>KPI Snapshot</p>
-                <h2 className={styles.cardTitle}>Performance dashboard</h2>
-                <div className={styles.kpiGrid}>
-                  <button
-                    type="button"
-                    className={styles.kpiItem}
-                    onClick={() => setKpiDetailOpen("totalFocus")}
-                  >
-                    <span>Total Focus</span>
-                    <strong>{reportMetrics.totalMinutes}m</strong>
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.kpiItem}
-                    onClick={() => setKpiDetailOpen("totalSessions")}
-                  >
-                    <span>Total Sessions</span>
-                    <strong>{reportMetrics.sessionCount}</strong>
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.kpiItem}
-                    onClick={() => setKpiDetailOpen("averageSession")}
-                  >
-                    <span>Avg Session</span>
-                    <strong>{reportMetrics.averageSession}m</strong>
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.kpiItem}
-                    onClick={() => setKpiDetailOpen("bestDay")}
-                  >
-                    <span>Best Day</span>
-                    <strong>
-                      {reportMetrics.bestTrendLabel} · {reportMetrics.bestTrendMinutes}m
-                    </strong>
-                  </button>
-                  <div className={styles.kpiItemStatic}>
-                    <span>Planned Completed</span>
-                    <strong>{reportMetrics.plannedCompletionCount}</strong>
-                  </div>
-                  <div className={styles.kpiItemStatic}>
-                    <span>Notes Updated (7d)</span>
-                    <strong>{reportMetrics.notesUpdated7d}</strong>
-                  </div>
-                </div>
-                <div className={styles.progressTrack}>
-                  <div
-                    className={styles.progressFill}
-                    style={{ width: `${reportMetrics.weeklyProgress}%` }}
-                  />
-                </div>
-                <p className={styles.accountMeta}>
-                  Weekly target progress: {reportMetrics.weeklyProgress}% of 420m
-                </p>
-                <button
-                  type="button"
-                  className={styles.reportButton}
-                  onClick={() => setKpiDetailOpen("weeklyProgress")}
-                >
-                  View weekly target details
-                </button>
-              </article>
-
-              <article className={styles.card}>
-                <p className={styles.sectionLabel}>Notes Analytics</p>
-                <h2 className={styles.cardTitle}>Knowledge activity</h2>
-                <ul className={styles.commandList}>
-                  <li>
-                    <strong>{reportMetrics.notesUpdated7d}</strong> notes updated in the last 7 days
-                  </li>
-                  <li>
-                    <strong>{reportMetrics.notesWithReminders}</strong> notes with reminders
-                  </li>
-                  <li>
-                    <strong>{reportMetrics.plannedCompletionCount}</strong> planned blocks converted to sessions
-                  </li>
-                </ul>
-                {!isPro && (
-                  <div className={styles.cardGateRow}>
-                    <span>Deep note analytics are part of Pro.</span>
-                    <button type="button" className={styles.inlineUpgrade} onClick={openUpgradeFlow}>
-                      Unlock
-                    </button>
-                  </div>
-                )}
-              </article>
-
-              <article className={styles.card}>
-                <div className={styles.cardHeader}>
-                  <div>
-                    <p className={styles.sectionLabel}>Focus Trend</p>
-                    <h2 className={styles.cardTitle}>Performance view</h2>
-                  </div>
-                  <div className={styles.rangeTabs}>
-                    <button
-                      type="button"
-                      className={`${styles.rangeTab} ${trendRange === 7 ? styles.rangeTabActive : ""}`}
-                      onClick={() => setTrendRange(7)}
-                    >
-                      7d
-                    </button>
-                    <button
-                      type="button"
-                      className={`${styles.rangeTab} ${trendRange === 30 ? styles.rangeTabActive : ""}`}
-                      onClick={() => setTrendRange(30)}
-                    >
-                      30d
-                    </button>
-                    <button
-                      type="button"
-                      className={`${styles.rangeTab} ${trendRange === 90 ? styles.rangeTabActive : ""}`}
-                      onClick={() => setTrendRange(90)}
-                    >
-                      90d
-                    </button>
-                  </div>
-                </div>
-
-                <div className={styles.chartFrame}>
-                  <svg viewBox="0 0 100 100" className={styles.trendChart} preserveAspectRatio="none">
-                    <polyline points={trendPath} className={styles.trendLine} />
-                  </svg>
-                  <div className={styles.chartAxis}>
-                    {trendPoints
-                      .map((point, index) => (
-                        <span key={`${point.label}-${index}`}>{point.label}</span>
-                      ))
-                      .filter((_, index) =>
-                        trendRange === 7
-                          ? true
-                          : trendRange === 30
-                            ? index % 5 === 0 || index === trendPoints.length - 1
-                            : index % 15 === 0 || index === trendPoints.length - 1,
-                      )}
-                  </div>
-                  {!isPro && (
-                    <div className={styles.chartLock}>
-                      <p>Pro unlocks full trend analytics and score breakdowns.</p>
-                      <button type="button" className={styles.inlineUpgrade} onClick={openUpgradeFlow}>
-                        Upgrade to Pro
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </article>
-
-              <article className={styles.card}>
-                <p className={styles.sectionLabel}>Behavior Loop</p>
-                <h2 className={styles.cardTitle}>Retention drivers</h2>
-                <ul className={styles.commandList}>
-                  <li>Protect streak daily with one focused session.</li>
-                  <li>Beat yesterday&apos;s score every day.</li>
-                  <li>Use weekly report sharing for accountability.</li>
-                  <li>Pin mission-critical notes at the top.</li>
-                </ul>
-              </article>
-
-              <article className={styles.proPreviewCard}>
-                <div className={styles.proPreviewTop}>
-                  <p className={styles.proEyebrow}>WHELM PRO PREVIEW</p>
-                  <span className={styles.proBadge}>$3.99/mo</span>
-                </div>
-                <h3 className={styles.proTitle}>Unlock advanced discipline tools</h3>
-                <ul className={styles.proList}>
-                  <li>Deep report filters and longer trend windows</li>
-                  <li>Custom score weighting and daily insights</li>
-                  <li>No ads + cleaner focus experience</li>
-                  <li>Motivation prompts and precise planning tools</li>
-                </ul>
-                <button type="button" className={styles.proCta} onClick={openUpgradeFlow}>
-                  See Pro plan
-                </button>
-              </article>
-            </section>
-          )}
-
-          {activeTab === "settings" && (
-            <section className={styles.settingsGrid}>
-              <article className={`${styles.card} ${styles.settingsHeroCard}`}>
-                <div className={styles.settingsHeroHeader}>
-                  <div className={styles.settingsAvatar}>
-                    {(user.displayName || user.email || "W")[0]?.toUpperCase()}
-                  </div>
-                  <div>
-                    <p className={styles.sectionLabel}>Account</p>
-                    <h2 className={styles.cardTitle}>{user.displayName || "WHELM user"}</h2>
-                    <p className={styles.accountMeta}>{user.email}</p>
-                  </div>
-                </div>
-                <div className={styles.settingsPills}>
-                  <span className={styles.settingsPill}>
-                    Plan: {isPro ? "Pro" : "Free"}
-                    {proSource === "preview" ? " (preview)" : ""}
-                  </span>
-                  <span className={styles.settingsPill}>Streak: {streak}d</span>
-                  <span className={styles.settingsPill}>
-                    Score: {focusMetrics.disciplineScore}/100
-                  </span>
-                </div>
-                {!isPro ? (
-                  <button type="button" className={styles.inlineUpgrade} onClick={openUpgradeFlow}>
-                    Upgrade to Pro
-                  </button>
-                ) : (
-                  <button type="button" className={styles.secondaryPlanButton} onClick={() => void handleRestoreFreeTier()}>
-                    Restore free tier
-                  </button>
-                )}
-              </article>
-
-              <article className={styles.card}>
-                <p className={styles.sectionLabel}>Account</p>
-                <h2 className={styles.cardTitle}>Experience</h2>
-                <ul className={styles.settingsList}>
-                  <li>
-                    <span>Clean Focus Mode</span>
-                    <strong>{isPro ? "Enabled" : "Pro"}</strong>
-                  </li>
-                  <li>
-                    <span>Weekly Report Cards</span>
-                    <strong>On</strong>
-                  </li>
-                  <li>
-                    <span>Behavior Insights</span>
-                    <strong>{isPro ? "Full" : "Basic"}</strong>
-                  </li>
-                </ul>
-              </article>
-
-              <article className={styles.card}>
-                <p className={styles.sectionLabel}>Sync</p>
-                <h2 className={styles.cardTitle}>Notes sync status</h2>
-                <p className={styles.accountMeta}>
-                  {notesSyncStatus === "synced"
-                    ? "Synced"
-                    : notesSyncStatus === "syncing"
-                      ? "Syncing"
-                      : "Local only"}
-                </p>
-                {notesSyncMessage && <p className={styles.accountMeta}>{notesSyncMessage}</p>}
-                {notesSyncStatus !== "synced" && (
-                  <button type="button" className={styles.retrySyncButton} onClick={() => void handleRetrySync()}>
-                    Retry sync now
-                  </button>
-                )}
-              </article>
-
-              <article className={styles.card}>
-                <p className={styles.sectionLabel}>Screen Time</p>
-                <h2 className={styles.cardTitle}>Device usage permission</h2>
-                <p className={styles.accountMeta}>
-                  {screenTimeSupported
-                    ? `Authorization status: ${screenTimeStatus}`
-                    : "Screen Time is available only in the iOS native build."}
-                </p>
-                {screenTimeReason && <p className={styles.accountMeta}>{screenTimeReason}</p>}
-                <div className={styles.noteFooterActions}>
-                  {screenTimeSupported && (
-                    <button
-                      type="button"
-                      className={styles.reportButton}
-                      onClick={() => void handleRequestScreenTimeAuth()}
-                      disabled={screenTimeBusy}
-                    >
-                      {screenTimeBusy ? "Working..." : "Request Screen Time Access"}
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    className={styles.secondaryPlanButton}
-                    onClick={() => void handleOpenScreenTimeSettings()}
-                    disabled={screenTimeBusy}
-                  >
-                    Open iOS Settings
-                  </button>
-                </div>
-                <ul className={styles.commandList}>
-                  <li>This unlocks Screen Time APIs through Apple permission flow.</li>
-                  <li>Detailed per-app charts require the Device Activity report extension.</li>
-                </ul>
-              </article>
-
-              <article className={styles.card}>
-                <p className={styles.sectionLabel}>Support</p>
-                <h2 className={styles.cardTitle}>Need help?</h2>
-                <button
-                  type="button"
-                  className={styles.reportButton}
-                  onClick={() => {
-                    setFeedbackOpen(true);
-                    setFeedbackStatus("");
-                  }}
-                >
-                  Send feedback
-                </button>
-                <p className={styles.accountMeta}>Report bugs, request features, or share ideas.</p>
-              </article>
-            </section>
-          )}
-        </section>
-      </div>
-
-      <nav className={styles.bottomTabs}>
-        {TAB_META.map((tab) => (
-          <button
-            key={tab.key}
-            type="button"
-            className={`${styles.bottomTabButton} ${activeTab === tab.key ? styles.bottomTabButtonActive : ""}`}
-            onClick={() => setActiveTab(tab.key)}
-          >
-            <span className={styles.bottomTabIcon}>{iconForTab(tab.key)}</span>
-            <span>{tab.label}</span>
-          </button>
-        ))}
-      </nav>
-
-      {(noteUndoItem || deletedPlanUndo) && (
-        <div className={styles.undoToast}>
-          <span>
-            {noteUndoItem
-              ? `Deleted note: ${noteUndoItem.title || "Untitled note"}`
-              : "Removed planned block"}
-          </span>
-          {noteUndoItem && (
-            <button type="button" onClick={() => void undoDeleteNote()}>
-              Undo note
-            </button>
-          )}
-          {deletedPlanUndo && (
-            <button type="button" onClick={undoDeletePlannedBlock}>
-              Undo plan
-            </button>
-          )}
-        </div>
-      )}
-
-      {paywallOpen && (
-        <div className={styles.feedbackOverlay} onClick={() => setPaywallOpen(false)}>
-          <div className={styles.paywallModal} onClick={(event) => event.stopPropagation()}>
-            <div className={styles.feedbackHeader}>
-              <h2 className={styles.feedbackTitle}>Upgrade to Whelm Pro</h2>
-              <button type="button" className={styles.feedbackClose} onClick={() => setPaywallOpen(false)}>
-                Close
-              </button>
-            </div>
-            <p className={styles.paywallCopy}>
-              Remove ads and unlock full analytics, trend intelligence, and precision planning.
-            </p>
-            <div className={styles.planGrid}>
-              <article className={styles.planCard}>
-                <p className={styles.planName}>Monthly</p>
-                <p className={styles.planPrice}>$3.99</p>
-                <p className={styles.planMeta}>per month</p>
-              </article>
-              <article className={`${styles.planCard} ${styles.planCardFeatured}`}>
-                <p className={styles.planName}>Yearly</p>
-                <p className={styles.planPrice}>$29.99</p>
-                <p className={styles.planMeta}>best value</p>
-              </article>
-            </div>
-            <ul className={styles.proList}>
-              <li>Advanced discipline insights and score history</li>
-              <li>Monthly streak intelligence and weekly reports</li>
-              <li>Premium focus workflows and no ads</li>
-            </ul>
-            <div className={styles.paywallActions}>
-              <button type="button" className={styles.feedbackSubmit} onClick={() => void handlePreviewUpgrade()}>
-                Unlock Pro Preview
-              </button>
-              <button type="button" className={styles.secondaryPlanButton} onClick={() => void handleRestoreFreeTier()}>
-                Restore Free Tier
-              </button>
-            </div>
-            <p className={styles.paywallHint}>
-              {isStorePurchaseSupported()
-                ? "Store billing supported on iOS build. Next step is wiring StoreKit/RevenueCat products."
-                : "Preview unlock active for development. Native billing wiring comes in iOS integration step."}
-            </p>
-          </div>
-        </div>
-      )}
-
-      {kpiDetailOpen && (
-        <div className={styles.feedbackOverlay} onClick={() => setKpiDetailOpen(null)}>
-          <div className={styles.kpiModal} onClick={(event) => event.stopPropagation()}>
-            <div className={styles.feedbackHeader}>
-              <h2 className={styles.feedbackTitle}>{kpiDetailContent[kpiDetailOpen].title}</h2>
+          </>
+        ) : (
+          <section className={styles.notesWorkspace}>
+            <aside className={styles.notesSidebar}>
               <button
                 type="button"
-                className={styles.feedbackClose}
-                onClick={() => setKpiDetailOpen(null)}
+                className={styles.newNoteButton}
+                onClick={createWorkspaceNote}
               >
-                Close
+                + Add Note
               </button>
-            </div>
-            <p className={styles.paywallCopy}>{kpiDetailContent[kpiDetailOpen].summary}</p>
-            <ul className={styles.commandList}>
-              {kpiDetailContent[kpiDetailOpen].bullets.map((bullet) => (
-                <li key={bullet}>{bullet}</li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      )}
+
+              <div className={styles.noteList}>
+                {notes.map((note) => (
+                  <button
+                    type="button"
+                    key={note.id}
+                    className={`${styles.noteListItem} ${
+                      selectedNoteId === note.id ? styles.noteListItemActive : ""
+                    }`}
+                    onClick={() => setSelectedNoteId(note.id)}
+                  >
+                    <span className={styles.noteListTitle}>{note.title || "Untitled note"}</span>
+                    <span className={styles.noteListMeta}>
+                      {new Date(note.updatedAtISO).toLocaleString()}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </aside>
+
+            <article className={styles.notesEditorCard}>
+              {!selectedNote ? (
+                <div className={styles.notesEmptyEditor}>
+                  <p>Start by creating your first note.</p>
+                </div>
+              ) : (
+                <>
+                  <input
+                    value={selectedNote.title}
+                    onChange={(event) => {
+                      void updateSelectedNote({ title: event.target.value });
+                    }}
+                    placeholder="Note title"
+                    className={styles.noteTitleInput}
+                  />
+                  <textarea
+                    value={selectedNote.body}
+                    onChange={(event) => {
+                      void updateSelectedNote({ body: event.target.value });
+                    }}
+                    placeholder="Write anything here..."
+                    className={styles.noteBodyInput}
+                  />
+                  <div className={styles.noteEditorFooter}>
+                    <span>Synced to your account when online. Local fallback stays available.</span>
+                    <button
+                      type="button"
+                      className={styles.deleteNoteButton}
+                      onClick={() => void deleteNote(selectedNote.id)}
+                    >
+                      Delete note
+                    </button>
+                  </div>
+                </>
+              )}
+            </article>
+          </section>
+        )}
+      </div>
+
+      <button
+        type="button"
+        className={styles.feedbackButton}
+        onClick={() => {
+          setFeedbackOpen(true);
+          setFeedbackStatus("");
+        }}
+      >
+        Feedback
+      </button>
 
       {feedbackOpen && (
         <div
@@ -2915,7 +548,10 @@ export default function HomePage() {
             }
           }}
         >
-          <div className={styles.feedbackModal} onClick={(event) => event.stopPropagation()}>
+          <div
+            className={styles.feedbackModal}
+            onClick={(event) => event.stopPropagation()}
+          >
             <div className={styles.feedbackHeader}>
               <h2 className={styles.feedbackTitle}>Send feedback</h2>
               <button
@@ -2941,7 +577,9 @@ export default function HomePage() {
             <select
               id="feedback-category"
               value={feedbackCategory}
-              onChange={(event) => setFeedbackCategory(event.target.value as FeedbackCategory)}
+              onChange={(event) =>
+                setFeedbackCategory(event.target.value as FeedbackCategory)
+              }
               className={styles.feedbackSelect}
               disabled={feedbackSubmitting}
             >
@@ -2972,7 +610,9 @@ export default function HomePage() {
               >
                 {feedbackSubmitting ? "Sending..." : "Send feedback"}
               </button>
-              {feedbackStatus && <p className={styles.feedbackStatus}>{feedbackStatus}</p>}
+              {feedbackStatus && (
+                <p className={styles.feedbackStatus}>{feedbackStatus}</p>
+              )}
             </div>
           </div>
         </div>
