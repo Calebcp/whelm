@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Alignment, Fit, Layout, useRive } from "@rive-app/react-canvas";
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged, signOut, type User } from "firebase/auth";
 
@@ -42,30 +43,71 @@ const FOCUS_TIMER = {
 };
 
 const NOTE_COLORS: Array<{ label: string; value: string }> = [
+  { label: "Porcelain", value: "#f8fafc" },
+  { label: "Cloud", value: "#f1f5f9" },
+  { label: "Mist", value: "#e2e8f0" },
+  { label: "Stone", value: "#e7e5e4" },
+  { label: "Sand", value: "#f5e6c8" },
+  { label: "Blush", value: "#ffe4e6" },
+  { label: "Rose", value: "#fecdd3" },
   { label: "Cherry", value: "#fecaca" },
-  { label: "Rose", value: "#fda4af" },
-  { label: "Tangerine", value: "#fed7aa" },
-  { label: "Amber", value: "#fcd34d" },
-  { label: "Sun", value: "#fef08a" },
+  { label: "Apricot", value: "#fed7aa" },
+  { label: "Amber", value: "#fde68a" },
+  { label: "Lemon", value: "#fef3c7" },
   { label: "Lime", value: "#d9f99d" },
   { label: "Mint", value: "#bbf7d0" },
-  { label: "Emerald", value: "#6ee7b7" },
+  { label: "Seafoam", value: "#ccfbf1" },
   { label: "Aqua", value: "#a5f3fc" },
   { label: "Sky", value: "#bae6fd" },
-  { label: "Blue", value: "#bfdbfe" },
-  { label: "Indigo", value: "#c7d2fe" },
-  { label: "Violet", value: "#ddd6fe" },
-  { label: "Purple", value: "#e9d5ff" },
-  { label: "Fuchsia", value: "#f5d0fe" },
-  { label: "Pink", value: "#fbcfe8" },
-  { label: "Stone", value: "#e7e5e4" },
-  { label: "Slate", value: "#cbd5e1" },
-  { label: "Cloud", value: "#f1f5f9" },
-  { label: "Paper", value: "#f8fafc" },
+  { label: "Glacier", value: "#dbeafe" },
+  { label: "Periwinkle", value: "#c7d2fe" },
+  { label: "Lavender", value: "#ddd6fe" },
+  { label: "Orchid", value: "#f5d0fe" },
 ];
+
+const NOTE_FONTS = [
+  { label: "Avenir", value: "Avenir Next, Avenir, sans-serif" },
+  { label: "Fraunces", value: "Georgia, Times New Roman, serif" },
+  { label: "Editorial", value: "Baskerville, Georgia, serif" },
+  { label: "Modern Sans", value: "Trebuchet MS, Helvetica Neue, sans-serif" },
+  { label: "System", value: "SF Pro Text, Helvetica Neue, Arial, sans-serif" },
+  { label: "Mono", value: "Courier New, Menlo, monospace" },
+  { label: "Verdana", value: "Verdana, Geneva, sans-serif" },
+  { label: "Palatino", value: "Palatino, Book Antiqua, serif" },
+] as const;
+
+const NOTE_FONT_SIZES = [
+  { label: "Small", value: 14, command: "3" },
+  { label: "Normal", value: 16, command: "4" },
+  { label: "Large", value: 18, command: "5" },
+  { label: "XL", value: 22, command: "6" },
+] as const;
+
+const NOTE_TEXT_COLORS = [
+  { label: "Ink", value: "#102033" },
+  { label: "Slate", value: "#334155" },
+  { label: "Ocean", value: "#145da0" },
+  { label: "Royal", value: "#1d4ed8" },
+  { label: "Violet", value: "#6d28d9" },
+  { label: "Rosewood", value: "#9f1239" },
+  { label: "Forest", value: "#166534" },
+  { label: "Amber", value: "#b45309" },
+  { label: "Crimson", value: "#b91c1c" },
+  { label: "Charcoal", value: "#111827" },
+] as const;
+
+const NOTE_HIGHLIGHTS = [
+  { label: "Sun", value: "#fef08a" },
+  { label: "Peach", value: "#fed7aa" },
+  { label: "Mint", value: "#bbf7d0" },
+  { label: "Sky", value: "#bae6fd" },
+  { label: "Lavender", value: "#ddd6fe" },
+  { label: "Rose", value: "#fecdd3" },
+] as const;
 
 type FeedbackCategory = "bug" | "feature" | "other";
 type TrendRange = 7 | 30 | 90;
+type CalendarView = "month" | "day";
 type AppTab =
   | "today"
   | "calendar"
@@ -76,6 +118,7 @@ type AppTab =
   | "settings";
 type NoteCategory = "personal" | "school" | "work";
 type InsightMetric = "focus" | "notes" | "planned" | "reminders";
+type SenseiTone = "steady" | "nudge" | "momentum" | "milestone";
 
 type CalendarDay = {
   label: string;
@@ -90,6 +133,24 @@ type MonthCell = {
   minutes: number;
   level: 0 | 1 | 2 | 3;
   isCurrentMonth: boolean;
+};
+
+type CalendarEntrySource = "plan" | "reminder" | "session";
+
+type CalendarEntry = {
+  id: string;
+  source: CalendarEntrySource;
+  dateKey: string;
+  timeLabel: string;
+  sortTime: string;
+  title: string;
+  subtitle: string;
+  preview: string;
+  tone: "Blue" | "Mint" | "Violet";
+  startMinute: number;
+  endMinute: number;
+  noteId?: string;
+  planId?: string;
 };
 
 type TrendPoint = {
@@ -183,6 +244,16 @@ function normalizeBodyForEditor(body: string) {
   return next;
 }
 
+function summarizePlainText(value: string, maxChars = 120) {
+  const plain = value
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!plain) return "";
+  if (plain.length <= maxChars) return plain;
+  return `${plain.slice(0, maxChars - 1).trimEnd()}…`;
+}
+
 function dayKeyLocal(dateInput: string | Date) {
   const value = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
   const year = value.getFullYear();
@@ -213,6 +284,166 @@ function parseMonthInput(value: string) {
 
 function shiftMonth(date: Date, amount: number) {
   return new Date(date.getFullYear(), date.getMonth() + amount, 1);
+}
+
+function normalizeTimeLabel(raw: string) {
+  if (!raw) return "Any time";
+  const parsed = new Date(`2000-01-01T${raw}:00`);
+  if (Number.isNaN(parsed.getTime())) return raw;
+  return parsed.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+}
+
+function parseTimeToMinutes(raw: string) {
+  const [hh, mm] = raw.split(":").map((part) => Number(part));
+  if (!Number.isFinite(hh) || !Number.isFinite(mm)) return 9 * 60;
+  return Math.min(24 * 60 - 1, Math.max(0, hh * 60 + mm));
+}
+
+function countSessionsForDate(sessions: SessionDoc[], dateKey: string) {
+  return sessions.filter((session) => dayKeyLocal(session.completedAtISO) === dateKey).length;
+}
+
+function greetingForDate(date: Date) {
+  const hour = date.getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 18) return "Good afternoon";
+  return "Good evening";
+}
+
+function milestoneForStreak(streak: number) {
+  const checkpoints = [7, 30, 100, 365];
+  const next = checkpoints.find((checkpoint) => streak < checkpoint) ?? null;
+  return next
+    ? { next, remaining: Math.max(0, next - streak) }
+    : { next: null, remaining: 0 };
+}
+
+function buildSenseiGuidance({
+  date,
+  todaySessions,
+  todayMinutes,
+  streak,
+  dueReminders,
+  plannedTodayCount,
+}: {
+  date: Date;
+  todaySessions: number;
+  todayMinutes: number;
+  streak: number;
+  dueReminders: number;
+  plannedTodayCount: number;
+}) {
+  const greeting = `${greetingForDate(date)}.`;
+  const milestone = milestoneForStreak(streak);
+
+  if (milestone.next && milestone.remaining <= 1 && streak > 0) {
+    return {
+      tone: "milestone" as const,
+      eyebrow: "Whelm Sensei",
+      title: `${greeting} One more day to reach ${milestone.next}.`,
+      body: "Protect the streak with one deliberate session. The next mark is already in sight.",
+    };
+  }
+
+  if (todaySessions === 0) {
+    return {
+      tone: "nudge" as const,
+      eyebrow: "Daily Return",
+      title: `${greeting} Your training has not begun yet.`,
+      body:
+        plannedTodayCount > 0
+          ? `You already set ${plannedTodayCount} planned block${plannedTodayCount === 1 ? "" : "s"} for today. Begin with the first one.`
+          : "Start with a single focused block. Momentum does not need noise, only action.",
+    };
+  }
+
+  if (todaySessions >= 3 || todayMinutes >= 90) {
+    return {
+      tone: "momentum" as const,
+      eyebrow: "Momentum",
+      title: `${greeting} Your focus is sharpening.`,
+      body:
+        dueReminders > 0
+          ? `You already showed up today. Finish strong and clear ${dueReminders} reminder${dueReminders === 1 ? "" : "s"} before you close the day.`
+          : "You have already proven discipline today. Protect the pace and avoid careless context-switching.",
+    };
+  }
+
+  return {
+    tone: "steady" as const,
+    eyebrow: "Whelm Sensei",
+    title: `${greeting} You have started well.`,
+    body:
+      streak > 0
+        ? `Your ${streak}-day streak remains alive. Add another strong session and leave no doubt about today.`
+        : "One completed block changes the shape of the day. Stay with it and build the pattern.",
+  };
+}
+
+function buildSenseiReaction({
+  source,
+  minutesSpent,
+  todaySessions,
+  streak,
+}: {
+  source: "timer" | "plan";
+  minutesSpent: number;
+  todaySessions: number;
+  streak: number;
+}) {
+  if (todaySessions >= 3) {
+    return "Your focus sharpens. The day is beginning to obey you.";
+  }
+
+  if (streak > 0 && [7, 30, 100, 365].includes(streak)) {
+    return `A strong mark. ${streak} days of discipline is no accident.`;
+  }
+
+  if (source === "plan") {
+    return "Good. You honored the plan instead of negotiating with it.";
+  }
+
+  if (minutesSpent >= 45) {
+    return "Good. That was not a casual effort. Keep the standard there.";
+  }
+
+  return "Good. Another step forward.";
+}
+
+function calendarDaySummary({
+  dateKey,
+  entries,
+  plannedBlocks,
+  focusedMinutes,
+}: {
+  dateKey: string;
+  entries: CalendarEntry[];
+  plannedBlocks: PlannedBlock[];
+  focusedMinutes: number;
+}) {
+  const date = new Date(`${dateKey}T00:00:00`);
+  const label = date.toLocaleDateString(undefined, {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
+  const plansCount = plannedBlocks.length;
+  const sessionCount = entries.filter((entry) => entry.source === "session").length;
+  const reminderCount = entries.filter((entry) => entry.source === "reminder").length;
+  return {
+    label,
+    eyebrow: "Day Chamber",
+    title:
+      entries.length === 0
+        ? `${label} is still open.`
+        : `${label} has ${entries.length} active line${entries.length === 1 ? "" : "s"}.`,
+    body:
+      plansCount > 0
+        ? `${plansCount} planned block${plansCount === 1 ? "" : "s"}, ${focusedMinutes} focused minute${focusedMinutes === 1 ? "" : "s"}, ${reminderCount} reminder${reminderCount === 1 ? "" : "s"}.`
+        : sessionCount > 0
+          ? `${focusedMinutes} focused minute${focusedMinutes === 1 ? "" : "s"} already logged here. Keep the room in motion.`
+          : "No plans or sessions are inside this day yet. Start by placing one deliberate block.",
+  };
 }
 
 function summarizeDisciplineScore({
@@ -365,6 +596,56 @@ const TAB_META: Array<{ key: AppTab; label: string }> = [
   { key: "settings", label: "Settings" },
 ];
 
+const INTRO_SPLASH_MS = 2600;
+
+function IntroSplash() {
+  const { RiveComponent } = useRive(
+    {
+      src: "/firstanimation.riv",
+      autoplay: true,
+      layout: new Layout({
+        fit: Fit.Contain,
+        alignment: Alignment.Center,
+      }),
+    },
+    {},
+  );
+
+  return (
+    <main className={styles.splashScreen}>
+      <div className={styles.splashOrb} aria-hidden="true" />
+      <div className={styles.splashFrame}>
+        <div className={styles.splashAnimationShell}>
+          <div className={styles.splashAnimation}>
+            <RiveComponent />
+          </div>
+        </div>
+        <p className={styles.splashWordmark}>WHELM</p>
+        <p className={styles.splashCaption}>Build momentum before the day gets loud.</p>
+      </div>
+    </main>
+  );
+}
+
+function SenseiAvatar({ message, compact = false }: { message: string; compact?: boolean }) {
+  return (
+    <div className={`${styles.senseiAvatarWrap} ${compact ? styles.senseiAvatarWrapCompact : ""}`}>
+      <div className={styles.senseiSpeechBubble}>
+        <span>{message}</span>
+      </div>
+      <div className={styles.senseiAvatar} aria-hidden="true">
+        <div className={styles.senseiAura} />
+        <div className={styles.senseiHead}>
+          <div className={styles.senseiBandana} />
+        </div>
+        <div className={styles.senseiTorso}>
+          <div className={styles.senseiCollar} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function HomePage() {
   const router = useRouter();
 
@@ -373,12 +654,15 @@ export default function HomePage() {
   const [notes, setNotes] = useState<WorkspaceNote[]>([]);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
+  const [textColorPickerOpen, setTextColorPickerOpen] = useState(false);
+  const [highlightPickerOpen, setHighlightPickerOpen] = useState(false);
   const [editorBodyDraft, setEditorBodyDraft] = useState("");
   const [notesSyncStatus, setNotesSyncStatus] = useState<
     "synced" | "local-only" | "syncing"
   >("syncing");
   const [notesSyncMessage, setNotesSyncMessage] = useState("");
   const [authChecked, setAuthChecked] = useState(false);
+  const [showIntroSplash, setShowIntroSplash] = useState(true);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [feedbackCategory, setFeedbackCategory] = useState<FeedbackCategory>("bug");
   const [feedbackMessage, setFeedbackMessage] = useState("");
@@ -386,12 +670,14 @@ export default function HomePage() {
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
   const [reportCopyStatus, setReportCopyStatus] = useState("");
   const [paywallOpen, setPaywallOpen] = useState(false);
+  const [senseiReaction, setSenseiReaction] = useState("");
   const [isPro, setIsPro] = useState(false);
   const [proSource, setProSource] = useState<"preview" | "store" | "none">("none");
   const [trendRange, setTrendRange] = useState<TrendRange>(7);
   const [activeTab, setActiveTab] = useState<AppTab>("today");
   const [insightRange, setInsightRange] = useState<TrendRange>(30);
   const [insightMetric, setInsightMetric] = useState<InsightMetric>("focus");
+  const [calendarView, setCalendarView] = useState<CalendarView>("month");
   const [selectedInsightCategory, setSelectedInsightCategory] = useState<NoteCategory | null>(
     null,
   );
@@ -403,6 +689,8 @@ export default function HomePage() {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
+  const [calendarHoverEntryId, setCalendarHoverEntryId] = useState<string | null>(null);
+  const [calendarPinnedEntryId, setCalendarPinnedEntryId] = useState<string | null>(null);
   const [planTitle, setPlanTitle] = useState("");
   const [planDuration, setPlanDuration] = useState(25);
   const [planTime, setPlanTime] = useState("09:00");
@@ -658,6 +946,32 @@ export default function HomePage() {
     };
   }, [focusMetrics.weekMinutes, notes, sessions, trendPoints]);
 
+  const todayPlannedBlocks = useMemo(
+    () => plannedBlocks.filter((item) => item.dateKey === dayKeyLocal(new Date())),
+    [plannedBlocks],
+  );
+
+  const senseiGuidance = useMemo(
+    () =>
+      buildSenseiGuidance({
+        date: new Date(),
+        todaySessions: focusMetrics.todaySessions,
+        todayMinutes: focusMetrics.todayMinutes,
+        streak,
+        dueReminders: dueReminderNotes.length,
+        plannedTodayCount: todayPlannedBlocks.length,
+      }),
+    [
+      dueReminderNotes.length,
+      focusMetrics.todayMinutes,
+      focusMetrics.todaySessions,
+      streak,
+      todayPlannedBlocks.length,
+    ],
+  );
+
+  const nextSenseiMilestone = useMemo(() => milestoneForStreak(streak), [streak]);
+
   const insightsChart = useMemo(() => {
     const windowDays = insightRange;
     const end = new Date();
@@ -786,6 +1100,21 @@ export default function HomePage() {
   }, [insightsChart.ranked, insightsChart.segments, selectedInsightCategory]);
 
   useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setShowIntroSplash(false);
+    }, INTRO_SPLASH_MS);
+    return () => window.clearTimeout(timeoutId);
+  }, []);
+
+  useEffect(() => {
+    if (!senseiReaction) return;
+    const timeoutId = window.setTimeout(() => {
+      setSenseiReaction("");
+    }, 5000);
+    return () => window.clearTimeout(timeoutId);
+  }, [senseiReaction]);
+
+  useEffect(() => {
     let active = true;
     void getProState().then((state) => {
       if (!active) return;
@@ -812,7 +1141,7 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (nextUser) => {
+    const unsub = onAuthStateChanged(auth, (nextUser) => {
       if (!nextUser) {
         setUser(null);
         setSessions([]);
@@ -826,15 +1155,23 @@ export default function HomePage() {
       }
 
       setUser(nextUser);
-      try {
-        await Promise.all([refreshSessions(nextUser.uid), refreshNotes(nextUser.uid)]);
-      } finally {
-        setAuthChecked(true);
-      }
+      // Unblock the shell immediately after auth; sync data in the background.
+      setAuthChecked(true);
+      void Promise.all([refreshSessions(nextUser.uid), refreshNotes(nextUser.uid)]).catch(() => {
+        // Keep existing local UI visible even if initial cloud sync is slow/unavailable.
+      });
     });
 
     return () => unsub();
   }, [router]);
+
+  useEffect(() => {
+    if (authChecked) return;
+    const timeoutId = window.setTimeout(() => {
+      setAuthChecked(true);
+    }, 2500);
+    return () => window.clearTimeout(timeoutId);
+  }, [authChecked]);
 
   useEffect(() => {
     if (!user) return;
@@ -891,6 +1228,8 @@ export default function HomePage() {
 
   useEffect(() => {
     setColorPickerOpen(false);
+    setTextColorPickerOpen(false);
+    setHighlightPickerOpen(false);
   }, [selectedNoteId]);
 
   useEffect(() => {
@@ -944,6 +1283,14 @@ export default function HomePage() {
 
     const nextSessions = await saveSession(user, session);
     setSessions(nextSessions);
+    setSenseiReaction(
+      buildSenseiReaction({
+        source: "timer",
+        minutesSpent,
+        todaySessions: countSessionsForDate(nextSessions, dayKeyLocal(new Date())),
+        streak: computeStreak(nextSessions),
+      }),
+    );
   }
 
   async function createWorkspaceNote() {
@@ -1054,6 +1401,18 @@ export default function HomePage() {
     }
     document.execCommand("styleWithCSS", false, "true");
     document.execCommand(command, false, value);
+    saveEditorSelection();
+    captureEditorDraft();
+  }
+
+  function applyHighlightColor(value: string) {
+    if (!selectedNote) return;
+    if (!restoreEditorSelection()) {
+      editorRef.current?.focus();
+    }
+    document.execCommand("styleWithCSS", false, "true");
+    document.execCommand("hiliteColor", false, value);
+    document.execCommand("backColor", false, value);
     saveEditorSelection();
     captureEditorDraft();
   }
@@ -1309,10 +1668,176 @@ export default function HomePage() {
   const selectedDatePlans = plannedBlocks
     .filter((item) => item.dateKey === selectedDateKey)
     .sort((a, b) => a.sortOrder - b.sortOrder || a.timeOfDay.localeCompare(b.timeOfDay));
+  const plannedBlockById = useMemo(
+    () => new Map(plannedBlocks.map((item) => [item.id, item])),
+    [plannedBlocks],
+  );
+  const calendarEntriesByDate = useMemo(() => {
+    const entries = new Map<string, CalendarEntry[]>();
+
+    function pushEntry(dateKey: string, entry: CalendarEntry) {
+      const list = entries.get(dateKey) ?? [];
+      list.push(entry);
+      entries.set(dateKey, list);
+    }
+
+    plannedBlocks.forEach((item) => {
+      const startMinute = parseTimeToMinutes(item.timeOfDay || "09:00");
+      const endMinute = Math.min(24 * 60, startMinute + Math.max(10, item.durationMinutes));
+      pushEntry(item.dateKey, {
+        id: `plan-${item.id}`,
+        source: "plan",
+        dateKey: item.dateKey,
+        timeLabel: normalizeTimeLabel(item.timeOfDay),
+        sortTime: item.timeOfDay || "23:59",
+        title: item.title,
+        subtitle: `${item.durationMinutes}m focus block`,
+        preview: `Planned block: ${item.title} (${item.durationMinutes} minutes) at ${normalizeTimeLabel(
+          item.timeOfDay,
+        )}.`,
+        tone: "Blue",
+        startMinute,
+        endMinute,
+        planId: item.id,
+      });
+    });
+
+    notes.forEach((note) => {
+      if (!note.reminderAtISO) return;
+      const reminderDate = new Date(note.reminderAtISO);
+      if (Number.isNaN(reminderDate.getTime())) return;
+      const dateKey = dayKeyLocal(reminderDate);
+      const notePreview = summarizePlainText(note.body, 160);
+      const startMinute = reminderDate.getHours() * 60 + reminderDate.getMinutes();
+      pushEntry(dateKey, {
+        id: `note-${note.id}-${dateKey}`,
+        source: "reminder",
+        dateKey,
+        timeLabel: reminderDate.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
+        sortTime: `${String(reminderDate.getHours()).padStart(2, "0")}:${String(
+          reminderDate.getMinutes(),
+        ).padStart(2, "0")}`,
+        title: note.title || "Untitled note",
+        subtitle: notePreview || "Note reminder",
+        preview: notePreview || "Open this note to read the full content.",
+        tone: "Mint",
+        startMinute,
+        endMinute: Math.min(24 * 60, startMinute + 20),
+        noteId: note.id,
+      });
+    });
+
+    sessions.forEach((session, index) => {
+      const completed = new Date(session.completedAtISO);
+      if (Number.isNaN(completed.getTime())) return;
+      const dateKey = dayKeyLocal(completed);
+      const sessionLabel =
+        session.category === "software"
+          ? "Software"
+          : session.category === "language"
+            ? "Language"
+            : "Focus";
+      const startMinute = completed.getHours() * 60 + completed.getMinutes();
+      const duration = Math.max(15, Math.min(180, session.minutes));
+      pushEntry(dateKey, {
+        id: `session-${index}-${session.completedAtISO}`,
+        source: "session",
+        dateKey,
+        timeLabel: completed.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
+        sortTime: `${String(completed.getHours()).padStart(2, "0")}:${String(
+          completed.getMinutes(),
+        ).padStart(2, "0")}`,
+        title: session.note?.trim() || `${sessionLabel} session`,
+        subtitle: `${session.minutes}m completed`,
+        preview: session.note?.trim()
+          ? summarizePlainText(session.note, 160)
+          : `Completed ${session.minutes} minute ${sessionLabel.toLowerCase()} session.`,
+        tone: "Violet",
+        startMinute,
+        endMinute: Math.min(24 * 60, startMinute + duration),
+      });
+    });
+
+    entries.forEach((list, dateKey) => {
+      entries.set(
+        dateKey,
+        list.sort((a, b) => {
+          if (a.sortTime !== b.sortTime) return a.sortTime.localeCompare(b.sortTime);
+          const priority = { plan: 0, reminder: 1, session: 2 } as const;
+          return priority[a.source] - priority[b.source];
+        }),
+      );
+    });
+
+    return entries;
+  }, [notes, plannedBlocks, sessions]);
+  const selectedDateEntries = calendarEntriesByDate.get(selectedDateKey) ?? [];
+  const selectedDateFocusedMinutes = sessionMinutesByDay.get(selectedDateKey) ?? 0;
+  const selectedDateSummary = useMemo(
+    () =>
+      calendarDaySummary({
+        dateKey: selectedDateKey,
+        entries: selectedDateEntries,
+        plannedBlocks: selectedDatePlans,
+        focusedMinutes: selectedDateFocusedMinutes,
+      }),
+    [selectedDateEntries, selectedDateFocusedMinutes, selectedDateKey, selectedDatePlans],
+  );
+  const dayViewTimeline = useMemo(() => {
+    const defaultStart = 6 * 60;
+    const defaultEnd = 22 * 60;
+    const withRange = selectedDateEntries.map((entry) => ({
+      ...entry,
+      startMinute: Math.min(entry.startMinute, entry.endMinute - 5),
+      endMinute: Math.max(entry.endMinute, entry.startMinute + 5),
+    }));
+    const minStart = withRange.length > 0 ? Math.min(...withRange.map((entry) => entry.startMinute)) : defaultStart;
+    const maxEnd = withRange.length > 0 ? Math.max(...withRange.map((entry) => entry.endMinute)) : defaultEnd;
+    const startMinute = Math.max(0, Math.min(defaultStart, Math.floor(minStart / 60) * 60));
+    const endMinute = Math.min(24 * 60, Math.max(defaultEnd, Math.ceil(maxEnd / 60) * 60));
+    const totalMinutes = Math.max(60, endMinute - startMinute);
+
+    const items = withRange.map((entry) => ({
+      ...entry,
+      topPct: ((entry.startMinute - startMinute) / totalMinutes) * 100,
+      heightPct: (Math.max(10, entry.endMinute - entry.startMinute) / totalMinutes) * 100,
+    }));
+
+    const hourTicks: Array<{ minute: number; label: string }> = [];
+    for (let minute = startMinute; minute <= endMinute; minute += 60) {
+      const hour = Math.floor(minute / 60);
+      const suffix = hour >= 12 ? "PM" : "AM";
+      const hour12 = hour % 12 === 0 ? 12 : hour % 12;
+      hourTicks.push({ minute, label: `${hour12}:00 ${suffix}` });
+    }
+
+    return { startMinute, endMinute, totalMinutes, items, hourTicks };
+  }, [selectedDateEntries]);
+  const calendarEntryById = useMemo(() => {
+    const byId = new Map<string, CalendarEntry>();
+    calendarEntriesByDate.forEach((items) => {
+      items.forEach((entry) => byId.set(entry.id, entry));
+    });
+    return byId;
+  }, [calendarEntriesByDate]);
+  const activeCalendarPreview = useMemo(() => {
+    const id = calendarHoverEntryId ?? calendarPinnedEntryId;
+    if (!id) return null;
+    return calendarEntryById.get(id) ?? null;
+  }, [calendarEntryById, calendarHoverEntryId, calendarPinnedEntryId]);
 
   useEffect(() => {
     setCalendarJumpDate(selectedDateKey);
   }, [selectedDateKey]);
+
+  useEffect(() => {
+    if (calendarPinnedEntryId && !calendarEntryById.has(calendarPinnedEntryId)) {
+      setCalendarPinnedEntryId(null);
+    }
+    if (calendarHoverEntryId && !calendarEntryById.has(calendarHoverEntryId)) {
+      setCalendarHoverEntryId(null);
+    }
+  }, [calendarEntryById, calendarHoverEntryId, calendarPinnedEntryId]);
 
   const kpiDetailContent = useMemo<
     Record<KpiDetailKey, { title: string; summary: string; bullets: string[] }>
@@ -1467,6 +1992,14 @@ export default function HomePage() {
 
     const nextSessions = await saveSession(user, session);
     setSessions(nextSessions);
+    setSenseiReaction(
+      buildSenseiReaction({
+        source: "plan",
+        minutesSpent: item.durationMinutes,
+        todaySessions: countSessionsForDate(nextSessions, dayKeyLocal(new Date())),
+        streak: computeStreak(nextSessions),
+      }),
+    );
     const updated = plannedBlocks.filter((block) => block.id !== item.id);
     setPlannedBlocks(updated);
     savePlannedBlocks(user.uid, updated);
@@ -1477,9 +2010,12 @@ export default function HomePage() {
   function selectCalendarDate(dateKey: string) {
     const parsed = new Date(`${dateKey}T00:00:00`);
     if (Number.isNaN(parsed.getTime())) return;
+    setCalendarHoverEntryId(null);
+    setCalendarPinnedEntryId(null);
     setSelectedCalendarDate(dateKey);
     setCalendarJumpDate(dateKey);
     setCalendarCursor(new Date(parsed.getFullYear(), parsed.getMonth(), 1));
+    setCalendarView("day");
   }
 
   function jumpToToday() {
@@ -1488,11 +2024,28 @@ export default function HomePage() {
     selectCalendarDate(key);
   }
 
+  function jumpToCalendarSection(sectionId: string) {
+    const target = document.getElementById(sectionId);
+    if (!target) return;
+    target.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  if (showIntroSplash) {
+    return <IntroSplash />;
+  }
+
   if (!authChecked) {
     return (
       <main className={styles.pageShell}>
         <div className={styles.loadingCard}>
           <p className={styles.loadingLabel}>Preparing your WHELM session...</p>
+          <button
+            type="button"
+            className={styles.secondaryPlanButton}
+            onClick={() => setAuthChecked(true)}
+          >
+            Continue now
+          </button>
         </div>
       </main>
     );
@@ -1615,6 +2168,38 @@ export default function HomePage() {
               )}
 
               <section className={styles.mainGrid}>
+                <article
+                  className={`${styles.card} ${styles.senseiCard} ${styles[`senseiCard${senseiGuidance.tone[0].toUpperCase()}${senseiGuidance.tone.slice(1)}`]}`}
+                >
+                  <div className={styles.senseiCardHeader}>
+                    <SenseiAvatar message={senseiGuidance.eyebrow} />
+                    <div>
+                      <p className={styles.sectionLabel}>{senseiGuidance.eyebrow}</p>
+                      <h2 className={styles.cardTitle}>Whelm Sensei</h2>
+                    </div>
+                  </div>
+                  <p className={styles.senseiGreeting}>{senseiGuidance.title}</p>
+                  <p className={styles.senseiMessage}>{senseiGuidance.body}</p>
+                  <div className={styles.senseiMetrics}>
+                    <span className={styles.senseiMetricPill}>
+                      Today: {focusMetrics.todaySessions} session
+                      {focusMetrics.todaySessions === 1 ? "" : "s"}
+                    </span>
+                    <span className={styles.senseiMetricPill}>Streak: {streak}d</span>
+                    <span className={styles.senseiMetricPill}>
+                      Planned: {todayPlannedBlocks.length}
+                    </span>
+                    {nextSenseiMilestone.next ? (
+                      <span className={styles.senseiMetricPill}>
+                        Next mark: {nextSenseiMilestone.next} ({nextSenseiMilestone.remaining} left)
+                      </span>
+                    ) : (
+                      <span className={styles.senseiMetricPill}>Legend tier unlocked</span>
+                    )}
+                  </div>
+                  {senseiReaction && <p className={styles.senseiReaction}>{senseiReaction}</p>}
+                </article>
+
                 <div className={styles.leftColumn}>
                   <Timer
                     minutes={25}
@@ -1740,7 +2325,9 @@ export default function HomePage() {
           {activeTab === "calendar" && (
             <section className={styles.calendarGrid}>
               <article className={styles.card}>
-                <p className={styles.sectionLabel}>Month View</p>
+                <p className={styles.sectionLabel}>
+                  {calendarView === "month" ? "Month View" : "Day Timeline"}
+                </p>
                 <h2 className={styles.cardTitle}>Focus calendar</h2>
                 <div className={styles.calendarToolbar}>
                   <div className={styles.calendarNav}>
@@ -1801,42 +2388,282 @@ export default function HomePage() {
                       Today
                     </button>
                   </div>
-                </div>
-                <div className={styles.calendarHeader}>
-                  <span>Sun</span>
-                  <span>Mon</span>
-                  <span>Tue</span>
-                  <span>Wed</span>
-                  <span>Thu</span>
-                  <span>Fri</span>
-                  <span>Sat</span>
-                </div>
-                <div className={styles.monthGrid}>
-                  {dynamicMonthCalendar.map((day) => (
+                  <div className={styles.calendarViewSwitch}>
                     <button
                       type="button"
-                      key={day.key}
-                      className={`${styles.streakCell} ${styles[`streakLevel${day.level}`]} ${
-                        day.dayNumber && day.key === selectedDateKey ? styles.streakCellSelected : ""
+                      className={`${styles.calendarViewButton} ${
+                        calendarView === "month" ? styles.calendarViewButtonActive : ""
                       }`}
-                      disabled={!day.dayNumber}
-                      title={
-                        day.dayNumber
-                          ? `${day.dayNumber}: ${day.minutes}m`
-                          : "Outside current month"
-                      }
-                      onClick={() => {
-                        if (!day.dayNumber) return;
-                        selectCalendarDate(day.key);
-                      }}
+                      onClick={() => setCalendarView("month")}
                     >
-                      {day.dayNumber && <span>{day.dayNumber}</span>}
+                      Month
                     </button>
-                  ))}
+                    <button
+                      type="button"
+                      className={`${styles.calendarViewButton} ${
+                        calendarView === "day" ? styles.calendarViewButtonActive : ""
+                      }`}
+                      onClick={() => setCalendarView("day")}
+                    >
+                      Day
+                    </button>
+                  </div>
+                  <div className={styles.calendarSectionNav}>
+                    <button
+                      type="button"
+                      className={styles.calendarSectionButton}
+                      onClick={() =>
+                        jumpToCalendarSection(
+                          calendarView === "day" ? "calendar-day-chamber" : "calendar-main-view",
+                        )
+                      }
+                    >
+                      {calendarView === "day" ? "Day chamber" : "Calendar"}
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.calendarSectionButton}
+                      onClick={() => jumpToCalendarSection("calendar-timeline")}
+                    >
+                      Timeline
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.calendarSectionButton}
+                      onClick={() => jumpToCalendarSection("calendar-scheduler")}
+                    >
+                      Scheduler
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.calendarSectionButton}
+                      onClick={() => jumpToCalendarSection("calendar-planner")}
+                    >
+                      Planner
+                    </button>
+                  </div>
                 </div>
+                {calendarView === "month" ? (
+                  <>
+                    <div id="calendar-main-view" className={styles.calendarHeader}>
+                      <span>Sun</span>
+                      <span>Mon</span>
+                      <span>Tue</span>
+                      <span>Wed</span>
+                      <span>Thu</span>
+                      <span>Fri</span>
+                      <span>Sat</span>
+                    </div>
+                    <div className={styles.monthGrid}>
+                      {dynamicMonthCalendar.map((day) => (
+                        <button
+                          type="button"
+                          key={day.key}
+                          className={`${styles.monthDayCell} ${styles[`streakLevel${day.level}`]} ${
+                            day.dayNumber && day.key === selectedDateKey ? styles.monthDayCellSelected : ""
+                          }`}
+                          disabled={!day.dayNumber}
+                          title={
+                            day.dayNumber
+                              ? `${day.dayNumber}: ${day.minutes}m focus, ${
+                                  (calendarEntriesByDate.get(day.key) ?? []).length
+                                } entries`
+                              : "Outside current month"
+                          }
+                          onClick={() => {
+                            if (!day.dayNumber) return;
+                            selectCalendarDate(day.key);
+                          }}
+                        >
+                          {day.dayNumber && (
+                            <>
+                              <div className={styles.monthDayHead}>
+                                <span className={styles.monthDayNumber}>{day.dayNumber}</span>
+                                <span className={styles.monthDayMinutes}>{day.minutes}m</span>
+                              </div>
+                              <div className={styles.monthEntries}>
+                                {(calendarEntriesByDate.get(day.key) ?? []).slice(0, 2).map((entry) => (
+                                  <button
+                                    key={entry.id}
+                                    type="button"
+                                    className={`${styles.monthEntryChip} ${
+                                      styles[`monthEntry${entry.tone}`]
+                                    }`}
+                                    onMouseEnter={() => setCalendarHoverEntryId(entry.id)}
+                                    onMouseLeave={() => setCalendarHoverEntryId((current) =>
+                                      current === entry.id ? null : current,
+                                    )}
+                                    onFocus={() => setCalendarHoverEntryId(entry.id)}
+                                    onBlur={() => setCalendarHoverEntryId((current) =>
+                                      current === entry.id ? null : current,
+                                    )}
+                                    onClick={(event) => {
+                                      event.preventDefault();
+                                      event.stopPropagation();
+                                      selectCalendarDate(day.key);
+                                      setCalendarPinnedEntryId((current) =>
+                                        current === entry.id ? null : entry.id,
+                                      );
+                                    }}
+                                  >
+                                    {entry.timeLabel} {entry.title}
+                                  </button>
+                                ))}
+                                {(calendarEntriesByDate.get(day.key) ?? []).length > 2 && (
+                                  <span className={styles.monthMoreChip}>
+                                    +{(calendarEntriesByDate.get(day.key) ?? []).length - 2} more
+                                  </span>
+                                )}
+                              </div>
+                            </>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                    <div className={styles.dayViewShell}>
+                    <div id="calendar-day-chamber" className={styles.dayPortalCard}>
+                      <div className={styles.dayPortalHeader}>
+                        <div>
+                          <p className={styles.sectionLabel}>{selectedDateSummary.eyebrow}</p>
+                          <h3 className={styles.dayPortalTitle}>{selectedDateSummary.title}</h3>
+                        </div>
+                        <button
+                          type="button"
+                          className={styles.secondaryPlanButton}
+                          onClick={() => setCalendarView("month")}
+                        >
+                          Back to month
+                        </button>
+                      </div>
+                      <p className={styles.dayPortalMeta}>{selectedDateSummary.body}</p>
+                      <div className={styles.dayPortalStats}>
+                        <span className={styles.dayPortalPill}>
+                          Focus: {selectedDateFocusedMinutes}m
+                        </span>
+                        <span className={styles.dayPortalPill}>
+                          Plans: {selectedDatePlans.length}
+                        </span>
+                        <span className={styles.dayPortalPill}>
+                          Entries: {selectedDateEntries.length}
+                        </span>
+                      </div>
+                      <SenseiAvatar
+                        message={
+                          selectedDateEntries.length === 0
+                            ? "This room is empty. Give it a purpose."
+                            : "You entered the day. Now shape it."
+                        }
+                        compact
+                      />
+                    </div>
+                    <div id="calendar-timeline" className={styles.dayViewGrid}>
+                      <div className={styles.dayViewTicks}>
+                        {dayViewTimeline.hourTicks.map((tick) => (
+                          <span key={tick.minute}>{tick.label}</span>
+                        ))}
+                      </div>
+                      <div className={styles.dayViewTrack}>
+                        {dayViewTimeline.hourTicks.map((tick) => (
+                          <div
+                            key={tick.minute}
+                            className={styles.dayViewRow}
+                            style={{
+                              top: `${((tick.minute - dayViewTimeline.startMinute) / dayViewTimeline.totalMinutes) * 100}%`,
+                            }}
+                          />
+                        ))}
+                        {dayViewTimeline.items.map((entry) => (
+                          <button
+                            type="button"
+                            key={`timeline-${entry.id}`}
+                            className={`${styles.dayViewEvent} ${styles[`dayViewEvent${entry.tone}`]}`}
+                            style={{
+                              top: `${entry.topPct}%`,
+                              height: `${Math.max(7.5, entry.heightPct)}%`,
+                            }}
+                            onMouseEnter={() => setCalendarHoverEntryId(entry.id)}
+                            onMouseLeave={() => setCalendarHoverEntryId((current) =>
+                              current === entry.id ? null : current,
+                            )}
+                            onClick={() =>
+                              setCalendarPinnedEntryId((current) => (current === entry.id ? null : entry.id))
+                            }
+                          >
+                            <span className={styles.dayViewEventTime}>{entry.timeLabel}</span>
+                            <strong>{entry.title}</strong>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {activeCalendarPreview && (
+                  <div className={styles.calendarEntryPreview}>
+                    <div>
+                      <p className={styles.calendarEntryPreviewLabel}>
+                        {new Date(`${activeCalendarPreview.dateKey}T00:00:00`).toLocaleDateString(
+                          undefined,
+                          { weekday: "short", month: "short", day: "numeric" },
+                        )}{" "}
+                        • {activeCalendarPreview.timeLabel}
+                      </p>
+                      <h3 className={styles.calendarEntryPreviewTitle}>
+                        {activeCalendarPreview.title}
+                      </h3>
+                      <p className={styles.calendarEntryPreviewBody}>
+                        {activeCalendarPreview.preview}
+                      </p>
+                    </div>
+                    <div className={styles.calendarEntryPreviewActions}>
+                      {activeCalendarPreview.source === "reminder" && activeCalendarPreview.noteId && (
+                        <button
+                          type="button"
+                          className={styles.secondaryPlanButton}
+                          onClick={() => {
+                            setSelectedNoteId(activeCalendarPreview.noteId ?? null);
+                            openNotesTab();
+                          }}
+                        >
+                          Open note
+                        </button>
+                      )}
+                      {activeCalendarPreview.source === "plan" && activeCalendarPreview.planId && (
+                        <button
+                          type="button"
+                          className={styles.planCompleteButton}
+                          onClick={() => {
+                            const plan = plannedBlockById.get(activeCalendarPreview.planId ?? "");
+                            if (!plan) return;
+                            void completePlannedBlock(plan);
+                          }}
+                        >
+                          Complete
+                        </button>
+                      )}
+                      {activeCalendarPreview.source === "session" && (
+                        <button
+                          type="button"
+                          className={styles.secondaryPlanButton}
+                          onClick={() => setActiveTab("history")}
+                        >
+                          View history
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className={styles.secondaryPlanButton}
+                        onClick={() => setCalendarPinnedEntryId(null)}
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </div>
+                )}
               </article>
 
-              <article className={styles.card}>
+              <article id="calendar-scheduler" className={styles.card}>
                 <p className={styles.sectionLabel}>Last 4 Weeks</p>
                 <h2 className={styles.cardTitle}>Streak heatmap</h2>
                 <div className={styles.streakGrid}>
@@ -1859,14 +2686,72 @@ export default function HomePage() {
               <article className={styles.card}>
                 <p className={styles.sectionLabel}>Scheduler</p>
                 <h2 className={styles.cardTitle}>
-                  Planned focus blocks for{" "}
+                  Day agenda for{" "}
                   {new Date(`${selectedDateKey}T00:00:00`).toLocaleDateString(undefined, {
                     weekday: "short",
                     month: "short",
                     day: "numeric",
                   })}
                 </h2>
-                <div className={styles.planForm}>
+                <p className={styles.accountMeta}>
+                  {selectedDateEntries.length} entries: {selectedDatePlans.length} planned,{" "}
+                  {selectedDateEntries.filter((entry) => entry.source === "reminder").length} reminders,{" "}
+                  {selectedDateEntries.filter((entry) => entry.source === "session").length} completed sessions
+                </p>
+
+                <div className={styles.dayAgendaList}>
+                  {selectedDateEntries.length === 0 ? (
+                    <p className={styles.emptyText}>No events for this date yet.</p>
+                  ) : (
+                    selectedDateEntries.slice(0, 8).map((entry) => (
+                      <div key={entry.id} className={styles.dayAgendaItem}>
+                        <div>
+                          <p className={styles.dayAgendaTime}>{entry.timeLabel}</p>
+                          <strong className={styles.dayAgendaTitle}>{entry.title}</strong>
+                          <p className={styles.dayAgendaMeta}>{entry.subtitle}</p>
+                        </div>
+                        <div className={styles.dayAgendaActions}>
+                          {entry.source === "reminder" && entry.noteId && (
+                            <button
+                              type="button"
+                              className={styles.secondaryPlanButton}
+                              onClick={() => {
+                                setSelectedNoteId(entry.noteId ?? null);
+                                openNotesTab();
+                              }}
+                            >
+                              Open note
+                            </button>
+                          )}
+                          {entry.source === "plan" && entry.planId && plannedBlockById.get(entry.planId) && (
+                            <button
+                              type="button"
+                              className={styles.planCompleteButton}
+                              onClick={() => {
+                                const plan = plannedBlockById.get(entry.planId ?? "");
+                                if (!plan) return;
+                                void completePlannedBlock(plan);
+                              }}
+                            >
+                              Complete
+                            </button>
+                          )}
+                          {entry.source === "session" && (
+                            <button
+                              type="button"
+                              className={styles.secondaryPlanButton}
+                              onClick={() => setActiveTab("history")}
+                            >
+                              View history
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                <div id="calendar-planner" className={styles.planForm}>
                   <input
                     value={planTitle}
                     onChange={(event) => setPlanTitle(event.target.value)}
@@ -2036,38 +2921,51 @@ export default function HomePage() {
                   </div>
                 ) : (
                   <>
-                    <div className={styles.noteColorRow}>
-                      <button
-                        type="button"
-                        className={styles.noteColorPickerTrigger}
-                        onClick={() => setColorPickerOpen((open) => !open)}
-                      >
-                        <span
-                          className={styles.noteColorPickerPreview}
-                          style={{ backgroundColor: selectedNote.color || "#e7e5e4" }}
-                        />
-                        Note color
-                      </button>
+                    <div className={styles.notesStudioHero}>
+                      <div>
+                        <p className={styles.sectionLabel}>Whelm Writing Studio</p>
+                        <h2 className={styles.cardTitle}>Elite notes, not scratch paper</h2>
+                        <p className={styles.noteStudioCopy}>
+                          Shape the page the way you think: typography, emphasis, structure, and tone.
+                        </p>
+                      </div>
+                      <div className={styles.noteColorRow}>
+                        <button
+                          type="button"
+                          className={styles.noteColorPickerTrigger}
+                          onClick={() => {
+                            setColorPickerOpen((open) => !open);
+                            setTextColorPickerOpen(false);
+                            setHighlightPickerOpen(false);
+                          }}
+                        >
+                          <span
+                            className={styles.noteColorPickerPreview}
+                            style={{ backgroundColor: selectedNote.color || "#e7e5e4" }}
+                          />
+                          Page tone
+                        </button>
 
-                      {colorPickerOpen && (
-                        <div className={styles.noteColorPickerPopover}>
-                          {NOTE_COLORS.map((color) => (
-                            <button
-                              type="button"
-                              key={color.value}
-                              className={`${styles.noteColorSwatch} ${
-                                selectedNote.color === color.value ? styles.noteColorSwatchActive : ""
-                              }`}
-                              style={{ backgroundColor: color.value }}
-                              title={color.label}
-                              onClick={() => {
-                                void updateSelectedNote({ color: color.value });
-                                setColorPickerOpen(false);
-                              }}
-                            />
-                          ))}
-                        </div>
-                      )}
+                        {colorPickerOpen && (
+                          <div className={styles.noteColorPickerPopover}>
+                            {NOTE_COLORS.map((color) => (
+                              <button
+                                type="button"
+                                key={color.value}
+                                className={`${styles.noteColorSwatch} ${
+                                  selectedNote.color === color.value ? styles.noteColorSwatchActive : ""
+                                }`}
+                                style={{ backgroundColor: color.value }}
+                                title={color.label}
+                                onClick={() => {
+                                  void updateSelectedNote({ color: color.value });
+                                  setColorPickerOpen(false);
+                                }}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     <div className={styles.noteMetaRow}>
@@ -2111,88 +3009,255 @@ export default function HomePage() {
                     </div>
 
                     <div className={styles.noteEditorToolbar}>
-                      <button
-                        type="button"
-                        className={styles.noteToolButton}
-                        onMouseDown={(event) => {
-                          event.preventDefault();
-                          saveEditorSelection();
-                        }}
-                        onClick={() => applyEditorCommand("bold")}
-                      >
-                        Bold
-                      </button>
-                      <button
-                        type="button"
-                        className={styles.noteToolButton}
-                        onMouseDown={(event) => {
-                          event.preventDefault();
-                          saveEditorSelection();
-                        }}
-                        onClick={() => applyEditorCommand("italic")}
-                      >
-                        Italic
-                      </button>
-                      <button
-                        type="button"
-                        className={styles.noteToolButton}
-                        onMouseDown={(event) => {
-                          event.preventDefault();
-                          saveEditorSelection();
-                        }}
-                        onClick={() => applyEditorCommand("underline")}
-                      >
-                        Underline
-                      </button>
-                      <button
-                        type="button"
-                        className={styles.noteToolButton}
-                        onMouseDown={(event) => {
-                          event.preventDefault();
-                          saveEditorSelection();
-                        }}
-                        onClick={() => applyEditorCommand("insertUnorderedList")}
-                      >
-                        List
-                      </button>
+                      <div className={styles.noteToolbarGroup}>
+                        <button
+                          type="button"
+                          className={styles.noteToolButton}
+                          onMouseDown={(event) => {
+                            event.preventDefault();
+                            saveEditorSelection();
+                          }}
+                          onClick={() => applyEditorCommand("bold")}
+                        >
+                          Bold
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.noteToolButton}
+                          onMouseDown={(event) => {
+                            event.preventDefault();
+                            saveEditorSelection();
+                          }}
+                          onClick={() => applyEditorCommand("italic")}
+                        >
+                          Italic
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.noteToolButton}
+                          onMouseDown={(event) => {
+                            event.preventDefault();
+                            saveEditorSelection();
+                          }}
+                          onClick={() => applyEditorCommand("underline")}
+                        >
+                          Underline
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.noteToolButton}
+                          onMouseDown={(event) => {
+                            event.preventDefault();
+                            saveEditorSelection();
+                          }}
+                          onClick={() => applyEditorCommand("removeFormat")}
+                        >
+                          Clear
+                        </button>
+                      </div>
 
-                      <select
-                        className={styles.noteToolSelect}
-                        value={selectedNote.fontFamily}
-                        onMouseDown={() => saveEditorSelection()}
-                        onChange={(event) => {
-                          const nextFont = event.target.value;
-                          applyEditorCommand("fontName", nextFont);
-                          void updateSelectedNote({ fontFamily: nextFont });
-                        }}
-                      >
-                        <option value="Avenir Next">Avenir</option>
-                        <option value="Georgia">Georgia</option>
-                        <option value="Trebuchet MS">Trebuchet</option>
-                        <option value="Courier New">Courier</option>
-                      </select>
+                      <div className={styles.noteToolbarGroup}>
+                        <button
+                          type="button"
+                          className={styles.noteToolButton}
+                          onMouseDown={(event) => {
+                            event.preventDefault();
+                            saveEditorSelection();
+                          }}
+                          onClick={() => applyEditorCommand("formatBlock", "H1")}
+                        >
+                          H1
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.noteToolButton}
+                          onMouseDown={(event) => {
+                            event.preventDefault();
+                            saveEditorSelection();
+                          }}
+                          onClick={() => applyEditorCommand("formatBlock", "H2")}
+                        >
+                          H2
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.noteToolButton}
+                          onMouseDown={(event) => {
+                            event.preventDefault();
+                            saveEditorSelection();
+                          }}
+                          onClick={() => applyEditorCommand("formatBlock", "BLOCKQUOTE")}
+                        >
+                          Quote
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.noteToolButton}
+                          onMouseDown={(event) => {
+                            event.preventDefault();
+                            saveEditorSelection();
+                          }}
+                          onClick={() => applyEditorCommand("insertHorizontalRule")}
+                        >
+                          Divider
+                        </button>
+                      </div>
 
-                      <select
-                        className={styles.noteToolSelect}
-                        value={String(selectedNote.fontSizePx)}
-                        onMouseDown={() => saveEditorSelection()}
-                        onChange={(event) => {
-                          const nextSize = Number(event.target.value);
-                          const sizeMap: Record<number, string> = {
-                            14: "3",
-                            16: "4",
-                            18: "5",
-                            22: "6",
-                          };
-                          applyEditorCommand("fontSize", sizeMap[nextSize] ?? "4");
-                          void updateSelectedNote({ fontSizePx: nextSize });
-                        }}
-                      >
-                        <option value="14">Small</option>
-                        <option value="16">Normal</option>
-                        <option value="18">Large</option>
-                        <option value="22">XL</option>
-                      </select>
+                      <div className={styles.noteToolbarGroup}>
+                        <button
+                          type="button"
+                          className={styles.noteToolButton}
+                          onMouseDown={(event) => {
+                            event.preventDefault();
+                            saveEditorSelection();
+                          }}
+                          onClick={() => applyEditorCommand("insertUnorderedList")}
+                        >
+                          Bullet
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.noteToolButton}
+                          onMouseDown={(event) => {
+                            event.preventDefault();
+                            saveEditorSelection();
+                          }}
+                          onClick={() => applyEditorCommand("insertOrderedList")}
+                        >
+                          Number
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.noteToolButton}
+                          onMouseDown={(event) => {
+                            event.preventDefault();
+                            saveEditorSelection();
+                          }}
+                          onClick={() => applyEditorCommand("justifyLeft")}
+                        >
+                          Left
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.noteToolButton}
+                          onMouseDown={(event) => {
+                            event.preventDefault();
+                            saveEditorSelection();
+                          }}
+                          onClick={() => applyEditorCommand("justifyCenter")}
+                        >
+                          Center
+                        </button>
+                      </div>
+
+                      <div className={styles.noteToolbarGroup}>
+                        <select
+                          className={styles.noteToolSelect}
+                          value={selectedNote.fontFamily}
+                          onMouseDown={() => saveEditorSelection()}
+                          onChange={(event) => {
+                            const nextFont = event.target.value;
+                            applyEditorCommand("fontName", nextFont);
+                            void updateSelectedNote({ fontFamily: nextFont });
+                          }}
+                        >
+                          {NOTE_FONTS.map((font) => (
+                            <option key={font.label} value={font.value}>
+                              {font.label}
+                            </option>
+                          ))}
+                        </select>
+
+                        <select
+                          className={styles.noteToolSelect}
+                          value={String(selectedNote.fontSizePx)}
+                          onMouseDown={() => saveEditorSelection()}
+                          onChange={(event) => {
+                            const nextSize = Number(event.target.value);
+                            const option = NOTE_FONT_SIZES.find((item) => item.value === nextSize);
+                            applyEditorCommand("fontSize", option?.command ?? "4");
+                            void updateSelectedNote({ fontSizePx: nextSize });
+                          }}
+                        >
+                          {NOTE_FONT_SIZES.map((size) => (
+                            <option key={size.value} value={size.value}>
+                              {size.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className={styles.noteToolbarGroup}>
+                        <div className={styles.noteInlinePalette}>
+                          <button
+                            type="button"
+                            className={styles.noteToolButton}
+                            onClick={() => {
+                              setTextColorPickerOpen((open) => !open);
+                              setHighlightPickerOpen(false);
+                              saveEditorSelection();
+                            }}
+                          >
+                            Text color
+                          </button>
+                          {textColorPickerOpen && (
+                            <div className={styles.noteInlinePalettePopover}>
+                              {NOTE_TEXT_COLORS.map((color) => (
+                                <button
+                                  type="button"
+                                  key={color.value}
+                                  className={styles.noteInlineSwatch}
+                                  style={{ backgroundColor: color.value }}
+                                  title={color.label}
+                                  onMouseDown={(event) => {
+                                    event.preventDefault();
+                                    saveEditorSelection();
+                                  }}
+                                  onClick={() => {
+                                    applyEditorCommand("foreColor", color.value);
+                                    setTextColorPickerOpen(false);
+                                  }}
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className={styles.noteInlinePalette}>
+                          <button
+                            type="button"
+                            className={styles.noteToolButton}
+                            onClick={() => {
+                              setHighlightPickerOpen((open) => !open);
+                              setTextColorPickerOpen(false);
+                              saveEditorSelection();
+                            }}
+                          >
+                            Highlight
+                          </button>
+                          {highlightPickerOpen && (
+                            <div className={styles.noteInlinePalettePopover}>
+                              {NOTE_HIGHLIGHTS.map((color) => (
+                                <button
+                                  type="button"
+                                  key={color.value}
+                                  className={styles.noteInlineSwatch}
+                                  style={{ backgroundColor: color.value }}
+                                  title={color.label}
+                                  onMouseDown={(event) => {
+                                    event.preventDefault();
+                                    saveEditorSelection();
+                                  }}
+                                  onClick={() => {
+                                    applyHighlightColor(color.value);
+                                    setHighlightPickerOpen(false);
+                                  }}
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
 
                     <input

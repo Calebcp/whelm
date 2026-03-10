@@ -3,6 +3,84 @@
   padding: 28px 18px 106px;
 }
 
+.splashScreen {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(125, 211, 252, 0.16), transparent 34%),
+    linear-gradient(180deg, #ffffff 0%, #f5f9ff 46%, #edf4ff 100%);
+}
+
+.splashOrb {
+  position: absolute;
+  top: -13%;
+  left: 50%;
+  width: min(82vw, 760px);
+  height: min(62vw, 520px);
+  transform: translateX(-50%);
+  border-radius: 999px 999px 42% 42%;
+  background:
+    radial-gradient(circle at 50% 68%, rgba(56, 189, 248, 0.34) 0%, rgba(59, 130, 246, 0.28) 24%, rgba(37, 99, 235, 0.22) 42%, rgba(15, 23, 42, 0.2) 63%, transparent 82%);
+  filter: blur(30px);
+}
+
+.splashFrame {
+  position: relative;
+  z-index: 1;
+  width: min(480px, 100%);
+  display: grid;
+  justify-items: center;
+  gap: 16px;
+}
+
+.splashAnimation {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 32%;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.splashAnimationShell {
+  width: min(328px, 78vw);
+  aspect-ratio: 1;
+  padding: 0;
+  border-radius: 36%;
+  overflow: hidden;
+  box-shadow:
+    0 34px 84px rgba(15, 23, 42, 0.12),
+    0 -20px 56px rgba(59, 130, 246, 0.28),
+    0 0 0 18px rgba(255, 255, 255, 0.96),
+    0 0 0 38px rgba(255, 255, 255, 0.72);
+}
+
+.splashAnimation canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.splashWordmark {
+  margin: 0;
+  font-size: clamp(2rem, 8vw, 3.75rem);
+  line-height: 0.9;
+  letter-spacing: 0.22em;
+  text-indent: 0.22em;
+  font-weight: 800;
+  color: #0f2f55;
+  text-shadow: 0 8px 24px rgba(59, 130, 246, 0.12);
+}
+
+.splashCaption {
+  margin: 0;
+  font-size: 0.94rem;
+  color: #58708f;
+  text-align: center;
+}
+
 .pageFrame {
   width: min(1240px, 100%);
   margin: 0 auto;
@@ -232,6 +310,203 @@
   gap: 14px;
 }
 
+.senseiCard {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at top right, rgba(125, 211, 252, 0.2), transparent 32%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(239, 246, 255, 0.9));
+}
+
+.senseiCard::after {
+  content: "";
+  position: absolute;
+  inset: auto -10% -30% auto;
+  width: 220px;
+  height: 220px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(37, 99, 235, 0.12), transparent 70%);
+  pointer-events: none;
+}
+
+.senseiCardSteady {
+  border-color: rgba(20, 93, 160, 0.12);
+}
+
+.senseiCardNudge {
+  border-color: rgba(14, 116, 144, 0.14);
+}
+
+.senseiCardMomentum {
+  border-color: rgba(37, 99, 235, 0.16);
+}
+
+.senseiCardMilestone {
+  border-color: rgba(245, 158, 11, 0.18);
+}
+
+.senseiCardHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.senseiAvatarWrap {
+  position: relative;
+  width: 108px;
+  min-width: 108px;
+  display: grid;
+  justify-items: center;
+  padding-top: 36px;
+}
+
+.senseiAvatarWrapCompact {
+  width: 132px;
+  min-width: 132px;
+  padding-top: 22px;
+  justify-self: end;
+}
+
+.senseiSpeechBubble {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 160px;
+  padding: 8px 11px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  color: #29415d;
+  font-size: 0.74rem;
+  line-height: 1.25;
+  text-align: center;
+  box-shadow: 0 10px 26px rgba(16, 32, 51, 0.1);
+}
+
+.senseiSpeechBubble::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -7px;
+  width: 14px;
+  height: 14px;
+  transform: translateX(-50%) rotate(45deg);
+  background: rgba(255, 255, 255, 0.96);
+  border-right: 1px solid rgba(15, 23, 42, 0.08);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.senseiAvatar {
+  position: relative;
+  width: 72px;
+  height: 90px;
+  display: grid;
+  justify-items: center;
+  animation: senseiFloat 3.8s ease-in-out infinite;
+}
+
+.senseiAura {
+  position: absolute;
+  inset: auto 8px 8px;
+  height: 16px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.34), transparent 72%);
+  filter: blur(6px);
+}
+
+.senseiHead {
+  position: relative;
+  width: 46px;
+  height: 46px;
+  border-radius: 18px 18px 22px 22px;
+  background: linear-gradient(180deg, #13283f, #0f172a);
+  box-shadow: inset 0 -6px 0 rgba(255, 255, 255, 0.04);
+}
+
+.senseiBandana {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  width: 52px;
+  height: 11px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: linear-gradient(90deg, #38bdf8, #2563eb);
+  box-shadow: 0 0 18px rgba(56, 189, 248, 0.3);
+}
+
+.senseiBandana::after {
+  content: "";
+  position: absolute;
+  right: 4px;
+  top: 9px;
+  width: 12px;
+  height: 18px;
+  border-radius: 0 999px 999px 999px;
+  background: linear-gradient(180deg, #60a5fa, #2563eb);
+  transform: rotate(18deg);
+}
+
+.senseiTorso {
+  margin-top: -3px;
+  width: 64px;
+  height: 42px;
+  border-radius: 24px 24px 18px 18px;
+  background: linear-gradient(180deg, #16375c, #102033);
+  position: relative;
+}
+
+.senseiCollar {
+  position: absolute;
+  inset: 8px 16px auto;
+  height: 12px;
+  border-radius: 0 0 12px 12px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.senseiGreeting {
+  margin: 14px 0 8px;
+  font-size: clamp(1.15rem, 3vw, 1.5rem);
+  line-height: 1.15;
+  letter-spacing: -0.04em;
+  color: #102033;
+}
+
+.senseiMessage {
+  margin: 0;
+  max-width: 58ch;
+  color: #3f536b;
+  line-height: 1.55;
+}
+
+.senseiMetrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.senseiMetricPill {
+  border-radius: 999px;
+  padding: 7px 10px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  color: #29415d;
+  font-size: 0.78rem;
+}
+
+.senseiReaction {
+  margin: 14px 0 0;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(16, 32, 51, 0.92);
+  color: #f8fbff;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  box-shadow: 0 14px 34px rgba(16, 32, 51, 0.16);
+}
+
 .leftColumn,
 .rightColumn,
 .reportsGrid,
@@ -368,6 +643,46 @@
   align-items: end;
 }
 
+.calendarViewSwitch {
+  display: inline-flex;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.08);
+  width: fit-content;
+}
+
+.calendarViewButton {
+  border: 0;
+  border-radius: 999px;
+  padding: 7px 12px;
+  background: transparent;
+  color: #4d6178;
+}
+
+.calendarViewButtonActive {
+  background: #ffffff;
+  color: #102033;
+  box-shadow: 0 4px 12px rgba(16, 32, 51, 0.08);
+}
+
+.calendarSectionNav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.calendarSectionButton {
+  border: 0;
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: rgba(219, 234, 254, 0.72);
+  color: #1d4ed8;
+  font-size: 0.8rem;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(16, 32, 51, 0.06);
+}
+
 .calendarHeader span {
   text-align: center;
   font-size: 0.72rem;
@@ -378,6 +693,281 @@
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 5px;
+}
+
+.monthDayCell {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  width: 100%;
+  min-height: 108px;
+  border-radius: 10px;
+  padding: 6px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.monthDayCellSelected {
+  outline: 2px solid #0f172a;
+  outline-offset: 1px;
+}
+
+.monthDayHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.monthDayNumber {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: rgba(15, 23, 42, 0.88);
+}
+
+.monthDayMinutes {
+  font-size: 0.66rem;
+  color: rgba(15, 23, 42, 0.62);
+}
+
+.monthEntries {
+  display: grid;
+  gap: 4px;
+}
+
+.monthEntryChip,
+.monthMoreChip {
+  display: block;
+  border-radius: 6px;
+  padding: 3px 5px;
+  font-size: 0.62rem;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.monthEntryChip {
+  border: 0;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+
+.monthEntryChip:hover {
+  filter: brightness(0.97);
+}
+
+.monthEntryChip:focus-visible {
+  outline: 2px solid rgba(20, 93, 160, 0.45);
+  outline-offset: 1px;
+}
+
+.monthEntryBlue {
+  background: #dbeafe;
+  color: #1e3a8a;
+}
+
+.monthEntryMint {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.monthEntryViolet {
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+.monthMoreChip {
+  background: rgba(15, 23, 42, 0.08);
+  color: #334155;
+}
+
+.dayViewShell {
+  margin-top: 10px;
+  display: grid;
+  gap: 12px;
+}
+
+.dayPortalCard {
+  display: grid;
+  gap: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 22px;
+  padding: 18px;
+  background:
+    radial-gradient(circle at top right, rgba(125, 211, 252, 0.22), transparent 34%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(239, 246, 255, 0.94));
+  box-shadow: 0 18px 42px rgba(16, 32, 51, 0.1);
+}
+
+.dayPortalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.dayPortalTitle {
+  margin: 0;
+  font-size: clamp(1.15rem, 3vw, 1.5rem);
+  line-height: 1.1;
+  letter-spacing: -0.04em;
+  color: #102033;
+}
+
+.dayPortalMeta {
+  margin: 0;
+  max-width: 62ch;
+  color: #48607a;
+  line-height: 1.5;
+}
+
+.dayPortalStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dayPortalPill {
+  border-radius: 999px;
+  padding: 8px 11px;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  color: #29415d;
+  font-size: 0.8rem;
+}
+
+.dayViewGrid {
+  display: grid;
+  grid-template-columns: 62px minmax(0, 1fr);
+  gap: 8px;
+}
+
+.dayViewTicks {
+  position: relative;
+  height: 640px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  color: #6d7c8f;
+}
+
+.dayViewTrack {
+  position: relative;
+  height: 640px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.95), rgba(241, 245, 249, 0.88));
+  overflow: hidden;
+}
+
+.dayViewRow {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px dashed rgba(100, 116, 139, 0.25);
+}
+
+.dayViewEvent {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 7px 9px;
+  text-align: left;
+  overflow: hidden;
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  min-height: 44px;
+  z-index: 2;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.1);
+}
+
+.dayViewEvent strong {
+  display: block;
+  font-size: 0.88rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dayViewEventTime {
+  display: block;
+  font-size: 0.72rem;
+  line-height: 1.1;
+  opacity: 0.9;
+  white-space: nowrap;
+}
+
+.dayViewEventBlue {
+  background: rgba(219, 234, 254, 0.92);
+  color: #1e3a8a;
+  border-color: rgba(30, 58, 138, 0.2);
+}
+
+.dayViewEventMint {
+  background: rgba(220, 252, 231, 0.95);
+  color: #166534;
+  border-color: rgba(22, 101, 52, 0.2);
+}
+
+.dayViewEventViolet {
+  background: rgba(237, 233, 254, 0.96);
+  color: #5b21b6;
+  border-color: rgba(91, 33, 182, 0.2);
+}
+
+@keyframes senseiFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+.calendarEntryPreview {
+  margin-top: 10px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 14px;
+  background: #f8fbff;
+  padding: 11px 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.calendarEntryPreviewLabel {
+  margin: 0;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #607185;
+}
+
+.calendarEntryPreviewTitle {
+  margin: 4px 0 0;
+  font-size: 1rem;
+  color: #102033;
+}
+
+.calendarEntryPreviewBody {
+  margin: 6px 0 0;
+  color: #44576d;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.calendarEntryPreviewActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .streakGrid {
@@ -604,10 +1194,12 @@
 
 .notesEditorCard {
   border: 1px solid rgba(15, 23, 42, 0.08);
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.84);
-  padding: 14px;
-  box-shadow: 0 14px 34px rgba(16, 32, 51, 0.08);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at top right, rgba(191, 219, 254, 0.22), transparent 28%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(248, 251, 255, 0.92));
+  padding: 18px;
+  box-shadow: 0 18px 42px rgba(16, 32, 51, 0.1);
   min-height: 58vh;
   display: flex;
   flex-direction: column;
@@ -622,9 +1214,23 @@
   color: #5f6f82;
 }
 
+.notesStudioHero {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.noteStudioCopy {
+  margin: 8px 0 0;
+  max-width: 52ch;
+  color: #566b84;
+  line-height: 1.5;
+}
+
 .noteColorRow {
   position: relative;
-  margin-bottom: 10px;
 }
 
 .noteMetaRow {
@@ -664,7 +1270,7 @@
 .noteColorPickerPopover {
   position: absolute;
   top: calc(100% + 8px);
-  left: 0;
+  right: 0;
   z-index: 8;
   width: min(420px, 90vw);
   border: 1px solid rgba(15, 23, 42, 0.12);
@@ -673,7 +1279,7 @@
   box-shadow: 0 14px 40px rgba(16, 32, 51, 0.18);
   padding: 10px;
   display: grid;
-  grid-template-columns: repeat(10, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -691,21 +1297,36 @@
 
 .noteEditorToolbar {
   border: 1px solid rgba(15, 23, 42, 0.12);
-  border-radius: 12px;
-  background: #f8fafc;
-  padding: 8px;
+  border-radius: 18px;
+  background: rgba(248, 250, 252, 0.94);
+  padding: 10px;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 10px;
 }
 
+.noteToolbarGroup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-right: 8px;
+  margin-right: 2px;
+  border-right: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.noteToolbarGroup:last-child {
+  border-right: 0;
+  padding-right: 0;
+}
+
 .noteToolButton {
   border: 0;
   border-radius: 9px;
   padding: 7px 10px;
-  background: #e2e8f0;
-  color: #1f2937;
+  background: #e8eef7;
+  color: #102033;
+  font-weight: 600;
 }
 
 .noteToolSelect {
@@ -716,33 +1337,119 @@
   color: #1f2937;
 }
 
+.noteInlinePalette {
+  position: relative;
+}
+
+.noteInlinePalettePopover {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 8;
+  width: 172px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 14px 40px rgba(16, 32, 51, 0.18);
+  padding: 10px;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.noteInlineSwatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+}
+
 .noteTitleInput {
   width: 100%;
   border: 1px solid rgba(15, 23, 42, 0.14);
-  border-radius: 12px;
-  padding: 12px;
-  font-size: 1.04rem;
+  border-radius: 16px;
+  padding: 14px 16px;
+  font-size: 1.14rem;
   font-weight: 700;
   margin-bottom: 10px;
+  background: rgba(255, 255, 255, 0.9);
 }
 
 .noteBodyInput {
   width: 100%;
   border: 1px solid rgba(15, 23, 42, 0.14);
-  border-radius: 12px;
-  padding: 12px;
+  border-radius: 18px;
+  padding: 18px;
   overflow: auto;
   min-height: 45vh;
   font: inherit;
-  line-height: 1.58;
-  background: #ffffff;
+  line-height: 1.72;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(251, 253, 255, 0.98));
   white-space: pre-wrap;
   word-break: break-word;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 
 .noteBodyInput:focus {
   outline: 2px solid rgba(20, 93, 160, 0.22);
   border-color: rgba(20, 93, 160, 0.42);
+}
+
+.noteBodyInput h1,
+.noteBodyInput h2,
+.noteBodyInput h3 {
+  margin: 0 0 0.7em;
+  line-height: 1.12;
+  letter-spacing: -0.04em;
+  color: #102033;
+}
+
+.noteBodyInput h1 {
+  font-size: 1.9em;
+}
+
+.noteBodyInput h2 {
+  font-size: 1.45em;
+}
+
+.noteBodyInput h3 {
+  font-size: 1.15em;
+}
+
+.noteBodyInput p {
+  margin: 0 0 0.8em;
+}
+
+.noteBodyInput ul,
+.noteBodyInput ol {
+  margin: 0 0 1em 1.2em;
+  padding: 0;
+}
+
+.noteBodyInput li {
+  margin-bottom: 0.35em;
+}
+
+.noteBodyInput blockquote {
+  margin: 1em 0;
+  padding: 0.8em 1em;
+  border-left: 3px solid rgba(20, 93, 160, 0.42);
+  border-radius: 0 14px 14px 0;
+  background: rgba(219, 234, 254, 0.34);
+  color: #29415d;
+}
+
+.noteBodyInput hr {
+  border: 0;
+  height: 1px;
+  margin: 1.4em 0;
+  background: linear-gradient(90deg, transparent, rgba(15, 23, 42, 0.24), transparent);
+}
+
+.noteBodyInput mark {
+  padding: 0 0.18em;
+  border-radius: 0.35em;
 }
 
 .noteEditorFooter {
@@ -1105,6 +1812,49 @@
   margin-top: 10px;
   display: grid;
   gap: 8px;
+}
+
+.dayAgendaList {
+  margin-top: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.dayAgendaItem {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 14px;
+  background: #f8fbff;
+  padding: 10px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.dayAgendaTime {
+  margin: 0;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #6d7c8f;
+}
+
+.dayAgendaTitle {
+  display: block;
+  margin-top: 4px;
+  color: #102033;
+}
+
+.dayAgendaMeta {
+  margin: 4px 0 0;
+  color: #607185;
+  font-size: 0.82rem;
+}
+
+.dayAgendaActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .planInput {
@@ -1629,14 +2379,45 @@
     grid-template-columns: 1fr;
   }
 
+  .dayViewGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .dayViewTicks {
+    display: none;
+  }
+
+  .dayViewTrack {
+    height: 520px;
+  }
+
+  .monthDayCell {
+    min-height: 82px;
+    padding: 5px;
+  }
+
+  .monthEntryChip,
+  .monthMoreChip {
+    font-size: 0.58rem;
+  }
+
   .planItem {
     flex-direction: column;
     align-items: flex-start;
   }
 
-  .planActions {
+  .planActions,
+  .dayAgendaActions {
     width: 100%;
     justify-content: flex-end;
+  }
+
+  .dayAgendaItem {
+    flex-direction: column;
+  }
+
+  .calendarEntryPreviewActions {
+    width: 100%;
   }
 
   .planGrid {
