@@ -5,6 +5,7 @@ import { Alignment, Fit, Layout, useRive } from "@rive-app/react-canvas";
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged, signOut, type User } from "firebase/auth";
 
+import SenseiFigure, { type SenseiVariant } from "@/components/SenseiFigure";
 import Timer from "@/components/Timer";
 import { auth } from "@/lib/firebase";
 import {
@@ -27,6 +28,10 @@ import {
   requestScreenTimeAuthorization,
   type ScreenTimeAuthorizationStatus,
 } from "@/lib/screentime";
+import {
+  buildSenseiCompanionState,
+  type SenseiCompanionStyle,
+} from "@/lib/sensei-companion";
 import styles from "./page.module.css";
 
 const FOCUS_TIMER = {
@@ -339,6 +344,7 @@ function buildSenseiGuidance({
   if (milestone.next && milestone.remaining <= 1 && streak > 0) {
     return {
       tone: "milestone" as const,
+      variant: "applause" as const,
       eyebrow: "Whelm Sensei",
       title: `${greeting} One more day to reach ${milestone.next}.`,
       body: "Protect the streak with one deliberate session. The next mark is already in sight.",
@@ -348,6 +354,7 @@ function buildSenseiGuidance({
   if (todaySessions === 0) {
     return {
       tone: "nudge" as const,
+      variant: date.getHours() >= 17 ? ("stressed" as const) : ("wave" as const),
       eyebrow: "Daily Return",
       title: `${greeting} Your training has not begun yet.`,
       body:
@@ -358,8 +365,22 @@ function buildSenseiGuidance({
   }
 
   if (todaySessions >= 3 || todayMinutes >= 90) {
+    if (date.getHours() >= 20) {
+      return {
+        tone: "momentum" as const,
+        variant: "rest" as const,
+        eyebrow: "Recovery",
+        title: `${greeting} You have earned a softer landing.`,
+        body:
+          dueReminders > 0
+            ? `Close out ${dueReminders} reminder${dueReminders === 1 ? "" : "s"} cleanly, then let the day end on purpose.`
+            : "You did the work already. Protect tomorrow by winding down instead of chasing noise.",
+      };
+    }
+
     return {
       tone: "momentum" as const,
+      variant: "victory" as const,
       eyebrow: "Momentum",
       title: `${greeting} Your focus is sharpening.`,
       body:
@@ -371,6 +392,7 @@ function buildSenseiGuidance({
 
   return {
     tone: "steady" as const,
+    variant: date.getHours() < 11 ? ("scholar" as const) : ("anchor" as const),
     eyebrow: "Whelm Sensei",
     title: `${greeting} You have started well.`,
     body:
@@ -408,6 +430,26 @@ function buildSenseiReaction({
   }
 
   return "Good. Another step forward.";
+}
+
+function calendarDaySenseiVariant({
+  entries,
+  focusedMinutes,
+}: {
+  entries: CalendarEntry[];
+  focusedMinutes: number;
+}): SenseiVariant {
+  if (entries.length === 0) return "meditate";
+  if (focusedMinutes >= 60) return "victory";
+  if (entries.some((entry) => entry.source === "reminder")) return "scholar";
+  return "neutral";
+}
+
+function formatSenseiLabel(value: string) {
+  return value
+    .split("-")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 }
 
 function calendarDaySummary({
@@ -551,6 +593,10 @@ function plannedBlocksStorageKey(uid: string) {
   return `whelm:planned-focus:${uid}`;
 }
 
+function senseiStyleStorageKey(uid: string) {
+  return `whelm:sensei-style:${uid}`;
+}
+
 function loadPlannedBlocks(uid: string): PlannedBlock[] {
   try {
     const raw = window.localStorage.getItem(plannedBlocksStorageKey(uid));
@@ -627,22 +673,50 @@ function IntroSplash() {
   );
 }
 
-function SenseiAvatar({ message, compact = false }: { message: string; compact?: boolean }) {
+function SenseiAvatar({
+  message,
+  variant,
+  compact = false,
+}: {
+  message: string;
+  variant: SenseiVariant;
+  compact?: boolean;
+}) {
   return (
-    <div className={`${styles.senseiAvatarWrap} ${compact ? styles.senseiAvatarWrapCompact : ""}`}>
-      <div className={styles.senseiSpeechBubble}>
-        <span>{message}</span>
+    <SenseiFigure
+      variant={variant}
+      size={compact ? "inline" : "card"}
+      message={message}
+      className={compact ? styles.senseiAvatarCompact : styles.senseiAvatarPlacement}
+      align={compact ? "right" : "center"}
+    />
+  );
+}
+
+function CompanionPulse({
+  eyebrow,
+  title,
+  body,
+  variant,
+}: {
+  eyebrow: string;
+  title: string;
+  body: string;
+  variant: SenseiVariant;
+}) {
+  return (
+    <article className={styles.companionPulse}>
+      <div className={styles.companionPulseFigureWrap}>
+        <SenseiFigure variant={variant} size="badge" className={styles.companionPulseFigure} />
       </div>
-      <div className={styles.senseiAvatar} aria-hidden="true">
-        <div className={styles.senseiAura} />
-        <div className={styles.senseiHead}>
-          <div className={styles.senseiBandana} />
-        </div>
-        <div className={styles.senseiTorso}>
-          <div className={styles.senseiCollar} />
+      <div className={styles.companionPulseSpeech}>
+        <div className={styles.companionPulseCopy}>
+          <p className={styles.sectionLabel}>{eyebrow}</p>
+          <h3 className={styles.companionPulseTitle}>{title}</h3>
+          <p className={styles.companionPulseBody}>{body}</p>
         </div>
       </div>
-    </div>
+    </article>
   );
 }
 
@@ -671,6 +745,7 @@ export default function HomePage() {
   const [reportCopyStatus, setReportCopyStatus] = useState("");
   const [paywallOpen, setPaywallOpen] = useState(false);
   const [senseiReaction, setSenseiReaction] = useState("");
+  const [companionStyle, setCompanionStyle] = useState<SenseiCompanionStyle>("balanced");
   const [isPro, setIsPro] = useState(false);
   const [proSource, setProSource] = useState<"preview" | "store" | "none">("none");
   const [trendRange, setTrendRange] = useState<TrendRange>(7);
@@ -951,26 +1026,89 @@ export default function HomePage() {
     [plannedBlocks],
   );
 
-  const senseiGuidance = useMemo(
+  const averageSessionStartHour = useMemo(() => {
+    const recentSessions = sessions.slice(0, 14);
+    if (recentSessions.length === 0) return null;
+    const total = recentSessions.reduce((sum, session) => {
+      const date = new Date(session.completedAtISO);
+      return sum + date.getHours() + date.getMinutes() / 60;
+    }, 0);
+    return total / recentSessions.length;
+  }, [sessions]);
+
+  const lastSessionHoursAgo = useMemo(() => {
+    const iso = sessions[0]?.completedAtISO;
+    if (!iso) return null;
+    const ms = Date.now() - new Date(iso).getTime();
+    return Math.max(0, ms / (1000 * 60 * 60));
+  }, [sessions]);
+
+  const comebackDaysAway = useMemo(() => {
+    const todayKey = dayKeyLocal(new Date());
+    const previousDayKeys = [...new Set(sessions.map((session) => dayKeyLocal(session.completedAtISO)))].filter(
+      (key) => key !== todayKey,
+    );
+    if (focusMetrics.todaySessions === 0 || previousDayKeys.length === 0) return 0;
+    const previous = previousDayKeys[0];
+    const today = startOfDayLocal(new Date());
+    const prior = startOfDayLocal(new Date(`${previous}T00:00:00`));
+    const days = Math.round((today.getTime() - prior.getTime()) / (1000 * 60 * 60 * 24)) - 1;
+    return Math.max(0, days);
+  }, [focusMetrics.todaySessions, sessions]);
+
+  const missedYesterday = useMemo(
+    () => focusMetrics.todaySessions === 0 && lastSessionHoursAgo !== null && lastSessionHoursAgo >= 24,
+    [focusMetrics.todaySessions, lastSessionHoursAgo],
+  );
+
+  const nextSenseiMilestone = useMemo(() => milestoneForStreak(streak), [streak]);
+
+  const companionState = useMemo(
     () =>
-      buildSenseiGuidance({
-        date: new Date(),
+      buildSenseiCompanionState({
+        now: new Date(),
+        activeTab,
+        totalSessions: reportMetrics.sessionCount,
+        totalMinutes: reportMetrics.totalMinutes,
         todaySessions: focusMetrics.todaySessions,
         todayMinutes: focusMetrics.todayMinutes,
+        weekMinutes: focusMetrics.weekMinutes,
         streak,
         dueReminders: dueReminderNotes.length,
         plannedTodayCount: todayPlannedBlocks.length,
+        notesCount: notes.length,
+        notesUpdated7d: reportMetrics.notesUpdated7d,
+        nextMilestone: nextSenseiMilestone.next,
+        nextMilestoneRemaining: nextSenseiMilestone.remaining,
+        averageStartHour: averageSessionStartHour,
+        lastSessionHoursAgo,
+        comebackDaysAway,
+        missedYesterday,
+        companionStyle,
       }),
     [
+      activeTab,
+      averageSessionStartHour,
+      comebackDaysAway,
+      companionStyle,
       dueReminderNotes.length,
+      focusMetrics.weekMinutes,
       focusMetrics.todayMinutes,
       focusMetrics.todaySessions,
+      lastSessionHoursAgo,
+      missedYesterday,
+      nextSenseiMilestone.next,
+      nextSenseiMilestone.remaining,
+      notes.length,
+      reportMetrics.notesUpdated7d,
+      reportMetrics.sessionCount,
+      reportMetrics.totalMinutes,
       streak,
       todayPlannedBlocks.length,
     ],
   );
 
-  const nextSenseiMilestone = useMemo(() => milestoneForStreak(streak), [streak]);
+  const senseiGuidance = companionState.hero;
 
   const insightsChart = useMemo(() => {
     const windowDays = insightRange;
@@ -1178,6 +1316,19 @@ export default function HomePage() {
     const loaded = loadPlannedBlocks(user.uid);
     setPlannedBlocks(loaded);
   }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    const stored = window.localStorage.getItem(senseiStyleStorageKey(user.uid));
+    if (stored === "gentle" || stored === "balanced" || stored === "strict") {
+      setCompanionStyle(stored);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    window.localStorage.setItem(senseiStyleStorageKey(user.uid), companionStyle);
+  }, [companionStyle, user]);
 
   useEffect(() => {
     function onOnline() {
@@ -2172,15 +2323,26 @@ export default function HomePage() {
                   className={`${styles.card} ${styles.senseiCard} ${styles[`senseiCard${senseiGuidance.tone[0].toUpperCase()}${senseiGuidance.tone.slice(1)}`]}`}
                 >
                   <div className={styles.senseiCardHeader}>
-                    <SenseiAvatar message={senseiGuidance.eyebrow} />
-                    <div>
-                      <p className={styles.sectionLabel}>{senseiGuidance.eyebrow}</p>
-                      <h2 className={styles.cardTitle}>Whelm Sensei</h2>
+                    <SenseiAvatar message={senseiGuidance.eyebrow} variant={senseiGuidance.variant} />
+                    <div className={styles.senseiDialogueStack}>
+                      <div className={styles.senseiSpeechPanel}>
+                        <p className={styles.senseiSpeechEyebrow}>Whelm Sensei</p>
+                        <p className={styles.senseiGreeting}>{senseiGuidance.title}</p>
+                        <p className={styles.senseiMessage}>{senseiGuidance.body}</p>
+                        <p className={styles.senseiSignature}>"{senseiGuidance.signatureLine}"</p>
+                      </div>
                     </div>
                   </div>
-                  <p className={styles.senseiGreeting}>{senseiGuidance.title}</p>
-                  <p className={styles.senseiMessage}>{senseiGuidance.body}</p>
                   <div className={styles.senseiMetrics}>
+                    <span className={styles.senseiMetricPill}>
+                      Bond: {formatSenseiLabel(companionState.stage)}
+                    </span>
+                    <span className={styles.senseiMetricPill}>
+                      Ritual: {formatSenseiLabel(senseiGuidance.ritual)}
+                    </span>
+                    <span className={styles.senseiMetricPill}>
+                      Voice: {formatSenseiLabel(senseiGuidance.voiceMode)}
+                    </span>
                     <span className={styles.senseiMetricPill}>
                       Today: {focusMetrics.todaySessions} session
                       {focusMetrics.todaySessions === 1 ? "" : "s"}
@@ -2196,6 +2358,18 @@ export default function HomePage() {
                     ) : (
                       <span className={styles.senseiMetricPill}>Legend tier unlocked</span>
                     )}
+                  </div>
+                  <div className={styles.senseiActionRow}>
+                    <button
+                      type="button"
+                      className={styles.reportButton}
+                      onClick={() => setActiveTab(senseiGuidance.actionTab as AppTab)}
+                    >
+                      {senseiGuidance.actionLabel}
+                    </button>
+                    <span className={styles.accountMeta}>
+                      Sensei thinks your next best move lives in {tabTitle(senseiGuidance.actionTab as AppTab)}.
+                    </span>
                   </div>
                   {senseiReaction && <p className={styles.senseiReaction}>{senseiReaction}</p>}
                 </article>
@@ -2324,6 +2498,7 @@ export default function HomePage() {
 
           {activeTab === "calendar" && (
             <section className={styles.calendarGrid}>
+              <CompanionPulse {...companionState.pulses.calendar} />
               <article className={styles.card}>
                 <p className={styles.sectionLabel}>
                   {calendarView === "month" ? "Month View" : "Day Timeline"}
@@ -2524,39 +2699,47 @@ export default function HomePage() {
                 ) : (
                     <div className={styles.dayViewShell}>
                     <div id="calendar-day-chamber" className={styles.dayPortalCard}>
-                      <div className={styles.dayPortalHeader}>
-                        <div>
-                          <p className={styles.sectionLabel}>{selectedDateSummary.eyebrow}</p>
-                          <h3 className={styles.dayPortalTitle}>{selectedDateSummary.title}</h3>
+                      <div className={styles.dayPortalBody}>
+                        <div className={styles.dayPortalCopy}>
+                          <div className={styles.dayPortalHeader}>
+                            <div>
+                              <p className={styles.sectionLabel}>{selectedDateSummary.eyebrow}</p>
+                              <h3 className={styles.dayPortalTitle}>{selectedDateSummary.title}</h3>
+                            </div>
+                            <button
+                              type="button"
+                              className={styles.secondaryPlanButton}
+                              onClick={() => setCalendarView("month")}
+                            >
+                              Back to month
+                            </button>
+                          </div>
+                          <p className={styles.dayPortalMeta}>{selectedDateSummary.body}</p>
+                          <div className={styles.dayPortalStats}>
+                            <span className={styles.dayPortalPill}>
+                              Focus: {selectedDateFocusedMinutes}m
+                            </span>
+                            <span className={styles.dayPortalPill}>
+                              Plans: {selectedDatePlans.length}
+                            </span>
+                            <span className={styles.dayPortalPill}>
+                              Entries: {selectedDateEntries.length}
+                            </span>
+                          </div>
                         </div>
-                        <button
-                          type="button"
-                          className={styles.secondaryPlanButton}
-                          onClick={() => setCalendarView("month")}
-                        >
-                          Back to month
-                        </button>
+                        <SenseiAvatar
+                          message={
+                            selectedDateEntries.length === 0
+                              ? "Quiet room. Set the tone."
+                              : "You entered the day. Now shape it."
+                          }
+                          variant={calendarDaySenseiVariant({
+                            entries: selectedDateEntries,
+                            focusedMinutes: selectedDateFocusedMinutes,
+                          })}
+                          compact
+                        />
                       </div>
-                      <p className={styles.dayPortalMeta}>{selectedDateSummary.body}</p>
-                      <div className={styles.dayPortalStats}>
-                        <span className={styles.dayPortalPill}>
-                          Focus: {selectedDateFocusedMinutes}m
-                        </span>
-                        <span className={styles.dayPortalPill}>
-                          Plans: {selectedDatePlans.length}
-                        </span>
-                        <span className={styles.dayPortalPill}>
-                          Entries: {selectedDateEntries.length}
-                        </span>
-                      </div>
-                      <SenseiAvatar
-                        message={
-                          selectedDateEntries.length === 0
-                            ? "This room is empty. Give it a purpose."
-                            : "You entered the day. Now shape it."
-                        }
-                        compact
-                      />
                     </div>
                     <div id="calendar-timeline" className={styles.dayViewGrid}>
                       <div className={styles.dayViewTicks}>
@@ -2849,6 +3032,7 @@ export default function HomePage() {
 
           {activeTab === "notes" && (
             <section className={styles.notesWorkspace}>
+              <CompanionPulse {...companionState.pulses.notes} />
               <aside className={styles.notesSidebar}>
                 <button type="button" className={styles.newNoteButton} onClick={createWorkspaceNote}>
                   + Add Note
@@ -2917,6 +3101,12 @@ export default function HomePage() {
               <article className={styles.notesEditorCard}>
                 {!selectedNote ? (
                   <div className={styles.notesEmptyEditor}>
+                    <SenseiFigure
+                      variant="scholar"
+                      size="inline"
+                      message="Start with one idea worth keeping."
+                      className={styles.notesEmptySensei}
+                    />
                     <p>Start by creating your first note.</p>
                   </div>
                 ) : (
@@ -3325,6 +3515,7 @@ export default function HomePage() {
 
           {activeTab === "insights" && (
             <section className={styles.insightsGrid}>
+              <CompanionPulse {...companionState.pulses.insights} />
               <article className={`${styles.card} ${styles.insightsHeroCard}`}>
                 <div className={styles.cardHeader}>
                   <div>
@@ -3524,11 +3715,22 @@ export default function HomePage() {
 
           {activeTab === "history" && (
             <section className={styles.historyShell}>
+              <CompanionPulse {...companionState.pulses.history} />
               <article className={styles.card}>
                 <p className={styles.sectionLabel}>History</p>
                 <h2 className={styles.cardTitle}>Session log</h2>
                 {sessionGroups.length === 0 ? (
-                  <p className={styles.emptyText}>No sessions yet. Start your timer and save your first block.</p>
+                  <div className={styles.historyEmptyState}>
+                    <SenseiFigure
+                      variant="wave"
+                      size="inline"
+                      message="Your first session will start the record."
+                      className={styles.historyEmptySensei}
+                    />
+                    <p className={styles.emptyText}>
+                      No sessions yet. Start your timer and save your first block.
+                    </p>
+                  </div>
                 ) : (
                   <div className={styles.groupList}>
                     {sessionGroups.map((group) => (
@@ -3563,6 +3765,7 @@ export default function HomePage() {
 
           {activeTab === "reports" && (
             <section className={styles.reportsGrid}>
+              <CompanionPulse {...companionState.pulses.reports} />
               <article className={styles.card}>
                 <p className={styles.sectionLabel}>KPI Snapshot</p>
                 <h2 className={styles.cardTitle}>Performance dashboard</h2>
@@ -3743,6 +3946,7 @@ export default function HomePage() {
 
           {activeTab === "settings" && (
             <section className={styles.settingsGrid}>
+              <CompanionPulse {...companionState.pulses.settings} />
               <article className={`${styles.card} ${styles.settingsHeroCard}`}>
                 <div className={styles.settingsHeroHeader}>
                   <div className={styles.settingsAvatar}>
@@ -3792,6 +3996,28 @@ export default function HomePage() {
                     <strong>{isPro ? "Full" : "Basic"}</strong>
                   </li>
                 </ul>
+              </article>
+
+              <article className={styles.card}>
+                <p className={styles.sectionLabel}>Companion</p>
+                <h2 className={styles.cardTitle}>Sensei style</h2>
+                <p className={styles.accountMeta}>
+                  Choose how direct Whelm Sensei should feel when guiding you.
+                </p>
+                <div className={styles.companionStyleRow}>
+                  {(["gentle", "balanced", "strict"] as const).map((style) => (
+                    <button
+                      key={style}
+                      type="button"
+                      className={`${styles.companionStyleButton} ${
+                        companionStyle === style ? styles.companionStyleButtonActive : ""
+                      }`}
+                      onClick={() => setCompanionStyle(style)}
+                    >
+                      {formatSenseiLabel(style)}
+                    </button>
+                  ))}
+                </div>
               </article>
 
               <article className={styles.card}>

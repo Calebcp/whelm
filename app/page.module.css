@@ -348,125 +348,73 @@
 .senseiCardHeader {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
+  gap: 18px;
 }
 
-.senseiAvatarWrap {
-  position: relative;
-  width: 108px;
-  min-width: 108px;
-  display: grid;
-  justify-items: center;
-  padding-top: 36px;
+.senseiAvatarPlacement {
+  min-width: 136px;
 }
 
-.senseiAvatarWrapCompact {
-  width: 132px;
-  min-width: 132px;
-  padding-top: 22px;
+.senseiAvatarCompact {
   justify-self: end;
 }
 
-.senseiSpeechBubble {
-  position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  max-width: 160px;
-  padding: 8px 11px;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.96);
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  color: #29415d;
-  font-size: 0.74rem;
-  line-height: 1.25;
-  text-align: center;
-  box-shadow: 0 10px 26px rgba(16, 32, 51, 0.1);
+.senseiDialogueStack {
+  flex: 1;
+  min-width: 0;
+  display: grid;
 }
 
-.senseiSpeechBubble::after {
+.senseiSpeechPanel {
+  position: relative;
+  padding: 18px 18px 16px;
+  border-radius: 26px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 245, 255, 0.94)),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.86), rgba(255, 255, 255, 0.68));
+  border: 1px solid rgba(91, 33, 182, 0.14);
+  box-shadow:
+    0 22px 44px rgba(16, 32, 51, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  animation: senseiBubbleFloat 4.8s ease-in-out infinite;
+}
+
+.senseiSpeechPanel::before {
   content: "";
   position: absolute;
-  left: 50%;
-  bottom: -7px;
-  width: 14px;
-  height: 14px;
-  transform: translateX(-50%) rotate(45deg);
-  background: rgba(255, 255, 255, 0.96);
-  border-right: 1px solid rgba(15, 23, 42, 0.08);
-  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  left: -11px;
+  top: 44px;
+  width: 24px;
+  height: 24px;
+  border-radius: 8px 0 12px 0;
+  transform: rotate(45deg);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 245, 255, 0.94));
+  border-left: 1px solid rgba(91, 33, 182, 0.14);
+  border-bottom: 1px solid rgba(91, 33, 182, 0.14);
+  box-shadow: -8px 10px 18px rgba(16, 32, 51, 0.06);
 }
 
-.senseiAvatar {
-  position: relative;
-  width: 72px;
-  height: 90px;
-  display: grid;
-  justify-items: center;
-  animation: senseiFloat 3.8s ease-in-out infinite;
-}
-
-.senseiAura {
+.senseiSpeechPanel::after {
+  content: "";
   position: absolute;
-  inset: auto 8px 8px;
-  height: 16px;
+  inset: auto 26px -12px;
+  height: 18px;
   border-radius: 999px;
-  background: radial-gradient(circle, rgba(59, 130, 246, 0.34), transparent 72%);
+  background: radial-gradient(circle, rgba(109, 40, 217, 0.14), transparent 72%);
   filter: blur(6px);
 }
 
-.senseiHead {
-  position: relative;
-  width: 46px;
-  height: 46px;
-  border-radius: 18px 18px 22px 22px;
-  background: linear-gradient(180deg, #13283f, #0f172a);
-  box-shadow: inset 0 -6px 0 rgba(255, 255, 255, 0.04);
-}
-
-.senseiBandana {
-  position: absolute;
-  top: 12px;
-  left: 50%;
-  width: 52px;
-  height: 11px;
-  transform: translateX(-50%);
-  border-radius: 999px;
-  background: linear-gradient(90deg, #38bdf8, #2563eb);
-  box-shadow: 0 0 18px rgba(56, 189, 248, 0.3);
-}
-
-.senseiBandana::after {
-  content: "";
-  position: absolute;
-  right: 4px;
-  top: 9px;
-  width: 12px;
-  height: 18px;
-  border-radius: 0 999px 999px 999px;
-  background: linear-gradient(180deg, #60a5fa, #2563eb);
-  transform: rotate(18deg);
-}
-
-.senseiTorso {
-  margin-top: -3px;
-  width: 64px;
-  height: 42px;
-  border-radius: 24px 24px 18px 18px;
-  background: linear-gradient(180deg, #16375c, #102033);
-  position: relative;
-}
-
-.senseiCollar {
-  position: absolute;
-  inset: 8px 16px auto;
-  height: 12px;
-  border-radius: 0 0 12px 12px;
-  background: rgba(255, 255, 255, 0.08);
+.senseiSpeechEyebrow {
+  margin: 0 0 10px;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: #6d28d9;
+  font-weight: 700;
 }
 
 .senseiGreeting {
-  margin: 14px 0 8px;
+  margin: 0 0 8px;
   font-size: clamp(1.15rem, 3vw, 1.5rem);
   line-height: 1.15;
   letter-spacing: -0.04em;
@@ -478,6 +426,14 @@
   max-width: 58ch;
   color: #3f536b;
   line-height: 1.55;
+}
+
+.senseiSignature {
+  margin: 12px 0 0;
+  color: #5b21b6;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  font-weight: 600;
 }
 
 .senseiMetrics {
@@ -505,6 +461,97 @@
   font-size: 0.9rem;
   line-height: 1.45;
   box-shadow: 0 14px 34px rgba(16, 32, 51, 0.16);
+}
+
+.senseiActionRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.companionPulse {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 16px;
+  align-items: center;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 22px;
+  padding: 14px 16px;
+  background:
+    radial-gradient(circle at top right, rgba(196, 181, 253, 0.2), transparent 34%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(248, 251, 255, 0.94));
+  box-shadow: 0 14px 32px rgba(16, 32, 51, 0.08);
+}
+
+.companionPulseFigureWrap {
+  position: relative;
+  display: grid;
+  align-items: center;
+}
+
+.companionPulseFigure {
+  align-self: center;
+}
+
+.companionPulseSpeech {
+  position: relative;
+  min-width: 0;
+  padding: 14px 16px;
+  border-radius: 22px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 245, 255, 0.94)),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.86), rgba(255, 255, 255, 0.68));
+  border: 1px solid rgba(91, 33, 182, 0.12);
+  box-shadow:
+    0 16px 30px rgba(16, 32, 51, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  animation: senseiBubbleFloat 5.2s ease-in-out infinite;
+}
+
+.companionPulseSpeech::before {
+  content: "";
+  position: absolute;
+  left: -9px;
+  top: 30px;
+  width: 20px;
+  height: 20px;
+  border-radius: 7px 0 10px 0;
+  transform: rotate(45deg);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 245, 255, 0.94));
+  border-left: 1px solid rgba(91, 33, 182, 0.12);
+  border-bottom: 1px solid rgba(91, 33, 182, 0.12);
+}
+
+.companionPulseCopy {
+  display: grid;
+  gap: 4px;
+}
+
+.companionPulseTitle {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  color: #102033;
+}
+
+.companionPulseBody {
+  margin: 0;
+  color: #4d6178;
+  line-height: 1.5;
+  font-size: 0.9rem;
+}
+
+@keyframes senseiBubbleFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
 }
 
 .leftColumn,
@@ -790,8 +837,6 @@
 }
 
 .dayPortalCard {
-  display: grid;
-  gap: 12px;
   border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: 22px;
   padding: 18px;
@@ -799,6 +844,16 @@
     radial-gradient(circle at top right, rgba(125, 211, 252, 0.22), transparent 34%),
     linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(239, 246, 255, 0.94));
   box-shadow: 0 18px 42px rgba(16, 32, 51, 0.1);
+}
+
+.dayPortalBody {
+  display: grid;
+  gap: 14px;
+}
+
+.dayPortalCopy {
+  display: grid;
+  gap: 12px;
 }
 
 .dayPortalHeader {
@@ -922,16 +977,6 @@
   border-color: rgba(91, 33, 182, 0.2);
 }
 
-@keyframes senseiFloat {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-4px);
-  }
-}
-
 .calendarEntryPreview {
   margin-top: 10px;
   border: 1px solid rgba(15, 23, 42, 0.1);
@@ -954,6 +999,18 @@
   margin: 4px 0 0;
   font-size: 1rem;
   color: #102033;
+}
+
+.historyEmptyState {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  padding: 18px 14px;
+  text-align: center;
+}
+
+.historyEmptySensei {
+  justify-self: center;
 }
 
 .calendarEntryPreviewBody {
@@ -1211,7 +1268,15 @@
   border-radius: 14px;
   display: grid;
   place-items: center;
+  justify-items: center;
+  gap: 14px;
+  padding: 18px;
+  text-align: center;
   color: #5f6f82;
+}
+
+.notesEmptySensei {
+  justify-self: center;
 }
 
 .notesStudioHero {
@@ -2030,6 +2095,28 @@
   font-size: 0.86rem;
 }
 
+.companionStyleRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.companionStyleButton {
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.86);
+  color: #334155;
+  font-weight: 600;
+}
+
+.companionStyleButtonActive {
+  background: #102033;
+  color: #f8fbff;
+  box-shadow: 0 10px 24px rgba(16, 32, 51, 0.12);
+}
+
 .bottomTabs {
   position: fixed;
   left: 10px;
@@ -2302,8 +2389,20 @@
     grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.8fr);
   }
 
+  .calendarGrid > .companionPulse,
+  .reportsGrid > .companionPulse,
+  .insightsGrid > .companionPulse,
+  .settingsGrid > .companionPulse {
+    grid-column: 1 / -1;
+  }
+
   .calendarJumpRow {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .dayPortalBody {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
   }
 
   .reportsGrid {
@@ -2333,6 +2432,10 @@
 
   .notesWorkspace {
     grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
+  }
+
+  .notesWorkspace > .companionPulse {
+    grid-column: 1 / -1;
   }
 
   .notesSidebar {
@@ -2385,6 +2488,19 @@
 
   .dayViewTicks {
     display: none;
+  }
+
+  .senseiCardHeader {
+    flex-direction: column;
+  }
+
+  .dayPortalHeader {
+    flex-direction: column;
+  }
+
+  .companionPulse {
+    grid-template-columns: 1fr;
+    justify-items: start;
   }
 
   .dayViewTrack {
