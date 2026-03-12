@@ -83,6 +83,13 @@ export default function Timer({
   const displaySeconds = mode === "countdown" ? secondsLeft : secondsElapsed;
   const mm = Math.floor(displaySeconds / 60);
   const ss = displaySeconds % 60;
+  const totalCountdownSeconds = configuredMinutes * 60;
+  const progress =
+    mode === "countdown"
+      ? totalCountdownSeconds === 0
+        ? 0
+        : (totalCountdownSeconds - secondsLeft) / totalCountdownSeconds
+      : (secondsElapsed % 60) / 60;
 
   function reset() {
     setRunning(false);
@@ -124,13 +131,24 @@ export default function Timer({
     "--timer-accent-soft": theme.accentSoft,
     "--timer-accent-strong": theme.accentStrong,
     "--timer-ring": theme.ring,
+    "--timer-progress": `${Math.max(0, Math.min(1, progress))}`,
+    "--timer-progress-turn": `${Math.max(0, Math.min(1, progress))}turn`,
   } as CSSProperties;
 
   return (
     <section className={styles.card} style={themeVars}>
       <div className={styles.header}>
-        <p className={styles.eyebrow}>{subtitle}</p>
-        <h2 className={styles.title}>{title}</h2>
+        <div>
+          <p className={styles.kicker}>Focus Chamber</p>
+          <p className={styles.eyebrow}>{subtitle}</p>
+          <h2 className={styles.title}>{title}</h2>
+        </div>
+        <div className={styles.headerBadge}>
+          <span className={styles.headerBadgeLabel}>{mode === "countdown" ? "Ritual" : "Flow"}</span>
+          <strong className={styles.headerBadgeValue}>
+            {mode === "countdown" ? `${configuredMinutes}m` : "Open"}
+          </strong>
+        </div>
       </div>
 
       <div className={styles.modeRow}>
@@ -176,19 +194,30 @@ export default function Timer({
       </div>
 
       <div className={styles.timerFace}>
-        <div className={styles.ring} />
-        <div className={styles.time}>
-          {String(mm).padStart(2, "0")}:{String(ss).padStart(2, "0")}
+        <div className={styles.faceAura} aria-hidden="true" />
+        <div className={styles.faceGrid} aria-hidden="true">
+          <span />
+          <span />
+          <span />
         </div>
-
-        <div className={styles.status}>
-          {done
-            ? "Session ended. Lock it in."
-            : running
-              ? mode === "countdown"
-                ? "In WHELM."
-                : "Stopwatch running."
-              : "Ready."}
+        <div className={styles.faceHalo} aria-hidden="true" />
+        <div className={styles.ringTrack} aria-hidden="true" />
+        <div className={styles.ringProgress} aria-hidden="true" />
+        <div className={styles.ringPulse} aria-hidden="true" />
+        <div className={styles.faceInner}>
+          <p className={styles.faceLabel}>{mode === "countdown" ? "Countdown" : "Stopwatch"}</p>
+          <div className={styles.time}>
+            {String(mm).padStart(2, "0")}:{String(ss).padStart(2, "0")}
+          </div>
+          <div className={styles.status}>
+            {done
+              ? "Session ended. Lock it in."
+              : running
+                ? mode === "countdown"
+                  ? "In WHELM."
+                  : "Stopwatch running."
+                : "Ready."}
+          </div>
         </div>
       </div>
 

@@ -314,7 +314,7 @@ function buildHero(input: CompanionEngineInput, stage: SenseiRelationshipStage):
 function buildPulseCalendar(input: CompanionEngineInput): CompanionPulse {
   if (input.todaySessions === 0 && input.plannedTodayCount === 0) {
     return {
-      eyebrow: "Sensei Scan",
+      eyebrow: "Whelm Read",
       title: "An empty calendar is not a plan.",
       body: "Place one block where your energy is most likely to survive contact with reality.",
       variant: "meditate",
@@ -322,7 +322,7 @@ function buildPulseCalendar(input: CompanionEngineInput): CompanionPulse {
   }
 
   return {
-    eyebrow: "Sensei Scan",
+    eyebrow: "Whelm Read",
     title: "Shape the day before the day shapes you.",
     body: "Use the calendar to reduce negotiation. A scheduled block is easier to obey than a vague promise.",
     variant: "scholar",
@@ -334,7 +334,7 @@ function buildPulseNotes(input: CompanionEngineInput): CompanionPulse {
     return {
       eyebrow: "Writing Studio",
       title: "Capture the thought before it leaks away.",
-      body: "Sensei is strongest when your plans and reflections are written where you can meet them again.",
+      body: "Whelm is strongest when your plans and reflections are written where you can meet them again.",
       variant: "scholar",
     };
   }
@@ -343,7 +343,7 @@ function buildPulseNotes(input: CompanionEngineInput): CompanionPulse {
     return {
       eyebrow: "Writing Studio",
       title: "Your notes are waiting for a return.",
-      body: "Revive one page today. A companion system feels alive when your written world stays current.",
+      body: "Revive one page today. Whelm becomes more useful when your written world stays current.",
       variant: "bowed",
     };
   }
@@ -351,7 +351,7 @@ function buildPulseNotes(input: CompanionEngineInput): CompanionPulse {
   return {
     eyebrow: "Writing Studio",
     title: "Use notes as dialogue, not storage.",
-    body: "Write what matters, what changed, and what the next move is. That is how Sensei becomes an accountability partner.",
+    body: "Write what matters, what changed, and what the next move is. That is how Whelm becomes an accountability partner.",
     variant: "anchor",
   };
 }
@@ -361,7 +361,7 @@ function buildPulseInsights(input: CompanionEngineInput): CompanionPulse {
     return {
       eyebrow: "Pattern Read",
       title: "The data will sharpen once you show up a few times.",
-      body: "Do not chase perfect analytics first. Give Sensei enough honest reps to read your rhythm.",
+      body: "Do not chase perfect analytics first. Give Whelm enough honest reps to read your rhythm.",
       variant: "neutral",
     };
   }
@@ -378,7 +378,7 @@ function buildPulseHistory(input: CompanionEngineInput): CompanionPulse {
   if (input.totalSessions === 0) {
     return {
       eyebrow: "Proof Log",
-      title: "Your first session will teach Sensei your pace.",
+      title: "Your first session will teach Whelm your pace.",
       body: "Once the log starts, the relationship becomes specific. Until then, everything is guesswork.",
       variant: "wave",
     };
@@ -387,7 +387,7 @@ function buildPulseHistory(input: CompanionEngineInput): CompanionPulse {
   return {
     eyebrow: "Proof Log",
     title: "History is where trust is built.",
-    body: "A companion should remember what you actually did, not just what you meant to do.",
+    body: "Whelm should remember what you actually did, not just what you meant to do.",
     variant: input.streak >= 7 ? "applause" : "neutral",
   };
 }
@@ -410,8 +410,8 @@ function buildPulseSettings(input: CompanionEngineInput, stage: SenseiRelationsh
     title: `${stageLabel(stage)} is active.`,
     body:
       input.streak > 0
-        ? `Sensei is most useful when the system stays reliable. Protect sync, permissions, and routines so your ${input.streak}-day streak has a clean home.`
-        : "A strong companion needs a strong system. Keep setup clean so encouragement never replaces structure.",
+        ? `Whelm is most useful when the system stays reliable. Protect sync, permissions, and routines so your ${input.streak}-day streak has a clean home.`
+        : "A strong guide needs a strong system. Keep setup clean so encouragement never replaces structure.",
     variant: "anchor",
   };
 }

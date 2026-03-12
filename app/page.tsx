@@ -1,12 +1,19 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Alignment, Fit, Layout, useRive } from "@rive-app/react-canvas";
 import { useRouter } from "next/navigation";
-import { onAuthStateChanged, signOut, type User } from "firebase/auth";
+import {
+  EmailAuthProvider,
+  deleteUser,
+  onAuthStateChanged,
+  reauthenticateWithCredential,
+  signOut,
+  type User,
+} from "firebase/auth";
 
 import SenseiFigure, { type SenseiVariant } from "@/components/SenseiFigure";
 import Timer from "@/components/Timer";
+import WhelmRitualScene from "@/components/WhelmRitualScene";
 import { auth } from "@/lib/firebase";
 import {
   loadNotes,
@@ -18,9 +25,7 @@ import { loadSessions, saveSession } from "@/lib/session-store";
 import { computeStreak, type SessionDoc } from "@/lib/streak";
 import {
   getProState,
-  isStorePurchaseSupported,
   restoreFreeTier,
-  startProPreview,
 } from "@/lib/subscription";
 import {
   getScreenTimeCapability,
@@ -43,9 +48,42 @@ const FOCUS_TIMER = {
     accent: "#145da0",
     accentSoft: "#e7f1fc",
     accentStrong: "#0d3b66",
-    ring: "rgba(20, 93, 160, 0.18)",
+    ring: "rgba(108, 92, 231, 0.16)",
   },
 };
+
+const LANDING_WISDOM_ROTATION = [
+  {
+    title: "Protect the first serious hour.",
+    body: "What begins scattered usually stays scattered. Give the first clean block to the work that matters most.",
+    signatureLine: "Early order creates later freedom.",
+  },
+  {
+    title: "Remove friction before you need discipline.",
+    body: "Discipline is stronger when the path is already clear. Prepare the desk, the tab, and the task before you begin.",
+    signatureLine: "Preparation is quiet productivity.",
+  },
+  {
+    title: "Small completions build real momentum.",
+    body: "Do not wait for a perfect wave of energy. Finish one meaningful piece, then let progress pull you forward.",
+    signatureLine: "Motion respects the one who starts.",
+  },
+  {
+    title: "Attention is a gate, not a flood.",
+    body: "Let fewer things through. A focused day is often just a day with fewer unnecessary openings.",
+    signatureLine: "Guard attention like a scarce asset.",
+  },
+  {
+    title: "Return quickly after interruption.",
+    body: "The danger is rarely the interruption itself. The danger is drifting after it. Re-entry is a skill.",
+    signatureLine: "Come back before noise settles in.",
+  },
+  {
+    title: "Depth beats intensity.",
+    body: "You do not need a dramatic sprint every hour. You need enough calm pressure to stay with the work until it yields.",
+    signatureLine: "Steady force outlasts bursts.",
+  },
+];
 
 const NOTE_COLORS: Array<{ label: string; value: string }> = [
   { label: "Porcelain", value: "#f8fafc" },
@@ -345,7 +383,7 @@ function buildSenseiGuidance({
     return {
       tone: "milestone" as const,
       variant: "applause" as const,
-      eyebrow: "Whelm Sensei",
+      eyebrow: "Whelm",
       title: `${greeting} One more day to reach ${milestone.next}.`,
       body: "Protect the streak with one deliberate session. The next mark is already in sight.",
     };
@@ -393,7 +431,7 @@ function buildSenseiGuidance({
   return {
     tone: "steady" as const,
     variant: date.getHours() < 11 ? ("scholar" as const) : ("anchor" as const),
-    eyebrow: "Whelm Sensei",
+    eyebrow: "Whelm",
     title: `${greeting} You have started well.`,
     body:
       streak > 0
@@ -597,6 +635,14 @@ function senseiStyleStorageKey(uid: string) {
   return `whelm:sensei-style:${uid}`;
 }
 
+function clearLocalAccountData(uid: string) {
+  window.localStorage.removeItem(`whelm:notes:${uid}`);
+  window.localStorage.removeItem(`whelm:sessions:${uid}`);
+  window.localStorage.removeItem(plannedBlocksStorageKey(uid));
+  window.localStorage.removeItem(senseiStyleStorageKey(uid));
+  window.localStorage.removeItem("whelm-pro-state-v1");
+}
+
 function loadPlannedBlocks(uid: string): PlannedBlock[] {
   try {
     const raw = window.localStorage.getItem(plannedBlocksStorageKey(uid));
@@ -644,26 +690,24 @@ const TAB_META: Array<{ key: AppTab; label: string }> = [
 
 const INTRO_SPLASH_MS = 2600;
 
-function IntroSplash() {
-  const { RiveComponent } = useRive(
-    {
-      src: "/firstanimation.riv",
-      autoplay: true,
-      layout: new Layout({
-        fit: Fit.Contain,
-        alignment: Alignment.Center,
-      }),
-    },
-    {},
-  );
-
+function IntroSplash({ onComplete }: { onComplete: () => void }) {
   return (
     <main className={styles.splashScreen}>
       <div className={styles.splashOrb} aria-hidden="true" />
       <div className={styles.splashFrame}>
         <div className={styles.splashAnimationShell}>
           <div className={styles.splashAnimation}>
-            <RiveComponent />
+            <video
+              className={styles.splashVideo}
+              autoPlay
+              muted
+              playsInline
+              preload="auto"
+              aria-label="Whelm intro animation"
+              onEnded={onComplete}
+            >
+              <source src="/intro/twosecappicon.mp4" type="video/mp4" />
+            </video>
           </div>
         </div>
         <p className={styles.splashWordmark}>WHELM</p>
@@ -677,10 +721,14 @@ function SenseiAvatar({
   message,
   variant,
   compact = false,
+  emoteVideoSrc,
+  autoPlayEmote = false,
 }: {
   message: string;
   variant: SenseiVariant;
   compact?: boolean;
+  emoteVideoSrc?: string;
+  autoPlayEmote?: boolean;
 }) {
   return (
     <SenseiFigure
@@ -689,6 +737,8 @@ function SenseiAvatar({
       message={message}
       className={compact ? styles.senseiAvatarCompact : styles.senseiAvatarPlacement}
       align={compact ? "right" : "center"}
+      emoteVideoSrc={emoteVideoSrc}
+      autoPlayEmote={autoPlayEmote}
     />
   );
 }
@@ -737,6 +787,8 @@ export default function HomePage() {
   const [notesSyncMessage, setNotesSyncMessage] = useState("");
   const [authChecked, setAuthChecked] = useState(false);
   const [showIntroSplash, setShowIntroSplash] = useState(true);
+  const [introFinished, setIntroFinished] = useState(false);
+  const [landingWisdomMinute, setLandingWisdomMinute] = useState(() => Math.floor(Date.now() / 60000));
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [feedbackCategory, setFeedbackCategory] = useState<FeedbackCategory>("bug");
   const [feedbackMessage, setFeedbackMessage] = useState("");
@@ -780,6 +832,8 @@ export default function HomePage() {
   const [screenTimeSupported, setScreenTimeSupported] = useState(false);
   const [screenTimeReason, setScreenTimeReason] = useState("");
   const [screenTimeBusy, setScreenTimeBusy] = useState(false);
+  const [accountDangerStatus, setAccountDangerStatus] = useState("");
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   const editorRef = useRef<HTMLDivElement | null>(null);
   const savedSelectionRef = useRef<Range | null>(null);
@@ -1109,6 +1163,18 @@ export default function HomePage() {
   );
 
   const senseiGuidance = companionState.hero;
+  const landingWisdom = useMemo(() => {
+    return LANDING_WISDOM_ROTATION[landingWisdomMinute % LANDING_WISDOM_ROTATION.length];
+  }, [landingWisdomMinute]);
+  const todayHeroCopy =
+    activeTab === "today"
+      ? {
+          ...senseiGuidance,
+          title: landingWisdom.title,
+          body: landingWisdom.body,
+          signatureLine: landingWisdom.signatureLine,
+        }
+      : senseiGuidance;
 
   const insightsChart = useMemo(() => {
     const windowDays = insightRange;
@@ -1238,11 +1304,18 @@ export default function HomePage() {
   }, [insightsChart.ranked, insightsChart.segments, selectedInsightCategory]);
 
   useEffect(() => {
+    if (!showIntroSplash) return;
     const timeoutId = window.setTimeout(() => {
-      setShowIntroSplash(false);
+      setIntroFinished(true);
     }, INTRO_SPLASH_MS);
     return () => window.clearTimeout(timeoutId);
-  }, []);
+  }, [showIntroSplash]);
+
+  useEffect(() => {
+    if (!showIntroSplash) return;
+    if (!introFinished || !authChecked) return;
+    setShowIntroSplash(false);
+  }, [authChecked, introFinished, showIntroSplash]);
 
   useEffect(() => {
     if (!senseiReaction) return;
@@ -1251,6 +1324,20 @@ export default function HomePage() {
     }, 5000);
     return () => window.clearTimeout(timeoutId);
   }, [senseiReaction]);
+
+  useEffect(() => {
+    const updateMinute = () => setLandingWisdomMinute(Math.floor(Date.now() / 60000));
+    let intervalId: number | null = null;
+    const timeoutId = window.setTimeout(() => {
+      updateMinute();
+      intervalId = window.setInterval(updateMinute, 60000);
+    }, 60000 - (Date.now() % 60000));
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      if (intervalId) window.clearInterval(intervalId);
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -1682,13 +1769,6 @@ export default function HomePage() {
     }
   }
 
-  async function handlePreviewUpgrade() {
-    const next = await startProPreview();
-    setIsPro(next.isPro);
-    setProSource(next.source);
-    setPaywallOpen(false);
-  }
-
   async function handleRestoreFreeTier() {
     const next = await restoreFreeTier();
     setIsPro(next.isPro);
@@ -1711,6 +1791,144 @@ export default function HomePage() {
       );
     } finally {
       setScreenTimeBusy(false);
+    }
+  }
+
+  async function handleDeleteAccount() {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      setAccountDangerStatus("No signed-in account found.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Delete your Whelm account and all associated app data? This cannot be undone.",
+    );
+    if (!confirmed) return;
+
+    const secondConfirmed = window.confirm(
+      "Final confirmation: permanently delete this account, your notes, your sessions, and your local Whelm data?",
+    );
+    if (!secondConfirmed) return;
+
+    setDeletingAccount(true);
+    setAccountDangerStatus("");
+
+    try {
+      const email = currentUser.email?.trim();
+      if (!email) {
+        throw new Error("This account is missing an email address for deletion confirmation.");
+      }
+
+      const password = window.prompt(
+        "Enter your password to permanently delete this account.",
+      );
+
+      if (password === null) {
+        return;
+      }
+
+      if (!password.trim()) {
+        throw new Error("Enter your password to delete your account.");
+      }
+
+      try {
+        await reauthenticateWithCredential(
+          currentUser,
+          EmailAuthProvider.credential(email, password),
+        );
+      } catch (reauthError: unknown) {
+        const reauthMessage =
+          reauthError instanceof Error ? reauthError.message : "Reauthentication failed.";
+
+        if (
+          reauthMessage.includes("invalid-credential") ||
+          reauthMessage.includes("wrong-password")
+        ) {
+          throw new Error("Incorrect password. Enter the same password you use to log in.");
+        }
+
+        throw reauthError;
+      }
+
+      const runDeletion = async () => {
+        const token = await currentUser.getIdToken(true);
+        const headers = {
+          Authorization: `Bearer ${token}`,
+        };
+
+        const deleteNotesResponse = await fetch(
+          `/api/notes?uid=${encodeURIComponent(currentUser.uid)}`,
+          {
+            method: "DELETE",
+            headers,
+          },
+        );
+
+        if (!deleteNotesResponse.ok) {
+          const body = (await deleteNotesResponse.json().catch(() => null)) as
+            | { error?: string }
+            | null;
+          throw new Error(body?.error || "Failed to delete saved notes.");
+        }
+
+        const deleteSessionsResponse = await fetch(
+          `/api/sessions?uid=${encodeURIComponent(currentUser.uid)}`,
+          {
+            method: "DELETE",
+            headers,
+          },
+        );
+
+        if (!deleteSessionsResponse.ok) {
+          const body = (await deleteSessionsResponse.json().catch(() => null)) as
+            | { error?: string }
+            | null;
+          throw new Error(body?.error || "Failed to delete saved sessions.");
+        }
+
+        clearLocalAccountData(currentUser.uid);
+        await deleteUser(currentUser);
+      };
+
+      try {
+        await runDeletion();
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : "Failed to delete account.";
+        const needsRecentLogin =
+          message.includes("requires-recent-login") ||
+          message.includes("auth/requires-recent-login");
+
+        if (!needsRecentLogin) {
+          throw error;
+        }
+
+        await runDeletion();
+      }
+
+      router.push("/login");
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : "Failed to delete account.";
+      if (
+        message.includes("requires-recent-login") ||
+        message.includes("auth/requires-recent-login")
+      ) {
+        setAccountDangerStatus(
+          "Reauthentication failed. Log in again, then retry account deletion.",
+        );
+      } else if (
+        message.includes("invalid-credential") ||
+        message.includes("wrong-password")
+      ) {
+        setAccountDangerStatus(
+          "Incorrect password. Enter the same password you use to log in.",
+        );
+      } else {
+        setAccountDangerStatus(message);
+      }
+    } finally {
+      setDeletingAccount(false);
     }
   }
 
@@ -2182,7 +2400,7 @@ export default function HomePage() {
   }
 
   if (showIntroSplash) {
-    return <IntroSplash />;
+    return <IntroSplash onComplete={() => setIntroFinished(true)} />;
   }
 
   if (!authChecked) {
@@ -2226,13 +2444,13 @@ export default function HomePage() {
             <p className={styles.kicker}>WHELM</p>
             <h1 className={styles.title}>Discipline Dashboard</h1>
             <p className={styles.subtitle}>
-              One app for focus, notes, insights, history, and progress.
+              A disciplined operating system for focus, notes, insight, history, and momentum.
             </p>
           </div>
           <div className={styles.headerActions}>
             {!isPro && (
               <button type="button" className={styles.upgradeButton} onClick={openUpgradeFlow}>
-                Upgrade
+                Whelm Pro
               </button>
             )}
             <button type="button" onClick={() => signOut(auth)} className={styles.signOutButton}>
@@ -2310,10 +2528,12 @@ export default function HomePage() {
 
               {!isPro && (
                 <section className={styles.adStrip}>
-                  <p className={styles.adBadge}>Free Tier Ad Slot</p>
-                  <p className={styles.adCopy}>Upgrade removes ads and unlocks advanced analytics.</p>
+                  <p className={styles.adBadge}>Whelm Pro</p>
+                  <p className={styles.adCopy}>
+                    Advanced analytics and premium discipline tools are coming soon.
+                  </p>
                   <button type="button" className={styles.inlineUpgrade} onClick={openUpgradeFlow}>
-                    Go Pro
+                    See what&apos;s coming
                   </button>
                 </section>
               )}
@@ -2322,26 +2542,34 @@ export default function HomePage() {
                 <article
                   className={`${styles.card} ${styles.senseiCard} ${styles[`senseiCard${senseiGuidance.tone[0].toUpperCase()}${senseiGuidance.tone.slice(1)}`]}`}
                 >
+                  <div className={styles.senseiRitualBackdrop}>
+                    <WhelmRitualScene variant="orb" />
+                  </div>
                   <div className={styles.senseiCardHeader}>
-                    <SenseiAvatar message={senseiGuidance.eyebrow} variant={senseiGuidance.variant} />
+                    <SenseiAvatar
+                      message={todayHeroCopy.eyebrow}
+                      variant="neutral"
+                      emoteVideoSrc="/emotes/welcomeemoting.mp4"
+                      autoPlayEmote
+                    />
                     <div className={styles.senseiDialogueStack}>
                       <div className={styles.senseiSpeechPanel}>
-                        <p className={styles.senseiSpeechEyebrow}>Whelm Sensei</p>
-                        <p className={styles.senseiGreeting}>{senseiGuidance.title}</p>
-                        <p className={styles.senseiMessage}>{senseiGuidance.body}</p>
-                        <p className={styles.senseiSignature}>"{senseiGuidance.signatureLine}"</p>
+                        <p className={styles.senseiSpeechEyebrow}>Whelm</p>
+                        <p className={styles.senseiGreeting}>{todayHeroCopy.title}</p>
+                        <p className={styles.senseiMessage}>{todayHeroCopy.body}</p>
+                        <p className={styles.senseiSignature}>"{todayHeroCopy.signatureLine}"</p>
                       </div>
                     </div>
                   </div>
                   <div className={styles.senseiMetrics}>
                     <span className={styles.senseiMetricPill}>
-                      Bond: {formatSenseiLabel(companionState.stage)}
+                      Presence: {formatSenseiLabel(companionState.stage)}
                     </span>
                     <span className={styles.senseiMetricPill}>
-                      Ritual: {formatSenseiLabel(senseiGuidance.ritual)}
+                      Stance: {formatSenseiLabel(senseiGuidance.ritual)}
                     </span>
                     <span className={styles.senseiMetricPill}>
-                      Voice: {formatSenseiLabel(senseiGuidance.voiceMode)}
+                      Tone: {formatSenseiLabel(senseiGuidance.voiceMode)}
                     </span>
                     <span className={styles.senseiMetricPill}>
                       Today: {focusMetrics.todaySessions} session
@@ -2349,7 +2577,7 @@ export default function HomePage() {
                     </span>
                     <span className={styles.senseiMetricPill}>Streak: {streak}d</span>
                     <span className={styles.senseiMetricPill}>
-                      Planned: {todayPlannedBlocks.length}
+                      Ready: {todayPlannedBlocks.length}
                     </span>
                     {nextSenseiMilestone.next ? (
                       <span className={styles.senseiMetricPill}>
@@ -2368,7 +2596,7 @@ export default function HomePage() {
                       {senseiGuidance.actionLabel}
                     </button>
                     <span className={styles.accountMeta}>
-                      Sensei thinks your next best move lives in {tabTitle(senseiGuidance.actionTab as AppTab)}.
+                      Whelm is directing your next move toward {tabTitle(senseiGuidance.actionTab as AppTab)}.
                     </span>
                   </div>
                   {senseiReaction && <p className={styles.senseiReaction}>{senseiReaction}</p>}
@@ -2482,12 +2710,11 @@ export default function HomePage() {
                     <p className={styles.sectionLabel}>Plan</p>
                     <p className={styles.accountMeta}>
                       {isPro ? "Whelm Pro" : "Whelm Free"}
-                      {proSource === "preview" ? " (preview)" : ""}
                     </p>
                     <p className={styles.accountMeta}>{user.email}</p>
                     {!isPro && (
                       <button type="button" className={styles.inlineUpgrade} onClick={openUpgradeFlow}>
-                        Unlock Pro ($3.99/mo)
+                        Whelm Pro coming soon
                       </button>
                     )}
                   </article>
@@ -3847,9 +4074,9 @@ export default function HomePage() {
                 </ul>
                 {!isPro && (
                   <div className={styles.cardGateRow}>
-                    <span>Deep note analytics are part of Pro.</span>
+                    <span>Deep note analytics are part of Whelm Pro, coming soon.</span>
                     <button type="button" className={styles.inlineUpgrade} onClick={openUpgradeFlow}>
-                      Unlock
+                      Learn more
                     </button>
                   </div>
                 )}
@@ -3905,9 +4132,9 @@ export default function HomePage() {
                   </div>
                   {!isPro && (
                     <div className={styles.chartLock}>
-                      <p>Pro unlocks full trend analytics and score breakdowns.</p>
+                      <p>Whelm Pro will add full trend analytics and deeper score breakdowns.</p>
                       <button type="button" className={styles.inlineUpgrade} onClick={openUpgradeFlow}>
-                        Upgrade to Pro
+                        See what&apos;s coming
                       </button>
                     </div>
                   )}
@@ -3927,10 +4154,10 @@ export default function HomePage() {
 
               <article className={styles.proPreviewCard}>
                 <div className={styles.proPreviewTop}>
-                  <p className={styles.proEyebrow}>WHELM PRO PREVIEW</p>
-                  <span className={styles.proBadge}>$3.99/mo</span>
+                  <p className={styles.proEyebrow}>WHELM PRO</p>
+                  <span className={styles.proBadge}>Coming soon</span>
                 </div>
-                <h3 className={styles.proTitle}>Unlock advanced discipline tools</h3>
+                <h3 className={styles.proTitle}>Advanced discipline tools are on the way</h3>
                 <ul className={styles.proList}>
                   <li>Deep report filters and longer trend windows</li>
                   <li>Custom score weighting and daily insights</li>
@@ -3938,7 +4165,7 @@ export default function HomePage() {
                   <li>Motivation prompts and precise planning tools</li>
                 </ul>
                 <button type="button" className={styles.proCta} onClick={openUpgradeFlow}>
-                  See Pro plan
+                  View Pro preview
                 </button>
               </article>
             </section>
@@ -3961,7 +4188,6 @@ export default function HomePage() {
                 <div className={styles.settingsPills}>
                   <span className={styles.settingsPill}>
                     Plan: {isPro ? "Pro" : "Free"}
-                    {proSource === "preview" ? " (preview)" : ""}
                   </span>
                   <span className={styles.settingsPill}>Streak: {streak}d</span>
                   <span className={styles.settingsPill}>
@@ -3970,7 +4196,7 @@ export default function HomePage() {
                 </div>
                 {!isPro ? (
                   <button type="button" className={styles.inlineUpgrade} onClick={openUpgradeFlow}>
-                    Upgrade to Pro
+                    Whelm Pro coming soon
                   </button>
                 ) : (
                   <button type="button" className={styles.secondaryPlanButton} onClick={() => void handleRestoreFreeTier()}>
@@ -3985,7 +4211,7 @@ export default function HomePage() {
                 <ul className={styles.settingsList}>
                   <li>
                     <span>Clean Focus Mode</span>
-                    <strong>{isPro ? "Enabled" : "Pro"}</strong>
+                    <strong>{isPro ? "Enabled" : "Soon"}</strong>
                   </li>
                   <li>
                     <span>Weekly Report Cards</span>
@@ -3993,16 +4219,16 @@ export default function HomePage() {
                   </li>
                   <li>
                     <span>Behavior Insights</span>
-                    <strong>{isPro ? "Full" : "Basic"}</strong>
+                    <strong>{isPro ? "Full" : "Growing"}</strong>
                   </li>
                 </ul>
               </article>
 
               <article className={styles.card}>
-                <p className={styles.sectionLabel}>Companion</p>
-                <h2 className={styles.cardTitle}>Sensei style</h2>
+                <p className={styles.sectionLabel}>Protocol</p>
+                <h2 className={styles.cardTitle}>Whelm tone</h2>
                 <p className={styles.accountMeta}>
-                  Choose how direct Whelm Sensei should feel when guiding you.
+                  Choose how direct Whelm should feel when keeping you accountable.
                 </p>
                 <div className={styles.companionStyleRow}>
                   {(["gentle", "balanced", "strict"] as const).map((style) => (
@@ -4088,6 +4314,25 @@ export default function HomePage() {
                 </button>
                 <p className={styles.accountMeta}>Report bugs, request features, or share ideas.</p>
               </article>
+
+              <article className={`${styles.card} ${styles.accountDangerCard}`}>
+                <p className={styles.sectionLabel}>Account</p>
+                <h2 className={styles.cardTitle}>Delete account</h2>
+                <p className={styles.accountMeta}>
+                  Permanently delete your Whelm account, notes, sessions, and local app data.
+                </p>
+                <button
+                  type="button"
+                  className={styles.deleteAccountButton}
+                  onClick={() => void handleDeleteAccount()}
+                  disabled={deletingAccount}
+                >
+                  {deletingAccount ? "Deleting account..." : "Delete account permanently"}
+                </button>
+                {accountDangerStatus ? (
+                  <p className={styles.accountDangerStatus}>{accountDangerStatus}</p>
+                ) : null}
+              </article>
             </section>
           )}
         </section>
@@ -4131,43 +4376,33 @@ export default function HomePage() {
         <div className={styles.feedbackOverlay} onClick={() => setPaywallOpen(false)}>
           <div className={styles.paywallModal} onClick={(event) => event.stopPropagation()}>
             <div className={styles.feedbackHeader}>
-              <h2 className={styles.feedbackTitle}>Upgrade to Whelm Pro</h2>
+              <h2 className={styles.feedbackTitle}>Whelm Pro is on the way</h2>
               <button type="button" className={styles.feedbackClose} onClick={() => setPaywallOpen(false)}>
                 Close
               </button>
             </div>
             <p className={styles.paywallCopy}>
-              Remove ads and unlock full analytics, trend intelligence, and precision planning.
+              Whelm Pro will add deeper analytics, expanded planning controls, and a cleaner focus experience.
             </p>
             <div className={styles.planGrid}>
-              <article className={styles.planCard}>
-                <p className={styles.planName}>Monthly</p>
-                <p className={styles.planPrice}>$3.99</p>
-                <p className={styles.planMeta}>per month</p>
-              </article>
               <article className={`${styles.planCard} ${styles.planCardFeatured}`}>
-                <p className={styles.planName}>Yearly</p>
-                <p className={styles.planPrice}>$29.99</p>
-                <p className={styles.planMeta}>best value</p>
+                <p className={styles.planName}>Founding release</p>
+                <p className={styles.planPrice}>Coming soon</p>
+                <p className={styles.planMeta}>early users will receive a strong launch offer</p>
               </article>
             </div>
             <ul className={styles.proList}>
               <li>Advanced discipline insights and score history</li>
               <li>Monthly streak intelligence and weekly reports</li>
-              <li>Premium focus workflows and no ads</li>
+              <li>Premium focus workflows and a cleaner workspace</li>
             </ul>
             <div className={styles.paywallActions}>
-              <button type="button" className={styles.feedbackSubmit} onClick={() => void handlePreviewUpgrade()}>
-                Unlock Pro Preview
-              </button>
-              <button type="button" className={styles.secondaryPlanButton} onClick={() => void handleRestoreFreeTier()}>
-                Restore Free Tier
+              <button type="button" className={styles.feedbackSubmit} onClick={() => setPaywallOpen(false)}>
+                Continue with current version
               </button>
             </div>
             <p className={styles.paywallHint}>
-              {isStorePurchaseSupported()
-                ? "Store billing supported on iOS build. Next step is wiring StoreKit/RevenueCat products."
-                : "Preview unlock active for development. Native billing wiring comes in iOS integration step."}
+              Billing is not live in this version. Whelm Pro will be introduced in a later release.
             </p>
           </div>
         </div>

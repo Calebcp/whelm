@@ -24,6 +24,7 @@ type NotesPayload = {
 };
 
 type FirestoreDocumentResponse = {
+  name?: string;
   fields?: {
     uid?: { stringValue?: string };
     notesJson?: { stringValue?: string };
@@ -45,7 +46,30 @@ function requireConfig() {
     throw new Error("Missing Firebase environment variables on the server.");
   }
 
-  return `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${databaseId}/documents`;
+  return {
+    apiKey,
+    projectId,
+  };
+}
+
+function firestoreDocumentsBaseUrl(targetDatabaseId = databaseId) {
+  const { projectId } = requireConfig();
+  return `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${targetDatabaseId}/documents`;
+}
+
+function deletionDatabaseIds() {
+  return [...new Set(["(default)", databaseId])];
+}
+
+function shouldIgnoreDeletionError(message: string) {
+  return (
+    message.includes("PERMISSION_DENIED") ||
+    message.includes("permission-denied") ||
+    message.includes("Missing or insufficient permissions") ||
+    message.includes("NOT_FOUND") ||
+    message.includes("not found") ||
+    message.includes("does not exist")
+  );
 }
 
 function jsonError(message: string, status = 500) {
@@ -110,7 +134,8 @@ async function fetchDocument(
   const authHeader = getAuthHeader(request);
   if (!authHeader) throw new Error("Missing Firebase auth token.");
 
-  const baseUrl = requireConfig();
+  const baseUrl = firestoreDocumentsBaseUrl();
+  const { apiKey } = requireConfig();
   const response = await fetch(`${baseUrl}/userNotes/${encodeURIComponent(uid)}?key=${apiKey}`, {
     method: "GET",
     headers: {
@@ -136,7 +161,8 @@ async function upsertDocument(request: NextRequest, payload: NotesPayload) {
   const authHeader = getAuthHeader(request);
   if (!authHeader) throw new Error("Missing Firebase auth token.");
 
-  const baseUrl = requireConfig();
+  const baseUrl = firestoreDocumentsBaseUrl();
+  const { apiKey } = requireConfig();
   const normalizedNotes = normalizeNotes(payload.notes);
   const now = new Date().toISOString();
 
@@ -164,6 +190,52 @@ async function upsertDocument(request: NextRequest, payload: NotesPayload) {
   }
 }
 
+async function deleteDocument(request: NextRequest, uid: string) {
+  const authHeader = getAuthHeader(request);
+  if (!authHeader) throw new Error("Missing Firebase auth token.");
+
+  const { apiKey } = requireConfig();
+  const errors: string[] = [];
+
+  for (const targetDatabaseId of deletionDatabaseIds()) {
+    const baseUrl = firestoreDocumentsBaseUrl(targetDatabaseId);
+    const response = await fetch(
+      `${baseUrl}/userNotes/${encodeURIComponent(uid)}?key=${apiKey}`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: authHeader,
+          "Content-Type": "application/json",
+        },
+        cache: "no-store",
+      },
+    );
+
+    if (response.status === 404) continue;
+
+    if (!response.ok) {
+      const body = (await response.json().catch(() => null)) as
+        | { error?: { message?: string; status?: string } }
+        | null;
+      const message =
+        body?.error?.message ||
+        body?.error?.status ||
+        `Failed to delete notes from Firestore database "${targetDatabaseId}".`;
+
+      if (shouldIgnoreDeletionError(message)) {
+        errors.push(`notes:${targetDatabaseId}:${message}`);
+        continue;
+      }
+
+      throw new Error(message);
+    }
+  }
+
+  if (errors.length === deletionDatabaseIds().length) {
+    throw new Error("Unable to verify note deletion in either Firestore database.");
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const uid = request.nextUrl.searchParams.get("uid");
@@ -187,5 +259,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true });
   } catch (error: unknown) {
     return jsonError(error instanceof Error ? error.message : "Failed to save notes.");
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const uid = request.nextUrl.searchParams.get("uid");
+    if (!uid) return jsonError("Missing uid.", 400);
+
+    await deleteDocument(request, uid);
+    return NextResponse.json({ ok: true });
+  } catch (error: unknown) {
+    return jsonError(error instanceof Error ? error.message : "Failed to delete notes.");
   }
 }

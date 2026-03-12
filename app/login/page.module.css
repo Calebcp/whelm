@@ -1,40 +1,77 @@
 .pageShell {
   min-height: 100vh;
-  padding: 24px 18px;
-  display: grid;
-  place-items: center;
-}
-
-.heroCard {
-  width: min(980px, 100%);
-  display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
-  gap: 22px;
-  align-items: stretch;
-}
-
-.brandBlock {
   position: relative;
   overflow: hidden;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  border-radius: 34px;
+  padding: 24px 18px;
   background:
-    radial-gradient(circle at top right, rgba(94, 234, 212, 0.22), transparent 30%),
-    linear-gradient(145deg, rgba(14, 26, 40, 0.95), rgba(24, 52, 77, 0.92));
-  padding: clamp(28px, 5vw, 44px);
-  color: #f7fafc;
-  box-shadow: 0 28px 64px rgba(16, 32, 51, 0.18);
+    radial-gradient(circle at top left, rgba(191, 219, 254, 0.55), transparent 28%),
+    radial-gradient(circle at bottom right, rgba(251, 191, 36, 0.12), transparent 26%),
+    linear-gradient(180deg, #eef4fb 0%, #e7edf5 42%, #f5f1ea 100%);
 }
 
-.brandBlock::after {
+.pageAura {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 16% 18%, rgba(255, 255, 255, 0.92), transparent 18%),
+    radial-gradient(circle at 83% 24%, rgba(186, 230, 253, 0.35), transparent 20%),
+    radial-gradient(circle at 56% 85%, rgba(15, 23, 42, 0.05), transparent 32%);
+  pointer-events: none;
+}
+
+.loginFrame {
+  position: relative;
+  z-index: 1;
+  width: min(1220px, 100%);
+  margin: 0 auto;
+  min-height: calc(100vh - 48px);
+  display: grid;
+  grid-template-columns: minmax(0, 1.18fr) minmax(340px, 0.82fr);
+  gap: 24px;
+  align-items: center;
+}
+
+.storyPanel {
+  position: relative;
+  overflow: hidden;
+  min-height: 760px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 38px;
+  background:
+    linear-gradient(145deg, rgba(14, 26, 40, 0.97), rgba(18, 49, 77, 0.94) 46%, rgba(17, 92, 120, 0.9));
+  color: #f7fafc;
+  box-shadow: 0 30px 80px rgba(16, 32, 51, 0.2);
+}
+
+.storyBackdrop {
+  position: absolute;
+  inset: -8% -6% -6% -6%;
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.storyPanel::after {
   content: "";
   position: absolute;
-  inset: auto -10% -35% auto;
-  width: 240px;
-  height: 240px;
-  border-radius: 999px;
+  inset: auto -8% -18% auto;
+  width: 320px;
+  aspect-ratio: 1;
+  border-radius: 50%;
   background: rgba(255, 255, 255, 0.08);
-  filter: blur(6px);
+  filter: blur(8px);
+}
+
+.storyInner {
+  position: relative;
+  z-index: 1;
+  min-height: 760px;
+  padding: clamp(26px, 4vw, 42px);
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+}
+
+.storyCopy {
+  max-width: 40rem;
 }
 
 .kicker {
@@ -47,26 +84,89 @@
 
 .title {
   margin: 0;
-  max-width: 9ch;
-  font-size: clamp(2.4rem, 6vw, 4.7rem);
-  line-height: 0.94;
-  letter-spacing: -0.07em;
+  max-width: 10ch;
+  font-size: clamp(2.8rem, 5vw, 5.3rem);
+  line-height: 0.92;
+  letter-spacing: -0.075em;
 }
 
 .subtitle {
-  max-width: 40ch;
+  max-width: 44ch;
   margin: 18px 0 0;
-  font-size: 1rem;
-  line-height: 1.7;
+  font-size: 1.02rem;
+  line-height: 1.72;
   color: rgba(232, 244, 255, 0.82);
 }
 
-.formCard {
+.senseiStage {
+  position: relative;
+  display: grid;
+  align-content: end;
+  justify-items: start;
+  min-height: 320px;
+  padding: 10px 0 24px;
+}
+
+.senseiHalo {
+  position: absolute;
+  left: 0;
+  bottom: 4%;
+  width: min(440px, 76%);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, rgba(186, 230, 253, 0.24), rgba(125, 211, 252, 0.08) 44%, transparent 72%);
+  filter: blur(10px);
+}
+
+.senseiFigure {
+  position: relative;
+  z-index: 1;
+}
+
+.storyGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.storyCard {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 22px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.storyLabel {
+  margin: 0 0 8px;
+  font-size: 0.84rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(232, 244, 255, 0.78);
+}
+
+.storyBody {
+  margin: 0;
+  color: rgba(241, 245, 249, 0.88);
+  line-height: 1.5;
+}
+
+.formPanel {
+  display: grid;
+  align-items: center;
+}
+
+.formShell {
   border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: 34px;
-  background: rgba(255, 255, 255, 0.84);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(248, 251, 255, 0.88)),
+    radial-gradient(circle at top, rgba(219, 234, 254, 0.42), transparent 38%);
   padding: clamp(24px, 4vw, 34px);
   box-shadow: 0 24px 60px rgba(16, 32, 51, 0.12);
+  backdrop-filter: blur(10px);
 }
 
 .formHeader {
@@ -74,12 +174,14 @@
 }
 
 .modeSwitch {
-  display: inline-flex;
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   padding: 6px;
   margin-bottom: 18px;
   border-radius: 999px;
-  background: rgba(241, 245, 249, 0.96);
+  background: rgba(236, 242, 248, 0.96);
+  width: 100%;
 }
 
 .modeButton {
@@ -88,6 +190,7 @@
   background: transparent;
   padding: 10px 14px;
   color: #52667d;
+  font-weight: 700;
 }
 
 .modeButtonActive {
@@ -98,7 +201,8 @@
 
 .formTitle {
   margin: 0;
-  font-size: 1.5rem;
+  font-size: 1.6rem;
+  letter-spacing: -0.04em;
 }
 
 .formCopy {
@@ -110,11 +214,13 @@
 .fieldBlock {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
 .label {
-  font-size: 0.92rem;
+  margin-top: 2px;
+  font-size: 0.88rem;
+  letter-spacing: 0.02em;
   font-weight: 600;
   color: #314357;
 }
@@ -123,9 +229,10 @@
   width: 100%;
   border: 1px solid rgba(15, 23, 42, 0.1);
   border-radius: 18px;
-  background: rgba(248, 250, 252, 0.85);
+  background: rgba(248, 250, 252, 0.96);
   padding: 15px 16px;
   color: #102033;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 .input:focus {
@@ -136,10 +243,12 @@
 .submitButton {
   border: 0;
   border-radius: 999px;
-  background: linear-gradient(135deg, #102033, #244a72);
-  padding: 14px 18px;
+  background: linear-gradient(135deg, #102033, #16486f 58%, #14646e);
+  padding: 15px 18px;
   color: #ffffff;
   box-shadow: 0 18px 40px rgba(16, 32, 51, 0.16);
+  font-weight: 800;
+  letter-spacing: 0.01em;
 }
 
 .submitButton:hover {
@@ -154,23 +263,68 @@
 .helperText {
   font-size: 0.82rem;
   color: #6d7c8f;
+  line-height: 1.55;
 }
 
 .statusBox {
   border-radius: 18px;
-  background: rgba(241, 245, 249, 0.95);
+  border: 1px solid rgba(191, 38, 0, 0.08);
+  background: rgba(255, 247, 245, 0.98);
   padding: 12px 14px;
-  color: #314357;
+  color: #7c2d12;
   line-height: 1.5;
   white-space: pre-wrap;
 }
 
-@media (max-width: 840px) {
-  .heroCard {
+@media (max-width: 1040px) {
+  .loginFrame {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+
+  .storyPanel,
+  .storyInner {
+    min-height: 0;
+  }
+
+  .storyGrid {
     grid-template-columns: 1fr;
   }
 
   .title {
+    max-width: 12ch;
+  }
+}
+
+@media (max-width: 720px) {
+  .pageShell {
+    padding: 14px;
+  }
+
+  .loginFrame {
+    gap: 16px;
+  }
+
+  .storyInner {
+    padding: 22px;
+  }
+
+  .formShell {
+    padding: 22px;
+  }
+
+  .title {
     max-width: none;
+  }
+
+  .senseiStage {
+    min-height: 250px;
+    justify-items: center;
+  }
+
+  .senseiHalo {
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(360px, 92%);
   }
 }

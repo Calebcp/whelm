@@ -33,7 +33,8 @@ service cloud.firestore {
         && request.auth.uid == uid
         && request.resource.data.uid == request.auth.uid;
 
-      allow delete: if false;
+      allow delete: if request.auth != null
+        && request.auth.uid == uid;
     }
   }
 }

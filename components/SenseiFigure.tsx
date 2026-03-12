@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import styles from "./SenseiFigure.module.css";
 
@@ -26,6 +26,8 @@ type SenseiFigureProps = {
   message?: string;
   alt?: string;
   className?: string;
+  emoteVideoSrc?: string;
+  autoPlayEmote?: boolean;
 };
 
 const SENSEI_VARIANTS: Record<
@@ -73,7 +75,7 @@ const SENSEI_VARIANTS: Record<
     motion: "calm",
   },
   wave: {
-    src: "/sensei/wave.png",
+    src: "/sensei/betterwave.png",
     alt: "Whelm Sensei waving hello",
     motion: "wave",
   },
@@ -95,8 +97,12 @@ export default function SenseiFigure({
   message,
   alt,
   className,
+  emoteVideoSrc,
+  autoPlayEmote = false,
 }: SenseiFigureProps) {
   const [imageFailed, setImageFailed] = useState(false);
+  const [showEmote, setShowEmote] = useState(Boolean(emoteVideoSrc && autoPlayEmote));
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const asset = SENSEI_VARIANTS[variant];
   const motionClass =
     asset.motion === "calm"
@@ -109,6 +115,33 @@ export default function SenseiFigure({
             ? styles.motionStill
             : styles.motionFloat;
 
+  useEffect(() => {
+    if (!emoteVideoSrc || !autoPlayEmote) return;
+    setShowEmote(true);
+  }, [autoPlayEmote, emoteVideoSrc]);
+
+  useEffect(() => {
+    if (!showEmote) return;
+    const video = videoRef.current;
+    if (!video) return;
+    video.currentTime = 0;
+    void video.play().catch(() => {
+      setShowEmote(false);
+    });
+  }, [showEmote]);
+
+  function triggerEmote() {
+    if (!emoteVideoSrc) return;
+    const video = videoRef.current;
+    if (video) {
+      video.currentTime = 0;
+      void video.play().catch(() => {
+        setShowEmote(false);
+      });
+    }
+    setShowEmote(true);
+  }
+
   return (
     <div
       className={cx(
@@ -119,19 +152,40 @@ export default function SenseiFigure({
       )}
     >
       {message ? <div className={styles.bubble}>{message}</div> : null}
-      <div className={cx(styles.shell, motionClass)}>
+      <div
+        className={cx(styles.shell, motionClass, emoteVideoSrc && styles.shellEmote)}
+        onMouseEnter={emoteVideoSrc ? triggerEmote : undefined}
+        onFocus={emoteVideoSrc ? triggerEmote : undefined}
+        onTouchStart={emoteVideoSrc ? triggerEmote : undefined}
+        tabIndex={emoteVideoSrc ? 0 : undefined}
+      >
         {imageFailed ? (
           <div className={styles.fallback} aria-label={alt ?? asset.alt} role="img">
             <div className={styles.fallbackBandana} aria-hidden="true" />
             <span className={styles.fallbackMark}>W</span>
           </div>
         ) : (
-          <img
-            src={asset.src}
-            alt={alt ?? asset.alt}
-            className={styles.image}
-            onError={() => setImageFailed(true)}
-          />
+          <>
+            <img
+              src={asset.src}
+              alt={alt ?? asset.alt}
+              className={styles.image}
+              onError={() => setImageFailed(true)}
+            />
+            {emoteVideoSrc ? (
+              <video
+                ref={videoRef}
+                className={cx(styles.emoteVideo, showEmote && styles.emoteVideoVisible)}
+                muted
+                playsInline
+                preload="metadata"
+                aria-hidden="true"
+                onEnded={() => setShowEmote(false)}
+              >
+                <source src={emoteVideoSrc} type="video/mp4" />
+              </video>
+            ) : null}
+          </>
         )}
       </div>
     </div>

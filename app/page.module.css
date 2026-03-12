@@ -63,6 +63,14 @@
   height: 100% !important;
 }
 
+.splashVideo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #ffffff;
+}
+
 .splashWordmark {
   margin: 0;
   font-size: clamp(2rem, 8vw, 3.75rem);
@@ -145,6 +153,7 @@
 }
 
 .tabButton {
+  position: relative;
   border: 0;
   border-radius: 16px;
   padding: 12px;
@@ -155,11 +164,44 @@
   gap: 10px;
   text-align: left;
   font-size: 0.95rem;
+  overflow: hidden;
+  isolation: isolate;
 }
 
 .tabButtonActive {
-  background: #e8eef7;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(232, 238, 247, 0.94)),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.62), rgba(196, 181, 253, 0.18));
   color: #102033;
+}
+
+.tabButton::before {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  border-radius: 14px;
+  background: radial-gradient(circle at left center, rgba(191, 219, 254, 0.1), transparent 56%);
+  opacity: 0;
+  transition: opacity 180ms ease;
+  z-index: -1;
+}
+
+.tabButtonActive::before {
+  opacity: 1;
+}
+
+.tabButtonActive::after {
+  content: "";
+  position: absolute;
+  left: -18px;
+  top: 50%;
+  width: 72px;
+  height: 72px;
+  transform: translateY(-50%);
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(167, 139, 250, 0.3), transparent 68%);
+  filter: blur(12px);
+  z-index: -1;
 }
 
 .tabIcon {
@@ -318,6 +360,18 @@
     linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(239, 246, 255, 0.9));
 }
 
+.senseiRitualBackdrop {
+  position: absolute;
+  right: -2%;
+  top: -4px;
+  width: min(42vw, 300px);
+  height: 252px;
+  opacity: 0.62;
+  pointer-events: none;
+  mask-image: radial-gradient(circle at center, rgba(0, 0, 0, 1) 46%, transparent 80%);
+  filter: blur(2px);
+}
+
 .senseiCard::after {
   content: "";
   position: absolute;
@@ -346,6 +400,8 @@
 }
 
 .senseiCardHeader {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: flex-start;
   gap: 18px;
@@ -363,10 +419,12 @@
   flex: 1;
   min-width: 0;
   display: grid;
+  padding-right: clamp(88px, 13vw, 180px);
 }
 
 .senseiSpeechPanel {
   position: relative;
+  max-width: min(560px, 100%);
   padding: 18px 18px 16px;
   border-radius: 26px;
   background:
@@ -437,6 +495,8 @@
 }
 
 .senseiMetrics {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -453,6 +513,8 @@
 }
 
 .senseiReaction {
+  position: relative;
+  z-index: 1;
   margin: 14px 0 0;
   padding: 12px 14px;
   border-radius: 16px;
@@ -464,10 +526,13 @@
 }
 
 .senseiActionRow {
-  display: flex;
-  flex-wrap: wrap;
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  gap: 10px;
+  column-gap: 12px;
+  row-gap: 10px;
   margin-top: 14px;
 }
 
@@ -492,6 +557,8 @@
 }
 
 .companionPulseFigure {
+  position: relative;
+  z-index: 1;
   align-self: center;
 }
 
@@ -507,7 +574,6 @@
   box-shadow:
     0 16px 30px rgba(16, 32, 51, 0.08),
     inset 0 1px 0 rgba(255, 255, 255, 0.8);
-  animation: senseiBubbleFloat 5.2s ease-in-out infinite;
 }
 
 .companionPulseSpeech::before {
@@ -650,6 +716,11 @@
 .accountMeta {
   color: #6d7c8f;
   font-size: 0.85rem;
+}
+
+.accountMeta {
+  min-width: 0;
+  line-height: 1.45;
 }
 
 .emptyText {
@@ -2095,6 +2166,36 @@
   font-size: 0.86rem;
 }
 
+.accountDangerCard {
+  border-color: rgba(185, 28, 28, 0.18);
+  background:
+    radial-gradient(circle at top right, rgba(254, 202, 202, 0.26), transparent 28%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(254, 242, 242, 0.96));
+}
+
+.deleteAccountButton {
+  margin-top: 12px;
+  border: 0;
+  border-radius: 18px;
+  padding: 13px 16px;
+  background: linear-gradient(135deg, #b91c1c, #7f1d1d);
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 12px 28px rgba(127, 29, 29, 0.18);
+}
+
+.deleteAccountButton:disabled {
+  opacity: 0.74;
+  cursor: wait;
+}
+
+.accountDangerStatus {
+  margin: 12px 0 0;
+  color: #991b1b;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
 .companionStyleRow {
   display: flex;
   flex-wrap: wrap;
@@ -2236,7 +2337,7 @@
 
 .planGrid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
   margin-bottom: 12px;
 }
@@ -2492,6 +2593,23 @@
 
   .senseiCardHeader {
     flex-direction: column;
+  }
+
+  .senseiDialogueStack {
+    padding-right: 0;
+  }
+
+  .senseiActionRow {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .senseiRitualBackdrop {
+    right: -10%;
+    top: 20px;
+    width: 220px;
+    height: 220px;
+    opacity: 0.42;
   }
 
   .dayPortalHeader {

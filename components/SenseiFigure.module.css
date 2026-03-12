@@ -66,6 +66,18 @@
   width: 100%;
   display: grid;
   place-items: center;
+  outline: none;
+}
+
+.shellEmote {
+  padding: 8px 6px 10px;
+  border-radius: 30px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.995), rgba(250, 252, 255, 0.985)),
+    radial-gradient(circle at top, rgba(219, 234, 254, 0.18), transparent 56%);
+  box-shadow:
+    0 12px 30px rgba(16, 32, 51, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92);
 }
 
 .shell::before {
@@ -80,13 +92,31 @@
 
 .image {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   display: block;
   width: 100%;
   height: auto;
   object-fit: contain;
   user-select: none;
   pointer-events: none;
+}
+
+.emoteVideo {
+  position: absolute;
+  inset: 8px 6px 10px;
+  z-index: 3;
+  width: calc(100% - 12px);
+  height: calc(100% - 18px);
+  object-fit: contain;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease;
+  background: #ffffff;
+  border-radius: 24px;
+}
+
+.emoteVideoVisible {
+  opacity: 1;
 }
 
 .motionFloat {
@@ -111,7 +141,7 @@
 
 .fallback {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   width: 100%;
   aspect-ratio: 0.78;
   border-radius: 28px;
