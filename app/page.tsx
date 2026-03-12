@@ -845,10 +845,12 @@ export default function HomePage() {
   const [accountDangerStatus, setAccountDangerStatus] = useState("");
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
+  const [mobileNotesRecentOpen, setMobileNotesRecentOpen] = useState(false);
   const [mobileNotesEditorOpen, setMobileNotesEditorOpen] = useState(false);
   const [mobileNotesToolsOpen, setMobileNotesToolsOpen] = useState<
     "format" | "type" | "color" | null
   >(null);
+  const [mobileBlockSheetOpen, setMobileBlockSheetOpen] = useState(false);
 
   const editorRef = useRef<HTMLDivElement | null>(null);
   const savedSelectionRef = useRef<Range | null>(null);
@@ -1338,7 +1340,10 @@ export default function HomePage() {
   useEffect(() => {
     if (!isMobileViewport) {
       setMobileMoreOpen(false);
+      setMobileNotesRecentOpen(false);
+      setMobileNotesEditorOpen(false);
       setMobileNotesToolsOpen(null);
+      setMobileBlockSheetOpen(false);
       return;
     }
 
@@ -1346,6 +1351,15 @@ export default function HomePage() {
       setMobileNotesEditorOpen(false);
     }
   }, [isMobileViewport, selectedNoteId]);
+
+  useEffect(() => {
+    if (!isMobileViewport || !mobileNotesEditorOpen || !selectedNoteId) return;
+    const timeoutId = window.setTimeout(() => {
+      scrollToSection(notesEditorRef.current);
+      editorRef.current?.focus();
+    }, 140);
+    return () => window.clearTimeout(timeoutId);
+  }, [isMobileViewport, mobileNotesEditorOpen, selectedNoteId]);
 
   useEffect(() => {
     if (!showIntroSplash) return;
@@ -1576,7 +1590,7 @@ export default function HomePage() {
   }
 
   async function createWorkspaceNote() {
-    if (!user) return;
+    if (!user) return null;
 
     const nextNote = createNote();
     const nextNotes = [nextNote, ...notes];
@@ -1586,6 +1600,7 @@ export default function HomePage() {
     const result = await saveNotes(user, nextNotes);
     setNotesSyncStatus(result.synced ? "synced" : "local-only");
     setNotesSyncMessage(result.message ?? "");
+    return nextNote.id;
   }
 
   async function updateSelectedNote(
@@ -2006,12 +2021,24 @@ export default function HomePage() {
     setSelectedNoteId(noteId);
     setMobileNotesEditorOpen(true);
     setMobileNotesToolsOpen(null);
+    setMobileNotesRecentOpen(false);
   }
 
   async function handleMobileCreateNote() {
     await createWorkspaceNote();
     setMobileNotesEditorOpen(true);
     setMobileNotesToolsOpen(null);
+    setMobileNotesRecentOpen(false);
+  }
+
+  function handleOpenCurrentMobileNote() {
+    if (!selectedNoteId) return;
+    openMobileNoteEditor(selectedNoteId);
+  }
+
+  function handleMobilePlannerOpen() {
+    setMobileBlockSheetOpen(true);
+    setPlanStatus("");
   }
 
   function handleMobileTabSelect(tab: AppTab | "more") {
@@ -2931,14 +2958,14 @@ export default function HomePage() {
                   className={styles.mobileJumpButton}
                   onClick={() => scrollToSection(calendarMonthRef.current)}
                 >
-                  Month
+                  Calendar
                 </button>
                 <button
                   type="button"
                   className={styles.mobileJumpButton}
-                  onClick={() => scrollToSection(calendarPlannerRef.current)}
+                  onClick={handleMobilePlannerOpen}
                 >
-                  Planner
+                  Time block
                 </button>
               </div>}
               <div ref={calendarHeroRef}>
@@ -3472,6 +3499,104 @@ export default function HomePage() {
                   )}
                 </div>
               </article>
+
+              {isMobileViewport && mobileBlockSheetOpen && (
+                <div
+                  className={styles.feedbackOverlay}
+                  onClick={() => setMobileBlockSheetOpen(false)}
+                >
+                  <div
+                    className={styles.mobileBlockModal}
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <div className={styles.feedbackHeader}>
+                      <div>
+                        <p className={styles.sectionLabel}>Time Block</p>
+                        <h2 className={styles.feedbackTitle}>
+                          Block out{" "}
+                          {new Date(`${selectedDateKey}T00:00:00`).toLocaleDateString(undefined, {
+                            weekday: "short",
+                            month: "short",
+                            day: "numeric",
+                          })}
+                        </h2>
+                      </div>
+                      <button
+                        type="button"
+                        className={styles.feedbackClose}
+                        onClick={() => setMobileBlockSheetOpen(false)}
+                      >
+                        Close
+                      </button>
+                    </div>
+                    <p className={styles.paywallCopy}>
+                      Time blocks are central in Whelm. Add one fast, then return to the calendar.
+                    </p>
+                    <div className={styles.planForm}>
+                      <input
+                        value={planTitle}
+                        onChange={(event) => setPlanTitle(event.target.value)}
+                        placeholder="Task title"
+                        className={styles.planInput}
+                      />
+                      <div className={styles.planFormRow}>
+                        <label className={styles.planLabel}>
+                          Time
+                          <input
+                            type="time"
+                            value={planTime}
+                            onChange={(event) => setPlanTime(event.target.value)}
+                            className={styles.planControl}
+                          />
+                        </label>
+                        <label className={styles.planLabel}>
+                          Minutes
+                          <input
+                            type="number"
+                            min={5}
+                            max={240}
+                            value={planDuration}
+                            onChange={(event) => {
+                              const next = Number(event.target.value);
+                              if (Number.isFinite(next)) {
+                                setPlanDuration(next);
+                              }
+                            }}
+                            className={styles.planControl}
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          className={styles.planAddButton}
+                          onClick={() => {
+                            const title = planTitle.trim();
+                            addPlannedBlock();
+                            if (title) {
+                              setMobileBlockSheetOpen(false);
+                            }
+                          }}
+                        >
+                          Add block
+                        </button>
+                      </div>
+                      {planStatus && <p className={styles.accountMeta}>{planStatus}</p>}
+                    </div>
+                    <div className={styles.mobileBlockList}>
+                      {selectedDatePlans.slice(0, 4).map((item) => (
+                        <div key={item.id} className={styles.mobileBlockItem}>
+                          <strong>{item.title}</strong>
+                          <span>
+                            {item.timeOfDay} • {item.durationMinutes}m
+                          </span>
+                        </div>
+                      ))}
+                      {selectedDatePlans.length === 0 && (
+                        <p className={styles.emptyText}>No blocks yet for this day.</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
             </section>
           )}
 
@@ -3488,21 +3613,12 @@ export default function HomePage() {
                 <button
                   type="button"
                   className={styles.mobileJumpButton}
-                  onClick={() => scrollToSection(notesRecentRef.current)}
-                >
-                  Recent
-                </button>
-                <button
-                  type="button"
-                  className={styles.mobileJumpButton}
                   onClick={() => {
-                    if (!mobileNotesEditorOpen && selectedNoteId) {
-                      setMobileNotesEditorOpen(true);
-                    }
-                    window.setTimeout(() => scrollToSection(notesEditorRef.current), 60);
+                    setMobileNotesRecentOpen(true);
+                    window.setTimeout(() => scrollToSection(notesRecentRef.current), 80);
                   }}
                 >
-                  Editor
+                  Recent notes
                 </button>
               </div>}
 
@@ -3530,7 +3646,7 @@ export default function HomePage() {
                       <button
                         type="button"
                         className={styles.secondaryPlanButton}
-                        onClick={() => setMobileNotesEditorOpen(true)}
+                        onClick={handleOpenCurrentMobileNote}
                       >
                         Open current note
                       </button>
@@ -3539,35 +3655,46 @@ export default function HomePage() {
                 </article>
 
                 <article className={styles.mobileNotesRecentCard} ref={notesRecentRef}>
-                  <div className={styles.cardHeader}>
+                  <button
+                    type="button"
+                    className={styles.mobileSectionToggle}
+                    onClick={() => setMobileNotesRecentOpen((open) => !open)}
+                    aria-expanded={mobileNotesRecentOpen}
+                  >
                     <div>
                       <p className={styles.sectionLabel}>Recent Notes</p>
-                      <h2 className={styles.cardTitle}>Pick up quickly</h2>
+                      <strong className={styles.mobileSectionToggleTitle}>Tap to reopen fast</strong>
                     </div>
-                  </div>
-                  <input
-                    value={notesSearch}
-                    onChange={(event) => setNotesSearch(event.target.value)}
-                    placeholder="Search notes"
-                    className={styles.notesSearchInput}
-                  />
-                  <div className={styles.mobileRecentList}>
-                    {recentNotes.map((note) => (
-                      <button
-                        key={note.id}
-                        type="button"
-                        className={styles.mobileRecentNote}
-                        style={{ backgroundColor: note.color || "#f8fafc" }}
-                        onClick={() => openMobileNoteEditor(note.id)}
-                      >
-                        <strong>{note.title || "Untitled note"}</strong>
-                        <span>{new Date(note.updatedAtISO).toLocaleDateString()}</span>
-                      </button>
-                    ))}
-                    {recentNotes.length === 0 && (
-                      <p className={styles.emptyText}>No notes yet. Start your first one.</p>
-                    )}
-                  </div>
+                    <span>{mobileNotesRecentOpen ? "Hide" : "Open"}</span>
+                  </button>
+
+                  {mobileNotesRecentOpen && (
+                    <>
+                      <input
+                        value={notesSearch}
+                        onChange={(event) => setNotesSearch(event.target.value)}
+                        placeholder="Search notes"
+                        className={styles.notesSearchInput}
+                      />
+                      <div className={styles.mobileRecentList}>
+                        {recentNotes.map((note) => (
+                          <button
+                            key={note.id}
+                            type="button"
+                            className={styles.mobileRecentNote}
+                            style={{ backgroundColor: note.color || "#f8fafc" }}
+                            onClick={() => openMobileNoteEditor(note.id)}
+                          >
+                            <strong>{note.title || "Untitled note"}</strong>
+                            <span>{new Date(note.updatedAtISO).toLocaleDateString()}</span>
+                          </button>
+                        ))}
+                        {recentNotes.length === 0 && (
+                          <p className={styles.emptyText}>No notes yet. Start your first one.</p>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </article>
 
                 {mobileNotesEditorOpen && selectedNote ? (
@@ -3840,7 +3967,7 @@ export default function HomePage() {
               </div>}
 
               {!isMobileViewport && <CompanionPulse {...companionState.pulses.notes} />}
-              <aside className={styles.notesSidebar}>
+              {!isMobileViewport && <aside className={styles.notesSidebar}>
                 <button type="button" className={styles.newNoteButton} onClick={createWorkspaceNote}>
                   + Add Note
                 </button>
@@ -3903,7 +4030,7 @@ export default function HomePage() {
                     <p className={styles.emptyText}>No notes match your filters.</p>
                   )}
                 </div>
-              </aside>
+              </aside>}
 
               {!isMobileViewport && <article className={styles.notesEditorCard}>
                 {!selectedNote ? (

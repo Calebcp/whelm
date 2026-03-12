@@ -2324,6 +2324,43 @@
   width: 88px;
 }
 
+.mobileSectionToggle {
+  width: 100%;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 18px;
+  background: #f8fbff;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  text-align: left;
+  color: #102033;
+}
+
+.mobileSectionToggleTitle {
+  display: block;
+  font-size: 1rem;
+  margin-top: 2px;
+}
+
+.mobileQuickActions {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.mobileQuickAction {
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 16px;
+  background: #f8fbff;
+  color: #102033;
+  padding: 12px 14px;
+  font-weight: 700;
+  text-align: left;
+}
+
 .mobileRecentList {
   margin-top: 12px;
   display: grid;
@@ -2375,6 +2412,35 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.mobileBlockModal {
+  width: min(560px, 100%);
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  border-radius: 24px;
+  background: #f8fbff;
+  padding: 18px;
+  box-shadow: 0 22px 60px rgba(7, 18, 31, 0.34);
+}
+
+.mobileBlockList {
+  margin-top: 14px;
+  display: grid;
+  gap: 8px;
+}
+
+.mobileBlockItem {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.88);
+  padding: 12px 14px;
+  display: grid;
+  gap: 4px;
+}
+
+.mobileBlockItem span {
+  color: #5f6f82;
+  font-size: 0.86rem;
 }
 
 .mobileTodayStack {
@@ -2864,11 +2930,15 @@
   }
 
   .dayViewGrid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 52px minmax(0, 1fr);
+    gap: 6px;
   }
 
   .dayViewTicks {
-    display: none;
+    display: flex;
+    height: 520px;
+    font-size: 0.68rem;
+    color: #526276;
   }
 
   .senseiCardHeader {
@@ -2903,6 +2973,20 @@
 
   .dayViewTrack {
     height: 520px;
+  }
+
+  .dayViewEvent {
+    left: 6px;
+    right: 6px;
+    padding: 6px 8px;
+  }
+
+  .dayViewEvent strong {
+    font-size: 0.8rem;
+  }
+
+  .mobileQuickActions {
+    grid-template-columns: 1fr;
   }
 
   .monthDayCell {
