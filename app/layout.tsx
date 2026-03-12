@@ -13,6 +13,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en">
       <head>
         <link rel="preload" href="/intro/twosecappicon.mp4" as="video" type="video/mp4" />
+        <link rel="preload" href="/emotes/welcomeemoting.mp4" as="video" type="video/mp4" />
+        <link rel="preload" href="/sensei/neutral.png" as="image" />
       </head>
       <body>{children}</body>
     </html>

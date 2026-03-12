@@ -697,7 +697,8 @@ const MOBILE_PRIMARY_TABS: Array<{ key: AppTab | "more"; label: string }> = [
 
 const MOBILE_MORE_TABS: AppTab[] = ["insights", "history", "reports", "settings"];
 
-const INTRO_SPLASH_MS = 2600;
+const INTRO_SPLASH_MIN_MS = 1500;
+const INTRO_SPLASH_MAX_MS = 2200;
 
 function IntroSplash({ onComplete }: { onComplete: () => void }) {
   return (
@@ -797,6 +798,7 @@ export default function HomePage() {
   const [authChecked, setAuthChecked] = useState(false);
   const [showIntroSplash, setShowIntroSplash] = useState(true);
   const [introFinished, setIntroFinished] = useState(false);
+  const [introMinElapsed, setIntroMinElapsed] = useState(false);
   const [landingWisdomMinute, setLandingWisdomMinute] = useState(() => Math.floor(Date.now() / 60000));
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [feedbackCategory, setFeedbackCategory] = useState<FeedbackCategory>("bug");
@@ -1364,16 +1366,24 @@ export default function HomePage() {
   useEffect(() => {
     if (!showIntroSplash) return;
     const timeoutId = window.setTimeout(() => {
-      setIntroFinished(true);
-    }, INTRO_SPLASH_MS);
+      setIntroMinElapsed(true);
+    }, INTRO_SPLASH_MIN_MS);
     return () => window.clearTimeout(timeoutId);
   }, [showIntroSplash]);
 
   useEffect(() => {
     if (!showIntroSplash) return;
-    if (!introFinished || !authChecked) return;
+    if (!introMinElapsed || !introFinished || !authChecked) return;
     setShowIntroSplash(false);
-  }, [authChecked, introFinished, showIntroSplash]);
+  }, [authChecked, introFinished, introMinElapsed, showIntroSplash]);
+
+  useEffect(() => {
+    if (!showIntroSplash) return;
+    const timeoutId = window.setTimeout(() => {
+      setIntroFinished(true);
+    }, INTRO_SPLASH_MAX_MS);
+    return () => window.clearTimeout(timeoutId);
+  }, [showIntroSplash]);
 
   useEffect(() => {
     if (!senseiReaction) return;
