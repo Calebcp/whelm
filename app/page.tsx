@@ -688,6 +688,15 @@ const TAB_META: Array<{ key: AppTab; label: string }> = [
   { key: "settings", label: "Settings" },
 ];
 
+const MOBILE_PRIMARY_TABS: Array<{ key: AppTab | "more"; label: string }> = [
+  { key: "today", label: "Today" },
+  { key: "calendar", label: "Calendar" },
+  { key: "notes", label: "Notes" },
+  { key: "more", label: "More" },
+];
+
+const MOBILE_MORE_TABS: AppTab[] = ["insights", "history", "reports", "settings"];
+
 const INTRO_SPLASH_MS = 2600;
 
 function IntroSplash({ onComplete }: { onComplete: () => void }) {
@@ -796,6 +805,7 @@ export default function HomePage() {
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
   const [reportCopyStatus, setReportCopyStatus] = useState("");
   const [paywallOpen, setPaywallOpen] = useState(false);
+  const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const [senseiReaction, setSenseiReaction] = useState("");
   const [companionStyle, setCompanionStyle] = useState<SenseiCompanionStyle>("balanced");
   const [isPro, setIsPro] = useState(false);
@@ -1953,6 +1963,16 @@ export default function HomePage() {
     setActiveTab("notes");
   }
 
+  function handleMobileTabSelect(tab: AppTab | "more") {
+    if (tab === "more") {
+      setMobileMoreOpen(true);
+      return;
+    }
+
+    setMobileMoreOpen(false);
+    setActiveTab(tab);
+  }
+
   function convertNoteToPlannedBlock(note: WorkspaceNote) {
     if (!user) return;
     const next: PlannedBlock = {
@@ -2423,6 +2443,9 @@ export default function HomePage() {
   if (!user) return null;
 
   const lastSession = sessions[0];
+  const latestNote = orderedNotes[0] ?? null;
+  const nextPlannedBlock = todayPlannedBlocks[0] ?? null;
+  const mobileMoreActive = MOBILE_MORE_TABS.includes(activeTab);
   const maxTrendMinutes = Math.max(30, ...trendPoints.map((point) => point.minutes));
   const trendPath = trendPoints
     .map((point, index) => {
@@ -2502,6 +2525,100 @@ export default function HomePage() {
 
           {activeTab === "today" && (
             <>
+              <section className={styles.mobileTodayStack}>
+                <article className={styles.mobileSummaryCard}>
+                  <p className={styles.sectionLabel}>Today Summary</p>
+                  <div className={styles.mobileSummaryGrid}>
+                    <div className={styles.mobileSummaryItem}>
+                      <span className={styles.mobileSummaryLabel}>Focus</span>
+                      <strong>{focusMetrics.todayMinutes}m</strong>
+                    </div>
+                    <div className={styles.mobileSummaryItem}>
+                      <span className={styles.mobileSummaryLabel}>Sessions</span>
+                      <strong>{focusMetrics.todaySessions}</strong>
+                    </div>
+                    <div className={styles.mobileSummaryItem}>
+                      <span className={styles.mobileSummaryLabel}>Streak</span>
+                      <strong>{streak}d</strong>
+                    </div>
+                  </div>
+                </article>
+
+                <article className={`${styles.card} ${styles.mobileSenseiCard}`}>
+                  <div className={styles.mobileSenseiHeader}>
+                    <SenseiAvatar message={todayHeroCopy.eyebrow} variant="neutral" compact />
+                    <div className={styles.mobileSenseiCopy}>
+                      <p className={styles.senseiSpeechEyebrow}>Whelm</p>
+                      <p className={styles.mobileSenseiTitle}>{todayHeroCopy.title}</p>
+                      <p className={styles.mobileSenseiBody}>{todayHeroCopy.body}</p>
+                    </div>
+                  </div>
+                  <div className={styles.mobileSenseiMetrics}>
+                    <span className={styles.senseiMetricPill}>
+                      Stance: {formatSenseiLabel(senseiGuidance.ritual)}
+                    </span>
+                    <span className={styles.senseiMetricPill}>
+                      Next: {nextSenseiMilestone.next ?? "Legend"}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className={styles.reportButton}
+                    onClick={() => setActiveTab(senseiGuidance.actionTab as AppTab)}
+                  >
+                    {senseiGuidance.actionLabel}
+                  </button>
+                </article>
+
+                <div className={styles.mobileTimerWrap}>
+                  <Timer
+                    minutes={25}
+                    title={FOCUS_TIMER.title}
+                    subtitle={FOCUS_TIMER.subtitle}
+                    actionLabel={FOCUS_TIMER.actionLabel}
+                    theme={FOCUS_TIMER.theme}
+                    onComplete={(note, minutesSpent) => completeSession(note, minutesSpent)}
+                  />
+                </div>
+
+                <article className={styles.card}>
+                  <div className={styles.cardHeader}>
+                    <div>
+                      <p className={styles.sectionLabel}>Today Queue</p>
+                      <h2 className={styles.cardTitle}>What needs attention</h2>
+                    </div>
+                  </div>
+                  <div className={styles.mobileQueueList}>
+                    <button type="button" className={styles.mobileQueueItem} onClick={() => setActiveTab("reports")}>
+                      <span className={styles.mobileQueueLabel}>Summary</span>
+                      <strong>
+                        {focusMetrics.todaySessions} session{focusMetrics.todaySessions === 1 ? "" : "s"} saved
+                      </strong>
+                    </button>
+                    <button type="button" className={styles.mobileQueueItem} onClick={() => setActiveTab("calendar")}>
+                      <span className={styles.mobileQueueLabel}>Next block</span>
+                      <strong>
+                        {nextPlannedBlock
+                          ? `${nextPlannedBlock.title} at ${normalizeTimeLabel(nextPlannedBlock.timeOfDay)}`
+                          : "No planned block for today"}
+                      </strong>
+                    </button>
+                    <button type="button" className={styles.mobileQueueItem} onClick={openNotesTab}>
+                      <span className={styles.mobileQueueLabel}>Latest note</span>
+                      <strong>{latestNote?.title || "Open notes workspace"}</strong>
+                    </button>
+                    <button type="button" className={styles.mobileQueueItem} onClick={openNotesTab}>
+                      <span className={styles.mobileQueueLabel}>Reminders</span>
+                      <strong>
+                        {dueReminderNotes.length > 0
+                          ? `${dueReminderNotes.length} due today`
+                          : "No note reminders due today"}
+                      </strong>
+                    </button>
+                  </div>
+                </article>
+              </section>
+
               <section className={styles.statsGrid}>
                 <article className={styles.statCard}>
                   <span className={styles.statLabel}>Discipline Score</span>
@@ -4339,18 +4456,54 @@ export default function HomePage() {
       </div>
 
       <nav className={styles.bottomTabs}>
-        {TAB_META.map((tab) => (
+        {MOBILE_PRIMARY_TABS.map((tab) => (
           <button
             key={tab.key}
             type="button"
-            className={`${styles.bottomTabButton} ${activeTab === tab.key ? styles.bottomTabButtonActive : ""}`}
-            onClick={() => setActiveTab(tab.key)}
+            className={`${styles.bottomTabButton} ${
+              (tab.key === "more" ? mobileMoreActive || mobileMoreOpen : activeTab === tab.key)
+                ? styles.bottomTabButtonActive
+                : ""
+            }`}
+            onClick={() => handleMobileTabSelect(tab.key)}
           >
-            <span className={styles.bottomTabIcon}>{iconForTab(tab.key)}</span>
+            <span className={styles.bottomTabIcon}>
+              {tab.key === "more" ? "⋯" : iconForTab(tab.key)}
+            </span>
             <span>{tab.label}</span>
           </button>
         ))}
       </nav>
+
+      {mobileMoreOpen && (
+        <div className={styles.feedbackOverlay} onClick={() => setMobileMoreOpen(false)}>
+          <div className={styles.mobileMoreSheet} onClick={(event) => event.stopPropagation()}>
+            <div className={styles.feedbackHeader}>
+              <h2 className={styles.feedbackTitle}>More</h2>
+              <button
+                type="button"
+                className={styles.feedbackClose}
+                onClick={() => setMobileMoreOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+            <div className={styles.mobileMoreGrid}>
+              {MOBILE_MORE_TABS.map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  className={styles.mobileMoreButton}
+                  onClick={() => handleMobileTabSelect(tab)}
+                >
+                  <span className={styles.bottomTabIcon}>{iconForTab(tab)}</span>
+                  <span>{tabTitle(tab)}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {(noteUndoItem || deletedPlanUndo) && (
         <div className={styles.undoToast}>
