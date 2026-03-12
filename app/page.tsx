@@ -844,10 +844,24 @@ export default function HomePage() {
   const [screenTimeBusy, setScreenTimeBusy] = useState(false);
   const [accountDangerStatus, setAccountDangerStatus] = useState("");
   const [deletingAccount, setDeletingAccount] = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
+  const [mobileNotesEditorOpen, setMobileNotesEditorOpen] = useState(false);
+  const [mobileNotesToolsOpen, setMobileNotesToolsOpen] = useState<
+    "format" | "type" | "color" | null
+  >(null);
 
   const editorRef = useRef<HTMLDivElement | null>(null);
   const savedSelectionRef = useRef<Range | null>(null);
   const syncInFlightRef = useRef(false);
+  const todaySummaryRef = useRef<HTMLElement | null>(null);
+  const todayTimerRef = useRef<HTMLDivElement | null>(null);
+  const todayQueueRef = useRef<HTMLElement | null>(null);
+  const calendarHeroRef = useRef<HTMLDivElement | null>(null);
+  const calendarMonthRef = useRef<HTMLElement | null>(null);
+  const calendarPlannerRef = useRef<HTMLElement | null>(null);
+  const notesStartRef = useRef<HTMLElement | null>(null);
+  const notesRecentRef = useRef<HTMLElement | null>(null);
+  const notesEditorRef = useRef<HTMLElement | null>(null);
 
   const streak = computeStreak(sessions);
 
@@ -1312,6 +1326,26 @@ export default function HomePage() {
       setSelectedInsightCategory(insightsChart.ranked[0]?.key ?? "personal");
     }
   }, [insightsChart.ranked, insightsChart.segments, selectedInsightCategory]);
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 760px)");
+    const updateViewport = () => setIsMobileViewport(media.matches);
+    updateViewport();
+    media.addEventListener("change", updateViewport);
+    return () => media.removeEventListener("change", updateViewport);
+  }, []);
+
+  useEffect(() => {
+    if (!isMobileViewport) {
+      setMobileMoreOpen(false);
+      setMobileNotesToolsOpen(null);
+      return;
+    }
+
+    if (!selectedNoteId) {
+      setMobileNotesEditorOpen(false);
+    }
+  }, [isMobileViewport, selectedNoteId]);
 
   useEffect(() => {
     if (!showIntroSplash) return;
@@ -1963,6 +1997,23 @@ export default function HomePage() {
     setActiveTab("notes");
   }
 
+  function scrollToSection(target: HTMLElement | null) {
+    if (!target) return;
+    target.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function openMobileNoteEditor(noteId: string) {
+    setSelectedNoteId(noteId);
+    setMobileNotesEditorOpen(true);
+    setMobileNotesToolsOpen(null);
+  }
+
+  async function handleMobileCreateNote() {
+    await createWorkspaceNote();
+    setMobileNotesEditorOpen(true);
+    setMobileNotesToolsOpen(null);
+  }
+
   function handleMobileTabSelect(tab: AppTab | "more") {
     if (tab === "more") {
       setMobileMoreOpen(true);
@@ -2446,6 +2497,7 @@ export default function HomePage() {
   const latestNote = orderedNotes[0] ?? null;
   const nextPlannedBlock = todayPlannedBlocks[0] ?? null;
   const mobileMoreActive = MOBILE_MORE_TABS.includes(activeTab);
+  const recentNotes = filteredNotes.slice(0, 4);
   const maxTrendMinutes = Math.max(30, ...trendPoints.map((point) => point.minutes));
   const trendPath = trendPoints
     .map((point, index) => {
@@ -2525,8 +2577,32 @@ export default function HomePage() {
 
           {activeTab === "today" && (
             <>
-              <section className={styles.mobileTodayStack}>
-                <article className={styles.mobileSummaryCard}>
+              {isMobileViewport && <section className={styles.mobileTodayStack}>
+                <div className={styles.mobileJumpRow}>
+                  <button
+                    type="button"
+                    className={styles.mobileJumpButton}
+                    onClick={() => scrollToSection(todaySummaryRef.current)}
+                  >
+                    Summary
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.mobileJumpButton}
+                    onClick={() => scrollToSection(todayTimerRef.current)}
+                  >
+                    Timer
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.mobileJumpButton}
+                    onClick={() => scrollToSection(todayQueueRef.current)}
+                  >
+                    Queue
+                  </button>
+                </div>
+
+                <article className={styles.mobileSummaryCard} ref={todaySummaryRef}>
                   <p className={styles.sectionLabel}>Today Summary</p>
                   <div className={styles.mobileSummaryGrid}>
                     <div className={styles.mobileSummaryItem}>
@@ -2570,7 +2646,7 @@ export default function HomePage() {
                   </button>
                 </article>
 
-                <div className={styles.mobileTimerWrap}>
+                <div className={styles.mobileTimerWrap} ref={todayTimerRef}>
                   <Timer
                     minutes={25}
                     title={FOCUS_TIMER.title}
@@ -2581,7 +2657,7 @@ export default function HomePage() {
                   />
                 </div>
 
-                <article className={styles.card}>
+                <article className={styles.card} ref={todayQueueRef}>
                   <div className={styles.cardHeader}>
                     <div>
                       <p className={styles.sectionLabel}>Today Queue</p>
@@ -2617,7 +2693,7 @@ export default function HomePage() {
                     </button>
                   </div>
                 </article>
-              </section>
+              </section>}
 
               <section className={styles.statsGrid}>
                 <article className={styles.statCard}>
@@ -2842,8 +2918,33 @@ export default function HomePage() {
 
           {activeTab === "calendar" && (
             <section className={styles.calendarGrid}>
-              <CompanionPulse {...companionState.pulses.calendar} />
-              <article className={styles.card}>
+              {isMobileViewport && <div className={styles.mobileJumpRow}>
+                <button
+                  type="button"
+                  className={styles.mobileJumpButton}
+                  onClick={() => scrollToSection(calendarHeroRef.current)}
+                >
+                  Guide
+                </button>
+                <button
+                  type="button"
+                  className={styles.mobileJumpButton}
+                  onClick={() => scrollToSection(calendarMonthRef.current)}
+                >
+                  Month
+                </button>
+                <button
+                  type="button"
+                  className={styles.mobileJumpButton}
+                  onClick={() => scrollToSection(calendarPlannerRef.current)}
+                >
+                  Planner
+                </button>
+              </div>}
+              <div ref={calendarHeroRef}>
+                <CompanionPulse {...companionState.pulses.calendar} />
+              </div>
+              <article className={styles.card} ref={calendarMonthRef}>
                 <p className={styles.sectionLabel}>
                   {calendarView === "month" ? "Month View" : "Day Timeline"}
                 </p>
@@ -3210,7 +3311,7 @@ export default function HomePage() {
                 </div>
               </article>
 
-              <article className={styles.card}>
+              <article className={styles.card} ref={calendarPlannerRef}>
                 <p className={styles.sectionLabel}>Scheduler</p>
                 <h2 className={styles.cardTitle}>
                   Day agenda for{" "}
@@ -3376,7 +3477,369 @@ export default function HomePage() {
 
           {activeTab === "notes" && (
             <section className={styles.notesWorkspace}>
-              <CompanionPulse {...companionState.pulses.notes} />
+              {isMobileViewport && <div className={styles.mobileJumpRow}>
+                <button
+                  type="button"
+                  className={styles.mobileJumpButton}
+                  onClick={() => scrollToSection(notesStartRef.current)}
+                >
+                  Start
+                </button>
+                <button
+                  type="button"
+                  className={styles.mobileJumpButton}
+                  onClick={() => scrollToSection(notesRecentRef.current)}
+                >
+                  Recent
+                </button>
+                <button
+                  type="button"
+                  className={styles.mobileJumpButton}
+                  onClick={() => {
+                    if (!mobileNotesEditorOpen && selectedNoteId) {
+                      setMobileNotesEditorOpen(true);
+                    }
+                    window.setTimeout(() => scrollToSection(notesEditorRef.current), 60);
+                  }}
+                >
+                  Editor
+                </button>
+              </div>}
+
+              {isMobileViewport && <div className={styles.mobileNotesPanel}>
+                <article className={styles.mobileNotesStartCard} ref={notesStartRef}>
+                  <div className={styles.mobileNotesStartHeader}>
+                    <SenseiFigure variant="anchor" size="inline" className={styles.mobileNotesSensei} />
+                    <div>
+                      <p className={styles.sectionLabel}>Writing Studio</p>
+                      <h2 className={styles.cardTitle}>Start writing without the clutter</h2>
+                    </div>
+                  </div>
+                  <p className={styles.accountMeta}>
+                    Open a clean page first. Bring formatting tools in only when you need them.
+                  </p>
+                  <div className={styles.noteFooterActions}>
+                    <button
+                      type="button"
+                      className={styles.newNoteButton}
+                      onClick={() => void handleMobileCreateNote()}
+                    >
+                      Start writing
+                    </button>
+                    {selectedNoteId && (
+                      <button
+                        type="button"
+                        className={styles.secondaryPlanButton}
+                        onClick={() => setMobileNotesEditorOpen(true)}
+                      >
+                        Open current note
+                      </button>
+                    )}
+                  </div>
+                </article>
+
+                <article className={styles.mobileNotesRecentCard} ref={notesRecentRef}>
+                  <div className={styles.cardHeader}>
+                    <div>
+                      <p className={styles.sectionLabel}>Recent Notes</p>
+                      <h2 className={styles.cardTitle}>Pick up quickly</h2>
+                    </div>
+                  </div>
+                  <input
+                    value={notesSearch}
+                    onChange={(event) => setNotesSearch(event.target.value)}
+                    placeholder="Search notes"
+                    className={styles.notesSearchInput}
+                  />
+                  <div className={styles.mobileRecentList}>
+                    {recentNotes.map((note) => (
+                      <button
+                        key={note.id}
+                        type="button"
+                        className={styles.mobileRecentNote}
+                        style={{ backgroundColor: note.color || "#f8fafc" }}
+                        onClick={() => openMobileNoteEditor(note.id)}
+                      >
+                        <strong>{note.title || "Untitled note"}</strong>
+                        <span>{new Date(note.updatedAtISO).toLocaleDateString()}</span>
+                      </button>
+                    ))}
+                    {recentNotes.length === 0 && (
+                      <p className={styles.emptyText}>No notes yet. Start your first one.</p>
+                    )}
+                  </div>
+                </article>
+
+                {mobileNotesEditorOpen && selectedNote ? (
+                  <article className={styles.mobileNotesEditorCard} ref={notesEditorRef}>
+                    <div className={styles.notesStudioHero}>
+                      <div>
+                        <p className={styles.sectionLabel}>Editing</p>
+                        <h2 className={styles.cardTitle}>{selectedNote.title || "Untitled note"}</h2>
+                      </div>
+                      <div className={styles.noteFooterActions}>
+                        <button
+                          type="button"
+                          className={styles.noteColorPickerTrigger}
+                          onClick={() => {
+                            setColorPickerOpen((open) => !open);
+                            setTextColorPickerOpen(false);
+                            setHighlightPickerOpen(false);
+                          }}
+                        >
+                          <span
+                            className={styles.noteColorPickerPreview}
+                            style={{ backgroundColor: selectedNote.color || "#e7e5e4" }}
+                          />
+                          Page tone
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.secondaryPlanButton}
+                          onClick={() => setMobileNotesEditorOpen(false)}
+                        >
+                          Done
+                        </button>
+                      </div>
+                    </div>
+
+                    {colorPickerOpen && (
+                      <div className={styles.noteColorPickerPopover}>
+                        {NOTE_COLORS.map((color) => (
+                          <button
+                            type="button"
+                            key={color.value}
+                            className={`${styles.noteColorSwatch} ${
+                              selectedNote.color === color.value ? styles.noteColorSwatchActive : ""
+                            }`}
+                            style={{ backgroundColor: color.value }}
+                            title={color.label}
+                            onClick={() => {
+                              void updateSelectedNote({ color: color.value });
+                              setColorPickerOpen(false);
+                            }}
+                          />
+                        ))}
+                      </div>
+                    )}
+
+                    <div className={styles.mobileNotesControls}>
+                      <button
+                        type="button"
+                        className={`${styles.mobileControlToggle} ${
+                          mobileNotesToolsOpen === "format" ? styles.mobileControlToggleActive : ""
+                        }`}
+                        onClick={() =>
+                          setMobileNotesToolsOpen((current) => (current === "format" ? null : "format"))
+                        }
+                      >
+                        Format
+                      </button>
+                      <button
+                        type="button"
+                        className={`${styles.mobileControlToggle} ${
+                          mobileNotesToolsOpen === "type" ? styles.mobileControlToggleActive : ""
+                        }`}
+                        onClick={() =>
+                          setMobileNotesToolsOpen((current) => (current === "type" ? null : "type"))
+                        }
+                      >
+                        Type
+                      </button>
+                      <button
+                        type="button"
+                        className={`${styles.mobileControlToggle} ${
+                          mobileNotesToolsOpen === "color" ? styles.mobileControlToggleActive : ""
+                        }`}
+                        onClick={() =>
+                          setMobileNotesToolsOpen((current) => (current === "color" ? null : "color"))
+                        }
+                      >
+                        Color
+                      </button>
+                    </div>
+
+                    {mobileNotesToolsOpen === "format" && (
+                      <div className={styles.mobileToolPanel}>
+                        <button type="button" className={styles.noteToolButton} onClick={() => applyEditorCommand("bold")}>
+                          Bold
+                        </button>
+                        <button type="button" className={styles.noteToolButton} onClick={() => applyEditorCommand("italic")}>
+                          Italic
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.noteToolButton}
+                          onClick={() => applyEditorCommand("underline")}
+                        >
+                          Underline
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.noteToolButton}
+                          onClick={() => applyEditorCommand("insertUnorderedList")}
+                        >
+                          Bullet
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.noteToolButton}
+                          onClick={() => applyEditorCommand("formatBlock", "H1")}
+                        >
+                          H1
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.noteToolButton}
+                          onClick={() => applyEditorCommand("formatBlock", "H2")}
+                        >
+                          H2
+                        </button>
+                      </div>
+                    )}
+
+                    {mobileNotesToolsOpen === "type" && (
+                      <div className={styles.mobileToolPanel}>
+                        <select
+                          className={styles.noteToolSelect}
+                          value={selectedNote.fontFamily}
+                          onChange={(event) => {
+                            const nextFont = event.target.value;
+                            applyEditorCommand("fontName", nextFont);
+                            void updateSelectedNote({ fontFamily: nextFont });
+                          }}
+                        >
+                          {NOTE_FONTS.map((font) => (
+                            <option key={font.label} value={font.value}>
+                              {font.label}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          className={styles.noteToolSelect}
+                          value={String(selectedNote.fontSizePx)}
+                          onChange={(event) => {
+                            const nextSize = Number(event.target.value);
+                            const option = NOTE_FONT_SIZES.find((item) => item.value === nextSize);
+                            applyEditorCommand("fontSize", option?.command ?? "4");
+                            void updateSelectedNote({ fontSizePx: nextSize });
+                          }}
+                        >
+                          {NOTE_FONT_SIZES.map((size) => (
+                            <option key={size.value} value={size.value}>
+                              {size.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    {mobileNotesToolsOpen === "color" && (
+                      <div className={styles.mobileToolPanel}>
+                        <button
+                          type="button"
+                          className={styles.noteToolButton}
+                          onClick={() => {
+                            setTextColorPickerOpen((open) => !open);
+                            setHighlightPickerOpen(false);
+                          }}
+                        >
+                          Text color
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.noteToolButton}
+                          onClick={() => {
+                            setHighlightPickerOpen((open) => !open);
+                            setTextColorPickerOpen(false);
+                          }}
+                        >
+                          Highlight
+                        </button>
+                        {textColorPickerOpen && (
+                          <div className={styles.noteInlinePalettePopover}>
+                            {NOTE_TEXT_COLORS.map((color) => (
+                              <button
+                                type="button"
+                                key={color.value}
+                                className={styles.noteInlineSwatch}
+                                style={{ backgroundColor: color.value }}
+                                onClick={() => {
+                                  applyEditorCommand("foreColor", color.value);
+                                  setTextColorPickerOpen(false);
+                                }}
+                              />
+                            ))}
+                          </div>
+                        )}
+                        {highlightPickerOpen && (
+                          <div className={styles.noteInlinePalettePopover}>
+                            {NOTE_HIGHLIGHTS.map((color) => (
+                              <button
+                                type="button"
+                                key={color.value}
+                                className={styles.noteInlineSwatch}
+                                style={{ backgroundColor: color.value }}
+                                onClick={() => {
+                                  applyHighlightColor(color.value);
+                                  setHighlightPickerOpen(false);
+                                }}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <input
+                      value={selectedNote.title}
+                      onChange={(event) => {
+                        void updateSelectedNote({ title: event.target.value });
+                      }}
+                      placeholder="Note title"
+                      className={styles.noteTitleInput}
+                    />
+                    <div
+                      ref={editorRef}
+                      className={styles.noteBodyInput}
+                      contentEditable
+                      suppressContentEditableWarning
+                      style={{
+                        fontFamily: selectedNote.fontFamily,
+                        fontSize: `${selectedNote.fontSizePx}px`,
+                      }}
+                      onInput={() => {
+                        captureEditorDraft();
+                        saveEditorSelection();
+                      }}
+                      onBlur={() => {
+                        captureEditorDraft();
+                      }}
+                      onMouseUp={() => saveEditorSelection()}
+                      onKeyUp={() => saveEditorSelection()}
+                      onFocus={() => saveEditorSelection()}
+                    />
+                    <div className={styles.noteFooterActions}>
+                      <button
+                        type="button"
+                        className={styles.reportButton}
+                        onClick={() => convertNoteToPlannedBlock(selectedNote)}
+                      >
+                        Convert to Plan
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.deleteNoteButton}
+                        onClick={() => void deleteNote(selectedNote.id)}
+                      >
+                        Delete note
+                      </button>
+                    </div>
+                  </article>
+                ) : null}
+              </div>}
+
+              {!isMobileViewport && <CompanionPulse {...companionState.pulses.notes} />}
               <aside className={styles.notesSidebar}>
                 <button type="button" className={styles.newNoteButton} onClick={createWorkspaceNote}>
                   + Add Note
@@ -3442,7 +3905,7 @@ export default function HomePage() {
                 </div>
               </aside>
 
-              <article className={styles.notesEditorCard}>
+              {!isMobileViewport && <article className={styles.notesEditorCard}>
                 {!selectedNote ? (
                   <div className={styles.notesEmptyEditor}>
                     <SenseiFigure
@@ -3853,7 +4316,7 @@ export default function HomePage() {
                     </div>
                   </>
                 )}
-              </article>
+              </article>}
             </section>
           )}
 
