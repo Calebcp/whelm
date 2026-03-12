@@ -3030,7 +3030,12 @@ export default function HomePage() {
               <div ref={calendarHeroRef}>
                 <CompanionPulse {...companionState.pulses.calendar} />
               </div>
-              <article className={styles.card} ref={calendarMonthRef}>
+              <article
+                className={`${styles.card} ${
+                  !isMobileViewport && calendarView === "day" ? styles.calendarPrimaryExpanded : ""
+                }`}
+                ref={calendarMonthRef}
+              >
                 <p className={styles.sectionLabel}>
                   {calendarView === "month" ? "Month View" : "Day Timeline"}
                 </p>
