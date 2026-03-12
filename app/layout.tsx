@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
 import "./globals.css";
-import OvernightWarning from "./overnight-warning";
 
 export const metadata: Metadata = {
   title: "WHELM",
@@ -12,9 +11,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body>
-        <OvernightWarning>{children}</OvernightWarning>
-      </body>
+      <head>
+        <link rel="preload" href="/intro/twosecappicon.mp4" as="video" type="video/mp4" />
+      </head>
+      <body>{children}</body>
     </html>
   );
 }

@@ -9,28 +9,23 @@ export type SessionDoc = {
   noteSavedAtISO?: string;
 };
 
-function pad2(value: number) {
-  return String(value).padStart(2, "0");
+function pad2(n: number) {
+  return String(n).padStart(2, "0");
 }
 
-function ymdLocal(date: Date) {
-  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+function ymdLocal(d: Date) {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 }
 
 export function computeStreak(sessions: SessionDoc[]) {
   const days = new Set<string>();
-
-  for (const session of sessions) {
-    days.add(ymdLocal(new Date(session.completedAtISO)));
-  }
+  for (const s of sessions) days.add(ymdLocal(new Date(s.completedAtISO)));
 
   let streak = 0;
   const cursor = new Date();
-
   while (days.has(ymdLocal(cursor))) {
     streak += 1;
     cursor.setDate(cursor.getDate() - 1);
   }
-
   return streak;
 }

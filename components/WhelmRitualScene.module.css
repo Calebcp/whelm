@@ -1,0 +1,24 @@
+.scene {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 180px;
+  pointer-events: none;
+}
+
+.scene :global(canvas) {
+  width: 100% !important;
+  height: 100% !important;
+  background: transparent !important;
+}
+
+.overlayGlow {
+  position: absolute;
+  inset: 16% 18% 10%;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 50% 48%, rgba(191, 219, 254, 0.24), transparent 32%),
+    radial-gradient(circle at 50% 56%, rgba(167, 139, 250, 0.18), transparent 26%);
+  filter: blur(14px);
+  opacity: 0.84;
+}
