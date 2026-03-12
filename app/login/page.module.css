@@ -169,6 +169,36 @@
   backdrop-filter: blur(10px);
 }
 
+.mobileWelcomeCard {
+  display: none;
+}
+
+.mobileWelcomeFigure {
+  flex: 0 0 auto;
+}
+
+.mobileWelcomeSensei {
+  width: 96px;
+}
+
+.mobileWelcomeCopy {
+  display: grid;
+  gap: 6px;
+}
+
+.mobileWelcomeTitle {
+  margin: 0;
+  font-size: 1.5rem;
+  letter-spacing: -0.04em;
+  color: #102033;
+}
+
+.mobileWelcomeBody {
+  margin: 0;
+  color: #5f6f82;
+  line-height: 1.5;
+}
+
 .formHeader {
   margin-bottom: 20px;
 }
@@ -305,12 +335,28 @@
     gap: 16px;
   }
 
+  .storyPanel {
+    display: none;
+  }
+
   .storyInner {
     padding: 22px;
   }
 
   .formShell {
     padding: 22px;
+  }
+
+  .mobileWelcomeCard {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 18px;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 22px;
+    background: linear-gradient(135deg, rgba(232, 240, 250, 0.96), rgba(245, 249, 255, 0.96));
+    padding: 14px;
   }
 
   .title {
@@ -326,5 +372,33 @@
     left: 50%;
     transform: translateX(-50%);
     width: min(360px, 92%);
+  }
+
+  .formHeader {
+    margin-bottom: 16px;
+  }
+
+  .formTitle {
+    font-size: 1.35rem;
+  }
+
+  .formCopy {
+    font-size: 0.98rem;
+  }
+
+  .fieldBlock {
+    gap: 10px;
+  }
+
+  .input {
+    padding: 14px 15px;
+  }
+
+  .submitButton {
+    padding: 14px 18px;
+  }
+
+  .helperText {
+    font-size: 0.9rem;
   }
 }

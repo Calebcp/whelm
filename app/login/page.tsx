@@ -131,6 +131,24 @@ export default function LoginPage() {
 
         <section className={styles.formPanel}>
           <div className={styles.formShell}>
+            <div className={styles.mobileWelcomeCard}>
+              <div className={styles.mobileWelcomeFigure}>
+                <SenseiFigure
+                  variant="wave"
+                  size="inline"
+                  align="left"
+                  className={styles.mobileWelcomeSensei}
+                />
+              </div>
+              <div className={styles.mobileWelcomeCopy}>
+                <p className={styles.kicker}>WHELM</p>
+                <h2 className={styles.mobileWelcomeTitle}>Welcome back.</h2>
+                <p className={styles.mobileWelcomeBody}>
+                  Keep the login close. Whelm is here, and your system is ready when you are.
+                </p>
+              </div>
+            </div>
+
             <div className={styles.formHeader}>
               <div className={styles.modeSwitch}>
                 <button
