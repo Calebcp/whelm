@@ -131,29 +131,29 @@ function relationshipStage(totalSessions: number, streak: number, totalMinutes: 
 function signatureLine(mode: SenseiVoiceMode, style: SenseiCompanionStyle) {
   const byMode: Record<SenseiVoiceMode, Record<SenseiCompanionStyle, string>> = {
     calm: {
-      gentle: "Small honest actions calm the mind faster than big promises.",
-      balanced: "Clarity first. Intensity second.",
-      strict: "Steady form beats emotional noise.",
+      gentle: "Laozi: quiet order is stronger than noisy strain.",
+      balanced: "Marcus Aurelius: clarity first, then action.",
+      strict: "Aristotle: steady form beats emotional noise.",
     },
     firm: {
-      gentle: "Do not be harsh. Just be exact.",
-      balanced: "Protect the promise with action, not negotiation.",
-      strict: "Discipline is self-respect in visible form.",
+      gentle: "Confucius: correct the step before you force the pace.",
+      balanced: "Seneca: protect time with action, not negotiation.",
+      strict: "Epictetus: discipline begins where excuses lose power.",
     },
     proud: {
-      gentle: "You did not need perfection to earn this.",
-      balanced: "The work is beginning to look like identity.",
-      strict: "Stand on the result, then raise the standard.",
+      gentle: "Mencius: growth comes from what you keep tending.",
+      balanced: "Aristotle: the work is starting to look like character.",
+      strict: "Sun Tzu: hold the ground you have taken.",
     },
     concerned: {
-      gentle: "A hard day still deserves a clean next move.",
-      balanced: "Do not spiral. Reduce the problem and move.",
-      strict: "Recover the day before the day hardens against you.",
+      gentle: "Laozi: return quietly and continue.",
+      balanced: "Seneca: reduce the problem and move.",
+      strict: "Confucius: restore the next right action before the day hardens.",
     },
     playful: {
-      gentle: "We are not chasing drama today, only momentum.",
-      balanced: "A tiny win still counts as a win.",
-      strict: "Even a quiet start is still a start. Move.",
+      gentle: "Zhuangzi: a small movement still belongs to the Way.",
+      balanced: "Epictetus: begin with what is still in your power.",
+      strict: "Marcus Aurelius: stop circling and begin.",
     },
   };
 
@@ -315,15 +315,15 @@ function buildPulseCalendar(input: CompanionEngineInput): CompanionPulse {
   if (input.todaySessions === 0 && input.plannedTodayCount === 0) {
     return {
       eyebrow: "Whelm Read",
-      title: "An empty calendar is not a plan.",
-      body: "Place one block where your energy is most likely to survive contact with reality.",
+      title: "Seneca would not mistake blank space for intention.",
+      body: "Place one block where your energy is most likely to survive contact with reality. A named hour resists drift better than a wish.",
       variant: "meditate",
     };
   }
 
   return {
     eyebrow: "Whelm Read",
-    title: "Shape the day before the day shapes you.",
+    title: "Sun Tzu would secure the ground before the contest.",
     body: "Use the calendar to reduce negotiation. A scheduled block is easier to obey than a vague promise.",
     variant: "scholar",
   };
@@ -333,7 +333,7 @@ function buildPulseNotes(input: CompanionEngineInput): CompanionPulse {
   if (input.notesCount === 0) {
     return {
       eyebrow: "Writing Studio",
-      title: "Capture the thought before it leaks away.",
+      title: "Confucius would write the matter clearly before judging it.",
       body: "Whelm is strongest when your plans and reflections are written where you can meet them again.",
       variant: "scholar",
     };
@@ -342,7 +342,7 @@ function buildPulseNotes(input: CompanionEngineInput): CompanionPulse {
   if (input.notesUpdated7d === 0) {
     return {
       eyebrow: "Writing Studio",
-      title: "Your notes are waiting for a return.",
+      title: "Montaigne would return to the page, not merely to the mood.",
       body: "Revive one page today. Whelm becomes more useful when your written world stays current.",
       variant: "bowed",
     };
@@ -350,7 +350,7 @@ function buildPulseNotes(input: CompanionEngineInput): CompanionPulse {
 
   return {
     eyebrow: "Writing Studio",
-    title: "Use notes as dialogue, not storage.",
+    title: "Marcus Aurelius treated writing like a private correction.",
     body: "Write what matters, what changed, and what the next move is. That is how Whelm becomes an accountability partner.",
     variant: "anchor",
   };
@@ -360,7 +360,7 @@ function buildPulseInsights(input: CompanionEngineInput): CompanionPulse {
   if (input.totalSessions < 3) {
     return {
       eyebrow: "Pattern Read",
-      title: "The data will sharpen once you show up a few times.",
+      title: "Aristotle would ask for repeated action before theory.",
       body: "Do not chase perfect analytics first. Give Whelm enough honest reps to read your rhythm.",
       variant: "neutral",
     };
@@ -368,7 +368,7 @@ function buildPulseInsights(input: CompanionEngineInput): CompanionPulse {
 
   return {
     eyebrow: "Pattern Read",
-    title: "Look for behavior, not vanity.",
+    title: "Aristotle looked for habits, not wishes.",
     body: "The insight tab should tell you where discipline is leaking and where effort is actually compounding.",
     variant: "scholar",
   };
@@ -378,7 +378,7 @@ function buildPulseHistory(input: CompanionEngineInput): CompanionPulse {
   if (input.totalSessions === 0) {
     return {
       eyebrow: "Proof Log",
-      title: "Your first session will teach Whelm your pace.",
+      title: "Heraclitus would trust the record of motion over intention.",
       body: "Once the log starts, the relationship becomes specific. Until then, everything is guesswork.",
       variant: "wave",
     };
@@ -386,7 +386,7 @@ function buildPulseHistory(input: CompanionEngineInput): CompanionPulse {
 
   return {
     eyebrow: "Proof Log",
-    title: "History is where trust is built.",
+    title: "History is where action stops pretending.",
     body: "Whelm should remember what you actually did, not just what you meant to do.",
     variant: input.streak >= 7 ? "applause" : "neutral",
   };
@@ -395,11 +395,11 @@ function buildPulseHistory(input: CompanionEngineInput): CompanionPulse {
 function buildPulseReports(input: CompanionEngineInput): CompanionPulse {
   return {
     eyebrow: "Weekly Read",
-    title: input.weekMinutes >= 420 ? "The numbers are starting to match the identity." : "The report is a mirror, not a verdict.",
+    title: input.weekMinutes >= 420 ? "Aristotle would say repetition is turning into character." : "The report is a mirror, not a verdict.",
     body:
       input.weekMinutes >= 420
         ? "Strong weeks deserve recognition. Now preserve the standard without turning it into theater."
-        : "Use reports to adjust the system, not to punish yourself. The next good week starts with one corrected behavior.",
+        : "Use reports to adjust the system, not to punish yourself. Seneca would shorten the lesson to one corrected behavior.",
     variant: input.weekMinutes >= 420 ? "victory" : "scholar",
   };
 }
@@ -410,7 +410,7 @@ function buildPulseSettings(input: CompanionEngineInput, stage: SenseiRelationsh
     title: `${stageLabel(stage)} is active.`,
     body:
       input.streak > 0
-        ? `Whelm is most useful when the system stays reliable. Protect sync, permissions, and routines so your ${input.streak}-day streak has a clean home.`
+        ? `Whelm is most useful when the system stays reliable. Confucius would keep the ritual clean so your ${input.streak}-day streak has a proper home.`
         : "A strong guide needs a strong system. Keep setup clean so encouragement never replaces structure.",
     variant: "anchor",
   };

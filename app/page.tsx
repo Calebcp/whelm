@@ -55,34 +55,34 @@ const FOCUS_TIMER = {
 
 const LANDING_WISDOM_ROTATION = [
   {
-    title: "Protect the first serious hour.",
-    body: "What begins scattered usually stays scattered. Give the first clean block to the work that matters most.",
-    signatureLine: "Early order creates later freedom.",
+    title: "Marcus Aurelius would begin before complaint.",
+    body: "What begins scattered usually stays scattered. Give the first clean block to the work that matters most before mood starts negotiating.",
+    signatureLine: "Marcus Aurelius: the task in front of you is enough.",
   },
   {
-    title: "Remove friction before you need discipline.",
+    title: "Confucius would call this rectifying the room.",
     body: "Discipline is stronger when the path is already clear. Prepare the desk, the tab, and the task before you begin.",
-    signatureLine: "Preparation is quiet productivity.",
+    signatureLine: "Confucius: order outside helps order within.",
   },
   {
-    title: "Small completions build real momentum.",
+    title: "Seneca would distrust grand intentions without proof.",
     body: "Do not wait for a perfect wave of energy. Finish one meaningful piece, then let progress pull you forward.",
-    signatureLine: "Motion respects the one who starts.",
+    signatureLine: "Seneca: lost time is usually surrendered in fragments.",
   },
   {
-    title: "Attention is a gate, not a flood.",
+    title: "Laozi would reduce before he adds.",
     body: "Let fewer things through. A focused day is often just a day with fewer unnecessary openings.",
-    signatureLine: "Guard attention like a scarce asset.",
+    signatureLine: "Laozi: to gain clarity, subtract what is needless.",
   },
   {
-    title: "Return quickly after interruption.",
+    title: "Epictetus would ask what still remains in your control.",
     body: "The danger is rarely the interruption itself. The danger is drifting after it. Re-entry is a skill.",
-    signatureLine: "Come back before noise settles in.",
+    signatureLine: "Epictetus: reclaim the next action before the mood takes the room.",
   },
   {
-    title: "Depth beats intensity.",
+    title: "Aristotle would call depth a trained habit.",
     body: "You do not need a dramatic sprint every hour. You need enough calm pressure to stay with the work until it yields.",
-    signatureLine: "Steady force outlasts bursts.",
+    signatureLine: "Aristotle: what you repeat becomes part of you.",
   },
 ];
 
@@ -876,6 +876,7 @@ export default function HomePage() {
   const todayQueueRef = useRef<HTMLElement | null>(null);
   const calendarHeroRef = useRef<HTMLDivElement | null>(null);
   const calendarMonthRef = useRef<HTMLElement | null>(null);
+  const calendarStreakRef = useRef<HTMLElement | null>(null);
   const calendarPlannerRef = useRef<HTMLElement | null>(null);
   const notesStartRef = useRef<HTMLElement | null>(null);
   const notesRecentRef = useRef<HTMLElement | null>(null);
@@ -2979,9 +2980,9 @@ export default function HomePage() {
                 <button
                   type="button"
                   className={styles.mobileJumpButton}
-                  onClick={() => scrollToSection(calendarHeroRef.current)}
+                  onClick={() => scrollToSection(calendarStreakRef.current)}
                 >
-                  Guide
+                  Streak
                 </button>
                 <button
                   type="button"
@@ -3348,7 +3349,7 @@ export default function HomePage() {
                 )}
               </article>
 
-              <article id="calendar-scheduler" className={styles.card}>
+              <article id="calendar-scheduler" className={styles.card} ref={calendarStreakRef}>
                 <p className={styles.sectionLabel}>Last 4 Weeks</p>
                 <h2 className={styles.cardTitle}>Streak heatmap</h2>
                 <div className={styles.streakGrid}>
