@@ -117,7 +117,11 @@ export default function SenseiFigure({
 
   useEffect(() => {
     if (!emoteVideoSrc || !autoPlayEmote) return;
-    setShowEmote(true);
+    setShowEmote(false);
+    const frameId = window.requestAnimationFrame(() => {
+      setShowEmote(true);
+    });
+    return () => window.cancelAnimationFrame(frameId);
   }, [autoPlayEmote, emoteVideoSrc]);
 
   useEffect(() => {
@@ -132,14 +136,17 @@ export default function SenseiFigure({
 
   function triggerEmote() {
     if (!emoteVideoSrc) return;
-    const video = videoRef.current;
-    if (video) {
-      video.currentTime = 0;
-      void video.play().catch(() => {
-        setShowEmote(false);
-      });
-    }
-    setShowEmote(true);
+    setShowEmote(false);
+    window.requestAnimationFrame(() => {
+      const video = videoRef.current;
+      setShowEmote(true);
+      if (video) {
+        video.currentTime = 0;
+        void video.play().catch(() => {
+          setShowEmote(false);
+        });
+      }
+    });
   }
 
   return (

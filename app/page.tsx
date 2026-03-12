@@ -2649,7 +2649,13 @@ export default function HomePage() {
 
                 <article className={`${styles.card} ${styles.mobileSenseiCard}`}>
                   <div className={styles.mobileSenseiHeader}>
-                    <SenseiAvatar message={todayHeroCopy.eyebrow} variant="neutral" compact />
+                    <SenseiAvatar
+                      message={todayHeroCopy.eyebrow}
+                      variant="neutral"
+                      compact
+                      emoteVideoSrc="/emotes/welcomeemoting.mp4"
+                      autoPlayEmote
+                    />
                     <div className={styles.mobileSenseiCopy}>
                       <p className={styles.senseiSpeechEyebrow}>Whelm</p>
                       <p className={styles.mobileSenseiTitle}>{todayHeroCopy.title}</p>
