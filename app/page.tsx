@@ -4312,13 +4312,35 @@ export default function HomePage() {
                   </span>
                 </div>
                 {!isPro ? (
-                  <button type="button" className={styles.inlineUpgrade} onClick={openUpgradeFlow}>
-                    Whelm Pro coming soon
-                  </button>
+                  <div className={styles.noteFooterActions}>
+                    <button type="button" className={styles.inlineUpgrade} onClick={openUpgradeFlow}>
+                      Whelm Pro coming soon
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.secondaryPlanButton}
+                      onClick={() => signOut(auth)}
+                    >
+                      Sign out
+                    </button>
+                  </div>
                 ) : (
-                  <button type="button" className={styles.secondaryPlanButton} onClick={() => void handleRestoreFreeTier()}>
-                    Restore free tier
-                  </button>
+                  <div className={styles.noteFooterActions}>
+                    <button
+                      type="button"
+                      className={styles.secondaryPlanButton}
+                      onClick={() => void handleRestoreFreeTier()}
+                    >
+                      Restore free tier
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.secondaryPlanButton}
+                      onClick={() => signOut(auth)}
+                    >
+                      Sign out
+                    </button>
+                  </div>
                 )}
               </article>
 
