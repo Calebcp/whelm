@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useRive } from "@rive-app/react-canvas";
 import {
   EmailAuthProvider,
   deleteUser,
@@ -699,6 +700,19 @@ const MOBILE_MORE_TABS: AppTab[] = ["insights", "history", "reports", "settings"
 
 const INTRO_SPLASH_MIN_MS = 1500;
 const INTRO_SPLASH_MAX_MS = 2200;
+
+function StreakBandana() {
+  const { RiveComponent } = useRive({
+    src: "/streak/moveband.riv",
+    autoplay: true,
+  });
+
+  return (
+    <div className={styles.streakBandanaWrap} aria-hidden="true">
+      <RiveComponent className={styles.streakBandanaRive} />
+    </div>
+  );
+}
 
 function IntroSplash({ onComplete }: { onComplete: () => void }) {
   return (
@@ -3338,13 +3352,39 @@ export default function HomePage() {
                 <p className={styles.sectionLabel}>Last 4 Weeks</p>
                 <h2 className={styles.cardTitle}>Streak heatmap</h2>
                 <div className={styles.streakGrid}>
-                  {focusMetrics.calendar.map((day) => (
-                    <div
-                      key={day.dateKey}
-                      className={`${styles.streakCell} ${styles[`streakLevel${day.level}`]}`}
-                      title={`${day.label}: ${day.minutes}m`}
-                    />
-                  ))}
+                  {focusMetrics.calendar.map((day, index, days) => {
+                    const previous = days[index - 1];
+                    const next = days[index + 1];
+                    const streakDay =
+                      day.minutes > 0 &&
+                      ((previous?.minutes ?? 0) > 0 || (next?.minutes ?? 0) > 0);
+                    const leftConnected =
+                      streakDay &&
+                      index % 14 !== 0 &&
+                      (previous?.minutes ?? 0) > 0;
+                    const rightConnected =
+                      streakDay &&
+                      index % 14 !== 13 &&
+                      (next?.minutes ?? 0) > 0;
+
+                    return (
+                      <div
+                        key={day.dateKey}
+                        className={[
+                          styles.streakCell,
+                          styles[`streakLevel${day.level}`],
+                          streakDay ? styles.streakCellRun : "",
+                          leftConnected ? styles.streakCellConnectLeft : "",
+                          rightConnected ? styles.streakCellConnectRight : "",
+                        ]
+                          .filter(Boolean)
+                          .join(" ")}
+                        title={`${day.label}: ${day.minutes}m`}
+                      >
+                        {streakDay ? <StreakBandana /> : null}
+                      </div>
+                    );
+                  })}
                 </div>
                 <div className={styles.streakLegend}>
                   <span>No focus</span>
@@ -3352,6 +3392,9 @@ export default function HomePage() {
                   <span>Strong</span>
                   <span>Deep</span>
                 </div>
+                <p className={styles.streakLegendNote}>
+                  Moving bandana = streak day
+                </p>
               </article>
 
               <article className={styles.card} ref={calendarPlannerRef}>

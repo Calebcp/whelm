@@ -1116,22 +1116,7 @@
   background: #dbeafe;
   overflow: hidden;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
-}
-
-.streakCell::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.28), rgba(15, 23, 42, 0.16));
-}
-
-.streakCell::after {
-  content: "";
-  position: absolute;
-  inset: 2%;
-  background: url("/streak/bandana-cropped.jpeg") center / contain no-repeat;
-  filter: drop-shadow(0 4px 10px rgba(15, 23, 42, 0.26));
-  opacity: 0.98;
+  z-index: 0;
 }
 
 .streakCellSelected {
@@ -1160,6 +1145,56 @@
   background: #60a5fa;
 }
 
+.streakCellRun {
+  background: #60a5fa;
+  border-color: rgba(37, 99, 235, 0.38);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.24),
+    0 8px 20px rgba(96, 165, 250, 0.18);
+}
+
+.streakCellConnectLeft {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.streakCellConnectRight {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.streakCellConnectLeft::before,
+.streakCellConnectRight::after {
+  content: "";
+  position: absolute;
+  top: 12%;
+  bottom: 12%;
+  width: 8px;
+  background: #60a5fa;
+  z-index: -1;
+}
+
+.streakCellConnectLeft::before {
+  left: -5px;
+}
+
+.streakCellConnectRight::after {
+  right: -5px;
+}
+
+.streakBandanaWrap {
+  width: 90%;
+  height: 90%;
+  display: grid;
+  place-items: center;
+  filter: drop-shadow(0 4px 8px rgba(15, 23, 42, 0.2));
+}
+
+.streakBandanaRive {
+  width: 100%;
+  height: 100%;
+}
+
 .streakLegend {
   margin-top: 10px;
   display: grid;
@@ -1167,6 +1202,12 @@
   gap: 8px;
   font-size: 0.72rem;
   color: #5f6f82;
+}
+
+.streakLegendNote {
+  margin: 8px 0 0;
+  font-size: 0.82rem;
+  color: #4d6178;
 }
 
 .historyShell {
