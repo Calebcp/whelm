@@ -1106,12 +1106,34 @@
 }
 
 .streakCell {
-  border: 0;
+  position: relative;
+  border: 1px solid rgba(15, 23, 42, 0.08);
   width: 100%;
   aspect-ratio: 1;
-  border-radius: 8px;
+  border-radius: 10px;
   display: grid;
   place-items: center;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.02)),
+    url("/streak/oceanblue.PNG") center / cover no-repeat;
+  overflow: hidden;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.streakCell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.28), rgba(15, 23, 42, 0.16));
+}
+
+.streakCell::after {
+  content: "";
+  position: absolute;
+  inset: 20%;
+  background: url("/streak/whitebandana.png") center / contain no-repeat;
+  filter: drop-shadow(0 4px 10px rgba(15, 23, 42, 0.26));
+  opacity: 0.95;
 }
 
 .streakCellSelected {
@@ -1125,19 +1147,19 @@
 }
 
 .streakLevel0 {
-  background: #e2e8f0;
+  opacity: 0.32;
 }
 
 .streakLevel1 {
-  background: #bfdbfe;
+  opacity: 0.58;
 }
 
 .streakLevel2 {
-  background: #60a5fa;
+  opacity: 0.82;
 }
 
 .streakLevel3 {
-  background: #1d4ed8;
+  opacity: 1;
 }
 
 .streakLegend {

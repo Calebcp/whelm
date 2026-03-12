@@ -3714,7 +3714,13 @@ export default function HomePage() {
                 </article>
 
                 {mobileNotesEditorOpen && selectedNote ? (
-                  <article className={styles.mobileNotesEditorCard} ref={notesEditorRef}>
+                  <article
+                    className={styles.mobileNotesEditorCard}
+                    ref={notesEditorRef}
+                    style={{
+                      backgroundColor: selectedNote.color || "rgba(255, 255, 255, 0.9)",
+                    }}
+                  >
                     <div className={styles.notesStudioHero}>
                       <div>
                         <p className={styles.sectionLabel}>Editing</p>
