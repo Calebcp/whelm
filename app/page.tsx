@@ -2062,8 +2062,32 @@ export default function HomePage() {
   }
 
   function handleMobilePlannerOpen() {
+    setActiveTab("calendar");
+    setCalendarView("day");
     setMobileBlockSheetOpen(true);
     setPlanStatus("");
+  }
+
+  function openTimeBlockFlow(dateKey: string) {
+    setSelectedCalendarDate(dateKey);
+    setActiveTab("calendar");
+    setCalendarView("day");
+    setMobileBlockSheetOpen(true);
+    setPlanStatus("");
+  }
+
+  function handleTodayPrimaryAction() {
+    if (senseiGuidance.actionLabel === "Start Today") {
+      openTimeBlockFlow(dayKeyLocal(new Date()));
+      return;
+    }
+
+    if (senseiGuidance.actionLabel === "Protect the Streak") {
+      openTimeBlockFlow(selectedDateKey);
+      return;
+    }
+
+    setActiveTab(senseiGuidance.actionTab as AppTab);
   }
 
   function handleMobileTabSelect(tab: AppTab | "more") {
@@ -2385,11 +2409,11 @@ export default function HomePage() {
   );
 
   function addPlannedBlock() {
-    if (!user) return;
+    if (!user) return false;
     const title = planTitle.trim();
     if (!title) {
       setPlanStatus("Write a task title first.");
-      return;
+      return false;
     }
 
     const next: PlannedBlock = {
@@ -2410,6 +2434,10 @@ export default function HomePage() {
     setPlanTitle("");
     setPlanStatus("Planned block added.");
     window.setTimeout(() => setPlanStatus(""), 1200);
+    setSelectedCalendarDate(selectedDateKey);
+    setCalendarView("day");
+    setActiveTab("calendar");
+    return true;
   }
 
   function deletePlannedBlock(id: string) {
@@ -2698,7 +2726,7 @@ export default function HomePage() {
                   <button
                     type="button"
                     className={styles.reportButton}
-                    onClick={() => setActiveTab(senseiGuidance.actionTab as AppTab)}
+                    onClick={handleTodayPrimaryAction}
                   >
                     {senseiGuidance.actionLabel}
                   </button>
@@ -2842,7 +2870,7 @@ export default function HomePage() {
                     <button
                       type="button"
                       className={styles.reportButton}
-                      onClick={() => setActiveTab(senseiGuidance.actionTab as AppTab)}
+                      onClick={handleTodayPrimaryAction}
                     >
                       {senseiGuidance.actionLabel}
                     </button>
@@ -3629,9 +3657,8 @@ export default function HomePage() {
                           type="button"
                           className={styles.planAddButton}
                           onClick={() => {
-                            const title = planTitle.trim();
-                            addPlannedBlock();
-                            if (title) {
+                            const added = addPlannedBlock();
+                            if (added) {
                               setMobileBlockSheetOpen(false);
                             }
                           }}
