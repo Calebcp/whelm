@@ -17,6 +17,7 @@ export default function Timer({
   subtitle,
   actionLabel,
   theme,
+  appearance = "dark",
   onComplete,
 }: {
   minutes?: number;
@@ -24,6 +25,7 @@ export default function Timer({
   subtitle: string;
   actionLabel: string;
   theme: TimerTheme;
+  appearance?: "dark" | "light";
   onComplete: (note: string, minutesSpent: number) => Promise<void> | void;
 }) {
   const [mode, setMode] = useState<"countdown" | "stopwatch">("countdown");
@@ -136,7 +138,7 @@ export default function Timer({
   } as CSSProperties;
 
   return (
-    <section className={styles.card} style={themeVars}>
+    <section className={styles.card} style={themeVars} data-appearance={appearance}>
       <div className={styles.header}>
         <div>
           <p className={styles.kicker}>Focus Chamber</p>

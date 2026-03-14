@@ -309,6 +309,10 @@ function summarizePlainText(value: string, maxChars = 120) {
   return `${plain.slice(0, maxChars - 1).trimEnd()}…`;
 }
 
+function stripCompletedBlockPrefix(value: string) {
+  return value.replace(/^Planned block completed:\s*/i, "").trim();
+}
+
 function dayKeyLocal(dateInput: string | Date) {
   const value = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
   const year = value.getFullYear();
@@ -921,12 +925,12 @@ export default function HomePage() {
   const [dayPortalComposerOpen, setDayPortalComposerOpen] = useState(false);
   const [plannerSectionsOpen, setPlannerSectionsOpen] = useState({
     active: true,
-    completed: true,
-    incomplete: true,
+    completed: false,
+    incomplete: false,
   });
   const [historySectionsOpen, setHistorySectionsOpen] = useState({
-    completed: true,
-    incomplete: true,
+    completed: false,
+    incomplete: false,
   });
   const [noteUndoItem, setNoteUndoItem] = useState<WorkspaceNote | null>(null);
   const [deletedPlanUndo, setDeletedPlanUndo] = useState<PlannedBlock | null>(null);
@@ -2423,10 +2427,12 @@ export default function HomePage() {
         sortTime: `${String(completed.getHours()).padStart(2, "0")}:${String(
           completed.getMinutes(),
         ).padStart(2, "0")}`,
-        title: session.note?.trim() || `${sessionLabel} session`,
+        title: session.note?.trim()
+          ? stripCompletedBlockPrefix(session.note.trim())
+          : `${sessionLabel} session`,
         subtitle: `${session.minutes}m completed`,
         preview: session.note?.trim()
-          ? summarizePlainText(session.note, 160)
+          ? summarizePlainText(stripCompletedBlockPrefix(session.note), 160)
           : `Completed ${session.minutes} minute ${sessionLabel.toLowerCase()} session.`,
         tone: "Violet",
         startMinute,
@@ -2447,7 +2453,9 @@ export default function HomePage() {
 
     return entries;
   }, [notes, plannedBlocks, sessions]);
-  const selectedDateEntries = calendarEntriesByDate.get(selectedDateKey) ?? [];
+  const selectedDateEntries = (calendarEntriesByDate.get(selectedDateKey) ?? []).filter(
+    (entry) => entry.source !== "session",
+  );
   const selectedDateFocusedMinutes = sessionMinutesByDay.get(selectedDateKey) ?? 0;
   const selectedDateSummary = useMemo(
     () =>
@@ -5659,9 +5667,11 @@ export default function HomePage() {
                                   {new Date(session.completedAtISO).toLocaleTimeString([], {
                                     hour: "numeric",
                                     minute: "2-digit",
-                                  })}
+                                  })}{" "}
+                                  {session.note?.trim()
+                                    ? stripCompletedBlockPrefix(session.note.trim())
+                                    : "Session"}
                                 </div>
-                                {session.note && <div className={styles.sessionNote}>{session.note}</div>}
                               </div>
                               <div className={styles.sessionMinutes}>{session.minutes}m</div>
                             </div>
