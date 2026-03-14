@@ -157,6 +157,7 @@ type DailyRitualBlockDraft = {
   id: string;
   existingBlockId?: string;
   title: string;
+  note: string;
   timeOfDay: string;
   durationMinutes: number;
 };
@@ -720,6 +721,7 @@ function createDailyRitualDrafts(existing: PlannedBlock[]): DailyRitualBlockDraf
       id: `existing-${item.id}-${index}`,
       existingBlockId: item.id,
       title: item.title,
+      note: item.note,
       timeOfDay: item.timeOfDay,
       durationMinutes: item.durationMinutes,
     }));
@@ -729,6 +731,7 @@ function createDailyRitualDrafts(existing: PlannedBlock[]): DailyRitualBlockDraf
     seeded.push({
       id: `new-${nextIndex}`,
       title: "",
+      note: "",
       timeOfDay: ["09:00", "13:00", "17:00"][nextIndex] || "09:00",
       durationMinutes: 30,
     });
@@ -924,7 +927,7 @@ export default function HomePage() {
   const [overlapPickerEntryId, setOverlapPickerEntryId] = useState<string | null>(null);
   const [dayPortalComposerOpen, setDayPortalComposerOpen] = useState(false);
   const [plannerSectionsOpen, setPlannerSectionsOpen] = useState({
-    active: true,
+    active: false,
     completed: false,
     incomplete: false,
   });
@@ -948,6 +951,8 @@ export default function HomePage() {
     "format" | "type" | "color" | null
   >(null);
   const [mobileBlockSheetOpen, setMobileBlockSheetOpen] = useState(false);
+  const [mobileCalendarControlsOpen, setMobileCalendarControlsOpen] = useState(false);
+  const [mobileAgendaEntriesOpen, setMobileAgendaEntriesOpen] = useState(false);
 
   const editorRef = useRef<HTMLDivElement | null>(null);
   const savedSelectionRef = useRef<Range | null>(null);
@@ -2738,6 +2743,20 @@ export default function HomePage() {
   function deletePlannedBlock(id: string) {
     if (!user) return;
     const removed = plannedBlocks.find((item) => item.id === id) || null;
+    if (!removed) return;
+    const nextClaimedCount = claimedBlocksToday.filter((item) => item.id !== id).length;
+    if (
+      removed.dateKey === dayKeyLocal(new Date()) &&
+      removed.durationMinutes >= 15 &&
+      nextClaimedCount < 3
+    ) {
+      const confirmed = window.confirm(
+        "Removing this block will reopen today's lock because you will fall below 3 required blocks. Continue?",
+      );
+      if (!confirmed) return;
+      setDailyPlanningOpen(true);
+      setDailyPlanningStatus("Today needs 3 active blocks. Replace the removed block to unlock the workspace again.");
+    }
     const updated = plannedBlocks.filter((item) => item.id !== id);
     setPlannedBlocks(updated);
     savePlannedBlocks(user.uid, updated);
@@ -2871,7 +2890,7 @@ export default function HomePage() {
 
   function updateDailyRitualDraft(
     draftId: string,
-    patch: Partial<Pick<DailyRitualBlockDraft, "title" | "timeOfDay" | "durationMinutes">>,
+    patch: Partial<Pick<DailyRitualBlockDraft, "title" | "note" | "timeOfDay" | "durationMinutes">>,
   ) {
     setDailyRitualDrafts((current) =>
       current.map((draft) => (draft.id === draftId ? { ...draft, ...patch } : draft)),
@@ -2897,7 +2916,7 @@ export default function HomePage() {
         id: typeof crypto !== "undefined" ? crypto.randomUUID() : `${Date.now()}-${index}`,
         dateKey: todayKey,
         title: draft.title.trim(),
-        note: "",
+        note: draft.note.trim(),
         durationMinutes: Math.min(240, Math.max(15, draft.durationMinutes)),
         timeOfDay: draft.timeOfDay,
         sortOrder: claimedBlocksToday.length + index,
@@ -3032,32 +3051,20 @@ export default function HomePage() {
           {activeTab === "today" && (
             <>
               {isMobileViewport && <section className={styles.mobileTodayStack}>
-                <div className={styles.mobileJumpRow}>
-                  <button
-                    type="button"
-                    className={styles.mobileJumpButton}
-                    onClick={() => scrollToSection(todaySummaryRef.current)}
-                  >
-                    Summary
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.mobileJumpButton}
-                    onClick={() => scrollToSection(todayTimerRef.current)}
-                  >
-                    Timer
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.mobileJumpButton}
-                    onClick={() => scrollToSection(todayQueueRef.current)}
-                  >
-                    Queue
-                  </button>
-                </div>
-
                 <article className={styles.mobileSummaryCard} ref={todaySummaryRef}>
-                  <p className={styles.sectionLabel}>Today Summary</p>
+                  <div className={styles.mobileSummaryHeader}>
+                    <div>
+                      <p className={styles.sectionLabel}>Today Summary</p>
+                      <p className={styles.accountMeta}>Keep this page moving. Act first, inspect later.</p>
+                    </div>
+                    <button
+                      type="button"
+                      className={styles.reportButton}
+                      onClick={handleTodayPrimaryAction}
+                    >
+                      {senseiGuidance.actionLabel}
+                    </button>
+                  </div>
                   <div className={styles.mobileSummaryGrid}>
                     <div className={styles.mobileSummaryItem}>
                       <span className={styles.mobileSummaryLabel}>Focus</span>
@@ -3074,38 +3081,6 @@ export default function HomePage() {
                   </div>
                 </article>
 
-                <article className={`${styles.card} ${styles.mobileSenseiCard}`}>
-                  <div className={styles.mobileSenseiHeader}>
-                    <SenseiAvatar
-                      message={todayHeroCopy.eyebrow}
-                      variant="neutral"
-                      compact
-                      emoteVideoSrc="/emotes/welcomeemoting.mp4"
-                      autoPlayEmote
-                    />
-                    <div className={styles.mobileSenseiCopy}>
-                      <p className={styles.senseiSpeechEyebrow}>Whelm</p>
-                      <p className={styles.mobileSenseiTitle}>{todayHeroCopy.title}</p>
-                      <p className={styles.mobileSenseiBody}>{todayHeroCopy.body}</p>
-                    </div>
-                  </div>
-                  <div className={styles.mobileSenseiMetrics}>
-                    <span className={styles.senseiMetricPill}>
-                      Stance: {formatSenseiLabel(senseiGuidance.ritual)}
-                    </span>
-                    <span className={styles.senseiMetricPill}>
-                      Next: {nextSenseiMilestone.next ?? "Legend"}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    className={styles.reportButton}
-                    onClick={handleTodayPrimaryAction}
-                  >
-                    {senseiGuidance.actionLabel}
-                  </button>
-                </article>
-
                 <div className={styles.mobileTimerWrap} ref={todayTimerRef}>
                   <Timer
                     minutes={25}
@@ -3118,12 +3093,10 @@ export default function HomePage() {
                   />
                 </div>
 
-                <article className={styles.card} ref={todayQueueRef}>
-                  <div className={styles.cardHeader}>
-                    <div>
-                      <p className={styles.sectionLabel}>Today Queue</p>
-                      <h2 className={styles.cardTitle}>What needs attention</h2>
-                    </div>
+                <article className={`${styles.card} ${styles.mobileQueueCard}`} ref={todayQueueRef}>
+                  <div>
+                    <p className={styles.sectionLabel}>Today Queue</p>
+                    <h2 className={styles.cardTitle}>What needs attention</h2>
                   </div>
                   <div className={styles.mobileQueueList}>
                     <button type="button" className={styles.mobileQueueItem} onClick={() => setActiveTab("reports")}>
@@ -3380,38 +3353,17 @@ export default function HomePage() {
 
           {activeTab === "calendar" && (
             <section className={styles.calendarGrid}>
-              {isMobileViewport && <div className={styles.mobileJumpRow}>
-                <button
-                  type="button"
-                  className={styles.mobileJumpButton}
-                  onClick={() => setCalendarAuxPanel("streak")}
-                >
-                  Streak
-                </button>
-                <button
-                  type="button"
-                  className={styles.mobileJumpButton}
-                  onClick={() => setCalendarAuxPanel("guide")}
-                >
-                  Guide
-                </button>
-                <button
-                  type="button"
-                  className={styles.mobileJumpButton}
-                  onClick={() => setCalendarAuxPanel("agenda")}
-                >
-                  Agenda
-                </button>
-              </div>}
               <article
                 className={`${styles.card} ${calendarView === "month" ? styles.calendarPrimaryExpanded : ""}`}
                 ref={calendarMonthRef}
               >
                 <p className={styles.sectionLabel}>Primary View</p>
                 <h2 className={styles.cardTitle}>Your schedule</h2>
-                <p className={styles.accountMeta}>
-                  Start here first. Whelm stays nearby, but the calendar leads the page.
-                </p>
+                {!isMobileViewport && (
+                  <p className={styles.accountMeta}>
+                    Start here first. Whelm stays nearby, but the calendar leads the page.
+                  </p>
+                )}
                 <div className={styles.calendarToolbar}>
                   <div className={styles.calendarNav}>
                     <button
@@ -3430,90 +3382,107 @@ export default function HomePage() {
                       Next
                     </button>
                   </div>
-                  <div className={styles.calendarJumpRow}>
-                    <label className={styles.planLabel}>
-                      Month / Year
-                      <input
-                        type="month"
-                        className={styles.planControl}
-                        value={calendarMonthInput}
-                        onChange={(event) => {
-                          const next = parseMonthInput(event.target.value);
-                          if (!next) return;
-                          setCalendarCursor(next);
+                  <div className={styles.compactToolbarRow}>
+                    <div className={styles.calendarViewSwitch}>
+                      <button
+                        type="button"
+                        className={`${styles.calendarViewButton} ${
+                          calendarView === "month" ? styles.calendarViewButtonActive : ""
+                        }`}
+                        onClick={() => setCalendarView("month")}
+                      >
+                        Month
+                      </button>
+                      <button
+                        type="button"
+                        className={`${styles.calendarViewButton} ${
+                          calendarView === "day" ? styles.calendarViewButtonActive : ""
+                        }`}
+                        onClick={() => setCalendarView("day")}
+                      >
+                        Day
+                      </button>
+                    </div>
+                    <div className={styles.mobileInlineActions}>
+                      <button
+                        type="button"
+                        className={styles.secondaryPlanButton}
+                        onClick={jumpToToday}
+                      >
+                        Today
+                      </button>
+                      {isMobileViewport && (
+                        <button
+                          type="button"
+                          className={styles.calendarSectionButton}
+                          onClick={() => setMobileCalendarControlsOpen((open) => !open)}
+                        >
+                          {mobileCalendarControlsOpen ? "Hide controls" : "Jump"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  {(!isMobileViewport || mobileCalendarControlsOpen) && (
+                    <div className={styles.calendarJumpRow}>
+                      <label className={isMobileViewport ? styles.mobileControlField : styles.planLabel}>
+                        <span>{isMobileViewport ? "Month" : "Month / Year"}</span>
+                        <input
+                          type="month"
+                          className={styles.planControl}
+                          value={calendarMonthInput}
+                          onChange={(event) => {
+                            const next = parseMonthInput(event.target.value);
+                            if (!next) return;
+                            setCalendarCursor(next);
+                          }}
+                        />
+                      </label>
+                      <label className={isMobileViewport ? styles.mobileControlField : styles.planLabel}>
+                        <span>{isMobileViewport ? "Date" : "Jump to date"}</span>
+                        <input
+                          type="date"
+                          className={styles.planControl}
+                          value={calendarJumpDate}
+                          onChange={(event) => setCalendarJumpDate(event.target.value)}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        className={styles.planAddButton}
+                        onClick={() => {
+                          if (!calendarJumpDate) return;
+                          selectCalendarDate(calendarJumpDate);
                         }}
-                      />
-                    </label>
-                    <label className={styles.planLabel}>
-                      Jump to date
-                      <input
-                        type="date"
-                        className={styles.planControl}
-                        value={calendarJumpDate}
-                        onChange={(event) => setCalendarJumpDate(event.target.value)}
-                      />
-                    </label>
-                    <button
-                      type="button"
-                      className={styles.planAddButton}
-                      onClick={() => {
-                        if (!calendarJumpDate) return;
-                        selectCalendarDate(calendarJumpDate);
-                      }}
-                    >
-                      Go
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.secondaryPlanButton}
-                      onClick={jumpToToday}
-                    >
-                      Today
-                    </button>
-                  </div>
-                  <div className={styles.calendarViewSwitch}>
-                    <button
-                      type="button"
-                      className={`${styles.calendarViewButton} ${
-                        calendarView === "month" ? styles.calendarViewButtonActive : ""
-                      }`}
-                      onClick={() => setCalendarView("month")}
-                    >
-                      Month
-                    </button>
-                    <button
-                      type="button"
-                      className={`${styles.calendarViewButton} ${
-                        calendarView === "day" ? styles.calendarViewButtonActive : ""
-                      }`}
-                      onClick={() => setCalendarView("day")}
-                    >
-                      Day
-                    </button>
-                  </div>
-                  <div className={styles.calendarSectionNav}>
-                    <button
-                      type="button"
-                      className={styles.calendarSectionButton}
-                      onClick={() => setCalendarAuxPanel("guide")}
-                    >
-                      Guide
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.calendarSectionButton}
-                      onClick={() => setCalendarAuxPanel("streak")}
-                    >
-                      Streak
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.calendarSectionButton}
-                      onClick={() => setCalendarAuxPanel("agenda")}
-                    >
-                      Agenda
-                    </button>
-                  </div>
+                      >
+                        Go
+                      </button>
+                    </div>
+                  )}
+                  {!isMobileViewport && (
+                    <div className={styles.calendarSectionNav}>
+                      <button
+                        type="button"
+                        className={styles.calendarSectionButton}
+                        onClick={() => setCalendarAuxPanel("guide")}
+                      >
+                        Guide
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.calendarSectionButton}
+                        onClick={() => setCalendarAuxPanel("streak")}
+                      >
+                        Streak
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.calendarSectionButton}
+                        onClick={() => setCalendarAuxPanel("agenda")}
+                      >
+                        Agenda
+                      </button>
+                    </div>
+                  )}
                 </div>
                 {calendarView === "month" ? (
                   <>
@@ -3620,7 +3589,9 @@ export default function HomePage() {
                               </button>
                             </div>
                           </div>
-                          <p className={styles.dayPortalMeta}>{selectedDateSummary.body}</p>
+                          {!isMobileViewport && (
+                            <p className={styles.dayPortalMeta}>{selectedDateSummary.body}</p>
+                          )}
                           <div className={styles.dayPortalStats}>
                             <span className={styles.dayPortalPill}>
                               Focus: {selectedDateFocusedMinutes}m
@@ -3736,18 +3707,20 @@ export default function HomePage() {
                             </div>
                           )}
                         </div>
-                        <SenseiAvatar
-                          message={
-                            selectedDateEntries.length === 0
-                              ? "Quiet room. Set the tone."
-                              : "You entered the day. Now shape it."
-                          }
-                          variant={calendarDaySenseiVariant({
-                            entries: selectedDateEntries,
-                            focusedMinutes: selectedDateFocusedMinutes,
-                          })}
-                          compact
-                        />
+                        {!isMobileViewport && (
+                          <SenseiAvatar
+                            message={
+                              selectedDateEntries.length === 0
+                                ? "Quiet room. Set the tone."
+                                : "You entered the day. Now shape it."
+                            }
+                            variant={calendarDaySenseiVariant({
+                              entries: selectedDateEntries,
+                              focusedMinutes: selectedDateFocusedMinutes,
+                            })}
+                            compact
+                          />
+                        )}
                       </div>
                     </div>
                     <div id="calendar-timeline" className={styles.dayViewGrid} ref={calendarTimelineRef}>
@@ -4131,7 +4104,7 @@ export default function HomePage() {
                   <>
                     <p className={styles.sectionLabel}>Scheduler</p>
                     <h2 className={styles.cardTitle}>
-                      Day agenda for{" "}
+                      {isMobileViewport ? "Day overview for " : "Day agenda for "}
                       {new Date(`${selectedDateKey}T00:00:00`).toLocaleDateString(undefined, {
                         weekday: "short",
                         month: "short",
@@ -4144,57 +4117,142 @@ export default function HomePage() {
                       {selectedDateEntries.filter((entry) => entry.source === "session").length} completed sessions
                     </p>
 
-                    <div className={styles.dayAgendaList}>
-                      {selectedDateEntries.length === 0 ? (
-                        <p className={styles.emptyText}>No events for this date yet.</p>
-                      ) : (
-                        selectedDateEntries.slice(0, 8).map((entry) => (
-                          <div key={entry.id} className={styles.dayAgendaItem}>
-                            <div>
-                              <p className={styles.dayAgendaTime}>{entry.timeLabel}</p>
-                              <strong className={styles.dayAgendaTitle}>{entry.title}</strong>
-                              <p className={styles.dayAgendaMeta}>{entry.subtitle}</p>
-                            </div>
-                            <div className={styles.dayAgendaActions}>
-                              {entry.source === "reminder" && entry.noteId && (
-                                <button
-                                  type="button"
-                                  className={styles.secondaryPlanButton}
-                                  onClick={() => {
-                                    setSelectedNoteId(entry.noteId ?? null);
-                                    openNotesTab();
-                                  }}
-                                >
-                                  Open note
-                                </button>
-                              )}
-                              {entry.source === "plan" && entry.planId && plannedBlockById.get(entry.planId) && (
-                                <button
-                                  type="button"
-                                  className={styles.planCompleteButton}
-                                  onClick={() => {
-                                    const plan = plannedBlockById.get(entry.planId ?? "");
-                                    if (!plan) return;
-                                    void completePlannedBlock(plan);
-                                  }}
-                                >
-                                  Complete
-                                </button>
-                              )}
-                              {entry.source === "session" && (
-                                <button
-                                  type="button"
-                                  className={styles.secondaryPlanButton}
-                                  onClick={() => setActiveTab("history")}
-                                >
-                                  View history
-                                </button>
-                              )}
-                            </div>
+                    {isMobileViewport ? (
+                      <>
+                        <div className={styles.mobileAgendaSummary}>
+                          <div className={styles.mobileAgendaStat}>
+                            <span>Blocks</span>
+                            <strong>{selectedDatePlans.length}</strong>
                           </div>
-                        ))
-                      )}
-                    </div>
+                          <div className={styles.mobileAgendaStat}>
+                            <span>Reminders</span>
+                            <strong>
+                              {selectedDateEntries.filter((entry) => entry.source === "reminder").length}
+                            </strong>
+                          </div>
+                          <div className={styles.mobileAgendaStat}>
+                            <span>Focus</span>
+                            <strong>{selectedDateFocusedMinutes}m</strong>
+                          </div>
+                        </div>
+
+                        <section className={styles.planSection}>
+                          <button
+                            type="button"
+                            className={styles.planSectionHeader}
+                            onClick={() => setMobileAgendaEntriesOpen((open) => !open)}
+                          >
+                            <span>Entries</span>
+                            <span>{mobileAgendaEntriesOpen ? "Hide" : selectedDateEntries.length}</span>
+                          </button>
+                          {mobileAgendaEntriesOpen && (
+                            <div className={styles.dayAgendaList}>
+                              {selectedDateEntries.length === 0 ? (
+                                <p className={styles.emptyText}>No events for this date yet.</p>
+                              ) : (
+                                selectedDateEntries.slice(0, 6).map((entry) => (
+                                  <div key={entry.id} className={styles.dayAgendaItem}>
+                                    <div>
+                                      <p className={styles.dayAgendaTime}>{entry.timeLabel}</p>
+                                      <strong className={styles.dayAgendaTitle}>{entry.title}</strong>
+                                      <p className={styles.dayAgendaMeta}>{entry.subtitle}</p>
+                                    </div>
+                                    <div className={styles.dayAgendaActions}>
+                                      {entry.source === "reminder" && entry.noteId && (
+                                        <button
+                                          type="button"
+                                          className={styles.secondaryPlanButton}
+                                          onClick={() => {
+                                            setSelectedNoteId(entry.noteId ?? null);
+                                            openNotesTab();
+                                          }}
+                                        >
+                                          Open note
+                                        </button>
+                                      )}
+                                      {entry.source === "plan" && entry.planId && plannedBlockById.get(entry.planId) && (
+                                        <button
+                                          type="button"
+                                          className={styles.planCompleteButton}
+                                          onClick={() => {
+                                            const plan = plannedBlockById.get(entry.planId ?? "");
+                                            if (!plan) return;
+                                            void completePlannedBlock(plan);
+                                          }}
+                                        >
+                                          Complete
+                                        </button>
+                                      )}
+                                      {entry.source === "session" && (
+                                        <button
+                                          type="button"
+                                          className={styles.secondaryPlanButton}
+                                          onClick={() => setActiveTab("history")}
+                                        >
+                                          View history
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          )}
+                        </section>
+                      </>
+                    ) : (
+                      <div className={styles.dayAgendaList}>
+                        {selectedDateEntries.length === 0 ? (
+                          <p className={styles.emptyText}>No events for this date yet.</p>
+                        ) : (
+                          selectedDateEntries.slice(0, 8).map((entry) => (
+                            <div key={entry.id} className={styles.dayAgendaItem}>
+                              <div>
+                                <p className={styles.dayAgendaTime}>{entry.timeLabel}</p>
+                                <strong className={styles.dayAgendaTitle}>{entry.title}</strong>
+                                <p className={styles.dayAgendaMeta}>{entry.subtitle}</p>
+                              </div>
+                              <div className={styles.dayAgendaActions}>
+                                {entry.source === "reminder" && entry.noteId && (
+                                  <button
+                                    type="button"
+                                    className={styles.secondaryPlanButton}
+                                    onClick={() => {
+                                      setSelectedNoteId(entry.noteId ?? null);
+                                      openNotesTab();
+                                    }}
+                                  >
+                                    Open note
+                                  </button>
+                                )}
+                                {entry.source === "plan" && entry.planId && plannedBlockById.get(entry.planId) && (
+                                  <button
+                                    type="button"
+                                    className={styles.planCompleteButton}
+                                    onClick={() => {
+                                      const plan = plannedBlockById.get(entry.planId ?? "");
+                                      if (!plan) return;
+                                      void completePlannedBlock(plan);
+                                    }}
+                                  >
+                                    Complete
+                                  </button>
+                                )}
+                                {entry.source === "session" && (
+                                  <button
+                                    type="button"
+                                    className={styles.secondaryPlanButton}
+                                    onClick={() => setActiveTab("history")}
+                                  >
+                                    View history
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
 
                     <div className={styles.planSectionStack}>
                   <section className={styles.planSection}>
@@ -4481,46 +4539,23 @@ export default function HomePage() {
 
           {activeTab === "notes" && (
             <section className={styles.notesWorkspace}>
-              {isMobileViewport && <div className={styles.mobileJumpRow}>
-                <button
-                  type="button"
-                  className={styles.mobileJumpButton}
-                  onClick={() => scrollToSection(notesStartRef.current)}
-                >
-                  Start
-                </button>
-                <button
-                  type="button"
-                  className={styles.mobileJumpButton}
-                  onClick={() => {
-                    setMobileNotesRecentOpen(true);
-                    window.setTimeout(() => scrollToSection(notesRecentRef.current), 80);
-                  }}
-                >
-                  Recent notes
-                </button>
-              </div>}
-
               {isMobileViewport && <div className={styles.mobileNotesPanel}>
                 <article className={styles.mobileNotesStartCard} ref={notesStartRef}>
-                  <div className={styles.mobileNotesStartHeader}>
-                    <SenseiFigure variant="anchor" size="inline" className={styles.mobileNotesSensei} />
+                  <div className={styles.mobileNotesStartHeaderCompact}>
                     <div>
                       <p className={styles.sectionLabel}>Writing Studio</p>
-                      <h2 className={styles.cardTitle}>Start writing without the clutter</h2>
+                      <h2 className={styles.cardTitle}>Write fast</h2>
+                      <p className={styles.accountMeta}>Start a note or reopen one. Nothing else should get in the way.</p>
                     </div>
-                  </div>
-                  <p className={styles.accountMeta}>
-                    Open a clean page first. Bring formatting tools in only when you need them.
-                  </p>
-                  <div className={styles.noteFooterActions}>
                     <button
                       type="button"
                       className={styles.newNoteButton}
                       onClick={() => void handleMobileCreateNote()}
                     >
-                      Start writing
+                      New note
                     </button>
+                  </div>
+                  <div className={styles.mobileNotesActions}>
                     {selectedNoteId && (
                       <button
                         type="button"
@@ -4530,6 +4565,16 @@ export default function HomePage() {
                         Open current note
                       </button>
                     )}
+                    <button
+                      type="button"
+                      className={styles.mobileJumpButton}
+                      onClick={() => {
+                        setMobileNotesRecentOpen(true);
+                        window.setTimeout(() => scrollToSection(notesRecentRef.current), 80);
+                      }}
+                    >
+                      Recent notes
+                    </button>
                   </div>
                 </article>
 
@@ -4940,7 +4985,9 @@ export default function HomePage() {
                     <div className={styles.notesStudioHero}>
                       <div>
                         <p className={styles.sectionLabel}>Whelm Writing Studio</p>
-                        <h2 className={styles.cardTitle}>Elite notes, not scratch paper</h2>
+                        <h2 className={`${styles.cardTitle} ${styles.noteSurfaceHeading}`}>
+                          Elite notes, not scratch paper
+                        </h2>
                         <p className={styles.noteStudioCopy}>
                           Shape the page the way you think: typography, emphasis, structure, and tone.
                         </p>
@@ -6233,6 +6280,15 @@ export default function HomePage() {
                         />
                       </label>
                     </div>
+                    <textarea
+                      value={draft.note}
+                      onChange={(event) =>
+                        updateDailyRitualDraft(draft.id, { note: event.target.value.slice(0, 280) })
+                      }
+                      placeholder="Optional note for this block"
+                      className={styles.dailyRitualNote}
+                      disabled={locked}
+                    />
                   </div>
                 );
               })}

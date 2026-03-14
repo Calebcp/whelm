@@ -748,6 +748,14 @@
   gap: 10px;
 }
 
+.compactToolbarRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .calendarNav {
   display: flex;
   align-items: center;
@@ -806,6 +814,22 @@
   font-size: 0.8rem;
   font-weight: 600;
   box-shadow: 0 4px 12px rgba(3, 6, 18, 0.16);
+}
+
+.mobileInlineActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.mobileControlField {
+  display: grid;
+  gap: 5px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: #dfe6ff;
 }
 
 .calendarAuxCard {
@@ -1690,7 +1714,19 @@
 
 .noteListTitle {
   font-weight: 600;
-  color: #102033;
+  color: #f8fbff;
+  -webkit-text-stroke: 0.75px rgba(6, 10, 20, 0.78);
+  text-shadow:
+    0 1px 2px rgba(6, 10, 20, 0.34),
+    0 0 8px rgba(6, 10, 20, 0.12);
+}
+
+.noteSurfaceHeading {
+  color: #f8fbff;
+  -webkit-text-stroke: 0.9px rgba(6, 10, 20, 0.78);
+  text-shadow:
+    0 1px 2px rgba(6, 10, 20, 0.34),
+    0 0 8px rgba(6, 10, 20, 0.12);
 }
 
 .noteListMeta {
@@ -2819,8 +2855,22 @@
   align-items: center;
 }
 
+.mobileNotesStartHeaderCompact {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .mobileNotesSensei {
   width: 88px;
+}
+
+.mobileNotesActions {
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .mobileSectionToggle {
@@ -2954,6 +3004,13 @@
   box-shadow: 0 16px 36px rgba(3, 6, 18, 0.22);
 }
 
+.mobileSummaryHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .mobileSummaryGrid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -3026,6 +3083,11 @@
   gap: 10px;
 }
 
+.mobileQueueCard {
+  display: grid;
+  gap: 12px;
+}
+
 .mobileQueueItem {
   border: 1px solid rgba(123, 138, 184, 0.16);
   border-radius: 18px;
@@ -3042,6 +3104,34 @@
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: #95a6cd;
+}
+
+.mobileAgendaSummary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.mobileAgendaStat {
+  border: 1px solid rgba(123, 138, 184, 0.14);
+  border-radius: 16px;
+  background: rgba(18, 24, 42, 0.82);
+  padding: 12px;
+  display: grid;
+  gap: 4px;
+}
+
+.mobileAgendaStat span {
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #95a6cd;
+}
+
+.mobileAgendaStat strong {
+  color: #f2f6ff;
+  font-size: 1rem;
 }
 
 .mobileMoreSheet {
@@ -3859,6 +3949,12 @@
   color: #6070b5;
 }
 
+.themeLight .dailyRitualNote {
+  background: rgba(252, 249, 245, 0.96);
+  color: #1d2a40;
+  border-color: rgba(111, 122, 150, 0.14);
+}
+
 .feedbackSelect,
 .feedbackTextarea {
   width: 100%;
@@ -3921,6 +4017,18 @@
   grid-template-columns: minmax(0, 1.5fr) minmax(120px, 0.7fr) minmax(120px, 0.7fr);
   gap: 10px;
   align-items: end;
+}
+
+.dailyRitualNote {
+  width: 100%;
+  min-height: 72px;
+  border: 1px solid rgba(123, 138, 184, 0.18);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font: inherit;
+  resize: vertical;
+  background: rgba(16, 20, 37, 0.86);
+  color: #edf2ff;
 }
 
 .dailyLockOverlay {
@@ -4093,19 +4201,21 @@
 
   .topAppBar {
     top: 12px;
-    padding: 18px 16px;
+    padding: 14px 16px;
+    border-radius: 22px;
   }
 
   .topAppBarTitle {
-    font-size: 2rem;
+    font-size: 1.35rem;
+    line-height: 1;
   }
 
   .topAppBarDate {
-    font-size: 0.92rem;
+    font-size: 0.8rem;
   }
 
   .topAppBarAction {
-    padding: 12px 18px;
+    padding: 10px 14px;
   }
 
   .dailyRitualGrid {
@@ -4120,7 +4230,7 @@
 
   .mobileTodayStack {
     display: grid;
-    gap: 14px;
+    gap: 12px;
   }
 
   .statsGrid,
@@ -4144,7 +4254,18 @@
 
   .mobileNotesPanel {
     display: grid;
-    gap: 14px;
+    gap: 12px;
+  }
+
+  .mobileSummaryHeader,
+  .mobileNotesStartHeaderCompact,
+  .compactToolbarRow {
+    align-items: stretch;
+  }
+
+  .mobileSummaryHeader,
+  .mobileNotesStartHeaderCompact {
+    flex-direction: column;
   }
 
   .planFormRow {
@@ -4153,6 +4274,30 @@
 
   .calendarJumpRow {
     grid-template-columns: 1fr;
+  }
+
+  .calendarToolbar {
+    gap: 8px;
+  }
+
+  .calendarNav {
+    align-items: center;
+  }
+
+  .calendarMonthLabel {
+    font-size: 0.88rem;
+  }
+
+  .calendarViewSwitch,
+  .calendarAuxTabs {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .calendarViewButton,
+  .calendarAuxTab {
+    flex: 1;
+    text-align: center;
   }
 
   .calendarAuxCard {
@@ -4202,6 +4347,23 @@
   .dayPortalComposerHeader {
     width: 100%;
     justify-content: flex-start;
+  }
+
+  .dayPortalCard {
+    padding: 14px;
+  }
+
+  .dayPortalCopy {
+    gap: 10px;
+  }
+
+  .dayPortalTitle {
+    font-size: 1rem;
+  }
+
+  .dayPortalPill {
+    padding: 7px 10px;
+    font-size: 0.74rem;
   }
 
   .companionPulse {
@@ -4273,6 +4435,11 @@
     flex-direction: column;
   }
 
+  .dayAgendaItem {
+    padding: 9px 10px;
+    border-radius: 12px;
+  }
+
   .calendarEntryPreviewActions {
     width: 100%;
   }
@@ -4302,15 +4469,17 @@
     left: 12px;
     right: 12px;
     bottom: 12px;
-    border-radius: 28px;
+    border-radius: 22px;
+    padding: 6px;
+    gap: 2px;
   }
 
   .bottomTabButton {
-    font-size: 0.82rem;
-    padding: 12px 4px;
+    font-size: 0.72rem;
+    padding: 9px 4px;
   }
 
   .bottomTabIcon {
-    font-size: 1.04rem;
+    font-size: 0.92rem;
   }
 }
