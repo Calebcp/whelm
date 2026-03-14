@@ -968,6 +968,7 @@ export default function HomePage() {
   const notesStartRef = useRef<HTMLElement | null>(null);
   const notesRecentRef = useRef<HTMLElement | null>(null);
   const notesEditorRef = useRef<HTMLElement | null>(null);
+  const mobileDayTimelineScrollRef = useRef<HTMLDivElement | null>(null);
   const activatedCalendarEntryTimeoutRef = useRef<number | null>(null);
   const calendarHoverPreviewTimeoutRef = useRef<number | null>(null);
 
@@ -2521,6 +2522,55 @@ export default function HomePage() {
       hourTicks,
     };
   }, [selectedDateEntries]);
+  const mobileDayTimelineHeight = useMemo(() => {
+    const hourCount = Math.max(8, Math.ceil(dayViewTimeline.totalMinutes / 60));
+    return hourCount * 72;
+  }, [dayViewTimeline.totalMinutes]);
+  const currentTimeMarker = useMemo(() => {
+    if (selectedDateKey !== dayKeyLocal(new Date())) return null;
+    const now = new Date();
+    const currentMinute = now.getHours() * 60 + now.getMinutes();
+    if (
+      currentMinute < dayViewTimeline.startMinute ||
+      currentMinute > dayViewTimeline.endMinute
+    ) {
+      return null;
+    }
+    return {
+      minute: currentMinute,
+      topPct:
+        ((currentMinute - dayViewTimeline.startMinute) / dayViewTimeline.totalMinutes) * 100,
+      label: now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
+    };
+  }, [dayViewTimeline.endMinute, dayViewTimeline.startMinute, dayViewTimeline.totalMinutes, selectedDateKey]);
+  useEffect(() => {
+    if (!isMobileViewport || calendarView !== "day") return;
+    const container = mobileDayTimelineScrollRef.current;
+    if (!container) return;
+
+    const targetMinute =
+      currentTimeMarker?.minute ??
+      dayViewTimeline.items[0]?.startMinute ??
+      dayViewTimeline.startMinute;
+    const relative =
+      (targetMinute - dayViewTimeline.startMinute) / Math.max(1, dayViewTimeline.totalMinutes);
+    const contentHeight = container.scrollHeight;
+    const viewportHeight = container.clientHeight;
+    const targetScrollTop = Math.max(0, relative * contentHeight - viewportHeight * 0.32);
+
+    container.scrollTo({
+      top: targetScrollTop,
+      behavior: "smooth",
+    });
+  }, [
+    calendarView,
+    currentTimeMarker?.minute,
+    dayViewTimeline.items,
+    dayViewTimeline.startMinute,
+    dayViewTimeline.totalMinutes,
+    isMobileViewport,
+    selectedDateKey,
+  ]);
   const calendarEntryById = useMemo(() => {
     const byId = new Map<string, CalendarEntry>();
     calendarEntriesByDate.forEach((items) => {
@@ -3723,82 +3773,108 @@ export default function HomePage() {
                         )}
                       </div>
                     </div>
-                    <div id="calendar-timeline" className={styles.dayViewGrid} ref={calendarTimelineRef}>
-                      <div className={styles.dayViewTicks}>
-                        {dayViewTimeline.hourTicks.map((tick) => (
-                          <span key={tick.minute}>{tick.label}</span>
-                        ))}
-                      </div>
-                      <div
-                        className={styles.dayViewTrack}
-                        onClick={() => {
-                          setCalendarPinnedEntryId(null);
-                          setOverlapPickerEntryId(null);
-                        }}
-                      >
-                        {dayViewTimeline.hourTicks.map((tick) => (
-                          <div
-                            key={tick.minute}
-                            className={styles.dayViewRow}
-                            style={{
-                              top: `${((tick.minute - dayViewTimeline.startMinute) / dayViewTimeline.totalMinutes) * 100}%`,
-                            }}
-                          />
-                        ))}
-                        {dayViewTimeline.items.map((entry) => (
-                          <button
-                            type="button"
-                            key={`timeline-${entry.id}`}
-                            data-calendar-entry-id={entry.id}
-                            className={`${styles.dayViewEvent} ${styles[`dayViewEvent${entry.tone}`]} ${
-                              activatedCalendarEntryId === entry.id ? styles.dayViewEventActivated : ""
-                            }`}
-                            style={{
-                              top: `${entry.topPct}%`,
-                              height: `${Math.max(7.5, entry.heightPct)}%`,
-                            }}
-                            onMouseEnter={() => showCalendarHoverPreview(entry.id)}
-                            onMouseLeave={() => scheduleCalendarHoverPreviewClear(entry.id)}
-                            onFocus={() => showCalendarHoverPreview(entry.id)}
-                            onBlur={() => scheduleCalendarHoverPreviewClear(entry.id)}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              clearCalendarHoverPreviewDelay();
-                              setCalendarPinnedEntryId((current) => (current === entry.id ? null : entry.id))
-                            }}
-                          >
-                            <span className={styles.dayViewEventTime}>{entry.timeLabel}</span>
-                            <strong>{entry.title}</strong>
-                            {entry.overlapIds.length > 0 && (
-                              <span
-                                className={styles.dayViewOverlapHandle}
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  clearCalendarHoverPreviewDelay();
-                                  setCalendarHoverEntryId(null);
-                                  setCalendarPinnedEntryId(null);
-                                  setOverlapPickerEntryId((current) =>
-                                    current === entry.id ? null : entry.id,
-                                  );
-                                }}
-                              >
-                                {entry.overlapIds.slice(0, 3).map((overlapId, index) => {
-                                  const overlapEntry = dayViewTimeline.items.find((item) => item.id === overlapId);
-                                  if (!overlapEntry) return null;
-                                  return (
-                                    <span
-                                      key={overlapId}
-                                      className={`${styles.dayViewOverlapSlice} ${
-                                        styles[`dayViewOverlapSlice${overlapEntry.tone}`]
-                                      }`}
-                                      style={{ right: `${index * 8}px` }}
-                                    />
-                                  );
-                                })}
-                              </span>
-                            )}
-                          </button>
-                        ))}
+                    <div
+                      id="calendar-timeline"
+                      className={isMobileViewport ? styles.dayViewScrollShell : undefined}
+                      ref={isMobileViewport ? mobileDayTimelineScrollRef : undefined}
+                    >
+                      <div className={styles.dayViewGrid} ref={calendarTimelineRef}>
+                        <div
+                          className={styles.dayViewTicks}
+                          style={isMobileViewport ? { height: `${mobileDayTimelineHeight}px` } : undefined}
+                        >
+                          {dayViewTimeline.hourTicks.map((tick) => (
+                            <span key={tick.minute}>{tick.label}</span>
+                          ))}
+                          {currentTimeMarker && (
+                            <span
+                              className={styles.dayViewNowLabel}
+                              style={{ top: `${currentTimeMarker.topPct}%` }}
+                            >
+                              {currentTimeMarker.label}
+                            </span>
+                          )}
+                        </div>
+                        <div
+                          className={styles.dayViewTrack}
+                          style={isMobileViewport ? { height: `${mobileDayTimelineHeight}px` } : undefined}
+                          onClick={() => {
+                            setCalendarPinnedEntryId(null);
+                            setOverlapPickerEntryId(null);
+                          }}
+                        >
+                          {dayViewTimeline.hourTicks.map((tick) => (
+                            <div
+                              key={tick.minute}
+                              className={styles.dayViewRow}
+                              style={{
+                                top: `${((tick.minute - dayViewTimeline.startMinute) / dayViewTimeline.totalMinutes) * 100}%`,
+                              }}
+                            />
+                          ))}
+                          {currentTimeMarker && (
+                            <div
+                              className={styles.dayViewNowLine}
+                              style={{ top: `${currentTimeMarker.topPct}%` }}
+                            >
+                              <span className={styles.dayViewNowDot} />
+                            </div>
+                          )}
+                          {dayViewTimeline.items.map((entry) => (
+                            <button
+                              type="button"
+                              key={`timeline-${entry.id}`}
+                              data-calendar-entry-id={entry.id}
+                              className={`${styles.dayViewEvent} ${styles[`dayViewEvent${entry.tone}`]} ${
+                                activatedCalendarEntryId === entry.id ? styles.dayViewEventActivated : ""
+                              }`}
+                              style={{
+                                top: `${entry.topPct}%`,
+                                height: `${Math.max(7.5, entry.heightPct)}%`,
+                              }}
+                              onMouseEnter={() => showCalendarHoverPreview(entry.id)}
+                              onMouseLeave={() => scheduleCalendarHoverPreviewClear(entry.id)}
+                              onFocus={() => showCalendarHoverPreview(entry.id)}
+                              onBlur={() => scheduleCalendarHoverPreviewClear(entry.id)}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                clearCalendarHoverPreviewDelay();
+                                setCalendarPinnedEntryId((current) => (current === entry.id ? null : entry.id))
+                              }}
+                            >
+                              <span className={styles.dayViewEventTime}>{entry.timeLabel}</span>
+                              <strong>{entry.title}</strong>
+                              {entry.overlapIds.length > 0 && (
+                                <span
+                                  className={styles.dayViewOverlapHandle}
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    clearCalendarHoverPreviewDelay();
+                                    setCalendarHoverEntryId(null);
+                                    setCalendarPinnedEntryId(null);
+                                    setOverlapPickerEntryId((current) =>
+                                      current === entry.id ? null : entry.id,
+                                    );
+                                  }}
+                                >
+                                  {entry.overlapIds.slice(0, 3).map((overlapId, index) => {
+                                    const overlapEntry = dayViewTimeline.items.find((item) => item.id === overlapId);
+                                    if (!overlapEntry) return null;
+                                    return (
+                                      <span
+                                        key={overlapId}
+                                        className={`${styles.dayViewOverlapSlice} ${
+                                          styles[`dayViewOverlapSlice${overlapEntry.tone}`]
+                                        }`}
+                                        style={{ right: `${index * 8}px` }}
+                                      />
+                                    );
+                                  })}
+                                </span>
+                              )}
+                            </button>
+                          ))}
+                        </div>
                         {activeOverlapPickerItem && activeOverlapPickerItem.overlapIds.length > 0 && (
                           <div
                             className={`${styles.overlapPicker} ${

@@ -1056,6 +1056,10 @@
   gap: 8px;
 }
 
+.dayViewScrollShell {
+  position: relative;
+}
+
 .dayViewTicks {
   position: relative;
   height: 640px;
@@ -1064,6 +1068,18 @@
   justify-content: space-between;
   font-size: 0.72rem;
   color: #8ea0cb;
+}
+
+.dayViewNowLabel {
+  position: absolute;
+  right: 0;
+  transform: translateY(-50%);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #96b9ff;
+  text-shadow: 0 1px 3px rgba(6, 10, 20, 0.5);
 }
 
 .dayViewTrack {
@@ -1080,6 +1096,26 @@
   left: 0;
   right: 0;
   border-top: 1px dashed rgba(123, 138, 184, 0.22);
+}
+
+.dayViewNowLine {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 4;
+  border-top: 2px solid #8ab4ff;
+  box-shadow: 0 0 0 1px rgba(138, 180, 255, 0.18), 0 0 18px rgba(90, 149, 255, 0.34);
+}
+
+.dayViewNowDot {
+  position: absolute;
+  left: -7px;
+  top: -6px;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: #8ab4ff;
+  box-shadow: 0 0 0 3px rgba(138, 180, 255, 0.18), 0 0 20px rgba(90, 149, 255, 0.5);
 }
 
 .dayViewEvent {
@@ -1215,6 +1251,11 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  color: #fbfdff;
+  -webkit-text-stroke: 0.6px rgba(8, 12, 24, 0.72);
+  text-shadow:
+    0 1px 2px rgba(8, 12, 24, 0.58),
+    0 0 10px rgba(8, 12, 24, 0.24);
 }
 
 .dayViewEventTime {
@@ -1223,6 +1264,9 @@
   line-height: 1.1;
   opacity: 0.9;
   white-space: nowrap;
+  color: #f3f7ff;
+  -webkit-text-stroke: 0.45px rgba(8, 12, 24, 0.7);
+  text-shadow: 0 1px 2px rgba(8, 12, 24, 0.52);
 }
 
 .dayViewEventBlue {
@@ -4311,9 +4355,17 @@
     gap: 6px;
   }
 
+  .dayViewScrollShell {
+    max-height: 68vh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    padding-right: 4px;
+    mask-image: linear-gradient(to bottom, transparent 0, black 20px, black calc(100% - 20px), transparent 100%);
+  }
+
   .dayViewTicks {
     display: flex;
-    height: 520px;
     font-size: 0.68rem;
     color: #526276;
   }
@@ -4372,7 +4424,7 @@
   }
 
   .dayViewTrack {
-    height: 520px;
+    min-height: 520px;
   }
 
   .dayViewEvent {
@@ -4380,6 +4432,14 @@
     right: 6px;
     padding: 6px 8px;
     padding-right: 34px;
+  }
+
+  .dayViewNowLabel {
+    font-size: 0.58rem;
+  }
+
+  .dayViewEvent strong {
+    font-size: 0.84rem;
   }
 
   .dayViewOverlapHandle {
