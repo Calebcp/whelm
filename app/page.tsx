@@ -888,6 +888,7 @@ export default function HomePage() {
   const [dailyRitualDrafts, setDailyRitualDrafts] = useState<DailyRitualBlockDraft[]>(() =>
     createDailyRitualDrafts([]),
   );
+  const [dailyRitualExpandedId, setDailyRitualExpandedId] = useState<string | null>(null);
   const [isPro, setIsPro] = useState(false);
   const [proSource, setProSource] = useState<"preview" | "store" | "none">("none");
   const [trendRange, setTrendRange] = useState<TrendRange>(7);
@@ -2988,6 +2989,18 @@ export default function HomePage() {
     setSelectedCalendarDate(todayKey);
     setCalendarView("day");
   }
+
+  useEffect(() => {
+    if (dailyRitualDrafts.length === 0) {
+      setDailyRitualExpandedId(null);
+      return;
+    }
+    setDailyRitualExpandedId((current) => {
+      if (current && dailyRitualDrafts.some((draft) => draft.id === current)) return current;
+      const firstOpen = dailyRitualDrafts.find((draft) => !draft.existingBlockId)?.id;
+      return firstOpen ?? dailyRitualDrafts[0]?.id ?? null;
+    });
+  }, [dailyRitualDrafts]);
 
   if (showIntroSplash) {
     return <IntroSplash onComplete={() => setIntroFinished(true)} />;
@@ -6291,7 +6304,10 @@ export default function HomePage() {
 
       {dailyPlanningOpen && dailyPlanningLocked && (
         <div className={styles.feedbackOverlay}>
-          <div className={styles.feedbackModal} onClick={(event) => event.stopPropagation()}>
+          <div
+            className={`${styles.feedbackModal} ${styles.dailyRitualModal}`}
+            onClick={(event) => event.stopPropagation()}
+          >
             <div className={styles.feedbackHeader}>
               <div>
                 <p className={styles.sectionLabel}>Daily Entry Ritual</p>
@@ -6306,77 +6322,95 @@ export default function HomePage() {
               </button>
             </div>
             <p className={styles.feedbackMeta}>
-              Place 3 blocks for today before Whelm unlocks. Each one must be at least 15 minutes.
+              <strong className={styles.dailyRitualCallout}>3 foundational blocks to enter.</strong>{" "}
+              Place them before Whelm unlocks. Each one must be at least 15 minutes.
             </p>
             <div className={styles.dailyRitualList}>
               {dailyRitualDrafts.map((draft, index) => {
                 const locked = Boolean(draft.existingBlockId);
+                const expanded = dailyRitualExpandedId === draft.id;
                 return (
                   <div key={draft.id} className={styles.dailyRitualItem}>
-                    <div className={styles.dailyRitualHeader}>
-                      <strong>Block {index + 1}</strong>
-                      <span>{locked ? "Claimed" : "Required"}</span>
-                    </div>
-                    <div className={styles.dailyRitualGrid}>
-                      <input
-                        value={draft.title}
-                        onChange={(event) =>
-                          updateDailyRitualDraft(draft.id, { title: event.target.value })
-                        }
-                        placeholder="What are you protecting?"
-                        className={styles.planInput}
-                        disabled={locked}
-                      />
-                      <label className={styles.planLabel}>
-                        Time
-                        <input
-                          type="time"
-                          value={draft.timeOfDay}
-                          onChange={(event) =>
-                            updateDailyRitualDraft(draft.id, { timeOfDay: event.target.value })
-                          }
-                          className={styles.planControl}
-                          disabled={locked}
-                        />
-                      </label>
-                      <label className={styles.planLabel}>
-                        Minutes
-                        <input
-                          type="number"
-                          min={15}
-                          max={240}
-                          value={draft.durationMinutes}
-                          onChange={(event) =>
-                            updateDailyRitualDraft(draft.id, {
-                              durationMinutes: Math.max(15, Number(event.target.value) || 15),
-                            })
-                          }
-                          className={styles.planControl}
-                          disabled={locked}
-                        />
-                      </label>
-                    </div>
-                    <textarea
-                      value={draft.note}
-                      onChange={(event) =>
-                        updateDailyRitualDraft(draft.id, { note: event.target.value.slice(0, 280) })
+                    <button
+                      type="button"
+                      className={styles.dailyRitualHeader}
+                      onClick={() =>
+                        setDailyRitualExpandedId((current) => (current === draft.id ? null : draft.id))
                       }
-                      placeholder="Optional note for this block"
-                      className={styles.dailyRitualNote}
-                      disabled={locked}
-                    />
+                    >
+                      <div className={styles.dailyRitualHeaderMain}>
+                        <strong>Block {index + 1}</strong>
+                        <span>{locked ? "Claimed" : "Required"}</span>
+                      </div>
+                      <div className={styles.dailyRitualSummary}>
+                        <span>{draft.title.trim() || "What are you protecting?"}</span>
+                        <small>{draft.timeOfDay} • {draft.durationMinutes}m</small>
+                      </div>
+                    </button>
+                    {expanded && (
+                      <>
+                        <div className={styles.dailyRitualGrid}>
+                          <input
+                            value={draft.title}
+                            onChange={(event) =>
+                              updateDailyRitualDraft(draft.id, { title: event.target.value })
+                            }
+                            placeholder="What are you protecting?"
+                            className={styles.planInput}
+                            disabled={locked}
+                          />
+                          <label className={styles.planLabel}>
+                            Time
+                            <input
+                              type="time"
+                              value={draft.timeOfDay}
+                              onChange={(event) =>
+                                updateDailyRitualDraft(draft.id, { timeOfDay: event.target.value })
+                              }
+                              className={styles.planControl}
+                              disabled={locked}
+                            />
+                          </label>
+                          <label className={styles.planLabel}>
+                            Minutes
+                            <input
+                              type="number"
+                              min={15}
+                              max={240}
+                              value={draft.durationMinutes}
+                              onChange={(event) =>
+                                updateDailyRitualDraft(draft.id, {
+                                  durationMinutes: Math.max(15, Number(event.target.value) || 15),
+                                })
+                              }
+                              className={styles.planControl}
+                              disabled={locked}
+                            />
+                          </label>
+                        </div>
+                        <textarea
+                          value={draft.note}
+                          onChange={(event) =>
+                            updateDailyRitualDraft(draft.id, { note: event.target.value.slice(0, 280) })
+                          }
+                          placeholder="Optional note"
+                          className={styles.dailyRitualNote}
+                          disabled={locked}
+                        />
+                      </>
+                    )}
                   </div>
                 );
               })}
             </div>
             {dailyPlanningStatus && <p className={styles.feedbackStatus}>{dailyPlanningStatus}</p>}
-            <div className={styles.feedbackFooter}>
+            <div className={`${styles.feedbackFooter} ${styles.dailyRitualFooter}`}>
               <button
                 type="button"
                 className={styles.feedbackSubmit}
                 onClick={submitDailyRitual}
               >
-                Unlock today
+                Submit 3 blocks
               </button>
             </div>
           </div>
