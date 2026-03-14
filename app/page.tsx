@@ -152,6 +152,14 @@ const NOTE_HIGHLIGHTS = [
 type FeedbackCategory = "bug" | "feature" | "other";
 type TrendRange = 7 | 30 | 90;
 type CalendarView = "month" | "day";
+type ThemeMode = "dark" | "light";
+type DailyRitualBlockDraft = {
+  id: string;
+  existingBlockId?: string;
+  title: string;
+  timeOfDay: string;
+  durationMinutes: number;
+};
 type AppTab =
   | "today"
   | "calendar"
@@ -213,10 +221,13 @@ type PlannedBlock = {
   id: string;
   dateKey: string;
   title: string;
+  note: string;
   durationMinutes: number;
   timeOfDay: string;
   sortOrder: number;
   createdAtISO: string;
+  status: "active" | "completed";
+  completedAtISO?: string;
 };
 
 type KpiDetailKey =
@@ -341,6 +352,10 @@ function parseTimeToMinutes(raw: string) {
   const [hh, mm] = raw.split(":").map((part) => Number(part));
   if (!Number.isFinite(hh) || !Number.isFinite(mm)) return 9 * 60;
   return Math.min(24 * 60 - 1, Math.max(0, hh * 60 + mm));
+}
+
+function isDateKeyBeforeToday(dateKey: string) {
+  return dateKey < dayKeyLocal(new Date());
 }
 
 function countSessionsForDate(sessions: SessionDoc[], dateKey: string) {
@@ -614,7 +629,7 @@ function tabTitle(tab: AppTab) {
     case "today":
       return "Today";
     case "calendar":
-      return "Calendar";
+      return "Schedule";
     case "notes":
       return "Notes";
     case "insights":
@@ -634,6 +649,10 @@ function plannedBlocksStorageKey(uid: string) {
 
 function senseiStyleStorageKey(uid: string) {
   return `whelm:sensei-style:${uid}`;
+}
+
+function themeModeStorageKey(uid: string) {
+  return `whelm:theme-mode:${uid}`;
 }
 
 function clearLocalAccountData(uid: string) {
@@ -656,10 +675,14 @@ function loadPlannedBlocks(uid: string): PlannedBlock[] {
         id: item.id,
         dateKey: item.dateKey,
         title: String(item.title).slice(0, 80),
+        note: String((item as Partial<PlannedBlock>).note || "").slice(0, 280),
         durationMinutes: Math.min(240, Math.max(5, Number(item.durationMinutes) || 25)),
         timeOfDay: String(item.timeOfDay || "09:00").slice(0, 5),
         sortOrder: Number((item as Partial<PlannedBlock>).sortOrder) || 0,
         createdAtISO: item.createdAtISO || new Date().toISOString(),
+        status: (item.status === "completed" ? "completed" : "active") as PlannedBlock["status"],
+        completedAtISO:
+          item.status === "completed" && item.completedAtISO ? item.completedAtISO : undefined,
       }))
       .sort((a, b) =>
         a.dateKey === b.dateKey
@@ -679,19 +702,46 @@ function savePlannedBlocks(uid: string, items: PlannedBlock[]) {
   window.localStorage.setItem(plannedBlocksStorageKey(uid), JSON.stringify(items));
 }
 
-const TAB_META: Array<{ key: AppTab; label: string }> = [
+function notesShellBackground(themeMode: ThemeMode, noteColor?: string) {
+  if (noteColor) return { background: noteColor };
+  return themeMode === "dark"
+    ? { background: "rgba(18, 22, 40, 0.94)" }
+    : { background: "#e7e5e4" };
+}
+
+function createDailyRitualDrafts(existing: PlannedBlock[]): DailyRitualBlockDraft[] {
+  const seeded: DailyRitualBlockDraft[] = existing
+    .slice(0, 3)
+    .map((item, index) => ({
+      id: `existing-${item.id}-${index}`,
+      existingBlockId: item.id,
+      title: item.title,
+      timeOfDay: item.timeOfDay,
+      durationMinutes: item.durationMinutes,
+    }));
+
+  while (seeded.length < 3) {
+    const nextIndex = seeded.length;
+    seeded.push({
+      id: `new-${nextIndex}`,
+      title: "",
+      timeOfDay: ["09:00", "13:00", "17:00"][nextIndex] || "09:00",
+      durationMinutes: 30,
+    });
+  }
+
+  return seeded;
+}
+
+const DESKTOP_PRIMARY_TABS: Array<{ key: AppTab; label: string }> = [
+  { key: "calendar", label: "Schedule" },
   { key: "today", label: "Today" },
-  { key: "calendar", label: "Calendar" },
   { key: "notes", label: "Notes" },
-  { key: "insights", label: "Insights" },
-  { key: "history", label: "History" },
-  { key: "reports", label: "Reports" },
-  { key: "settings", label: "Settings" },
 ];
 
 const MOBILE_PRIMARY_TABS: Array<{ key: AppTab | "more"; label: string }> = [
+  { key: "calendar", label: "Schedule" },
   { key: "today", label: "Today" },
-  { key: "calendar", label: "Calendar" },
   { key: "notes", label: "Notes" },
   { key: "more", label: "More" },
 ];
@@ -824,10 +874,17 @@ export default function HomePage() {
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const [senseiReaction, setSenseiReaction] = useState("");
   const [companionStyle, setCompanionStyle] = useState<SenseiCompanionStyle>("balanced");
+  const [themeMode, setThemeMode] = useState<ThemeMode>("dark");
+  const [themePromptOpen, setThemePromptOpen] = useState(false);
+  const [dailyPlanningOpen, setDailyPlanningOpen] = useState(false);
+  const [dailyPlanningStatus, setDailyPlanningStatus] = useState("");
+  const [dailyRitualDrafts, setDailyRitualDrafts] = useState<DailyRitualBlockDraft[]>(() =>
+    createDailyRitualDrafts([]),
+  );
   const [isPro, setIsPro] = useState(false);
   const [proSource, setProSource] = useState<"preview" | "store" | "none">("none");
   const [trendRange, setTrendRange] = useState<TrendRange>(7);
-  const [activeTab, setActiveTab] = useState<AppTab>("today");
+  const [activeTab, setActiveTab] = useState<AppTab>("calendar");
   const [insightRange, setInsightRange] = useState<TrendRange>(30);
   const [insightMetric, setInsightMetric] = useState<InsightMetric>("focus");
   const [calendarView, setCalendarView] = useState<CalendarView>("month");
@@ -844,13 +901,33 @@ export default function HomePage() {
   });
   const [calendarHoverEntryId, setCalendarHoverEntryId] = useState<string | null>(null);
   const [calendarPinnedEntryId, setCalendarPinnedEntryId] = useState<string | null>(null);
+  const [calendarAuxPanel, setCalendarAuxPanel] = useState<"agenda" | "streak" | "guide">("agenda");
   const [planTitle, setPlanTitle] = useState("");
+  const [planNote, setPlanNote] = useState("");
+  const [planNoteExpanded, setPlanNoteExpanded] = useState(false);
   const [planDuration, setPlanDuration] = useState(25);
   const [planTime, setPlanTime] = useState("09:00");
   const [planStatus, setPlanStatus] = useState("");
+  const [planConflictWarning, setPlanConflictWarning] = useState<{
+    conflictIds: string[];
+    message: string;
+  } | null>(null);
   const [calendarJumpDate, setCalendarJumpDate] = useState<string>(() => dayKeyLocal(new Date()));
   const [kpiDetailOpen, setKpiDetailOpen] = useState<KpiDetailKey | null>(null);
   const [draggedPlanId, setDraggedPlanId] = useState<string | null>(null);
+  const [pendingCalendarEntryFocusId, setPendingCalendarEntryFocusId] = useState<string | null>(null);
+  const [activatedCalendarEntryId, setActivatedCalendarEntryId] = useState<string | null>(null);
+  const [overlapPickerEntryId, setOverlapPickerEntryId] = useState<string | null>(null);
+  const [dayPortalComposerOpen, setDayPortalComposerOpen] = useState(false);
+  const [plannerSectionsOpen, setPlannerSectionsOpen] = useState({
+    active: true,
+    completed: true,
+    incomplete: true,
+  });
+  const [historySectionsOpen, setHistorySectionsOpen] = useState({
+    completed: true,
+    incomplete: true,
+  });
   const [noteUndoItem, setNoteUndoItem] = useState<WorkspaceNote | null>(null);
   const [deletedPlanUndo, setDeletedPlanUndo] = useState<PlannedBlock | null>(null);
   const [screenTimeStatus, setScreenTimeStatus] =
@@ -878,9 +955,12 @@ export default function HomePage() {
   const calendarMonthRef = useRef<HTMLElement | null>(null);
   const calendarStreakRef = useRef<HTMLElement | null>(null);
   const calendarPlannerRef = useRef<HTMLElement | null>(null);
+  const calendarTimelineRef = useRef<HTMLDivElement | null>(null);
   const notesStartRef = useRef<HTMLElement | null>(null);
   const notesRecentRef = useRef<HTMLElement | null>(null);
   const notesEditorRef = useRef<HTMLElement | null>(null);
+  const activatedCalendarEntryTimeoutRef = useRef<number | null>(null);
+  const calendarHoverPreviewTimeoutRef = useRef<number | null>(null);
 
   const streak = computeStreak(sessions);
 
@@ -1122,6 +1202,15 @@ export default function HomePage() {
     () => plannedBlocks.filter((item) => item.dateKey === dayKeyLocal(new Date())),
     [plannedBlocks],
   );
+  const todayActivePlannedBlocks = useMemo(
+    () => todayPlannedBlocks.filter((item) => item.status === "active"),
+    [todayPlannedBlocks],
+  );
+  const claimedBlocksToday = useMemo(
+    () => todayPlannedBlocks.filter((item) => item.durationMinutes >= 15),
+    [todayPlannedBlocks],
+  );
+  const dailyPlanningLocked = claimedBlocksToday.length < 3;
 
   const averageSessionStartHour = useMemo(() => {
     const recentSessions = sessions.slice(0, 14);
@@ -1172,7 +1261,7 @@ export default function HomePage() {
         weekMinutes: focusMetrics.weekMinutes,
         streak,
         dueReminders: dueReminderNotes.length,
-        plannedTodayCount: todayPlannedBlocks.length,
+        plannedTodayCount: todayActivePlannedBlocks.length,
         notesCount: notes.length,
         notesUpdated7d: reportMetrics.notesUpdated7d,
         nextMilestone: nextSenseiMilestone.next,
@@ -1201,7 +1290,7 @@ export default function HomePage() {
       reportMetrics.sessionCount,
       reportMetrics.totalMinutes,
       streak,
-      todayPlannedBlocks.length,
+      todayActivePlannedBlocks.length,
     ],
   );
 
@@ -1489,6 +1578,20 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!user) return;
+    setDailyRitualDrafts(createDailyRitualDrafts(claimedBlocksToday));
+    setDailyPlanningStatus("");
+    if (claimedBlocksToday.length < 3) {
+      setDailyPlanningOpen(true);
+      setActiveTab("calendar");
+      setSelectedCalendarDate(dayKeyLocal(new Date()));
+      setCalendarView("day");
+    } else {
+      setDailyPlanningOpen(false);
+    }
+  }, [claimedBlocksToday, user]);
+
+  useEffect(() => {
+    if (!user) return;
     const stored = window.localStorage.getItem(senseiStyleStorageKey(user.uid));
     if (stored === "gentle" || stored === "balanced" || stored === "strict") {
       setCompanionStyle(stored);
@@ -1499,6 +1602,25 @@ export default function HomePage() {
     if (!user) return;
     window.localStorage.setItem(senseiStyleStorageKey(user.uid), companionStyle);
   }, [companionStyle, user]);
+
+  useEffect(() => {
+    if (!user) return;
+    const stored = window.localStorage.getItem(themeModeStorageKey(user.uid));
+    if (stored === "light" || stored === "dark") {
+      setThemeMode(stored);
+      setThemePromptOpen(false);
+      return;
+    }
+    setThemeMode("dark");
+    setThemePromptOpen(true);
+  }, [user]);
+
+  useEffect(() => {
+    document.body.dataset.theme = themeMode;
+    return () => {
+      delete document.body.dataset.theme;
+    };
+  }, [themeMode]);
 
   useEffect(() => {
     function onOnline() {
@@ -2068,12 +2190,25 @@ export default function HomePage() {
     setPlanStatus("");
   }
 
+  function openCalendarBlockComposer() {
+    setPlanStatus("");
+    setPlanConflictWarning(null);
+    setActiveTab("calendar");
+    setCalendarView("day");
+    if (isMobileViewport) {
+      setMobileBlockSheetOpen(true);
+      return;
+    }
+    setDayPortalComposerOpen(true);
+  }
+
   function openTimeBlockFlow(dateKey: string) {
     setSelectedCalendarDate(dateKey);
     setActiveTab("calendar");
     setCalendarView("day");
     setMobileBlockSheetOpen(true);
     setPlanStatus("");
+    setPlanConflictWarning(null);
   }
 
   function handleTodayPrimaryAction() {
@@ -2106,6 +2241,7 @@ export default function HomePage() {
       id: typeof crypto !== "undefined" ? crypto.randomUUID() : `${Date.now()}`,
       dateKey: selectedDateKey,
       title: note.title || "Untitled note task",
+      note: summarizePlainText(note.body, 280),
       durationMinutes: 25,
       timeOfDay: "09:00",
       sortOrder:
@@ -2113,6 +2249,7 @@ export default function HomePage() {
           ? 0
           : Math.max(...selectedDatePlans.map((item) => item.sortOrder)) + 1,
       createdAtISO: new Date().toISOString(),
+      status: "active",
     };
     const updated = [...plannedBlocks, next];
     setPlannedBlocks(updated);
@@ -2181,13 +2318,31 @@ export default function HomePage() {
 
     return cells;
   }, [calendarCursor, sessionMinutesByDay]);
-  const selectedDatePlans = plannedBlocks
-    .filter((item) => item.dateKey === selectedDateKey)
-    .sort((a, b) => a.sortOrder - b.sortOrder || a.timeOfDay.localeCompare(b.timeOfDay));
+  const selectedDatePlanGroups = useMemo(() => {
+    const sameDate = plannedBlocks
+      .filter((item) => item.dateKey === selectedDateKey)
+      .sort((a, b) => a.sortOrder - b.sortOrder || a.timeOfDay.localeCompare(b.timeOfDay));
+    return {
+      active: sameDate.filter((item) => item.status === "active" && !isDateKeyBeforeToday(item.dateKey)),
+      completed: sameDate.filter((item) => item.status === "completed"),
+      incomplete: sameDate.filter((item) => item.status === "active" && isDateKeyBeforeToday(item.dateKey)),
+    };
+  }, [plannedBlocks, selectedDateKey]);
+  const selectedDatePlans = selectedDatePlanGroups.active;
   const plannedBlockById = useMemo(
     () => new Map(plannedBlocks.map((item) => [item.id, item])),
     [plannedBlocks],
   );
+  const plannedBlockHistory = useMemo(() => {
+    const sorted = [...plannedBlocks].sort((a, b) => {
+      if (a.dateKey !== b.dateKey) return b.dateKey.localeCompare(a.dateKey);
+      return a.timeOfDay.localeCompare(b.timeOfDay);
+    });
+    return {
+      completed: sorted.filter((item) => item.status === "completed"),
+      incomplete: sorted.filter((item) => item.status === "active" && isDateKeyBeforeToday(item.dateKey)),
+    };
+  }, [plannedBlocks]);
   const calendarEntriesByDate = useMemo(() => {
     const entries = new Map<string, CalendarEntry[]>();
 
@@ -2198,6 +2353,7 @@ export default function HomePage() {
     }
 
     plannedBlocks.forEach((item) => {
+      if (item.status !== "active" || isDateKeyBeforeToday(item.dateKey)) return;
       const startMinute = parseTimeToMinutes(item.timeOfDay || "09:00");
       const endMinute = Math.min(24 * 60, startMinute + Math.max(10, item.durationMinutes));
       pushEntry(item.dateKey, {
@@ -2207,10 +2363,14 @@ export default function HomePage() {
         timeLabel: normalizeTimeLabel(item.timeOfDay),
         sortTime: item.timeOfDay || "23:59",
         title: item.title,
-        subtitle: `${item.durationMinutes}m focus block`,
-        preview: `Planned block: ${item.title} (${item.durationMinutes} minutes) at ${normalizeTimeLabel(
-          item.timeOfDay,
-        )}.`,
+        subtitle: item.note.trim()
+          ? `${item.durationMinutes}m focus block • note added`
+          : `${item.durationMinutes}m focus block`,
+        preview: item.note.trim()
+          ? item.note.trim()
+          : `Planned block: ${item.title} (${item.durationMinutes} minutes) at ${normalizeTimeLabel(
+              item.timeOfDay,
+            )}.`,
         tone: "Blue",
         startMinute,
         endMinute,
@@ -2313,7 +2473,7 @@ export default function HomePage() {
     const endMinute = Math.min(24 * 60, Math.max(defaultEnd, Math.ceil(maxEnd / 60) * 60));
     const totalMinutes = Math.max(60, endMinute - startMinute);
 
-    const items = withRange.map((entry) => ({
+    const positionedItems = withRange.map((entry) => ({
       ...entry,
       topPct: ((entry.startMinute - startMinute) / totalMinutes) * 100,
       heightPct: (Math.max(10, entry.endMinute - entry.startMinute) / totalMinutes) * 100,
@@ -2327,7 +2487,26 @@ export default function HomePage() {
       hourTicks.push({ minute, label: `${hour12}:00 ${suffix}` });
     }
 
-    return { startMinute, endMinute, totalMinutes, items, hourTicks };
+    return {
+      startMinute,
+      endMinute,
+      totalMinutes,
+      items: positionedItems.map((item) => {
+        const overlapIds = positionedItems
+          .filter(
+            (candidate) =>
+              candidate.id !== item.id &&
+              candidate.startMinute < item.endMinute &&
+              candidate.endMinute > item.startMinute,
+          )
+          .map((candidate) => candidate.id);
+        return {
+          ...item,
+          overlapIds,
+        };
+      }),
+      hourTicks,
+    };
   }, [selectedDateEntries]);
   const calendarEntryById = useMemo(() => {
     const byId = new Map<string, CalendarEntry>();
@@ -2337,14 +2516,51 @@ export default function HomePage() {
     return byId;
   }, [calendarEntriesByDate]);
   const activeCalendarPreview = useMemo(() => {
-    const id = calendarHoverEntryId ?? calendarPinnedEntryId;
+    const id =
+      calendarView === "day"
+        ? calendarPinnedEntryId ?? (!isMobileViewport ? calendarHoverEntryId : null)
+        : calendarPinnedEntryId ?? calendarHoverEntryId;
     if (!id) return null;
     return calendarEntryById.get(id) ?? null;
-  }, [calendarEntryById, calendarHoverEntryId, calendarPinnedEntryId]);
+  }, [calendarEntryById, calendarHoverEntryId, calendarPinnedEntryId, calendarView, isMobileViewport]);
+  const activeDayViewPreviewItem = useMemo(() => {
+    if (calendarView !== "day" || !activeCalendarPreview) return null;
+    return dayViewTimeline.items.find((entry) => entry.id === activeCalendarPreview.id) ?? null;
+  }, [activeCalendarPreview, calendarView, dayViewTimeline.items]);
+  const activeOverlapPickerItem = useMemo(() => {
+    if (calendarView !== "day" || !overlapPickerEntryId) return null;
+    return dayViewTimeline.items.find((entry) => entry.id === overlapPickerEntryId) ?? null;
+  }, [calendarView, dayViewTimeline.items, overlapPickerEntryId]);
+
+  function clearCalendarHoverPreviewDelay() {
+    if (calendarHoverPreviewTimeoutRef.current !== null) {
+      window.clearTimeout(calendarHoverPreviewTimeoutRef.current);
+      calendarHoverPreviewTimeoutRef.current = null;
+    }
+  }
+
+  function showCalendarHoverPreview(entryId: string) {
+    if (isMobileViewport || calendarPinnedEntryId) return;
+    clearCalendarHoverPreviewDelay();
+    setCalendarHoverEntryId(entryId);
+  }
+
+  function scheduleCalendarHoverPreviewClear(entryId?: string) {
+    if (isMobileViewport || calendarPinnedEntryId) return;
+    clearCalendarHoverPreviewDelay();
+    calendarHoverPreviewTimeoutRef.current = window.setTimeout(() => {
+      setCalendarHoverEntryId((current) => (entryId && current !== entryId ? current : null));
+      calendarHoverPreviewTimeoutRef.current = null;
+    }, 120);
+  }
 
   useEffect(() => {
     setCalendarJumpDate(selectedDateKey);
   }, [selectedDateKey]);
+
+  useEffect(() => {
+    setPlanConflictWarning(null);
+  }, [planDuration, planTime, planTitle, planNote, selectedDateKey]);
 
   useEffect(() => {
     if (calendarPinnedEntryId && !calendarEntryById.has(calendarPinnedEntryId)) {
@@ -2354,6 +2570,49 @@ export default function HomePage() {
       setCalendarHoverEntryId(null);
     }
   }, [calendarEntryById, calendarHoverEntryId, calendarPinnedEntryId]);
+
+  useEffect(() => {
+    if (!pendingCalendarEntryFocusId || calendarView !== "day") return;
+    const entry = calendarEntryById.get(pendingCalendarEntryFocusId);
+    if (!entry) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      const target = document.querySelector<HTMLElement>(
+        `[data-calendar-entry-id="${pendingCalendarEntryFocusId}"]`,
+      );
+      if (!target) return;
+      setCalendarPinnedEntryId(pendingCalendarEntryFocusId);
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+      if (activatedCalendarEntryTimeoutRef.current !== null) {
+        window.clearTimeout(activatedCalendarEntryTimeoutRef.current);
+      }
+      setActivatedCalendarEntryId(pendingCalendarEntryFocusId);
+      const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      activatedCalendarEntryTimeoutRef.current = window.setTimeout(
+        () => {
+          setActivatedCalendarEntryId((current) =>
+            current === pendingCalendarEntryFocusId ? null : current,
+          );
+          activatedCalendarEntryTimeoutRef.current = null;
+        },
+        prefersReducedMotion ? 900 : 1800,
+      );
+      setPendingCalendarEntryFocusId(null);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [calendarEntryById, calendarView, pendingCalendarEntryFocusId]);
+
+  useEffect(() => {
+    return () => {
+      if (activatedCalendarEntryTimeoutRef.current !== null) {
+        window.clearTimeout(activatedCalendarEntryTimeoutRef.current);
+      }
+      if (calendarHoverPreviewTimeoutRef.current !== null) {
+        window.clearTimeout(calendarHoverPreviewTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const kpiDetailContent = useMemo<
     Record<KpiDetailKey, { title: string; summary: string; bullets: string[] }>
@@ -2408,11 +2667,33 @@ export default function HomePage() {
     [reportMetrics],
   );
 
-  function addPlannedBlock() {
+  function addPlannedBlock(forceOverlap = false) {
     if (!user) return false;
     const title = planTitle.trim();
+    const note = planNote.trim();
     if (!title) {
       setPlanStatus("Write a task title first.");
+      return false;
+    }
+
+    const nextDuration = Math.min(240, Math.max(5, planDuration));
+    const nextTime = planTime || "09:00";
+    const nextStartMinute = parseTimeToMinutes(nextTime);
+    const nextEndMinute = Math.min(24 * 60, nextStartMinute + Math.max(10, nextDuration));
+    const conflicts = selectedDatePlans.filter((item) => {
+      const startMinute = parseTimeToMinutes(item.timeOfDay || "09:00");
+      const endMinute = Math.min(24 * 60, startMinute + Math.max(10, item.durationMinutes));
+      return nextStartMinute < endMinute && nextEndMinute > startMinute;
+    });
+    if (!forceOverlap && conflicts.length > 0) {
+      setPlanConflictWarning({
+        conflictIds: conflicts.map((item) => item.id),
+        message:
+          conflicts.length === 1
+            ? `This overlaps with "${conflicts[0]?.title}" at ${normalizeTimeLabel(conflicts[0]?.timeOfDay || "09:00")}.`
+            : `This overlaps with ${conflicts.length} existing blocks on this day.`,
+      });
+      setPlanStatus("");
       return false;
     }
 
@@ -2420,23 +2701,29 @@ export default function HomePage() {
       id: typeof crypto !== "undefined" ? crypto.randomUUID() : `${Date.now()}`,
       dateKey: selectedDateKey,
       title,
-      durationMinutes: Math.min(240, Math.max(5, planDuration)),
-      timeOfDay: planTime || "09:00",
+      note,
+      durationMinutes: nextDuration,
+      timeOfDay: nextTime,
       sortOrder:
         selectedDatePlans.length === 0
           ? 0
           : Math.max(...selectedDatePlans.map((item) => item.sortOrder)) + 1,
       createdAtISO: new Date().toISOString(),
+      status: "active",
     };
     const updated = [...plannedBlocks, next];
     setPlannedBlocks(updated);
     savePlannedBlocks(user.uid, updated);
     setPlanTitle("");
+    setPlanNote("");
+    setPlanNoteExpanded(false);
+    setPlanConflictWarning(null);
     setPlanStatus("Planned block added.");
     window.setTimeout(() => setPlanStatus(""), 1200);
     setSelectedCalendarDate(selectedDateKey);
     setCalendarView("day");
     setActiveTab("calendar");
+    setPendingCalendarEntryFocusId(`plan-${next.id}`);
     return true;
   }
 
@@ -2506,7 +2793,9 @@ export default function HomePage() {
       completedAtISO,
       minutes: item.durationMinutes,
       category: "misc",
-      note: `Planned block completed: ${item.title}`,
+      note: item.note.trim()
+        ? `Planned block completed: ${item.title} - ${item.note.trim()}`
+        : `Planned block completed: ${item.title}`,
       noteSavedAtISO: new Date().toISOString(),
     };
 
@@ -2520,7 +2809,15 @@ export default function HomePage() {
         streak: computeStreak(nextSessions),
       }),
     );
-    const updated = plannedBlocks.filter((block) => block.id !== item.id);
+    const updated = plannedBlocks.map((block) =>
+      block.id === item.id
+        ? {
+            ...block,
+            status: "completed" as PlannedBlock["status"],
+            completedAtISO,
+          }
+        : block,
+    );
     setPlannedBlocks(updated);
     savePlannedBlocks(user.uid, updated);
     setPlanStatus("Session saved from plan.");
@@ -2536,6 +2833,8 @@ export default function HomePage() {
     setCalendarJumpDate(dateKey);
     setCalendarCursor(new Date(parsed.getFullYear(), parsed.getMonth(), 1));
     setCalendarView("day");
+    setDayPortalComposerOpen(false);
+    setOverlapPickerEntryId(null);
   }
 
   function jumpToToday() {
@@ -2545,9 +2844,72 @@ export default function HomePage() {
   }
 
   function jumpToCalendarSection(sectionId: string) {
+    if (sectionId === "calendar-planner" && calendarView === "day") {
+      openCalendarBlockComposer();
+      sectionId = "calendar-day-chamber";
+    }
     const target = document.getElementById(sectionId);
     if (!target) return;
     target.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function applyThemeMode(nextMode: ThemeMode) {
+    setThemeMode(nextMode);
+    if (user) {
+      window.localStorage.setItem(themeModeStorageKey(user.uid), nextMode);
+    }
+    setThemePromptOpen(false);
+  }
+
+  function updateDailyRitualDraft(
+    draftId: string,
+    patch: Partial<Pick<DailyRitualBlockDraft, "title" | "timeOfDay" | "durationMinutes">>,
+  ) {
+    setDailyRitualDrafts((current) =>
+      current.map((draft) => (draft.id === draftId ? { ...draft, ...patch } : draft)),
+    );
+  }
+
+  function submitDailyRitual() {
+    if (!user) return;
+    const todayKey = dayKeyLocal(new Date());
+    const invalidDraft = dailyRitualDrafts.find((draft) => {
+      if (draft.existingBlockId) return false;
+      return !draft.title.trim() || !draft.timeOfDay || draft.durationMinutes < 15;
+    });
+
+    if (invalidDraft) {
+      setDailyPlanningStatus("Place 3 real blocks for today. Each one needs a title, time, and at least 15 minutes.");
+      return;
+    }
+
+    const newBlocks = dailyRitualDrafts
+      .filter((draft) => !draft.existingBlockId)
+      .map((draft, index) => ({
+        id: typeof crypto !== "undefined" ? crypto.randomUUID() : `${Date.now()}-${index}`,
+        dateKey: todayKey,
+        title: draft.title.trim(),
+        note: "",
+        durationMinutes: Math.min(240, Math.max(15, draft.durationMinutes)),
+        timeOfDay: draft.timeOfDay,
+        sortOrder: claimedBlocksToday.length + index,
+        createdAtISO: new Date().toISOString(),
+        status: "active" as const,
+      }));
+
+    if (claimedBlocksToday.length + newBlocks.length < 3) {
+      setDailyPlanningStatus("Three blocks are required before Whelm unlocks.");
+      return;
+    }
+
+    const updated = [...plannedBlocks, ...newBlocks];
+    setPlannedBlocks(updated);
+    savePlannedBlocks(user.uid, updated);
+    setDailyPlanningStatus("");
+    setDailyPlanningOpen(false);
+    setActiveTab("calendar");
+    setSelectedCalendarDate(todayKey);
+    setCalendarView("day");
   }
 
   if (showIntroSplash) {
@@ -2575,7 +2937,7 @@ export default function HomePage() {
 
   const lastSession = sessions[0];
   const latestNote = orderedNotes[0] ?? null;
-  const nextPlannedBlock = todayPlannedBlocks[0] ?? null;
+  const nextPlannedBlock = todayActivePlannedBlocks[0] ?? null;
   const mobileMoreActive = MOBILE_MORE_TABS.includes(activeTab);
   const recentNotes = filteredNotes.slice(0, 4);
   const maxTrendMinutes = Math.max(30, ...trendPoints.map((point) => point.minutes));
@@ -2592,30 +2954,29 @@ export default function HomePage() {
     insightsChart.segments[0];
 
   return (
-    <main className={styles.pageShell}>
+    <main
+      className={`${styles.pageShell} ${
+        themeMode === "light" ? styles.themeLight : styles.themeDark
+      }`}
+    >
       <div className={styles.pageFrame}>
         <header className={styles.header}>
           <div>
             <p className={styles.kicker}>WHELM</p>
-            <h1 className={styles.title}>Discipline Dashboard</h1>
+            <h1 className={styles.title}>Schedule first. Whelm in the background.</h1>
             <p className={styles.subtitle}>
-              A disciplined operating system for focus, notes, insight, history, and momentum.
+              A calmer workspace for time management, with the assistant supporting the plan instead of competing with it.
             </p>
           </div>
           <div className={styles.headerActions}>
-            {!isPro && (
-              <button type="button" className={styles.upgradeButton} onClick={openUpgradeFlow}>
-                Whelm Pro
-              </button>
-            )}
-            <button type="button" onClick={() => signOut(auth)} className={styles.signOutButton}>
-              Sign out
-            </button>
+            <span className={styles.headerTag}>Calendar-first</span>
+            <span className={styles.headerTag}>Less clutter</span>
+            <span className={styles.headerTag}>Deeper tone</span>
           </div>
         </header>
 
         <nav className={styles.tabRail}>
-          {TAB_META.map((tab) => (
+          {DESKTOP_PRIMARY_TABS.map((tab) => (
             <button
               key={tab.key}
               type="button"
@@ -2626,12 +2987,20 @@ export default function HomePage() {
               <span>{tab.label}</span>
             </button>
           ))}
+          <button
+            type="button"
+            className={`${styles.tabButton} ${mobileMoreActive || mobileMoreOpen ? styles.tabButtonActive : ""}`}
+            onClick={() => setMobileMoreOpen(true)}
+          >
+            <span className={styles.tabIcon}>⋯</span>
+            <span>More</span>
+          </button>
         </nav>
 
         <section className={styles.screen}>
           <div className={styles.topAppBar}>
             <div>
-              <p className={styles.topAppBarLabel}>Whelm OS</p>
+              <p className={styles.topAppBarLabel}>Schedule first</p>
               <h2 className={styles.topAppBarTitle}>{tabTitle(activeTab)}</h2>
             </div>
             <div className={styles.topAppBarRight}>
@@ -2645,12 +3014,9 @@ export default function HomePage() {
               <button
                 type="button"
                 className={styles.topAppBarAction}
-                onClick={() => {
-                  setFeedbackOpen(true);
-                  setFeedbackStatus("");
-                }}
+                onClick={() => setMobileMoreOpen(true)}
               >
-                Feedback
+                More
               </button>
             </div>
           </div>
@@ -2739,6 +3105,7 @@ export default function HomePage() {
                     subtitle={FOCUS_TIMER.subtitle}
                     actionLabel={FOCUS_TIMER.actionLabel}
                     theme={FOCUS_TIMER.theme}
+                    appearance={themeMode}
                     onComplete={(note, minutesSpent) => completeSession(note, minutesSpent)}
                   />
                 </div>
@@ -2856,7 +3223,7 @@ export default function HomePage() {
                     </span>
                     <span className={styles.senseiMetricPill}>Streak: {streak}d</span>
                     <span className={styles.senseiMetricPill}>
-                      Ready: {todayPlannedBlocks.length}
+                      Ready: {todayActivePlannedBlocks.length}
                     </span>
                     {nextSenseiMilestone.next ? (
                       <span className={styles.senseiMetricPill}>
@@ -2888,6 +3255,7 @@ export default function HomePage() {
                     subtitle={FOCUS_TIMER.subtitle}
                     actionLabel={FOCUS_TIMER.actionLabel}
                     theme={FOCUS_TIMER.theme}
+                    appearance={themeMode}
                     onComplete={(note, minutesSpent) => completeSession(note, minutesSpent)}
                   />
 
@@ -3008,38 +3376,34 @@ export default function HomePage() {
                 <button
                   type="button"
                   className={styles.mobileJumpButton}
-                  onClick={() => scrollToSection(calendarStreakRef.current)}
+                  onClick={() => setCalendarAuxPanel("streak")}
                 >
                   Streak
                 </button>
                 <button
                   type="button"
                   className={styles.mobileJumpButton}
-                  onClick={() => scrollToSection(calendarMonthRef.current)}
+                  onClick={() => setCalendarAuxPanel("guide")}
                 >
-                  Calendar
+                  Guide
                 </button>
                 <button
                   type="button"
                   className={styles.mobileJumpButton}
-                  onClick={handleMobilePlannerOpen}
+                  onClick={() => setCalendarAuxPanel("agenda")}
                 >
-                  Time block
+                  Agenda
                 </button>
               </div>}
-              <div ref={calendarHeroRef}>
-                <CompanionPulse {...companionState.pulses.calendar} />
-              </div>
               <article
-                className={`${styles.card} ${
-                  !isMobileViewport && calendarView === "day" ? styles.calendarPrimaryExpanded : ""
-                }`}
+                className={`${styles.card} ${calendarView === "month" ? styles.calendarPrimaryExpanded : ""}`}
                 ref={calendarMonthRef}
               >
-                <p className={styles.sectionLabel}>
-                  {calendarView === "month" ? "Month View" : "Day Timeline"}
+                <p className={styles.sectionLabel}>Primary View</p>
+                <h2 className={styles.cardTitle}>Your schedule</h2>
+                <p className={styles.accountMeta}>
+                  Start here first. Whelm stays nearby, but the calendar leads the page.
                 </p>
-                <h2 className={styles.cardTitle}>Focus calendar</h2>
                 <div className={styles.calendarToolbar}>
                   <div className={styles.calendarNav}>
                     <button
@@ -3123,34 +3487,23 @@ export default function HomePage() {
                     <button
                       type="button"
                       className={styles.calendarSectionButton}
-                      onClick={() =>
-                        jumpToCalendarSection(
-                          calendarView === "day" ? "calendar-day-chamber" : "calendar-main-view",
-                        )
-                      }
+                      onClick={() => setCalendarAuxPanel("guide")}
                     >
-                      {calendarView === "day" ? "Day chamber" : "Calendar"}
+                      Guide
                     </button>
                     <button
                       type="button"
                       className={styles.calendarSectionButton}
-                      onClick={() => jumpToCalendarSection("calendar-timeline")}
+                      onClick={() => setCalendarAuxPanel("streak")}
                     >
-                      Timeline
+                      Streak
                     </button>
                     <button
                       type="button"
                       className={styles.calendarSectionButton}
-                      onClick={() => jumpToCalendarSection("calendar-scheduler")}
+                      onClick={() => setCalendarAuxPanel("agenda")}
                     >
-                      Scheduler
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.calendarSectionButton}
-                      onClick={() => jumpToCalendarSection("calendar-planner")}
-                    >
-                      Planner
+                      Agenda
                     </button>
                   </div>
                 </div>
@@ -3242,13 +3595,22 @@ export default function HomePage() {
                               <p className={styles.sectionLabel}>{selectedDateSummary.eyebrow}</p>
                               <h3 className={styles.dayPortalTitle}>{selectedDateSummary.title}</h3>
                             </div>
-                            <button
-                              type="button"
-                              className={styles.secondaryPlanButton}
-                              onClick={() => setCalendarView("month")}
-                            >
-                              Back to month
-                            </button>
+                            <div className={styles.dayPortalActions}>
+                              <button
+                                type="button"
+                                className={styles.planAddButton}
+                                onClick={openCalendarBlockComposer}
+                              >
+                                + Block
+                              </button>
+                              <button
+                                type="button"
+                                className={styles.secondaryPlanButton}
+                                onClick={() => setCalendarView("month")}
+                              >
+                                Back to month
+                              </button>
+                            </div>
                           </div>
                           <p className={styles.dayPortalMeta}>{selectedDateSummary.body}</p>
                           <div className={styles.dayPortalStats}>
@@ -3262,6 +3624,109 @@ export default function HomePage() {
                               Entries: {selectedDateEntries.length}
                             </span>
                           </div>
+                          {!isMobileViewport && dayPortalComposerOpen && (
+                            <div id="calendar-planner" className={styles.dayPortalComposer}>
+                              <div className={styles.dayPortalComposerHeader}>
+                                <div>
+                                  <p className={styles.sectionLabel}>Add Block</p>
+                                  <p className={styles.accountMeta}>
+                                    Place the next block without leaving the day view.
+                                  </p>
+                                </div>
+                                <button
+                                  type="button"
+                                  className={styles.secondaryPlanButton}
+                                  onClick={() => setDayPortalComposerOpen(false)}
+                                >
+                                  Close
+                                </button>
+                              </div>
+                              <input
+                                value={planTitle}
+                                onChange={(event) => setPlanTitle(event.target.value)}
+                                placeholder="Task title (e.g. Deep work sprint)"
+                                className={styles.planInput}
+                              />
+                              <div className={styles.planNoteRow}>
+                                <button
+                                  type="button"
+                                  className={styles.planNoteToggle}
+                                  onClick={() => setPlanNoteExpanded((current) => !current)}
+                                >
+                                  {planNoteExpanded || planNote ? "Hide note" : "+ Note"}
+                                </button>
+                              </div>
+                              {planNoteExpanded && (
+                                <textarea
+                                  value={planNote}
+                                  onChange={(event) => setPlanNote(event.target.value.slice(0, 280))}
+                                  placeholder="Optional note, intention, or instruction for this block"
+                                  className={styles.planNoteInput}
+                                />
+                              )}
+                              {planConflictWarning && (
+                                <div className={styles.planConflictBanner}>
+                                  <p className={styles.planConflictText}>{planConflictWarning.message}</p>
+                                  <div className={styles.planConflictActions}>
+                                    <button
+                                      type="button"
+                                      className={styles.planAddButton}
+                                      onClick={() => void addPlannedBlock(true)}
+                                    >
+                                      Add anyway
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className={styles.secondaryPlanButton}
+                                      onClick={() => setPlanConflictWarning(null)}
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                              <div className={styles.planFormRow}>
+                                <label className={styles.planLabel}>
+                                  Time
+                                  <input
+                                    type="time"
+                                    value={planTime}
+                                    onChange={(event) => setPlanTime(event.target.value)}
+                                    className={styles.planControl}
+                                  />
+                                </label>
+                                <label className={styles.planLabel}>
+                                  Minutes
+                                  <input
+                                    type="number"
+                                    min={5}
+                                    max={240}
+                                    value={planDuration}
+                                    onChange={(event) => {
+                                      const next = Number(event.target.value);
+                                      if (Number.isFinite(next)) {
+                                        setPlanDuration(next);
+                                      }
+                                    }}
+                                    className={styles.planControl}
+                                  />
+                                </label>
+                                <button
+                                  type="button"
+                                  className={styles.planAddButton}
+                                  onClick={() => {
+                                    const added = addPlannedBlock();
+                                    if (added) {
+                                      setDayPortalComposerOpen(false);
+                                    }
+                                  }}
+                                >
+                                  Add Block
+                                </button>
+                              </div>
+                              {planStatus && <p className={styles.accountMeta}>{planStatus}</p>}
+                            </div>
+                          )}
                         </div>
                         <SenseiAvatar
                           message={
@@ -3277,13 +3742,19 @@ export default function HomePage() {
                         />
                       </div>
                     </div>
-                    <div id="calendar-timeline" className={styles.dayViewGrid}>
+                    <div id="calendar-timeline" className={styles.dayViewGrid} ref={calendarTimelineRef}>
                       <div className={styles.dayViewTicks}>
                         {dayViewTimeline.hourTicks.map((tick) => (
                           <span key={tick.minute}>{tick.label}</span>
                         ))}
                       </div>
-                      <div className={styles.dayViewTrack}>
+                      <div
+                        className={styles.dayViewTrack}
+                        onClick={() => {
+                          setCalendarPinnedEntryId(null);
+                          setOverlapPickerEntryId(null);
+                        }}
+                      >
                         {dayViewTimeline.hourTicks.map((tick) => (
                           <div
                             key={tick.minute}
@@ -3297,28 +3768,208 @@ export default function HomePage() {
                           <button
                             type="button"
                             key={`timeline-${entry.id}`}
-                            className={`${styles.dayViewEvent} ${styles[`dayViewEvent${entry.tone}`]}`}
+                            data-calendar-entry-id={entry.id}
+                            className={`${styles.dayViewEvent} ${styles[`dayViewEvent${entry.tone}`]} ${
+                              activatedCalendarEntryId === entry.id ? styles.dayViewEventActivated : ""
+                            }`}
                             style={{
                               top: `${entry.topPct}%`,
                               height: `${Math.max(7.5, entry.heightPct)}%`,
                             }}
-                            onMouseEnter={() => setCalendarHoverEntryId(entry.id)}
-                            onMouseLeave={() => setCalendarHoverEntryId((current) =>
-                              current === entry.id ? null : current,
-                            )}
-                            onClick={() =>
+                            onMouseEnter={() => showCalendarHoverPreview(entry.id)}
+                            onMouseLeave={() => scheduleCalendarHoverPreviewClear(entry.id)}
+                            onFocus={() => showCalendarHoverPreview(entry.id)}
+                            onBlur={() => scheduleCalendarHoverPreviewClear(entry.id)}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              clearCalendarHoverPreviewDelay();
                               setCalendarPinnedEntryId((current) => (current === entry.id ? null : entry.id))
-                            }
+                            }}
                           >
                             <span className={styles.dayViewEventTime}>{entry.timeLabel}</span>
                             <strong>{entry.title}</strong>
+                            {entry.overlapIds.length > 0 && (
+                              <span
+                                className={styles.dayViewOverlapHandle}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  clearCalendarHoverPreviewDelay();
+                                  setCalendarHoverEntryId(null);
+                                  setCalendarPinnedEntryId(null);
+                                  setOverlapPickerEntryId((current) =>
+                                    current === entry.id ? null : entry.id,
+                                  );
+                                }}
+                              >
+                                {entry.overlapIds.slice(0, 3).map((overlapId, index) => {
+                                  const overlapEntry = dayViewTimeline.items.find((item) => item.id === overlapId);
+                                  if (!overlapEntry) return null;
+                                  return (
+                                    <span
+                                      key={overlapId}
+                                      className={`${styles.dayViewOverlapSlice} ${
+                                        styles[`dayViewOverlapSlice${overlapEntry.tone}`]
+                                      }`}
+                                      style={{ right: `${index * 8}px` }}
+                                    />
+                                  );
+                                })}
+                              </span>
+                            )}
                           </button>
                         ))}
+                        {activeOverlapPickerItem && activeOverlapPickerItem.overlapIds.length > 0 && (
+                          <div
+                            className={`${styles.overlapPicker} ${
+                              activeOverlapPickerItem.topPct + activeOverlapPickerItem.heightPct / 2 > 55
+                                ? styles.overlapPickerAbove
+                                : styles.overlapPickerBelow
+                            }`}
+                            style={
+                              activeOverlapPickerItem.topPct + activeOverlapPickerItem.heightPct / 2 > 55
+                                ? {
+                                    bottom: `calc(${100 - activeOverlapPickerItem.topPct + 2}%)`,
+                                  }
+                                : {
+                                    top: `calc(${
+                                      Math.min(
+                                        92,
+                                        activeOverlapPickerItem.topPct + activeOverlapPickerItem.heightPct + 2,
+                                      )
+                                    }%)`,
+                                  }
+                            }
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            <p className={styles.overlapPickerLabel}>Overlapping blocks</p>
+                            <div className={styles.overlapPickerList}>
+                              {[activeOverlapPickerItem.id, ...activeOverlapPickerItem.overlapIds].map((optionId) => {
+                                const option = dayViewTimeline.items.find((item) => item.id === optionId);
+                                if (!option) return null;
+                                return (
+                                  <button
+                                    key={option.id}
+                                    type="button"
+                                    className={styles.overlapPickerItem}
+                                    onClick={() => {
+                                      setOverlapPickerEntryId(null);
+                                      setCalendarPinnedEntryId(option.id);
+                                      showCalendarHoverPreview(option.id);
+                                    }}
+                                  >
+                                    <span
+                                      className={`${styles.overlapPickerSwatch} ${
+                                        styles[`dayViewOverlapSlice${option.tone}`]
+                                      }`}
+                                    />
+                                    <span>{option.timeLabel}</span>
+                                    <strong>{option.title}</strong>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                        {activeCalendarPreview && activeDayViewPreviewItem && (
+                          <div
+                            className={`${styles.calendarEntryPopover} ${
+                              calendarPinnedEntryId ? styles.calendarEntryPopoverPinned : ""
+                            } ${
+                              activeDayViewPreviewItem.topPct + activeDayViewPreviewItem.heightPct / 2 > 55
+                                ? styles.calendarEntryPopoverAbove
+                                : styles.calendarEntryPopoverBelow
+                            }`}
+                            style={
+                              activeDayViewPreviewItem.topPct + activeDayViewPreviewItem.heightPct / 2 > 55
+                                ? {
+                                    bottom: `calc(${100 - activeDayViewPreviewItem.topPct + 2}%)`,
+                                  }
+                                : {
+                                    top: `calc(${
+                                      Math.min(
+                                        92,
+                                        activeDayViewPreviewItem.topPct + activeDayViewPreviewItem.heightPct + 2,
+                                      )
+                                    }%)`,
+                                  }
+                            }
+                            onMouseEnter={() => {
+                              if (!calendarPinnedEntryId) {
+                                showCalendarHoverPreview(activeCalendarPreview.id);
+                              }
+                            }}
+                            onMouseLeave={() => {
+                              if (!calendarPinnedEntryId) {
+                                scheduleCalendarHoverPreviewClear(activeCalendarPreview.id);
+                              }
+                            }}
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            <div>
+                              <p className={styles.calendarEntryPreviewLabel}>
+                                {new Date(`${activeCalendarPreview.dateKey}T00:00:00`).toLocaleDateString(
+                                  undefined,
+                                  { weekday: "short", month: "short", day: "numeric" },
+                                )}{" "}
+                                • {activeCalendarPreview.timeLabel}
+                              </p>
+                              <h3 className={styles.calendarEntryPreviewTitle}>
+                                {activeCalendarPreview.title}
+                              </h3>
+                              <p className={styles.calendarEntryPreviewBody}>
+                                {activeCalendarPreview.preview}
+                              </p>
+                            </div>
+                            <div className={styles.calendarEntryPreviewActions}>
+                              {activeCalendarPreview.source === "reminder" && activeCalendarPreview.noteId && (
+                                <button
+                                  type="button"
+                                  className={styles.secondaryPlanButton}
+                                  onClick={() => {
+                                    setSelectedNoteId(activeCalendarPreview.noteId ?? null);
+                                    openNotesTab();
+                                  }}
+                                >
+                                  Open note
+                                </button>
+                              )}
+                              {activeCalendarPreview.source === "plan" && activeCalendarPreview.planId && (
+                                <button
+                                  type="button"
+                                  className={styles.planCompleteButton}
+                                  onClick={() => {
+                                    const plan = plannedBlockById.get(activeCalendarPreview.planId ?? "");
+                                    if (!plan) return;
+                                    void completePlannedBlock(plan);
+                                  }}
+                                >
+                                  Complete
+                                </button>
+                              )}
+                              {activeCalendarPreview.source === "session" && (
+                                <button
+                                  type="button"
+                                  className={styles.secondaryPlanButton}
+                                  onClick={() => setActiveTab("history")}
+                                >
+                                  View history
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                className={styles.secondaryPlanButton}
+                                onClick={() => setCalendarPinnedEntryId(null)}
+                              >
+                                Close
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
                 )}
-                {activeCalendarPreview && (
+                {calendarView !== "day" && activeCalendarPreview && (
                   <div className={styles.calendarEntryPreview}>
                     <div>
                       <p className={styles.calendarEntryPreviewLabel}>
@@ -3382,215 +4033,300 @@ export default function HomePage() {
                 )}
               </article>
 
-              <article id="calendar-scheduler" className={styles.card} ref={calendarStreakRef}>
-                <p className={styles.sectionLabel}>Last 4 Weeks</p>
-                <h2 className={styles.cardTitle}>Streak heatmap</h2>
-                <div className={styles.streakGrid}>
-                  {focusMetrics.calendar.map((day, index, days) => {
-                    const previous = days[index - 1];
-                    const next = days[index + 1];
-                    const streakDay =
-                      day.minutes > 0 &&
-                      ((previous?.minutes ?? 0) > 0 || (next?.minutes ?? 0) > 0);
-                    const leftConnected =
-                      streakDay &&
-                      index % 14 !== 0 &&
-                      (previous?.minutes ?? 0) > 0;
-                    const rightConnected =
-                      streakDay &&
-                      index % 14 !== 13 &&
-                      (next?.minutes ?? 0) > 0;
-
-                    return (
-                      <div
-                        key={day.dateKey}
-                        className={[
-                          styles.streakCell,
-                          styles[`streakLevel${day.level}`],
-                          streakDay ? styles.streakCellRun : "",
-                          leftConnected ? styles.streakCellConnectLeft : "",
-                          rightConnected ? styles.streakCellConnectRight : "",
-                        ]
-                          .filter(Boolean)
-                          .join(" ")}
-                        title={`${day.label}: ${day.minutes}m`}
-                      >
-                        {streakDay ? <StreakBandana /> : null}
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className={styles.streakLegend}>
-                  <span>No focus</span>
-                  <span>Light</span>
-                  <span>Strong</span>
-                  <span>Deep</span>
-                </div>
-                <p className={styles.streakLegendNote}>
-                  Moving bandana = streak day
-                </p>
-              </article>
-
-              <article className={styles.card} ref={calendarPlannerRef}>
-                <p className={styles.sectionLabel}>Scheduler</p>
-                <h2 className={styles.cardTitle}>
-                  Day agenda for{" "}
-                  {new Date(`${selectedDateKey}T00:00:00`).toLocaleDateString(undefined, {
-                    weekday: "short",
-                    month: "short",
-                    day: "numeric",
-                  })}
-                </h2>
-                <p className={styles.accountMeta}>
-                  {selectedDateEntries.length} entries: {selectedDatePlans.length} planned,{" "}
-                  {selectedDateEntries.filter((entry) => entry.source === "reminder").length} reminders,{" "}
-                  {selectedDateEntries.filter((entry) => entry.source === "session").length} completed sessions
-                </p>
-
-                <div className={styles.dayAgendaList}>
-                  {selectedDateEntries.length === 0 ? (
-                    <p className={styles.emptyText}>No events for this date yet.</p>
-                  ) : (
-                    selectedDateEntries.slice(0, 8).map((entry) => (
-                      <div key={entry.id} className={styles.dayAgendaItem}>
-                        <div>
-                          <p className={styles.dayAgendaTime}>{entry.timeLabel}</p>
-                          <strong className={styles.dayAgendaTitle}>{entry.title}</strong>
-                          <p className={styles.dayAgendaMeta}>{entry.subtitle}</p>
-                        </div>
-                        <div className={styles.dayAgendaActions}>
-                          {entry.source === "reminder" && entry.noteId && (
-                            <button
-                              type="button"
-                              className={styles.secondaryPlanButton}
-                              onClick={() => {
-                                setSelectedNoteId(entry.noteId ?? null);
-                                openNotesTab();
-                              }}
-                            >
-                              Open note
-                            </button>
-                          )}
-                          {entry.source === "plan" && entry.planId && plannedBlockById.get(entry.planId) && (
-                            <button
-                              type="button"
-                              className={styles.planCompleteButton}
-                              onClick={() => {
-                                const plan = plannedBlockById.get(entry.planId ?? "");
-                                if (!plan) return;
-                                void completePlannedBlock(plan);
-                              }}
-                            >
-                              Complete
-                            </button>
-                          )}
-                          {entry.source === "session" && (
-                            <button
-                              type="button"
-                              className={styles.secondaryPlanButton}
-                              onClick={() => setActiveTab("history")}
-                            >
-                              View history
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))
-                  )}
+              <article className={`${styles.card} ${styles.calendarAuxCard}`} ref={calendarPlannerRef}>
+                <div className={styles.calendarAuxTabs}>
+                  <button
+                    type="button"
+                    className={`${styles.calendarAuxTab} ${
+                      calendarAuxPanel === "agenda" ? styles.calendarAuxTabActive : ""
+                    }`}
+                    onClick={() => setCalendarAuxPanel("agenda")}
+                  >
+                    Agenda
+                  </button>
+                  <button
+                    type="button"
+                    className={`${styles.calendarAuxTab} ${
+                      calendarAuxPanel === "streak" ? styles.calendarAuxTabActive : ""
+                    }`}
+                    onClick={() => setCalendarAuxPanel("streak")}
+                  >
+                    Streak
+                  </button>
+                  <button
+                    type="button"
+                    className={`${styles.calendarAuxTab} ${
+                      calendarAuxPanel === "guide" ? styles.calendarAuxTabActive : ""
+                    }`}
+                    onClick={() => setCalendarAuxPanel("guide")}
+                  >
+                    Guide
+                  </button>
                 </div>
 
-                <div id="calendar-planner" className={styles.planForm}>
-                  <input
-                    value={planTitle}
-                    onChange={(event) => setPlanTitle(event.target.value)}
-                    placeholder="Task title (e.g. Deep work sprint)"
-                    className={styles.planInput}
-                  />
-                  <div className={styles.planFormRow}>
-                    <label className={styles.planLabel}>
-                      Time
-                      <input
-                        type="time"
-                        value={planTime}
-                        onChange={(event) => setPlanTime(event.target.value)}
-                        className={styles.planControl}
-                      />
-                    </label>
-                    <label className={styles.planLabel}>
-                      Minutes
-                      <input
-                        type="number"
-                        min={5}
-                        max={240}
-                        value={planDuration}
-                        onChange={(event) => {
-                          const next = Number(event.target.value);
-                          if (Number.isFinite(next)) {
-                            setPlanDuration(next);
-                          }
-                        }}
-                        className={styles.planControl}
-                      />
-                    </label>
-                    <button type="button" className={styles.planAddButton} onClick={addPlannedBlock}>
-                      Add Block
-                    </button>
+                {calendarAuxPanel === "guide" && (
+                  <div ref={calendarHeroRef}>
+                    <CompanionPulse {...companionState.pulses.calendar} />
                   </div>
-                  {planStatus && <p className={styles.accountMeta}>{planStatus}</p>}
-                </div>
+                )}
 
-                <div className={styles.planList}>
-                  {selectedDatePlans.length === 0 ? (
-                    <p className={styles.emptyText}>No planned blocks yet for this day.</p>
-                  ) : (
-                    selectedDatePlans.map((item) => (
-                      <div
-                        key={item.id}
-                        className={styles.planItem}
-                        draggable
-                        onDragStart={() => setDraggedPlanId(item.id)}
-                        onDragEnd={() => setDraggedPlanId(null)}
-                        onDragOver={(event) => event.preventDefault()}
-                        onDrop={() => {
-                          if (!draggedPlanId) return;
-                          reorderPlannedBlocks(draggedPlanId, item.id);
-                          setDraggedPlanId(null);
-                        }}
-                      >
-                        <div>
-                          <strong>{item.title}</strong>
-                          <div className={styles.planMetaRow}>
-                            <input
-                              type="time"
-                              value={item.timeOfDay}
-                              className={styles.planItemTime}
-                              onChange={(event) =>
-                                updatePlannedBlockTime(item.id, event.target.value)
-                              }
-                            />
-                            <span>{item.durationMinutes}m</span>
+                {calendarAuxPanel === "streak" && (
+                  <>
+                    <p className={styles.sectionLabel}>Last 4 Weeks</p>
+                    <h2 className={styles.cardTitle}>Streak heatmap</h2>
+                    <div className={styles.streakGrid}>
+                      {focusMetrics.calendar.map((day, index, days) => {
+                        const previous = days[index - 1];
+                        const next = days[index + 1];
+                        const streakDay =
+                          day.minutes > 0 &&
+                          ((previous?.minutes ?? 0) > 0 || (next?.minutes ?? 0) > 0);
+                        const leftConnected =
+                          streakDay &&
+                          index % 14 !== 0 &&
+                          (previous?.minutes ?? 0) > 0;
+                        const rightConnected =
+                          streakDay &&
+                          index % 14 !== 13 &&
+                          (next?.minutes ?? 0) > 0;
+
+                        return (
+                          <div
+                            key={day.dateKey}
+                            className={[
+                              styles.streakCell,
+                              styles[`streakLevel${day.level}`],
+                              streakDay ? styles.streakCellRun : "",
+                              leftConnected ? styles.streakCellConnectLeft : "",
+                              rightConnected ? styles.streakCellConnectRight : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" ")}
+                            title={`${day.label}: ${day.minutes}m`}
+                          >
+                            {streakDay ? <StreakBandana /> : null}
                           </div>
-                        </div>
-                        <div className={styles.planActions}>
-                          <button
-                            type="button"
-                            className={styles.planCompleteButton}
-                            onClick={() => void completePlannedBlock(item)}
-                          >
-                            Complete
-                          </button>
-                          <button
-                            type="button"
-                            className={styles.planDeleteButton}
-                            onClick={() => deletePlannedBlock(item.id)}
-                          >
-                            Remove
-                          </button>
-                        </div>
+                        );
+                      })}
+                    </div>
+                    <div className={styles.streakLegend}>
+                      <span>No focus</span>
+                      <span>Light</span>
+                      <span>Strong</span>
+                      <span>Deep</span>
+                    </div>
+                    <p className={styles.streakLegendNote}>Moving bandana = streak day</p>
+                  </>
+                )}
+
+                {calendarAuxPanel === "agenda" && (
+                  <>
+                    <p className={styles.sectionLabel}>Scheduler</p>
+                    <h2 className={styles.cardTitle}>
+                      Day agenda for{" "}
+                      {new Date(`${selectedDateKey}T00:00:00`).toLocaleDateString(undefined, {
+                        weekday: "short",
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </h2>
+                    <p className={styles.accountMeta}>
+                      {selectedDateEntries.length} entries: {selectedDatePlans.length} planned,{" "}
+                      {selectedDateEntries.filter((entry) => entry.source === "reminder").length} reminders,{" "}
+                      {selectedDateEntries.filter((entry) => entry.source === "session").length} completed sessions
+                    </p>
+
+                    <div className={styles.dayAgendaList}>
+                      {selectedDateEntries.length === 0 ? (
+                        <p className={styles.emptyText}>No events for this date yet.</p>
+                      ) : (
+                        selectedDateEntries.slice(0, 8).map((entry) => (
+                          <div key={entry.id} className={styles.dayAgendaItem}>
+                            <div>
+                              <p className={styles.dayAgendaTime}>{entry.timeLabel}</p>
+                              <strong className={styles.dayAgendaTitle}>{entry.title}</strong>
+                              <p className={styles.dayAgendaMeta}>{entry.subtitle}</p>
+                            </div>
+                            <div className={styles.dayAgendaActions}>
+                              {entry.source === "reminder" && entry.noteId && (
+                                <button
+                                  type="button"
+                                  className={styles.secondaryPlanButton}
+                                  onClick={() => {
+                                    setSelectedNoteId(entry.noteId ?? null);
+                                    openNotesTab();
+                                  }}
+                                >
+                                  Open note
+                                </button>
+                              )}
+                              {entry.source === "plan" && entry.planId && plannedBlockById.get(entry.planId) && (
+                                <button
+                                  type="button"
+                                  className={styles.planCompleteButton}
+                                  onClick={() => {
+                                    const plan = plannedBlockById.get(entry.planId ?? "");
+                                    if (!plan) return;
+                                    void completePlannedBlock(plan);
+                                  }}
+                                >
+                                  Complete
+                                </button>
+                              )}
+                              {entry.source === "session" && (
+                                <button
+                                  type="button"
+                                  className={styles.secondaryPlanButton}
+                                  onClick={() => setActiveTab("history")}
+                                >
+                                  View history
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    <div className={styles.planSectionStack}>
+                  <section className={styles.planSection}>
+                    <button
+                      type="button"
+                      className={styles.planSectionHeader}
+                      onClick={() =>
+                        setPlannerSectionsOpen((current) => ({ ...current, active: !current.active }))
+                      }
+                    >
+                      <span>Active Blocks</span>
+                      <span>{selectedDatePlanGroups.active.length}</span>
+                    </button>
+                    {plannerSectionsOpen.active && (
+                      <div className={styles.planList}>
+                        {selectedDatePlanGroups.active.length === 0 ? (
+                          <p className={styles.emptyText}>No active planned blocks for this day.</p>
+                        ) : (
+                          selectedDatePlanGroups.active.map((item) => (
+                            <div
+                              key={item.id}
+                              className={styles.planItem}
+                              draggable
+                              onDragStart={() => setDraggedPlanId(item.id)}
+                              onDragEnd={() => setDraggedPlanId(null)}
+                              onDragOver={(event) => event.preventDefault()}
+                              onDrop={() => {
+                                if (!draggedPlanId) return;
+                                reorderPlannedBlocks(draggedPlanId, item.id);
+                                setDraggedPlanId(null);
+                              }}
+                            >
+                              <div>
+                                <strong>{item.title}</strong>
+                                <div className={styles.planMetaRow}>
+                                  <input
+                                    type="time"
+                                    value={item.timeOfDay}
+                                    className={styles.planItemTime}
+                                    onChange={(event) =>
+                                      updatePlannedBlockTime(item.id, event.target.value)
+                                    }
+                                  />
+                                  <span>{item.durationMinutes}m</span>
+                                </div>
+                                {item.note.trim() && <p className={styles.planItemNote}>{item.note}</p>}
+                              </div>
+                              <div className={styles.planActions}>
+                                <button
+                                  type="button"
+                                  className={styles.planCompleteButton}
+                                  onClick={() => void completePlannedBlock(item)}
+                                >
+                                  Complete
+                                </button>
+                                <button
+                                  type="button"
+                                  className={styles.planDeleteButton}
+                                  onClick={() => deletePlannedBlock(item.id)}
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            </div>
+                          ))
+                        )}
                       </div>
-                    ))
-                  )}
-                </div>
+                    )}
+                  </section>
+
+                  <section className={styles.planSection}>
+                    <button
+                      type="button"
+                      className={styles.planSectionHeader}
+                      onClick={() =>
+                        setPlannerSectionsOpen((current) => ({ ...current, completed: !current.completed }))
+                      }
+                    >
+                      <span>Completed Blocks</span>
+                      <span>{selectedDatePlanGroups.completed.length}</span>
+                    </button>
+                    {plannerSectionsOpen.completed && (
+                      <div className={styles.planList}>
+                        {selectedDatePlanGroups.completed.length === 0 ? (
+                          <p className={styles.emptyText}>No completed blocks saved for this day.</p>
+                        ) : (
+                          selectedDatePlanGroups.completed.map((item) => (
+                            <div key={item.id} className={styles.planItemStatic}>
+                              <div>
+                                <strong>{item.title}</strong>
+                                <div className={styles.planMetaRow}>
+                                  <span>{normalizeTimeLabel(item.timeOfDay)}</span>
+                                  <span>{item.durationMinutes}m</span>
+                                </div>
+                                {item.note.trim() && <p className={styles.planItemNote}>{item.note}</p>}
+                              </div>
+                              <div className={styles.planStatusPill}>Completed</div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </section>
+
+                  <section className={styles.planSection}>
+                    <button
+                      type="button"
+                      className={styles.planSectionHeader}
+                      onClick={() =>
+                        setPlannerSectionsOpen((current) => ({ ...current, incomplete: !current.incomplete }))
+                      }
+                    >
+                      <span>Incomplete Blocks</span>
+                      <span>{selectedDatePlanGroups.incomplete.length}</span>
+                    </button>
+                    {plannerSectionsOpen.incomplete && (
+                      <div className={styles.planList}>
+                        {selectedDatePlanGroups.incomplete.length === 0 ? (
+                          <p className={styles.emptyText}>No incomplete blocks for this day.</p>
+                        ) : (
+                          selectedDatePlanGroups.incomplete.map((item) => (
+                            <div key={item.id} className={styles.planItemStatic}>
+                              <div>
+                                <strong>{item.title}</strong>
+                                <div className={styles.planMetaRow}>
+                                  <span>{normalizeTimeLabel(item.timeOfDay)}</span>
+                                  <span>{item.durationMinutes}m</span>
+                                </div>
+                                {item.note.trim() && <p className={styles.planItemNote}>{item.note}</p>}
+                              </div>
+                              <div className={styles.planStatusPillMuted}>Incomplete</div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </section>
+                    </div>
+                  </>
+                )}
               </article>
 
               {isMobileViewport && mobileBlockSheetOpen && (
@@ -3632,6 +4368,49 @@ export default function HomePage() {
                         placeholder="Task title"
                         className={styles.planInput}
                       />
+                      <div className={styles.planNoteRow}>
+                        <button
+                          type="button"
+                          className={styles.planNoteToggle}
+                          onClick={() => setPlanNoteExpanded((current) => !current)}
+                        >
+                          {planNoteExpanded || planNote ? "Hide note" : "+ Note"}
+                        </button>
+                      </div>
+                      {planNoteExpanded && (
+                        <textarea
+                          value={planNote}
+                          onChange={(event) => setPlanNote(event.target.value.slice(0, 280))}
+                          placeholder="Optional note, intention, or instruction for this block"
+                          className={styles.planNoteInput}
+                        />
+                      )}
+                      {planConflictWarning && (
+                        <div className={styles.planConflictBanner}>
+                          <p className={styles.planConflictText}>{planConflictWarning.message}</p>
+                          <div className={styles.planConflictActions}>
+                            <button
+                              type="button"
+                              className={styles.planAddButton}
+                              onClick={() => {
+                                const added = addPlannedBlock(true);
+                                if (added) {
+                                  setMobileBlockSheetOpen(false);
+                                }
+                              }}
+                            >
+                              Add anyway
+                            </button>
+                            <button
+                              type="button"
+                              className={styles.secondaryPlanButton}
+                              onClick={() => setPlanConflictWarning(null)}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
                       <div className={styles.planFormRow}>
                         <label className={styles.planLabel}>
                           Time
@@ -3793,9 +4572,7 @@ export default function HomePage() {
                   <article
                     className={styles.mobileNotesEditorCard}
                     ref={notesEditorRef}
-                    style={{
-                      backgroundColor: selectedNote.color || "rgba(255, 255, 255, 0.9)",
-                    }}
+                    style={notesShellBackground(themeMode, selectedNote.color)}
                   >
                     <div className={styles.notesStudioHero}>
                       <div>
@@ -4065,7 +4842,11 @@ export default function HomePage() {
               </div>}
 
               {!isMobileViewport && <CompanionPulse {...companionState.pulses.notes} />}
-              {!isMobileViewport && <aside className={styles.notesSidebar}>
+              {!isMobileViewport && (
+                <aside
+                  className={styles.notesSidebar}
+                  style={notesShellBackground(themeMode, selectedNote?.color)}
+                >
                 <button type="button" className={styles.newNoteButton} onClick={createWorkspaceNote}>
                   + Add Note
                 </button>
@@ -4128,9 +4909,14 @@ export default function HomePage() {
                     <p className={styles.emptyText}>No notes match your filters.</p>
                   )}
                 </div>
-              </aside>}
+              </aside>
+              )}
 
-              {!isMobileViewport && <article className={styles.notesEditorCard}>
+              {!isMobileViewport && (
+                <article
+                  className={styles.notesEditorCard}
+                  style={notesShellBackground(themeMode, selectedNote?.color)}
+                >
                 {!selectedNote ? (
                   <div className={styles.notesEmptyEditor}>
                     <SenseiFigure
@@ -4541,7 +5327,8 @@ export default function HomePage() {
                     </div>
                   </>
                 )}
-              </article>}
+              </article>
+              )}
             </section>
           )}
 
@@ -4748,6 +5535,99 @@ export default function HomePage() {
           {activeTab === "history" && (
             <section className={styles.historyShell}>
               <CompanionPulse {...companionState.pulses.history} />
+              <article className={styles.card}>
+                <p className={styles.sectionLabel}>Block History</p>
+                <h2 className={styles.cardTitle}>Completed and incomplete blocks</h2>
+                <div className={styles.planSectionStack}>
+                  <section className={styles.planSection}>
+                    <button
+                      type="button"
+                      className={styles.planSectionHeader}
+                      onClick={() =>
+                        setHistorySectionsOpen((current) => ({
+                          ...current,
+                          completed: !current.completed,
+                        }))
+                      }
+                    >
+                      <span>Completed</span>
+                      <span>{plannedBlockHistory.completed.length}</span>
+                    </button>
+                    {historySectionsOpen.completed && (
+                      <div className={styles.planList}>
+                        {plannedBlockHistory.completed.length === 0 ? (
+                          <p className={styles.emptyText}>No completed blocks yet.</p>
+                        ) : (
+                          plannedBlockHistory.completed.map((item) => (
+                            <div key={item.id} className={styles.planItemStatic}>
+                              <div>
+                                <strong>{item.title}</strong>
+                                <div className={styles.planMetaRow}>
+                                  <span>
+                                    {new Date(`${item.dateKey}T00:00:00`).toLocaleDateString(undefined, {
+                                      weekday: "short",
+                                      month: "short",
+                                      day: "numeric",
+                                    })}
+                                  </span>
+                                  <span>{normalizeTimeLabel(item.timeOfDay)}</span>
+                                  <span>{item.durationMinutes}m</span>
+                                </div>
+                                {item.note.trim() && <p className={styles.planItemNote}>{item.note}</p>}
+                              </div>
+                              <div className={styles.planStatusPill}>Completed</div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </section>
+
+                  <section className={styles.planSection}>
+                    <button
+                      type="button"
+                      className={styles.planSectionHeader}
+                      onClick={() =>
+                        setHistorySectionsOpen((current) => ({
+                          ...current,
+                          incomplete: !current.incomplete,
+                        }))
+                      }
+                    >
+                      <span>Incomplete</span>
+                      <span>{plannedBlockHistory.incomplete.length}</span>
+                    </button>
+                    {historySectionsOpen.incomplete && (
+                      <div className={styles.planList}>
+                        {plannedBlockHistory.incomplete.length === 0 ? (
+                          <p className={styles.emptyText}>No incomplete blocks yet.</p>
+                        ) : (
+                          plannedBlockHistory.incomplete.map((item) => (
+                            <div key={item.id} className={styles.planItemStatic}>
+                              <div>
+                                <strong>{item.title}</strong>
+                                <div className={styles.planMetaRow}>
+                                  <span>
+                                    {new Date(`${item.dateKey}T00:00:00`).toLocaleDateString(undefined, {
+                                      weekday: "short",
+                                      month: "short",
+                                      day: "numeric",
+                                    })}
+                                  </span>
+                                  <span>{normalizeTimeLabel(item.timeOfDay)}</span>
+                                  <span>{item.durationMinutes}m</span>
+                                </div>
+                                {item.note.trim() && <p className={styles.planItemNote}>{item.note}</p>}
+                              </div>
+                              <div className={styles.planStatusPillMuted}>Incomplete</div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </section>
+                </div>
+              </article>
               <article className={styles.card}>
                 <p className={styles.sectionLabel}>History</p>
                 <h2 className={styles.cardTitle}>Session log</h2>
@@ -5074,6 +5954,28 @@ export default function HomePage() {
               </article>
 
               <article className={styles.card}>
+                <p className={styles.sectionLabel}>Appearance</p>
+                <h2 className={styles.cardTitle}>Theme mode</h2>
+                <p className={styles.accountMeta}>
+                  Choose the theme you want by default. You can change this any time.
+                </p>
+                <div className={styles.companionStyleRow}>
+                  {(["dark", "light"] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      className={`${styles.companionStyleButton} ${
+                        themeMode === mode ? styles.companionStyleButtonActive : ""
+                      }`}
+                      onClick={() => applyThemeMode(mode)}
+                    >
+                      {mode === "dark" ? "Dark mode" : "Light mode"}
+                    </button>
+                  ))}
+                </div>
+              </article>
+
+              <article className={styles.card}>
                 <p className={styles.sectionLabel}>Sync</p>
                 <h2 className={styles.cardTitle}>Notes sync status</h2>
                 <p className={styles.accountMeta}>
@@ -5210,6 +6112,170 @@ export default function HomePage() {
                   <span>{tabTitle(tab)}</span>
                 </button>
               ))}
+              <button
+                type="button"
+                className={styles.mobileMoreButton}
+                onClick={() => {
+                  setMobileMoreOpen(false);
+                  setFeedbackOpen(true);
+                  setFeedbackStatus("");
+                }}
+              >
+                <span className={styles.bottomTabIcon}>✉</span>
+                <span>Feedback</span>
+              </button>
+              <button
+                type="button"
+                className={styles.mobileMoreButton}
+                onClick={() => void signOut(auth)}
+              >
+                <span className={styles.bottomTabIcon}>⇢</span>
+                <span>Sign out</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {dailyPlanningLocked && !dailyPlanningOpen && (
+        <div className={styles.dailyLockOverlay} onClick={() => setDailyPlanningOpen(true)}>
+          <div className={styles.dailyLockCard} onClick={(event) => event.stopPropagation()}>
+            <p className={styles.sectionLabel}>Daily Entry Ritual</p>
+            <h2 className={styles.cardTitle}>Today is not claimed yet.</h2>
+            <p className={styles.accountMeta}>
+              Whelm stays locked until you place 3 blocks for today. Minimum 15 minutes each.
+            </p>
+            <button
+              type="button"
+              className={styles.reportButton}
+              onClick={() => setDailyPlanningOpen(true)}
+            >
+              Place today&apos;s blocks
+            </button>
+          </div>
+        </div>
+      )}
+
+      {dailyPlanningOpen && dailyPlanningLocked && (
+        <div className={styles.feedbackOverlay}>
+          <div className={styles.feedbackModal} onClick={(event) => event.stopPropagation()}>
+            <div className={styles.feedbackHeader}>
+              <div>
+                <p className={styles.sectionLabel}>Daily Entry Ritual</p>
+                <h2 className={styles.feedbackTitle}>Claim today before it claims you.</h2>
+              </div>
+              <button
+                type="button"
+                className={styles.feedbackClose}
+                onClick={() => setDailyPlanningOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+            <p className={styles.feedbackMeta}>
+              Place 3 blocks for today before Whelm unlocks. Each one must be at least 15 minutes.
+            </p>
+            <div className={styles.dailyRitualList}>
+              {dailyRitualDrafts.map((draft, index) => {
+                const locked = Boolean(draft.existingBlockId);
+                return (
+                  <div key={draft.id} className={styles.dailyRitualItem}>
+                    <div className={styles.dailyRitualHeader}>
+                      <strong>Block {index + 1}</strong>
+                      <span>{locked ? "Claimed" : "Required"}</span>
+                    </div>
+                    <div className={styles.dailyRitualGrid}>
+                      <input
+                        value={draft.title}
+                        onChange={(event) =>
+                          updateDailyRitualDraft(draft.id, { title: event.target.value })
+                        }
+                        placeholder="What are you protecting?"
+                        className={styles.planInput}
+                        disabled={locked}
+                      />
+                      <label className={styles.planLabel}>
+                        Time
+                        <input
+                          type="time"
+                          value={draft.timeOfDay}
+                          onChange={(event) =>
+                            updateDailyRitualDraft(draft.id, { timeOfDay: event.target.value })
+                          }
+                          className={styles.planControl}
+                          disabled={locked}
+                        />
+                      </label>
+                      <label className={styles.planLabel}>
+                        Minutes
+                        <input
+                          type="number"
+                          min={15}
+                          max={240}
+                          value={draft.durationMinutes}
+                          onChange={(event) =>
+                            updateDailyRitualDraft(draft.id, {
+                              durationMinutes: Math.max(15, Number(event.target.value) || 15),
+                            })
+                          }
+                          className={styles.planControl}
+                          disabled={locked}
+                        />
+                      </label>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {dailyPlanningStatus && <p className={styles.feedbackStatus}>{dailyPlanningStatus}</p>}
+            <div className={styles.feedbackFooter}>
+              <button
+                type="button"
+                className={styles.feedbackSubmit}
+                onClick={submitDailyRitual}
+              >
+                Unlock today
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {themePromptOpen && (
+        <div className={styles.feedbackOverlay} onClick={() => setThemePromptOpen(false)}>
+          <div className={styles.feedbackModal} onClick={(event) => event.stopPropagation()}>
+            <div className={styles.feedbackHeader}>
+              <h2 className={styles.feedbackTitle}>Choose your theme</h2>
+              <button
+                type="button"
+                className={styles.feedbackClose}
+                onClick={() => setThemePromptOpen(false)}
+              >
+                Later
+              </button>
+            </div>
+            <p className={styles.feedbackMeta}>
+              Pick how Whelm should look when you return. You can change this later in Settings.
+            </p>
+            <div className={styles.companionStyleRow}>
+              <button
+                type="button"
+                className={`${styles.companionStyleButton} ${
+                  themeMode === "dark" ? styles.companionStyleButtonActive : ""
+                }`}
+                onClick={() => applyThemeMode("dark")}
+              >
+                Dark mode
+              </button>
+              <button
+                type="button"
+                className={`${styles.companionStyleButton} ${
+                  themeMode === "light" ? styles.companionStyleButtonActive : ""
+                }`}
+                onClick={() => applyThemeMode("light")}
+              >
+                Light mode
+              </button>
             </div>
           </div>
         </div>
