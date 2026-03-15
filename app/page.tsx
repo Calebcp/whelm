@@ -828,6 +828,30 @@ function tabTitle(tab: AppTab) {
   }
 }
 
+const BANDANA_WORD_COLORS: Record<string, string> = {
+  Yellow: "#ffd84d",
+  Red: "#ff5353",
+  Green: "#43d96b",
+  Purple: "#b477ff",
+  Blue: "#58c7ff",
+  Black: "#8da0bf",
+  White: "#f7fbff",
+};
+
+function renderBandanaBadgeLabel(label: string | null | undefined) {
+  if (!label) return "Start your streak";
+  const [firstWord, ...rest] = label.split(" ");
+  const tint = BANDANA_WORD_COLORS[firstWord] ?? "#f7fbff";
+  return (
+    <>
+      <span className={styles.streakBadgeWord} style={{ color: tint }}>
+        {firstWord}
+      </span>{" "}
+      {rest.join(" ")}
+    </>
+  );
+}
+
 function plannedBlocksStorageKey(uid: string) {
   return `whelm:planned-focus:${uid}`;
 }
@@ -6436,7 +6460,7 @@ export default function HomePage() {
               <article className={`${styles.card} ${styles.streakHeroCard}`}>
                 <div className={styles.streakHeroCopy}>
                   <p className={styles.streakBadge}>
-                    {streakBandanaTier?.label ?? "Start your streak"}
+                    {renderBandanaBadgeLabel(streakBandanaTier?.label)}
                   </p>
                   <h2 className={styles.streakHeroTitle}>
                     {displayStreak} day streak
@@ -6449,9 +6473,11 @@ export default function HomePage() {
                       : streakStatusLine}
                   </p>
                 </div>
-                <div className={styles.streakHeroVisual}>
-                  <WhelmEmote emoteId={streakHeroEmoteId} size="card" />
-                </div>
+                {!isMobileViewport && (
+                  <div className={styles.streakHeroVisual}>
+                    <WhelmEmote emoteId={streakHeroEmoteId} size="card" />
+                  </div>
+                )}
               </article>
 
               <article className={`${styles.card} ${styles.streakMilestoneCard}`}>
@@ -6463,7 +6489,13 @@ export default function HomePage() {
                 </div>
                 <div className={styles.streakMilestoneCopy}>
                   <h3 className={styles.streakMilestoneTitle}>{streakMilestoneTitle}</h3>
-                  <p className={styles.streakMilestoneBody}>{streakMilestoneBody}</p>
+                  <p className={styles.streakMilestoneBody}>
+                    {isMobileViewport && nextBandanaMilestone
+                      ? `${nextBandanaMilestone.remainingDays} more day${
+                          nextBandanaMilestone.remainingDays === 1 ? "" : "s"
+                        } to ${nextBandanaMilestone.tier.color.toLowerCase()}.`
+                      : streakMilestoneBody}
+                  </p>
                 </div>
               </article>
 
@@ -6598,56 +6630,56 @@ export default function HomePage() {
                     </div>
                   ))}
                 </div>
-                <div className={styles.streakLegend}>
-                  <span>Run shape</span>
-                  <span>Historical bandana</span>
-                  <span>Today marker</span>
-                  <span>Next tier: {nextBandanaMilestone?.tier.color ?? "Mastery"}</span>
-                </div>
-                <p className={styles.streakLegendNote}>
-                  Each streak day keeps the bandana it earned on that specific day. Early days stay yellow/red even after the run reaches white.
-                </p>
               </article>
 
-              <article className={styles.card}>
-                <div className={styles.kpiGrid}>
-                  <div className={styles.kpiItemStatic}>
-                    <span>Current Run</span>
-                    <strong>{displayStreak}d</strong>
-                  </div>
-                  <div className={styles.kpiItemStatic}>
-                    <span>Current Bandana</span>
-                    <strong>{streakBandanaTier?.label ?? "None yet"}</strong>
-                  </div>
-                  <div className={styles.kpiItemStatic}>
-                    <span>Today Focus</span>
-                    <strong>{focusMetrics.todayMinutes}m</strong>
-                  </div>
+              {isMobileViewport ? (
+                <article className={`${styles.card} ${styles.streakStatusCard}`}>
                   <div className={styles.kpiItemStatic}>
                     <span>Status</span>
                     <strong>{streakProtectedToday ? "Protected" : "At risk"}</strong>
                   </div>
-                </div>
-                <div className={styles.noteFooterActions}>
-                  <button
-                    type="button"
-                    className={styles.reportButton}
-                    onClick={() => {
-                      setActiveTab("calendar");
-                      setCalendarView("month");
-                    }}
-                  >
-                    Open command board
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.secondaryPlanButton}
-                    onClick={() => setActiveTab("today")}
-                  >
-                    Focus now
-                  </button>
-                </div>
-              </article>
+                </article>
+              ) : (
+                <article className={styles.card}>
+                  <div className={styles.kpiGrid}>
+                    <div className={styles.kpiItemStatic}>
+                      <span>Current Run</span>
+                      <strong>{displayStreak}d</strong>
+                    </div>
+                    <div className={styles.kpiItemStatic}>
+                      <span>Current Bandana</span>
+                      <strong>{streakBandanaTier?.label ?? "None yet"}</strong>
+                    </div>
+                    <div className={styles.kpiItemStatic}>
+                      <span>Today Focus</span>
+                      <strong>{focusMetrics.todayMinutes}m</strong>
+                    </div>
+                    <div className={styles.kpiItemStatic}>
+                      <span>Status</span>
+                      <strong>{streakProtectedToday ? "Protected" : "At risk"}</strong>
+                    </div>
+                  </div>
+                  <div className={styles.noteFooterActions}>
+                    <button
+                      type="button"
+                      className={styles.reportButton}
+                      onClick={() => {
+                        setActiveTab("calendar");
+                        setCalendarView("month");
+                      }}
+                    >
+                      Open command board
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.secondaryPlanButton}
+                      onClick={() => setActiveTab("today")}
+                    >
+                      Focus now
+                    </button>
+                  </div>
+                </article>
+              )}
             </section>
           )}
 
