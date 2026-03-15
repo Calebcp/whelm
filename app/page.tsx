@@ -3586,14 +3586,8 @@ export default function HomePage() {
   const streakBandanaTier = getStreakBandanaTier(displayStreak);
   const profileTierTheme = getProfileTierTheme(streakBandanaTier?.color);
   const nextBandanaMilestone = buildNextBandanaMilestone(displayStreak, !hasEarnedToday);
-  const longestStreak = useMemo(
-    () => Math.max(0, ...Array.from(historicalStreaksByDay.values())),
-    [historicalStreaksByDay],
-  );
-  const lifetimeFocusMinutes = useMemo(
-    () => sessions.reduce((sum, session) => sum + session.minutes, 0),
-    [sessions],
-  );
+  const longestStreak = Math.max(0, ...Array.from(historicalStreaksByDay.values()));
+  const lifetimeFocusMinutes = sessions.reduce((sum, session) => sum + session.minutes, 0);
   const todayCompletedBlocksCount = plannedBlocks.filter(
     (item) => item.dateKey === todayKey && item.status === "completed",
   ).length;
@@ -3692,27 +3686,26 @@ export default function HomePage() {
                   day: "numeric",
                 })}
               </span>
-              {isMobileViewport ? (
-                <button
-                  type="button"
-                  className={styles.profileDockButton}
-                  onClick={() => setProfileOpen(true)}
-                >
-                  <WhelmProfileAvatar tierColor={streakBandanaTier?.color} size="compact" />
-                  <span className={styles.profileDockCopy}>
-                    <small>{profileTierTheme.title}</small>
-                    <strong>{displayStreak}d</strong>
-                  </span>
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className={styles.topAppBarAction}
-                  onClick={() => setMobileMoreOpen(true)}
-                >
-                  More
-                </button>
-              )}
+              <button
+                type="button"
+                className={`${styles.profileDockButton} ${
+                  isMobileViewport ? styles.profileDockButtonMobile : styles.profileDockButtonDesktop
+                }`}
+                onClick={() => setProfileOpen(true)}
+              >
+                <WhelmProfileAvatar tierColor={streakBandanaTier?.color} size="compact" />
+                <span className={styles.profileDockCopy}>
+                  <small>{profileTierTheme.title}</small>
+                  <strong>{displayStreak}d</strong>
+                </span>
+              </button>
+              <button
+                type="button"
+                className={styles.topAppBarAction}
+                onClick={() => setMobileMoreOpen(true)}
+              >
+                More
+              </button>
             </div>
           </div>
 
@@ -6780,9 +6773,7 @@ export default function HomePage() {
               <CompanionPulse {...companionState.pulses.settings} />
               <article className={`${styles.card} ${styles.settingsHeroCard}`}>
                 <div className={styles.settingsHeroHeader}>
-                  <div className={styles.settingsAvatar}>
-                    {(user.displayName || user.email || "W")[0]?.toUpperCase()}
-                  </div>
+                  <WhelmProfileAvatar tierColor={streakBandanaTier?.color} size="compact" />
                   <div>
                     <p className={styles.sectionLabel}>Account</p>
                     <h2 className={styles.cardTitle}>{user.displayName || "WHELM user"}</h2>

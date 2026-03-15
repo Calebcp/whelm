@@ -273,6 +273,14 @@
   box-shadow: 0 12px 28px rgba(5, 12, 28, 0.22);
 }
 
+.profileDockButtonDesktop {
+  padding-right: 14px;
+}
+
+.profileDockButtonMobile {
+  padding-right: 10px;
+}
+
 .profileDockCopy {
   display: grid;
   gap: 2px;
@@ -3258,13 +3266,7 @@
 .settingsAvatar {
   width: 52px;
   height: 52px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, #145da0, #1d4ed8);
-  color: #ffffff;
-  display: grid;
-  place-items: center;
-  font-weight: 700;
-  font-size: 1.1rem;
+  flex: 0 0 52px;
 }
 
 .settingsPills {
