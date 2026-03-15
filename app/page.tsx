@@ -14,6 +14,7 @@ import {
 
 import SenseiFigure, { type SenseiVariant } from "@/components/SenseiFigure";
 import Timer from "@/components/Timer";
+import WhelmEmote from "@/components/WhelmEmote";
 import WhelmRitualScene from "@/components/WhelmRitualScene";
 import { auth } from "@/lib/firebase";
 import {
@@ -38,11 +39,12 @@ import {
   buildSenseiCompanionState,
   type SenseiCompanionStyle,
 } from "@/lib/sensei-companion";
+import { getStreakBandanaTier } from "@/lib/streak-bandanas";
+import type { WhelmEmoteId } from "@/lib/whelm-emotes";
 import styles from "./page.module.css";
 
 const FOCUS_TIMER = {
   title: "Multipurpose focus timer",
-  subtitle: "Use countdown or stopwatch for any work",
   actionLabel: "Save Session",
   badgeLabel: "Focus",
   theme: {
@@ -166,6 +168,7 @@ type AppTab =
   | "calendar"
   | "notes"
   | "insights"
+  | "streaks"
   | "history"
   | "reports"
   | "settings";
@@ -620,6 +623,8 @@ function iconForTab(tab: AppTab) {
       return "✎";
     case "insights":
       return "◍";
+    case "streaks":
+      return "◌";
     case "history":
       return "☰";
     case "reports":
@@ -639,6 +644,8 @@ function tabTitle(tab: AppTab) {
       return "Notes";
     case "insights":
       return "Insights";
+    case "streaks":
+      return "Streaks";
     case "history":
       return "History";
     case "reports":
@@ -753,19 +760,20 @@ const MOBILE_PRIMARY_TABS: Array<{ key: AppTab | "more"; label: string }> = [
   { key: "more", label: "More" },
 ];
 
-const MOBILE_MORE_TABS: AppTab[] = ["insights", "history", "reports", "settings"];
+const MOBILE_MORE_TABS: AppTab[] = ["streaks", "insights", "history", "reports", "settings"];
 
 const INTRO_SPLASH_MIN_MS = 1500;
 const INTRO_SPLASH_MAX_MS = 2200;
 
-function StreakBandana() {
+function StreakBandana({ streak }: { streak: number }) {
+  const tier = getStreakBandanaTier(streak);
   const { RiveComponent } = useRive({
-    src: "/streak/moveband.riv",
+    src: tier ? `/streak/${tier.assetFile}` : "/streak/moveband.riv",
     autoplay: true,
   });
 
   return (
-    <div className={styles.streakBandanaWrap} aria-hidden="true">
+    <div className={styles.streakBandanaWrap} aria-hidden="true" title={tier?.label}>
       <RiveComponent className={styles.streakBandanaRive} />
     </div>
   );
@@ -847,6 +855,60 @@ function CompanionPulse({
           <p className={styles.companionPulseBody}>{body}</p>
         </div>
       </div>
+    </article>
+  );
+}
+
+type EmotePanelItem = {
+  id: WhelmEmoteId;
+  message: string;
+};
+
+function EmotePanel({
+  eyebrow,
+  title,
+  note,
+  items,
+  isMobile = false,
+  mobilePrimaryId,
+  className,
+}: {
+  eyebrow: string;
+  title: string;
+  note?: string;
+  items: EmotePanelItem[];
+  isMobile?: boolean;
+  mobilePrimaryId?: WhelmEmoteId;
+  className?: string;
+}) {
+  const mobilePrimary = items.find((item) => item.id === mobilePrimaryId) ?? items[0];
+
+  return (
+    <article className={[styles.card, styles.emotePanel, className].filter(Boolean).join(" ")}>
+      <div className={styles.emotePanelHeader}>
+        <div>
+          <p className={styles.sectionLabel}>{eyebrow}</p>
+          <h2 className={styles.cardTitle}>{title}</h2>
+        </div>
+        {note ? <p className={styles.emotePanelNote}>{note}</p> : null}
+      </div>
+      {isMobile ? (
+        <div className={styles.emotePanelMobile}>
+          <WhelmEmote emoteId={mobilePrimary.id} size="inline" align="left" message={mobilePrimary.message} />
+        </div>
+      ) : (
+        <div className={styles.emotePanelGrid}>
+          {items.map((item) => (
+            <WhelmEmote
+              key={item.id}
+              emoteId={item.id}
+              size="badge"
+              align="left"
+              message={item.message}
+            />
+          ))}
+        </div>
+      )}
     </article>
   );
 }
@@ -1259,12 +1321,13 @@ export default function HomePage() {
   );
 
   const nextSenseiMilestone = useMemo(() => milestoneForStreak(streak), [streak]);
+  const senseiActiveTab = activeTab === "streaks" ? "reports" : activeTab;
 
   const companionState = useMemo(
     () =>
       buildSenseiCompanionState({
         now: new Date(),
-        activeTab,
+        activeTab: senseiActiveTab,
         totalSessions: reportMetrics.sessionCount,
         totalMinutes: reportMetrics.totalMinutes,
         todaySessions: focusMetrics.todaySessions,
@@ -1284,7 +1347,6 @@ export default function HomePage() {
         companionStyle,
       }),
     [
-      activeTab,
       averageSessionStartHour,
       comebackDaysAway,
       companionStyle,
@@ -1300,6 +1362,7 @@ export default function HomePage() {
       reportMetrics.notesUpdated7d,
       reportMetrics.sessionCount,
       reportMetrics.totalMinutes,
+      senseiActiveTab,
       streak,
       todayActivePlannedBlocks.length,
     ],
@@ -3052,6 +3115,22 @@ export default function HomePage() {
   const nextPlannedBlock = todayActivePlannedBlocks[0] ?? null;
   const mobileMoreActive = MOBILE_MORE_TABS.includes(activeTab);
   const recentNotes = filteredNotes.slice(0, 4);
+  const todaySessionNoteCount = sessions.filter((session) => {
+    return dayKeyLocal(session.completedAtISO) === dayKeyLocal(new Date()) && Boolean(session.note?.trim());
+  }).length;
+  const streakBandanaTier = getStreakBandanaTier(streak);
+  const todayCompletedBlocksCount = plannedBlocks.filter(
+    (item) => item.dateKey === dayKeyLocal(new Date()) && item.status === "completed",
+  ).length;
+  const streakMinutesLeft = Math.max(0, 30 - focusMetrics.todayMinutes);
+  const streakProtectedToday = todayCompletedBlocksCount >= 1 && focusMetrics.todayMinutes >= 30;
+  const streakStatusLine = streakProtectedToday
+    ? "Today protected."
+    : todayCompletedBlocksCount >= 1
+      ? `1 block done, ${streakMinutesLeft}m left.`
+      : focusMetrics.todayMinutes >= 30
+        ? "30m reached. Complete 1 block."
+        : "Claim today before it claims you.";
   const maxTrendMinutes = Math.max(30, ...trendPoints.map((point) => point.minutes));
   const trendPath = trendPoints
     .map((point, index) => {
@@ -3064,6 +3143,87 @@ export default function HomePage() {
     insightsChart.segments.find((segment) => segment.key === selectedInsightCategory) ??
     insightsChart.ranked[0] ??
     insightsChart.segments[0];
+  const todayEmoteItems: EmotePanelItem[] = [
+    { id: "whelm.timer", message: "Guard the block." },
+    {
+      id: streakProtectedToday ? "whelm.proud" : "whelm.ready",
+      message: streakProtectedToday ? "Today is protected." : "Stand up to the drift.",
+    },
+    {
+      id: todayActivePlannedBlocks.length > 0 ? "whelm.encourage" : "whelm.heart",
+      message: todayActivePlannedBlocks.length > 0 ? "Start the first real block." : "Begin clean, not loud.",
+    },
+  ];
+  const scheduleEmoteItems: EmotePanelItem[] = [
+    { id: "whelm.neutral", message: "Let the calendar lead." },
+    { id: "whelm.enter", message: "Step into the day on purpose." },
+    {
+      id: calendarView === "day" ? "whelm.checklist" : "whelm.guide",
+      message: calendarView === "day" ? "Shape this room block by block." : "Place the next thing deliberately.",
+    },
+    {
+      id: selectedDateEntries.length > 0 ? "whelm.timer" : "whelm.encourage",
+      message: selectedDateEntries.length > 0 ? "Time is already moving here." : "An empty date is still usable.",
+    },
+  ];
+  const notesEmoteItems: EmotePanelItem[] = [
+    { id: "whelm.write", message: "Capture before it thins out." },
+    {
+      id: selectedNote ? "whelm.idea" : "whelm.wave",
+      message: selectedNote ? "Shape the page around the idea." : "Open the studio and begin.",
+    },
+    {
+      id: notesSearch.trim() ? "whelm.inspect" : "whelm.sort",
+      message: notesSearch.trim() ? "Search with intent." : "Sort the useful from the noise.",
+    },
+    {
+      id: filteredNotes.some((note) => (note.category || "personal") === "school")
+        ? "whelm.books"
+        : "whelm.read",
+      message:
+        filteredNotes.some((note) => (note.category || "personal") === "school")
+          ? "Study notes deserve structure."
+          : "Reopen the work that still matters.",
+    },
+  ];
+  const insightsEmoteItems: EmotePanelItem[] = [
+    { id: "whelm.progress", message: "Patterns matter more than moods." },
+    { id: "whelm.inspect", message: "Look closer before judging." },
+    {
+      id: activeInsight?.key === "school" ? "whelm.books" : "whelm.idea",
+      message: activeInsight?.key === "school" ? "Study has its own gravity." : "Insights should change behavior.",
+    },
+  ];
+  const historyEmoteItems: EmotePanelItem[] = [
+    { id: "whelm.checklist", message: "The record should stay honest." },
+    { id: "whelm.inspect", message: "Review the pattern, not one mood." },
+    {
+      id: sessionGroups.length > 0 ? "whelm.read" : "whelm.heart",
+      message: sessionGroups.length > 0 ? "Read the log like evidence." : "Your first saved session starts the record.",
+    },
+  ];
+  const reportsEmoteItems: EmotePanelItem[] = [
+    { id: "whelm.progress", message: "Trend before story." },
+    { id: "whelm.score", message: "Results should be explicit." },
+    {
+      id: reportMetrics.weeklyProgress >= 100 ? "whelm.wave_high" : "whelm.proud",
+      message:
+        reportMetrics.weeklyProgress >= 100 ? "That mark is worth noticing." : "Respect the earned gain.",
+    },
+  ];
+  const streakEmoteItems: EmotePanelItem[] = [
+    { id: "whelm.ready", message: "Runs survive by showing up again." },
+    {
+      id: streakProtectedToday ? "whelm.proud" : "whelm.encourage",
+      message: streakProtectedToday ? "You protected today." : "Protect today before night arrives.",
+    },
+    { id: "whelm.heart", message: "Consistency beats drama." },
+  ];
+  const settingsEmoteItems: EmotePanelItem[] = [
+    { id: "whelm.wave", message: "Tune the room to fit the work." },
+    { id: "whelm.wave_high", message: "Big changes should still feel human." },
+    { id: "whelm.heart", message: "Accountability works better with mercy." },
+  ];
 
   return (
     <main
@@ -3166,14 +3326,25 @@ export default function HomePage() {
                   </div>
                 </article>
 
+                <EmotePanel
+                  eyebrow="Today Cast"
+                  title="Focus posture"
+                  note="One primary pose on mobile. The rest stay in the background."
+                  items={todayEmoteItems}
+                  isMobile
+                  mobilePrimaryId="whelm.timer"
+                />
+
                 <div className={styles.mobileTimerWrap} ref={todayTimerRef}>
                   <Timer
-                    minutes={25}
+                    minutes={30}
                     title={FOCUS_TIMER.title}
-                    subtitle={FOCUS_TIMER.subtitle}
                     actionLabel={FOCUS_TIMER.actionLabel}
                     theme={FOCUS_TIMER.theme}
                     appearance={themeMode}
+                    sessionNoteCount={todaySessionNoteCount}
+                    onOpenSessionNotes={() => setActiveTab("history")}
+                    streakMinimumMinutes={30}
                     onComplete={(note, minutesSpent) => completeSession(note, minutesSpent)}
                   />
                 </div>
@@ -3281,12 +3452,14 @@ export default function HomePage() {
 
                 <div className={styles.leftColumn}>
                   <Timer
-                    minutes={25}
+                    minutes={30}
                     title={FOCUS_TIMER.title}
-                    subtitle={FOCUS_TIMER.subtitle}
                     actionLabel={FOCUS_TIMER.actionLabel}
                     theme={FOCUS_TIMER.theme}
                     appearance={themeMode}
+                    sessionNoteCount={todaySessionNoteCount}
+                    onOpenSessionNotes={() => setActiveTab("history")}
+                    streakMinimumMinutes={30}
                     onComplete={(note, minutesSpent) => completeSession(note, minutesSpent)}
                   />
 
@@ -3326,6 +3499,13 @@ export default function HomePage() {
                 </div>
 
                 <aside className={styles.rightColumn}>
+                  <EmotePanel
+                    eyebrow="Today Cast"
+                    title="What Whelm is signaling"
+                    note="The focus surface uses only a small active cast."
+                    items={todayEmoteItems}
+                  />
+
                   <article className={styles.card}>
                     <p className={styles.sectionLabel}>Quick Notes</p>
                     <h2 className={styles.cardTitle}>Capture fast</h2>
@@ -3407,13 +3587,39 @@ export default function HomePage() {
                 className={`${styles.card} ${calendarView === "month" ? styles.calendarPrimaryExpanded : ""}`}
                 ref={calendarMonthRef}
               >
-                <p className={styles.sectionLabel}>Primary View</p>
-                <h2 className={styles.cardTitle}>Your schedule</h2>
+                <div className={styles.calendarPrimaryHeader}>
+                  <div>
+                    <p className={styles.sectionLabel}>Primary View</p>
+                    <h2 className={styles.cardTitle}>Your schedule</h2>
+                  </div>
+                  {isMobileViewport && (
+                    <button
+                      type="button"
+                      className={styles.mobileStreakJump}
+                      onClick={() => {
+                        setMobileMoreOpen(false);
+                        setActiveTab("streaks");
+                      }}
+                    >
+                      <span className={styles.mobileStreakJumpLabel}>Streak</span>
+                      <strong>{streak}d</strong>
+                    </button>
+                  )}
+                </div>
                 {!isMobileViewport && (
                   <p className={styles.accountMeta}>
                     Start here first. Whelm stays nearby, but the calendar leads the page.
                   </p>
                 )}
+                <EmotePanel
+                  eyebrow="Schedule Cast"
+                  title={calendarView === "day" ? "Day chamber cues" : "Calendar cues"}
+                  note="The schedule keeps the character restrained and task-adjacent."
+                  items={scheduleEmoteItems}
+                  isMobile={isMobileViewport}
+                  mobilePrimaryId={calendarView === "day" ? "whelm.checklist" : "whelm.neutral"}
+                  className={styles.emotePanelInset}
+                />
                 <div className={styles.calendarToolbar}>
                   <div className={styles.calendarNav}>
                     <button
@@ -4195,6 +4401,13 @@ export default function HomePage() {
                 {calendarAuxPanel === "guide" && (
                   <div ref={calendarHeroRef}>
                     <CompanionPulse {...companionState.pulses.calendar} />
+                    <EmotePanel
+                      eyebrow="Guide Cast"
+                      title="Instructional poses"
+                      note="These stay in the guide lane so the calendar itself remains calm."
+                      items={scheduleEmoteItems}
+                      className={styles.emotePanelInset}
+                    />
                   </div>
                 )}
 
@@ -4232,7 +4445,7 @@ export default function HomePage() {
                               .join(" ")}
                             title={`${day.label}: ${day.minutes}m`}
                           >
-                            {streakDay ? <StreakBandana /> : null}
+                            {streakDay ? <StreakBandana streak={streak} /> : null}
                           </div>
                         );
                       })}
@@ -4726,6 +4939,15 @@ export default function HomePage() {
                   </div>
                 </article>
 
+                <EmotePanel
+                  eyebrow="Notes Cast"
+                  title="Writing mode"
+                  note="Mobile keeps a single visible pose while writing stays primary."
+                  items={notesEmoteItems}
+                  isMobile
+                  mobilePrimaryId="whelm.write"
+                />
+
                 <article className={styles.mobileNotesRecentCard} ref={notesRecentRef}>
                   <button
                     type="button"
@@ -5050,6 +5272,13 @@ export default function HomePage() {
                   className={styles.notesSidebar}
                   style={notesShellBackground(themeMode, selectedNote?.color)}
                 >
+                <EmotePanel
+                  eyebrow="Notes Cast"
+                  title="Capture, sort, revisit"
+                  note="The notes surface carries the broadest support cast."
+                  items={notesEmoteItems}
+                  className={styles.emotePanelInset}
+                />
                 <button type="button" className={styles.newNoteButton} onClick={createWorkspaceNote}>
                   + Add Note
                 </button>
@@ -5540,6 +5769,14 @@ export default function HomePage() {
           {activeTab === "insights" && (
             <section className={styles.insightsGrid}>
               <CompanionPulse {...companionState.pulses.insights} />
+              <EmotePanel
+                eyebrow="Insights Cast"
+                title="Review posture"
+                note="Analysis uses review/support poses rather than celebration by default."
+                items={insightsEmoteItems}
+                isMobile={isMobileViewport}
+                mobilePrimaryId="whelm.progress"
+              />
               <article className={`${styles.card} ${styles.insightsHeroCard}`}>
                 <div className={styles.cardHeader}>
                   <div>
@@ -5718,6 +5955,14 @@ export default function HomePage() {
           {activeTab === "history" && (
             <section className={styles.historyShell}>
               <CompanionPulse {...companionState.pulses.history} />
+              <EmotePanel
+                eyebrow="History Cast"
+                title="Review the record"
+                note="History should feel forensic, not decorative."
+                items={historyEmoteItems}
+                isMobile={isMobileViewport}
+                mobilePrimaryId="whelm.inspect"
+              />
               <article className={styles.card}>
                 <p className={styles.sectionLabel}>Block History</p>
                 <h2 className={styles.cardTitle}>Completed and incomplete blocks</h2>
@@ -5863,6 +6108,14 @@ export default function HomePage() {
           {activeTab === "reports" && (
             <section className={styles.reportsGrid}>
               <CompanionPulse {...companionState.pulses.reports} />
+              <EmotePanel
+                eyebrow="Reports Cast"
+                title="Progress and result"
+                note="Reports can earn the higher-energy celebration poses."
+                items={reportsEmoteItems}
+                isMobile={isMobileViewport}
+                mobilePrimaryId="whelm.progress"
+              />
               <article className={styles.card}>
                 <p className={styles.sectionLabel}>Progress</p>
                 <h2 className={styles.cardTitle}>Your rhythm</h2>
@@ -5958,9 +6211,118 @@ export default function HomePage() {
             </section>
           )}
 
+          {activeTab === "streaks" && (
+            <section className={styles.reportsGrid}>
+              <EmotePanel
+                eyebrow="Streak Cast"
+                title="Protect the run"
+                note="Bandanas carry the reward. These poses support the discipline around it."
+                items={streakEmoteItems}
+                isMobile={isMobileViewport}
+                mobilePrimaryId="whelm.ready"
+              />
+              <article className={styles.card}>
+                <p className={styles.sectionLabel}>Streak</p>
+                <h2 className={styles.cardTitle}>Protect the run</h2>
+                <div className={styles.kpiGrid}>
+                  <div className={styles.kpiItemStatic}>
+                    <span>Current Run</span>
+                    <strong>{streak}d</strong>
+                  </div>
+                  <div className={styles.kpiItemStatic}>
+                    <span>Bandana</span>
+                    <strong>{streakBandanaTier?.label ?? "No bandana yet"}</strong>
+                  </div>
+                  <div className={styles.kpiItemStatic}>
+                    <span>Today Focus</span>
+                    <strong>{focusMetrics.todayMinutes}m</strong>
+                  </div>
+                  <div className={styles.kpiItemStatic}>
+                    <span>Status</span>
+                    <strong>{streakProtectedToday ? "Protected" : "At risk"}</strong>
+                  </div>
+                </div>
+                <p className={styles.accountMeta}>
+                  {streakStatusLine}
+                </p>
+                <div className={styles.noteFooterActions}>
+                  <button
+                    type="button"
+                    className={styles.reportButton}
+                    onClick={() => setActiveTab("calendar")}
+                  >
+                    Open schedule
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.secondaryPlanButton}
+                    onClick={() => setActiveTab("today")}
+                  >
+                    Focus now
+                  </button>
+                </div>
+              </article>
+
+              <article className={styles.card}>
+                <p className={styles.sectionLabel}>Last 4 Weeks</p>
+                <h2 className={styles.cardTitle}>Streak chart</h2>
+                <div className={styles.streakGrid}>
+                  {focusMetrics.calendar.map((day, index, days) => {
+                    const previous = days[index - 1];
+                    const next = days[index + 1];
+                    const streakDay =
+                      day.minutes > 0 &&
+                      ((previous?.minutes ?? 0) > 0 || (next?.minutes ?? 0) > 0);
+                    const leftConnected =
+                      streakDay &&
+                      index % 14 !== 0 &&
+                      (previous?.minutes ?? 0) > 0;
+                    const rightConnected =
+                      streakDay &&
+                      index % 14 !== 13 &&
+                      (next?.minutes ?? 0) > 0;
+
+                    return (
+                      <div
+                        key={day.dateKey}
+                        className={[
+                          styles.streakCell,
+                          styles[`streakLevel${day.level}`],
+                          streakDay ? styles.streakCellRun : "",
+                          leftConnected ? styles.streakCellConnectLeft : "",
+                          rightConnected ? styles.streakCellConnectRight : "",
+                        ]
+                          .filter(Boolean)
+                          .join(" ")}
+                        title={`${day.label}: ${day.minutes}m`}
+                      >
+                        {streakDay ? <StreakBandana streak={streak} /> : null}
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className={styles.streakLegend}>
+                  <span>No focus</span>
+                  <span>Light</span>
+                  <span>Strong</span>
+                  <span>Deep</span>
+                </div>
+                <p className={styles.streakLegendNote}>Moving bandana = streak day</p>
+              </article>
+            </section>
+          )}
+
           {activeTab === "settings" && (
             <section className={styles.settingsGrid}>
               <CompanionPulse {...companionState.pulses.settings} />
+              <EmotePanel
+                eyebrow="Welcome Cast"
+                title="Account and tone"
+                note="The settings surface carries the softer welcome/reassurance poses."
+                items={settingsEmoteItems}
+                isMobile={isMobileViewport}
+                mobilePrimaryId="whelm.wave"
+              />
               <article className={`${styles.card} ${styles.settingsHeroCard}`}>
                 <div className={styles.settingsHeroHeader}>
                   <div className={styles.settingsAvatar}>

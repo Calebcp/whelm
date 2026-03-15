@@ -12,21 +12,27 @@ type TimerTheme = {
 };
 
 export default function Timer({
-  minutes = 25,
+  minutes = 30,
   title,
   subtitle,
   actionLabel,
   theme,
   appearance = "dark",
   onComplete,
+  sessionNoteCount = 0,
+  onOpenSessionNotes,
+  streakMinimumMinutes = 30,
 }: {
   minutes?: number;
   title: string;
-  subtitle: string;
+  subtitle?: string;
   actionLabel: string;
   theme: TimerTheme;
   appearance?: "dark" | "light";
   onComplete: (note: string, minutesSpent: number) => Promise<void> | void;
+  sessionNoteCount?: number;
+  onOpenSessionNotes?: () => void;
+  streakMinimumMinutes?: number;
 }) {
   const [mode, setMode] = useState<"countdown" | "stopwatch">("countdown");
   const [configuredMinutes, setConfiguredMinutes] = useState(minutes);
@@ -36,6 +42,7 @@ export default function Timer({
   const [done, setDone] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [showNotebook, setShowNotebook] = useState(false);
+  const [showNotebookMenu, setShowNotebookMenu] = useState(false);
   const [note, setNote] = useState("");
   const intervalRef = useRef<number | null>(null);
 
@@ -102,6 +109,7 @@ export default function Timer({
       setSecondsElapsed(0);
     }
     setShowNotebook(false);
+    setShowNotebookMenu(false);
     setNote("");
   }
 
@@ -125,7 +133,13 @@ export default function Timer({
 
   function openNotebook() {
     setRunning(false);
+    setShowNotebookMenu(false);
     setShowNotebook(true);
+  }
+
+  function openNotebookMenu() {
+    setRunning(false);
+    setShowNotebookMenu((current) => !current);
   }
 
   const themeVars = {
@@ -142,14 +156,10 @@ export default function Timer({
       <div className={styles.header}>
         <div>
           <p className={styles.kicker}>Focus Chamber</p>
-          <p className={styles.eyebrow}>{subtitle}</p>
           <h2 className={styles.title}>{title}</h2>
-        </div>
-        <div className={styles.headerBadge}>
-          <span className={styles.headerBadgeLabel}>{mode === "countdown" ? "Ritual" : "Flow"}</span>
-          <strong className={styles.headerBadgeValue}>
-            {mode === "countdown" ? `${configuredMinutes}m` : "Open"}
-          </strong>
+          {!running && !done && mode === "countdown" && (
+            <p className={styles.streakHint}>{streakMinimumMinutes}m protects today&apos;s streak.</p>
+          )}
         </div>
       </div>
 
@@ -221,34 +231,53 @@ export default function Timer({
                 : "Ready."}
           </div>
         </div>
-      </div>
+        <div className={styles.faceDock}>
+          {!running && !done ? (
+            <button onClick={() => setRunning(true)} className={styles.faceDockPrimaryButton}>
+              Start
+            </button>
+          ) : running ? (
+            <button onClick={() => setRunning(false)} className={styles.faceDockPrimaryButton}>
+              Pause
+            </button>
+          ) : (
+            <button onClick={handleComplete} className={styles.faceDockPrimaryButton} disabled={submitting}>
+              {submitting ? "Saving..." : actionLabel}
+            </button>
+          )}
 
-      <div className={styles.controls}>
-        {!running && !done && (
-          <button onClick={() => setRunning(true)} className={styles.primaryButton}>
-            Start
+          <button onClick={reset} className={styles.faceDockButton}>
+            Reset
           </button>
-        )}
 
-        {running && (
-          <button onClick={() => setRunning(false)} className={styles.secondaryButton}>
-            Pause
-          </button>
-        )}
-
-        <button onClick={reset} className={styles.secondaryButton}>
-          Reset
-        </button>
-
-        {!showNotebook && (
-          <button
-            onClick={openNotebook}
-            className={styles.completeButton}
-            disabled={submitting}
-          >
-            Add Session Note
-          </button>
-        )}
+          <div className={styles.faceDockNoteWrap}>
+            <button
+              onClick={openNotebookMenu}
+              className={styles.faceDockButton}
+              disabled={submitting}
+            >
+              Session note
+              {sessionNoteCount > 0 && <span className={styles.faceDockBadge}>{sessionNoteCount}</span>}
+            </button>
+            {showNotebookMenu && (
+              <div className={styles.faceDockMenu}>
+                <button type="button" className={styles.faceDockMenuButton} onClick={openNotebook}>
+                  New note
+                </button>
+                <button
+                  type="button"
+                  className={styles.faceDockMenuButton}
+                  onClick={() => {
+                    setShowNotebookMenu(false);
+                    onOpenSessionNotes?.();
+                  }}
+                >
+                  See notes
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {(done || showNotebook) && (
@@ -287,9 +316,6 @@ export default function Timer({
         </div>
       )}
 
-      <div className={styles.tip}>
-        Tip: run a countdown or stopwatch, then save notes for that block.
-      </div>
     </section>
   );
 }

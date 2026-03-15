@@ -648,6 +648,47 @@
   gap: 10px;
 }
 
+.emotePanel {
+  display: grid;
+  gap: 12px;
+  border: 1px solid rgba(128, 146, 197, 0.12);
+  background:
+    linear-gradient(180deg, rgba(22, 28, 47, 0.94), rgba(16, 22, 39, 0.94)),
+    radial-gradient(circle at top left, rgba(87, 111, 255, 0.14), transparent 46%);
+}
+
+.emotePanelInset {
+  margin-top: 12px;
+}
+
+.emotePanelHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.emotePanelNote {
+  margin: 0;
+  max-width: 28ch;
+  color: #9eaccb;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  text-align: right;
+}
+
+.emotePanelGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
+  gap: 10px;
+  align-items: start;
+}
+
+.emotePanelMobile {
+  display: flex;
+  justify-content: flex-start;
+}
+
 .cardTitle {
   margin: 0;
   font-size: 1.1rem;
@@ -989,6 +1030,13 @@
 }
 
 .dayPortalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.calendarPrimaryHeader {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -3142,6 +3190,34 @@
   box-shadow: 0 16px 36px rgba(3, 6, 18, 0.22);
 }
 
+.mobileStreakJump {
+  border: 1px solid rgba(137, 220, 174, 0.34);
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, rgba(27, 122, 80, 0.98), rgba(46, 155, 105, 0.96)),
+    #1d6f4f;
+  color: #f4fff7;
+  padding: 10px 13px;
+  display: grid;
+  justify-items: start;
+  gap: 2px;
+  box-shadow:
+    0 0 0 1px rgba(178, 245, 202, 0.1),
+    0 12px 24px rgba(20, 84, 57, 0.22);
+}
+
+.mobileStreakJump strong {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.mobileStreakJumpLabel {
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.9;
+}
+
 .mobileSummaryHeader {
   display: flex;
   align-items: flex-start;
@@ -3606,6 +3682,7 @@
 .themeLight .tabRail,
 .themeLight .bottomTabs,
 .themeLight .card,
+.themeLight .emotePanel,
 .themeLight .statCard,
 .themeLight .companionPulse,
 .themeLight .companionPulseSpeech,
@@ -3635,6 +3712,7 @@
 
 .themeLight .subtitle,
 .themeLight .accountMeta,
+.themeLight .emotePanelNote,
 .themeLight .companionPulseBody,
 .themeLight .senseiMessage,
 .themeLight .topAppBarDate,
@@ -3752,6 +3830,12 @@
   background:
     radial-gradient(circle at top right, rgba(214, 219, 246, 0.58), transparent 34%),
     linear-gradient(180deg, rgba(250, 247, 242, 0.98), rgba(243, 238, 231, 0.96));
+}
+
+.themeLight .emotePanel {
+  background:
+    linear-gradient(180deg, rgba(250, 247, 242, 0.98), rgba(243, 238, 231, 0.96)),
+    radial-gradient(circle at top left, rgba(103, 140, 204, 0.12), transparent 42%);
 }
 
 .themeLight .senseiSpeechPanel,
@@ -4004,8 +4088,33 @@
 .themeLight .mobileNotesStartCard,
 .themeLight .mobileNotesRecentCard,
 .themeLight .mobileNotesEditorCard {
+  background:
+    radial-gradient(circle at top right, rgba(220, 224, 247, 0.44), transparent 36%),
+    linear-gradient(180deg, rgba(250, 247, 242, 0.98), rgba(243, 238, 231, 0.96));
   border-color: rgba(125, 135, 160, 0.14);
   box-shadow: 0 16px 30px rgba(104, 114, 145, 0.08);
+}
+
+.themeLight .mobileSectionToggle,
+.themeLight .mobileQuickAction {
+  background: rgba(251, 248, 243, 0.96);
+  color: #1d2a40;
+  border-color: rgba(125, 135, 160, 0.14);
+}
+
+.themeLight .mobileSectionToggleTitle {
+  color: #1d2a40;
+}
+
+.themeLight .mobileStreakJump {
+  border-color: rgba(96, 165, 133, 0.28);
+  background:
+    linear-gradient(135deg, rgba(68, 155, 116, 0.96), rgba(88, 183, 138, 0.94)),
+    #58b78a;
+  color: #fafffc;
+  box-shadow:
+    0 0 0 1px rgba(120, 191, 158, 0.1),
+    0 12px 22px rgba(87, 155, 122, 0.18);
 }
 
 .themeLight .notesEmptyEditor {
@@ -4349,6 +4458,13 @@
     grid-column: 1 / -1;
   }
 
+  .reportsGrid > .emotePanel,
+  .insightsGrid > .emotePanel,
+  .settingsGrid > .emotePanel,
+  .historyShell > .emotePanel {
+    grid-column: 1 / -1;
+  }
+
   .calendarJumpRow {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
@@ -4389,6 +4505,10 @@
 
   .notesWorkspace > .companionPulse {
     grid-column: 1 / -1;
+  }
+
+  .notesWorkspace > .emotePanel {
+    grid-column: 1;
   }
 
   .notesSidebar {
@@ -4657,6 +4777,15 @@
   .companionPulse {
     grid-template-columns: 1fr;
     justify-items: start;
+  }
+
+  .emotePanelHeader {
+    display: grid;
+  }
+
+  .emotePanelNote {
+    max-width: none;
+    text-align: left;
   }
 
   .dayViewTrack {

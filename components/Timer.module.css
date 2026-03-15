@@ -41,10 +41,10 @@
   position: relative;
   z-index: 1;
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: flex-start;
   gap: 16px;
-  margin-bottom: 22px;
+  margin-bottom: 16px;
 }
 
 .kicker {
@@ -53,14 +53,6 @@
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: color-mix(in srgb, var(--timer-accent) 76%, #6d7c8f);
-}
-
-.eyebrow {
-  margin: 0 0 10px;
-  font-size: 0.82rem;
-  text-transform: uppercase;
-  letter-spacing: 0.18em;
-  color: var(--timer-accent);
 }
 
 .title {
@@ -73,25 +65,14 @@
 }
 
 .card[data-appearance="dark"] .kicker,
-.card[data-appearance="dark"] .eyebrow {
+.card[data-appearance="dark"] .streakHint {
   color: #9fb0db;
 }
 
 .card[data-appearance="dark"] .title,
-.card[data-appearance="dark"] .headerBadgeValue,
 .card[data-appearance="dark"] .time {
   color: #f3f6ff;
 }
-
-.card[data-appearance="dark"] .headerBadge {
-  background:
-    linear-gradient(180deg, rgba(29, 35, 59, 0.98), rgba(22, 28, 49, 0.94)),
-    linear-gradient(135deg, rgba(83, 101, 215, 0.18), rgba(167, 139, 250, 0.12));
-  border-color: rgba(123, 138, 184, 0.18);
-  box-shadow: 0 14px 34px rgba(3, 6, 18, 0.22);
-}
-
-.card[data-appearance="dark"] .headerBadgeLabel,
 .card[data-appearance="dark"] .status {
   color: #b8c5e2;
 }
@@ -166,30 +147,10 @@
   color: #eef3ff;
 }
 
-.headerBadge {
-  min-width: 112px;
-  padding: 12px 14px;
-  border-radius: 22px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(236, 244, 255, 0.94)),
-    linear-gradient(135deg, rgba(191, 219, 254, 0.22), rgba(167, 139, 250, 0.12));
-  border: 1px solid rgba(36, 74, 114, 0.12);
-  box-shadow: 0 14px 34px rgba(16, 32, 51, 0.07);
-}
-
-.headerBadgeLabel {
-  display: block;
-  margin-bottom: 4px;
-  font-size: 0.72rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: #6b7c90;
-}
-
-.headerBadgeValue {
-  display: block;
-  font-size: 1.12rem;
-  color: var(--timer-accent-strong);
+.streakHint {
+  margin: 8px 0 0;
+  font-size: 0.82rem;
+  color: var(--timer-accent);
 }
 
 .modeRow {
@@ -260,6 +221,104 @@
     radial-gradient(circle at 50% 42%, rgba(255, 255, 255, 0.98), rgba(232, 240, 251, 0.94)),
     linear-gradient(180deg, rgba(246, 250, 255, 0.98), rgba(234, 242, 251, 0.92));
   overflow: hidden;
+}
+
+.faceDock {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 14px;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr) minmax(0, 1fr);
+  gap: 8px;
+  align-items: stretch;
+}
+
+.faceDockButton,
+.faceDockPrimaryButton {
+  position: relative;
+  border: 0;
+  border-radius: 16px;
+  min-height: 46px;
+  padding: 10px 12px;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.faceDockPrimaryButton {
+  background: linear-gradient(135deg, var(--timer-accent-strong), var(--timer-accent));
+  color: #ffffff;
+  box-shadow: 0 10px 24px rgba(16, 32, 51, 0.16);
+}
+
+.faceDockButton {
+  background: rgba(255, 255, 255, 0.86);
+  color: #102033;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+}
+
+.faceDockNoteWrap {
+  position: relative;
+}
+
+.faceDockBadge {
+  position: absolute;
+  top: -7px;
+  right: -5px;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  padding: 0 5px;
+  display: inline-grid;
+  place-items: center;
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 0.68rem;
+  font-weight: 800;
+  box-shadow: 0 6px 14px rgba(239, 68, 68, 0.22);
+}
+
+.faceDockMenu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  width: min(180px, 48vw);
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 14px 32px rgba(16, 32, 51, 0.12);
+  padding: 8px;
+  display: grid;
+  gap: 6px;
+}
+
+.faceDockMenuButton {
+  border: 0;
+  border-radius: 12px;
+  background: rgba(219, 234, 254, 0.32);
+  color: #102033;
+  text-align: left;
+  padding: 10px 12px;
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.card[data-appearance="dark"] .faceDockButton {
+  background: rgba(26, 31, 54, 0.9);
+  color: #eef3ff;
+  border-color: rgba(123, 138, 184, 0.18);
+}
+
+.card[data-appearance="dark"] .faceDockMenu {
+  background: rgba(18, 22, 40, 0.98);
+  border-color: rgba(123, 138, 184, 0.18);
+  box-shadow: 0 14px 32px rgba(3, 6, 18, 0.22);
+}
+
+.card[data-appearance="dark"] .faceDockMenuButton {
+  background: rgba(34, 41, 70, 0.92);
+  color: #eef3ff;
 }
 
 .faceAura {
@@ -388,15 +447,6 @@
   color: color-mix(in srgb, var(--timer-accent-strong) 56%, #607185);
 }
 
-.controls {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  margin-top: 22px;
-}
-
 .primaryButton,
 .secondaryButton,
 .completeButton {
@@ -431,15 +481,6 @@
 .completeButton:disabled {
   opacity: 0.72;
   cursor: wait;
-}
-
-.tip {
-  position: relative;
-  z-index: 1;
-  margin-top: 16px;
-  text-align: center;
-  font-size: 0.8rem;
-  color: #6d7c8f;
 }
 
 .notebook {
@@ -504,10 +545,6 @@
     align-items: stretch;
   }
 
-  .headerBadge {
-    min-width: 0;
-  }
-
   .timerFace {
     min-height: 320px;
   }
@@ -519,9 +556,28 @@
     width: min(72vw, 236px);
   }
 
-  .controls,
   .notebookActions {
     grid-template-columns: 1fr;
+  }
+
+  .faceDock {
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .faceDockButton,
+  .faceDockPrimaryButton {
+    min-height: 40px;
+    padding: 9px 8px;
+    font-size: 0.75rem;
+    border-radius: 14px;
+  }
+
+  .faceDockMenu {
+    width: min(172px, 58vw);
   }
 
   .modeTabs {
