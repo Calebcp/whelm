@@ -3155,41 +3155,6 @@ export default function HomePage() {
                     onComplete={(note, minutesSpent) => completeSession(note, minutesSpent)}
                   />
                 </div>
-
-                <article className={`${styles.card} ${styles.mobileQueueCard}`} ref={todayQueueRef}>
-                  <div>
-                    <p className={styles.sectionLabel}>Today Queue</p>
-                    <h2 className={styles.cardTitle}>What needs attention</h2>
-                  </div>
-                  <div className={styles.mobileQueueList}>
-                    <button type="button" className={styles.mobileQueueItem} onClick={() => setActiveTab("reports")}>
-                      <span className={styles.mobileQueueLabel}>Summary</span>
-                      <strong>
-                        {focusMetrics.todaySessions} session{focusMetrics.todaySessions === 1 ? "" : "s"} saved
-                      </strong>
-                    </button>
-                    <button type="button" className={styles.mobileQueueItem} onClick={() => setActiveTab("calendar")}>
-                      <span className={styles.mobileQueueLabel}>Next block</span>
-                      <strong>
-                        {nextPlannedBlock
-                          ? `${nextPlannedBlock.title} at ${normalizeTimeLabel(nextPlannedBlock.timeOfDay)}`
-                          : "No planned block for today"}
-                      </strong>
-                    </button>
-                    <button type="button" className={styles.mobileQueueItem} onClick={openNotesTab}>
-                      <span className={styles.mobileQueueLabel}>Latest note</span>
-                      <strong>{latestNote?.title || "Open notes workspace"}</strong>
-                    </button>
-                    <button type="button" className={styles.mobileQueueItem} onClick={openNotesTab}>
-                      <span className={styles.mobileQueueLabel}>Reminders</span>
-                      <strong>
-                        {dueReminderNotes.length > 0
-                          ? `${dueReminderNotes.length} due today`
-                          : "No note reminders due today"}
-                      </strong>
-                    </button>
-                  </div>
-                </article>
               </section>}
 
               <section className={styles.statsGrid}>
@@ -4103,6 +4068,7 @@ export default function HomePage() {
                 )}
               </article>
 
+              {!isMobileViewport && (
               <article className={`${styles.card} ${styles.calendarAuxCard}`} ref={calendarPlannerRef}>
                 <div className={styles.calendarAuxTabs}>
                   <button
@@ -4483,6 +4449,7 @@ export default function HomePage() {
                   </>
                 )}
               </article>
+              )}
 
               {isMobileViewport && mobileBlockSheetOpen && (
                 <div
@@ -5531,13 +5498,6 @@ export default function HomePage() {
                     </button>
                     <button
                       type="button"
-                      className={`${styles.rangeTab} ${insightMetric === "notes" ? styles.rangeTabActive : ""}`}
-                      onClick={() => setInsightMetric("notes")}
-                    >
-                      Notes
-                    </button>
-                    <button
-                      type="button"
                       className={`${styles.rangeTab} ${insightMetric === "planned" ? styles.rangeTabActive : ""}`}
                       onClick={() => setInsightMetric("planned")}
                     >
@@ -5610,42 +5570,27 @@ export default function HomePage() {
                 </div>
               </article>
 
-              <article className={styles.card}>
-                <p className={styles.sectionLabel}>Selected Category</p>
-                <h2 className={styles.cardTitle}>{activeInsight?.label ?? "Category detail"}</h2>
-                <p className={styles.accountMeta}>
-                  {activeInsight?.description ?? "No category detail available yet."}
-                </p>
-                <ul className={styles.commandList}>
-                  <li>
-                    Metric value:{" "}
-                    <strong>
-                      {activeInsight?.value ?? 0}
-                      {insightsChart.unitSuffix}
-                    </strong>
-                  </li>
-                  <li>
-                    Share of window:{" "}
-                    <strong>
-                      {insightsChart.total === 0 || !activeInsight
-                        ? 0
-                        : Math.round((activeInsight.value / insightsChart.total) * 100)}
-                      %
-                    </strong>
-                  </li>
-                  <li>Top category: <strong>{insightsChart.topCategory?.label ?? "None yet"}</strong></li>
-                </ul>
-              </article>
-
-              <article className={styles.card}>
-                <p className={styles.sectionLabel}>Action Tip</p>
-                <h2 className={styles.cardTitle}>How to use this tab daily</h2>
-                <ul className={styles.commandList}>
-                  <li>Check which category is dominating this week.</li>
-                  <li>Rebalance by scheduling at least one focus block in your weakest category.</li>
-                  <li>Use Notes reminders to increase follow-through.</li>
-                </ul>
-              </article>
+              {activeInsight && (
+                <article className={styles.card}>
+                  <p className={styles.sectionLabel}>Current Leader</p>
+                  <h2 className={styles.cardTitle}>{activeInsight.label}</h2>
+                  <p className={styles.accountMeta}>
+                    {activeInsight.description}
+                  </p>
+                  <ul className={styles.commandList}>
+                    <li>
+                      <strong>
+                        {activeInsight.value}
+                        {insightsChart.unitSuffix}
+                      </strong>{" "}
+                      in the current window
+                    </li>
+                    <li>
+                      <strong>{insightsChart.topCategory?.label ?? "None yet"}</strong> is currently leading
+                    </li>
+                  </ul>
+                </article>
+              )}
 
               <article className={styles.card}>
                 <p className={styles.sectionLabel}>Apple Screen Time</p>
@@ -5825,50 +5770,24 @@ export default function HomePage() {
             <section className={styles.reportsGrid}>
               <CompanionPulse {...companionState.pulses.reports} />
               <article className={styles.card}>
-                <p className={styles.sectionLabel}>KPI Snapshot</p>
-                <h2 className={styles.cardTitle}>Performance dashboard</h2>
+                <p className={styles.sectionLabel}>Progress</p>
+                <h2 className={styles.cardTitle}>Your rhythm</h2>
                 <div className={styles.kpiGrid}>
-                  <button
-                    type="button"
-                    className={styles.kpiItem}
-                    onClick={() => setKpiDetailOpen("totalFocus")}
-                  >
+                  <div className={styles.kpiItemStatic}>
                     <span>Total Focus</span>
                     <strong>{reportMetrics.totalMinutes}m</strong>
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.kpiItem}
-                    onClick={() => setKpiDetailOpen("totalSessions")}
-                  >
-                    <span>Total Sessions</span>
-                    <strong>{reportMetrics.sessionCount}</strong>
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.kpiItem}
-                    onClick={() => setKpiDetailOpen("averageSession")}
-                  >
-                    <span>Avg Session</span>
-                    <strong>{reportMetrics.averageSession}m</strong>
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.kpiItem}
-                    onClick={() => setKpiDetailOpen("bestDay")}
-                  >
-                    <span>Best Day</span>
-                    <strong>
-                      {reportMetrics.bestTrendLabel} · {reportMetrics.bestTrendMinutes}m
-                    </strong>
-                  </button>
-                  <div className={styles.kpiItemStatic}>
-                    <span>Planned Completed</span>
-                    <strong>{reportMetrics.plannedCompletionCount}</strong>
                   </div>
                   <div className={styles.kpiItemStatic}>
-                    <span>Notes Updated (7d)</span>
-                    <strong>{reportMetrics.notesUpdated7d}</strong>
+                    <span>Total Sessions</span>
+                    <strong>{reportMetrics.sessionCount}</strong>
+                  </div>
+                  <div className={styles.kpiItemStatic}>
+                    <span>Current Streak</span>
+                    <strong>{streak}d</strong>
+                  </div>
+                  <div className={styles.kpiItemStatic}>
+                    <span>Focus Week</span>
+                    <strong>{focusMetrics.weekMinutes}m</strong>
                   </div>
                 </div>
                 <div className={styles.progressTrack}>
@@ -5880,44 +5799,13 @@ export default function HomePage() {
                 <p className={styles.accountMeta}>
                   Weekly target progress: {reportMetrics.weeklyProgress}% of 420m
                 </p>
-                <button
-                  type="button"
-                  className={styles.reportButton}
-                  onClick={() => setKpiDetailOpen("weeklyProgress")}
-                >
-                  View weekly target details
-                </button>
-              </article>
-
-              <article className={styles.card}>
-                <p className={styles.sectionLabel}>Notes Analytics</p>
-                <h2 className={styles.cardTitle}>Knowledge activity</h2>
-                <ul className={styles.commandList}>
-                  <li>
-                    <strong>{reportMetrics.notesUpdated7d}</strong> notes updated in the last 7 days
-                  </li>
-                  <li>
-                    <strong>{reportMetrics.notesWithReminders}</strong> notes with reminders
-                  </li>
-                  <li>
-                    <strong>{reportMetrics.plannedCompletionCount}</strong> planned blocks converted to sessions
-                  </li>
-                </ul>
-                {!isPro && (
-                  <div className={styles.cardGateRow}>
-                    <span>Deep note analytics are part of Whelm Pro, coming soon.</span>
-                    <button type="button" className={styles.inlineUpgrade} onClick={openUpgradeFlow}>
-                      Learn more
-                    </button>
-                  </div>
-                )}
               </article>
 
               <article className={styles.card}>
                 <div className={styles.cardHeader}>
                   <div>
-                    <p className={styles.sectionLabel}>Focus Trend</p>
-                    <h2 className={styles.cardTitle}>Performance view</h2>
+                    <p className={styles.sectionLabel}>Focus History</p>
+                    <h2 className={styles.cardTitle}>Recent momentum</h2>
                   </div>
                   <div className={styles.rangeTabs}>
                     <button
@@ -5961,43 +5849,17 @@ export default function HomePage() {
                             : index % 15 === 0 || index === trendPoints.length - 1,
                       )}
                   </div>
-                  {!isPro && (
-                    <div className={styles.chartLock}>
-                      <p>Whelm Pro will add full trend analytics and deeper score breakdowns.</p>
-                      <button type="button" className={styles.inlineUpgrade} onClick={openUpgradeFlow}>
-                        See what&apos;s coming
-                      </button>
-                    </div>
-                  )}
                 </div>
               </article>
 
               <article className={styles.card}>
-                <p className={styles.sectionLabel}>Behavior Loop</p>
-                <h2 className={styles.cardTitle}>Retention drivers</h2>
+                <p className={styles.sectionLabel}>Today</p>
+                <h2 className={styles.cardTitle}>Keep it simple</h2>
                 <ul className={styles.commandList}>
-                  <li>Protect streak daily with one focused session.</li>
-                  <li>Beat yesterday&apos;s score every day.</li>
-                  <li>Use weekly report sharing for accountability.</li>
-                  <li>Pin mission-critical notes at the top.</li>
+                  <li>Protect the streak with one focused session.</li>
+                  <li>Use the schedule to place your next real block.</li>
+                  <li>Use reports only to notice patterns, not to judge yourself.</li>
                 </ul>
-              </article>
-
-              <article className={styles.proPreviewCard}>
-                <div className={styles.proPreviewTop}>
-                  <p className={styles.proEyebrow}>WHELM PRO</p>
-                  <span className={styles.proBadge}>Coming soon</span>
-                </div>
-                <h3 className={styles.proTitle}>Advanced discipline tools are on the way</h3>
-                <ul className={styles.proList}>
-                  <li>Deep report filters and longer trend windows</li>
-                  <li>Custom score weighting and daily insights</li>
-                  <li>No ads + cleaner focus experience</li>
-                  <li>Motivation prompts and precise planning tools</li>
-                </ul>
-                <button type="button" className={styles.proCta} onClick={openUpgradeFlow}>
-                  View Pro preview
-                </button>
               </article>
             </section>
           )}
@@ -6021,9 +5883,6 @@ export default function HomePage() {
                     Plan: {isPro ? "Pro" : "Free"}
                   </span>
                   <span className={styles.settingsPill}>Streak: {streak}d</span>
-                  <span className={styles.settingsPill}>
-                    Score: {focusMetrics.disciplineScore}/100
-                  </span>
                 </div>
                 {!isPro ? (
                   <div className={styles.noteFooterActions}>
