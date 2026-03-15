@@ -3699,17 +3699,19 @@ export default function HomePage() {
               >
                 <WhelmProfileAvatar tierColor={streakBandanaTier?.color} size="compact" />
                 <span className={styles.profileDockCopy}>
-                  <small>{streakBandanaTier?.label ?? "No tier yet"}</small>
-                  <strong>{displayStreak}d</strong>
+                  {!isMobileViewport ? <small>Profile</small> : null}
+                  <strong>{profileDisplayName}</strong>
                 </span>
               </button>
-              <button
-                type="button"
-                className={styles.topAppBarAction}
-                onClick={() => setMobileMoreOpen(true)}
-              >
-                More
-              </button>
+              {!isMobileViewport ? (
+                <button
+                  type="button"
+                  className={styles.topAppBarAction}
+                  onClick={() => setMobileMoreOpen(true)}
+                >
+                  More
+                </button>
+              ) : null}
             </div>
           </div>
 
