@@ -2213,6 +2213,30 @@ export default function HomePage() {
     setDayPortalComposerOpen(true);
   }
 
+  function openPrefilledBlockComposer(options: {
+    dateKey: string;
+    title: string;
+    note: string;
+    timeOfDay: string;
+    durationMinutes: number;
+  }) {
+    setSelectedCalendarDate(options.dateKey);
+    setPlanTitle(options.title);
+    setPlanNote(options.note);
+    setPlanNoteExpanded(Boolean(options.note));
+    setPlanTime(options.timeOfDay);
+    setPlanDuration(options.durationMinutes);
+    setPlanStatus("");
+    setPlanConflictWarning(null);
+    setActiveTab("calendar");
+    setCalendarView("day");
+    if (isMobileViewport) {
+      setMobileBlockSheetOpen(true);
+      return;
+    }
+    setDayPortalComposerOpen(true);
+  }
+
   function openTimeBlockFlow(dateKey: string) {
     setSelectedCalendarDate(dateKey);
     setActiveTab("calendar");
@@ -2247,27 +2271,21 @@ export default function HomePage() {
   }
 
   function convertNoteToPlannedBlock(note: WorkspaceNote) {
-    if (!user) return;
-    const next: PlannedBlock = {
-      id: typeof crypto !== "undefined" ? crypto.randomUUID() : `${Date.now()}`,
-      dateKey: selectedDateKey,
+    const reminderDate = note.reminderAtISO ? new Date(note.reminderAtISO) : null;
+    const dateKey = reminderDate ? dayKeyLocal(reminderDate) : selectedDateKey;
+    const timeOfDay = reminderDate
+      ? `${String(reminderDate.getHours()).padStart(2, "0")}:${String(
+          reminderDate.getMinutes(),
+        ).padStart(2, "0")}`
+      : "09:00";
+
+    openPrefilledBlockComposer({
+      dateKey,
       title: note.title || "Untitled note task",
       note: summarizePlainText(note.body, 280),
+      timeOfDay,
       durationMinutes: 25,
-      timeOfDay: "09:00",
-      sortOrder:
-        selectedDatePlans.length === 0
-          ? 0
-          : Math.max(...selectedDatePlans.map((item) => item.sortOrder)) + 1,
-      createdAtISO: new Date().toISOString(),
-      status: "active",
-    };
-    const updated = [...plannedBlocks, next];
-    setPlannedBlocks(updated);
-    savePlannedBlocks(user.uid, updated);
-    setActiveTab("calendar");
-    setPlanStatus("Note converted to a planned block.");
-    window.setTimeout(() => setPlanStatus(""), 1400);
+    });
   }
 
   const selectedDateKey = selectedCalendarDate || dayKeyLocal(new Date());
@@ -4947,7 +4965,7 @@ export default function HomePage() {
                         className={styles.reportButton}
                         onClick={() => convertNoteToPlannedBlock(selectedNote)}
                       >
-                        Convert to Plan
+                        Convert to Block
                       </button>
                       <button
                         type="button"
@@ -5430,13 +5448,13 @@ export default function HomePage() {
                         {notesSyncMessage ? ` ${notesSyncMessage}` : ""}
                       </span>
                       <div className={styles.noteFooterActions}>
-                        <button
-                          type="button"
-                          className={styles.reportButton}
-                          onClick={() => convertNoteToPlannedBlock(selectedNote)}
-                        >
-                          Convert to Plan
-                        </button>
+                      <button
+                        type="button"
+                        className={styles.reportButton}
+                        onClick={() => convertNoteToPlannedBlock(selectedNote)}
+                      >
+                        Convert to Block
+                      </button>
                         {notesSyncStatus !== "synced" && (
                           <button type="button" className={styles.retrySyncButton} onClick={() => void handleRetrySync()}>
                             Retry sync

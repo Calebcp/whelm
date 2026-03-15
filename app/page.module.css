@@ -4453,11 +4453,15 @@
   }
 
   .dayViewScrollShell {
-    max-height: 68vh;
+    max-height: 70vh;
     overflow-y: auto;
+    overflow-x: hidden;
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    scrollbar-gutter: stable;
     padding-right: 4px;
+    padding-bottom: 28px;
     mask-image: linear-gradient(to bottom, transparent 0, black 20px, black calc(100% - 20px), transparent 100%);
   }
 
