@@ -3585,6 +3585,10 @@ export default function HomePage() {
   const displayStreak = streak > 0 ? streak : rescuedRunDisplay;
   const streakBandanaTier = getStreakBandanaTier(displayStreak);
   const profileTierTheme = getProfileTierTheme(streakBandanaTier?.color);
+  const profileDisplayName =
+    user.displayName?.trim() ||
+    user.email?.split("@")[0]?.trim() ||
+    "Whelm user";
   const nextBandanaMilestone = buildNextBandanaMilestone(displayStreak, !hasEarnedToday);
   const longestStreak = Math.max(0, ...Array.from(historicalStreaksByDay.values()));
   const lifetimeFocusMinutes = sessions.reduce((sum, session) => sum + session.minutes, 0);
@@ -3695,7 +3699,7 @@ export default function HomePage() {
               >
                 <WhelmProfileAvatar tierColor={streakBandanaTier?.color} size="compact" />
                 <span className={styles.profileDockCopy}>
-                  <small>{profileTierTheme.title}</small>
+                  <small>{streakBandanaTier?.label ?? "No tier yet"}</small>
                   <strong>{displayStreak}d</strong>
                 </span>
               </button>
@@ -7012,9 +7016,9 @@ export default function HomePage() {
               <WhelmProfileAvatar tierColor={streakBandanaTier?.color} size="hero" />
               <div className={styles.profileHeroCopy}>
                 <p className={styles.sectionLabel}>Whelm Identity</p>
-                <h3 className={styles.profileHeroTitle}>{profileTierTheme.title}</h3>
+                <h3 className={styles.profileHeroTitle}>{profileDisplayName}</h3>
                 <p className={styles.accountMeta}>
-                  {streakBandanaTier?.label ?? "No bandana yet"} tier
+                  {profileTierTheme.title} · {streakBandanaTier?.label ?? "No bandana yet"}
                 </p>
               </div>
             </article>
