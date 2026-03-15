@@ -4777,13 +4777,15 @@ export default function HomePage() {
                   >
                     <div className={styles.notesStudioHero}>
                       <div>
-                        <p className={styles.sectionLabel}>Editing</p>
-                        <h2 className={styles.cardTitle}>{selectedNote.title || "Untitled note"}</h2>
+                        <p className={`${styles.sectionLabel} ${styles.noteHeroLabel}`}>Editing</p>
+                        <h2 className={`${styles.cardTitle} ${styles.noteHeroTitle}`}>
+                          {selectedNote.title || "Untitled note"}
+                        </h2>
                       </div>
                       <div className={styles.noteFooterActions}>
                         <button
                           type="button"
-                          className={styles.noteColorPickerTrigger}
+                          className={`${styles.noteColorPickerTrigger} ${styles.noteToneButton}`}
                           onClick={() => {
                             setColorPickerOpen((open) => !open);
                             setTextColorPickerOpen(false);
@@ -4798,7 +4800,7 @@ export default function HomePage() {
                         </button>
                         <button
                           type="button"
-                          className={styles.secondaryPlanButton}
+                          className={`${styles.secondaryPlanButton} ${styles.noteDoneButton}`}
                           onClick={() => setMobileNotesEditorOpen(false)}
                         >
                           Done
