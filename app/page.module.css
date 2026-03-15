@@ -205,13 +205,18 @@
 }
 
 .tabIcon {
-  width: 26px;
-  height: 26px;
-  border-radius: 999px;
-  background: rgba(133, 150, 212, 0.12);
+  width: 28px;
+  height: 28px;
   display: grid;
   place-items: center;
-  font-size: 0.85rem;
+  flex: 0 0 28px;
+}
+
+.navIconSvg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  filter: drop-shadow(0 3px 6px rgba(30, 134, 255, 0.18));
 }
 
 .screen {
@@ -646,47 +651,6 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: 10px;
-}
-
-.emotePanel {
-  display: grid;
-  gap: 12px;
-  border: 1px solid rgba(128, 146, 197, 0.12);
-  background:
-    linear-gradient(180deg, rgba(22, 28, 47, 0.94), rgba(16, 22, 39, 0.94)),
-    radial-gradient(circle at top left, rgba(87, 111, 255, 0.14), transparent 46%);
-}
-
-.emotePanelInset {
-  margin-top: 12px;
-}
-
-.emotePanelHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.emotePanelNote {
-  margin: 0;
-  max-width: 28ch;
-  color: #9eaccb;
-  font-size: 0.82rem;
-  line-height: 1.4;
-  text-align: right;
-}
-
-.emotePanelGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
-  gap: 10px;
-  align-items: start;
-}
-
-.emotePanelMobile {
-  display: flex;
-  justify-content: flex-start;
 }
 
 .cardTitle {
@@ -1560,6 +1524,323 @@
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.streaksShell {
+  display: grid;
+  gap: 14px;
+}
+
+@keyframes streakPulse {
+  0%,
+  100% {
+    opacity: 0.46;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.82;
+    transform: scale(1.03);
+  }
+}
+
+@keyframes streakSheen {
+  0% {
+    transform: translateX(-140%) skewX(-20deg);
+    opacity: 0;
+  }
+  18% {
+    opacity: 0.42;
+  }
+  55% {
+    opacity: 0.18;
+  }
+  100% {
+    transform: translateX(220%) skewX(-20deg);
+    opacity: 0;
+  }
+}
+
+.streakHeroCard {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  background:
+    radial-gradient(circle at top right, rgba(97, 206, 255, 0.28), transparent 24%),
+    radial-gradient(circle at 12% 12%, rgba(122, 160, 255, 0.2), transparent 28%),
+    linear-gradient(180deg, #132247 0%, #182c58 58%, #1b2f60 100%);
+  color: #f7f9ff;
+  overflow: hidden;
+}
+
+.streakHeroCard::before {
+  content: "";
+  position: absolute;
+  inset: -12% auto auto -8%;
+  width: 44%;
+  height: 88%;
+  background: radial-gradient(circle, rgba(120, 214, 255, 0.18), transparent 70%);
+  filter: blur(18px);
+  animation: streakPulse 4.4s ease-in-out infinite;
+}
+
+.streakHeroCard::after {
+  content: "";
+  position: absolute;
+  top: -30%;
+  bottom: -30%;
+  width: 22%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.18), transparent);
+  animation: streakSheen 5.6s ease-in-out infinite;
+}
+
+.streakHeroCopy {
+  display: grid;
+  gap: 10px;
+}
+
+.streakBadge {
+  width: fit-content;
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(223, 231, 255, 0.94), rgba(181, 199, 255, 0.9));
+  color: #233763;
+  font-size: 0.84rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.streakHeroTitle {
+  margin: 0;
+  font-size: clamp(2rem, 7vw, 3.8rem);
+  line-height: 0.95;
+  color: #fffdf8;
+}
+
+.streakHeroBody {
+  margin: 0;
+  max-width: 42ch;
+  font-size: 0.98rem;
+  line-height: 1.5;
+  color: rgba(225, 234, 255, 0.88);
+}
+
+.streakHeroVisual {
+  justify-self: end;
+}
+
+.streakMilestoneCard {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 16px;
+  align-items: center;
+  background:
+    radial-gradient(circle at top left, rgba(80, 191, 255, 0.16), transparent 24%),
+    linear-gradient(180deg, rgba(20, 36, 70, 0.98), rgba(18, 33, 63, 0.96));
+  overflow: hidden;
+}
+
+.streakMilestoneCard::after {
+  content: "";
+  position: absolute;
+  inset: auto -8% -35% auto;
+  width: 42%;
+  height: 110%;
+  background: radial-gradient(circle, rgba(105, 165, 255, 0.14), transparent 72%);
+  filter: blur(18px);
+}
+
+.streakMilestoneIcon {
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at top left, rgba(145, 214, 255, 0.2), transparent 44%),
+    linear-gradient(180deg, rgba(45, 82, 168, 0.92), rgba(34, 65, 139, 0.96));
+  border: 1px solid rgba(141, 190, 255, 0.28);
+  box-shadow:
+    inset 0 1px 0 rgba(229, 243, 255, 0.28),
+    0 10px 22px rgba(21, 41, 88, 0.34);
+}
+
+.streakMilestoneBandana {
+  width: 62px;
+  height: 62px;
+}
+
+.streakMilestoneCopy {
+  display: grid;
+  gap: 6px;
+  position: relative;
+  z-index: 1;
+}
+
+.streakMilestoneTitle {
+  margin: 0;
+  font-size: 1rem;
+  color: #f3f6ff;
+}
+
+.streakMilestoneBody {
+  margin: 0;
+  color: #b8c4dc;
+  line-height: 1.45;
+}
+
+.streakSaveCard {
+  display: grid;
+  gap: 12px;
+  border: 1px solid rgba(126, 157, 255, 0.2);
+  background:
+    radial-gradient(circle at top left, rgba(108, 160, 255, 0.12), transparent 26%),
+    linear-gradient(180deg, rgba(16, 29, 58, 0.96), rgba(12, 22, 45, 0.96));
+}
+
+.streakCalendarCard {
+  position: relative;
+  display: grid;
+  gap: 12px;
+  background:
+    radial-gradient(circle at top right, rgba(99, 194, 255, 0.12), transparent 18%),
+    linear-gradient(180deg, rgba(14, 22, 45, 0.98), rgba(16, 25, 50, 0.98));
+  overflow: hidden;
+}
+
+.streakCalendarCard::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, transparent 0%, rgba(153, 225, 255, 0.06) 32%, transparent 54%);
+  transform: translateX(-100%);
+  animation: streakSheen 7.2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.streakCalendarMonthLabel {
+  min-width: 11ch;
+  text-align: center;
+  color: #eef3ff;
+}
+
+.streakWeekHeader {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.streakWeekHeader span {
+  text-align: center;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #76869d;
+}
+
+.streakMonthGrid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.streakMonthCell {
+  position: relative;
+  min-height: 92px;
+  border-radius: 22px;
+  border: 1px solid rgba(79, 94, 117, 0.16);
+  background: rgba(12, 18, 29, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  overflow: visible;
+  z-index: 0;
+}
+
+.streakMonthCellEmpty {
+  border-color: transparent;
+  background: transparent;
+}
+
+.streakMonthCellActive {
+  border-color: rgba(117, 143, 255, 0.3);
+  background:
+    radial-gradient(circle at 50% 40%, rgba(122, 235, 255, 0.22), transparent 58%),
+    radial-gradient(circle at center, rgba(110, 126, 255, 0.36), transparent 74%),
+    linear-gradient(180deg, rgba(62, 94, 201, 0.98), rgba(70, 102, 224, 0.96));
+  box-shadow:
+    inset 0 1px 0 rgba(230, 243, 255, 0.46),
+    inset 0 -10px 24px rgba(43, 63, 151, 0.24),
+    0 10px 22px rgba(47, 72, 178, 0.26);
+}
+
+.streakMonthCellConnectLeft {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.streakMonthCellConnectRight {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.streakMonthCellConnectLeft::before,
+.streakMonthCellConnectRight::after {
+  content: "";
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  width: 14px;
+  background: linear-gradient(180deg, rgba(71, 105, 220, 0.98), rgba(83, 117, 242, 0.98));
+  z-index: -1;
+}
+
+.streakMonthCellConnectLeft::before {
+  left: -9px;
+}
+
+.streakMonthCellConnectRight::after {
+  right: -9px;
+}
+
+.streakMonthCellToday {
+  box-shadow:
+    inset 0 0 0 3px rgba(255, 255, 255, 0.92),
+    0 0 0 2px rgba(145, 222, 255, 0.24),
+    0 10px 24px rgba(88, 118, 255, 0.24);
+}
+
+.streakMonthCellSaved {
+  border-style: dashed;
+}
+
+.streakMonthCellSaved .streakMonthBandana {
+  opacity: 0.88;
+  filter: drop-shadow(0 8px 12px rgba(13, 24, 58, 0.22)) saturate(0.95);
+}
+
+.streakMonthDayNumber {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  z-index: 2;
+  font-size: 0.96rem;
+  font-weight: 800;
+  color: #e9eefc;
+}
+
+.streakMonthBandana {
+  position: absolute;
+  top: 52%;
+  left: 50%;
+  width: 66px;
+  height: 66px;
+  transform: translate(-50%, -50%);
+  filter: drop-shadow(0 8px 12px rgba(13, 24, 58, 0.34));
 }
 
 .streakGrid {
@@ -2653,22 +2934,6 @@
   text-shadow: 0 1px 2px rgba(8, 12, 24, 0.32);
 }
 
-.dayPortalBlockButton {
-  position: relative;
-}
-
-.dayPortalBlockButton::after {
-  content: "FOUNDATIONAL";
-  position: absolute;
-  left: 50%;
-  bottom: -16px;
-  transform: translateX(-50%);
-  font-size: 0.53rem;
-  letter-spacing: 0.18em;
-  color: rgba(171, 194, 255, 0.84);
-  white-space: nowrap;
-}
-
 .planConflictBanner {
   border: 1px solid rgba(245, 158, 11, 0.24);
   border-radius: 14px;
@@ -3003,7 +3268,11 @@
 }
 
 .bottomTabIcon {
-  font-size: 0.98rem;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 26px;
 }
 
 .mobileJumpRow {
@@ -3682,7 +3951,6 @@
 .themeLight .tabRail,
 .themeLight .bottomTabs,
 .themeLight .card,
-.themeLight .emotePanel,
 .themeLight .statCard,
 .themeLight .companionPulse,
 .themeLight .companionPulseSpeech,
@@ -3712,7 +3980,6 @@
 
 .themeLight .subtitle,
 .themeLight .accountMeta,
-.themeLight .emotePanelNote,
 .themeLight .companionPulseBody,
 .themeLight .senseiMessage,
 .themeLight .topAppBarDate,
@@ -3752,6 +4019,25 @@
 .themeLight .planLabel,
 .themeLight .statLabel {
   color: #8b97ad;
+}
+
+.themeLight .mobileMoreGrid {
+  gap: 12px;
+}
+
+.themeLight .mobileMoreButton {
+  border-color: rgba(108, 120, 170, 0.12);
+  background:
+    linear-gradient(180deg, rgba(244, 247, 253, 0.98), rgba(233, 239, 249, 0.96)),
+    radial-gradient(circle at top left, rgba(126, 150, 227, 0.1), transparent 44%);
+  color: #1f2c45;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.78),
+    0 10px 20px rgba(110, 121, 155, 0.08);
+}
+
+.themeLight .mobileMoreButton:hover {
+  filter: brightness(0.99);
 }
 
 .themeLight .topAppBarAction,
@@ -3832,11 +4118,70 @@
     linear-gradient(180deg, rgba(250, 247, 242, 0.98), rgba(243, 238, 231, 0.96));
 }
 
-.themeLight .emotePanel {
+.themeLight .streakHeroCard {
   background:
-    linear-gradient(180deg, rgba(250, 247, 242, 0.98), rgba(243, 238, 231, 0.96)),
-    radial-gradient(circle at top left, rgba(103, 140, 204, 0.12), transparent 42%);
+    radial-gradient(circle at top right, rgba(130, 217, 255, 0.34), transparent 26%),
+    radial-gradient(circle at 12% 10%, rgba(162, 189, 255, 0.24), transparent 28%),
+    linear-gradient(180deg, #5d79dd 0%, #4d67ce 52%, #4860c4 100%);
 }
+
+.themeLight .streakMilestoneCard,
+.themeLight .streakCalendarCard {
+  background: linear-gradient(180deg, rgba(251, 248, 243, 0.98), rgba(243, 238, 231, 0.96));
+}
+
+.themeLight .streakMilestoneTitle,
+.themeLight .streakCalendarMonthLabel {
+  color: #1d2a40;
+}
+
+.themeLight .streakBadge {
+  background: linear-gradient(135deg, rgba(242, 246, 255, 0.96), rgba(218, 227, 255, 0.92));
+  color: #314884;
+}
+
+.themeLight .streakHeroBody {
+  color: rgba(248, 251, 255, 0.88);
+}
+
+.themeLight .streakMilestoneBody,
+.themeLight .streakWeekHeader span {
+  color: #64748b;
+}
+
+.themeLight .streakSaveCard {
+  border-color: rgba(104, 131, 224, 0.18);
+  background:
+    radial-gradient(circle at top left, rgba(135, 174, 255, 0.16), transparent 24%),
+    linear-gradient(180deg, rgba(246, 249, 255, 0.98), rgba(236, 241, 252, 0.96));
+}
+
+.themeLight .streakMonthCell {
+  background: rgba(235, 239, 245, 0.9);
+  border-color: rgba(128, 142, 170, 0.14);
+}
+
+.themeLight .streakMonthCellActive {
+  border-color: rgba(99, 119, 205, 0.28);
+  background:
+    radial-gradient(circle at 50% 40%, rgba(208, 242, 255, 0.34), transparent 56%),
+    radial-gradient(circle at center, rgba(158, 176, 242, 0.36), transparent 72%),
+    linear-gradient(180deg, rgba(115, 142, 241, 0.98), rgba(95, 123, 228, 0.96));
+  box-shadow:
+    inset 0 1px 0 rgba(249, 252, 255, 0.88),
+    inset 0 -10px 24px rgba(84, 102, 184, 0.18),
+    0 10px 18px rgba(103, 117, 189, 0.18);
+}
+
+.themeLight .streakMonthCellConnectLeft::before,
+.themeLight .streakMonthCellConnectRight::after {
+  background: linear-gradient(180deg, rgba(116, 142, 238, 0.98), rgba(97, 123, 226, 0.98));
+}
+
+.themeLight .streakMonthDayNumber {
+  color: #f8fbff;
+}
+
 
 .themeLight .senseiSpeechPanel,
 .themeLight .companionPulseSpeech {
@@ -4458,13 +4803,6 @@
     grid-column: 1 / -1;
   }
 
-  .reportsGrid > .emotePanel,
-  .insightsGrid > .emotePanel,
-  .settingsGrid > .emotePanel,
-  .historyShell > .emotePanel {
-    grid-column: 1 / -1;
-  }
-
   .calendarJumpRow {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
@@ -4476,6 +4814,15 @@
 
   .reportsGrid {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .streaksShell {
+    grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+  }
+
+  .streakHeroCard,
+  .streakCalendarCard {
+    grid-column: 1 / -1;
   }
 
   .insightsGrid {
@@ -4505,10 +4852,6 @@
 
   .notesWorkspace > .companionPulse {
     grid-column: 1 / -1;
-  }
-
-  .notesWorkspace > .emotePanel {
-    grid-column: 1;
   }
 
   .notesSidebar {
@@ -4769,6 +5112,41 @@
     font-size: 1rem;
   }
 
+  .streakHeroCard {
+    grid-template-columns: 1fr;
+  }
+
+  .streakHeroVisual {
+    justify-self: start;
+  }
+
+  .streakMilestoneCard {
+    grid-template-columns: 1fr;
+  }
+
+  .streakCalendarCard .cardHeader {
+    display: grid;
+  }
+
+  .streakCalendarMonthLabel {
+    min-width: auto;
+  }
+
+  .streakMonthGrid {
+    gap: 6px;
+  }
+
+  .streakMonthCell {
+    min-height: 64px;
+    border-radius: 18px;
+    padding: 6px;
+  }
+
+  .streakMonthBandana {
+    width: 50px;
+    height: 50px;
+  }
+
   .dayPortalPill {
     padding: 7px 10px;
     font-size: 0.74rem;
@@ -4777,15 +5155,6 @@
   .companionPulse {
     grid-template-columns: 1fr;
     justify-items: start;
-  }
-
-  .emotePanelHeader {
-    display: grid;
-  }
-
-  .emotePanelNote {
-    max-width: none;
-    text-align: left;
   }
 
   .dayViewTrack {

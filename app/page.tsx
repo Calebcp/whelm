@@ -24,7 +24,12 @@ import {
   type WorkspaceNote,
 } from "@/lib/notes-store";
 import { loadSessions, saveSession } from "@/lib/session-store";
-import { computeStreak, type SessionDoc } from "@/lib/streak";
+import {
+  computeHistoricalStreaks,
+  computeStreak,
+  computeStreakEndingAtDateKey,
+  type SessionDoc,
+} from "@/lib/streak";
 import {
   getProState,
   restoreFreeTier,
@@ -39,7 +44,7 @@ import {
   buildSenseiCompanionState,
   type SenseiCompanionStyle,
 } from "@/lib/sensei-companion";
-import { getStreakBandanaTier } from "@/lib/streak-bandanas";
+import { getStreakBandanaTier, STREAK_BANDANA_TIERS } from "@/lib/streak-bandanas";
 import type { WhelmEmoteId } from "@/lib/whelm-emotes";
 import styles from "./page.module.css";
 
@@ -167,7 +172,6 @@ type AppTab =
   | "today"
   | "calendar"
   | "notes"
-  | "insights"
   | "streaks"
   | "history"
   | "reports"
@@ -189,6 +193,19 @@ type MonthCell = {
   minutes: number;
   level: 0 | 1 | 2 | 3;
   isCurrentMonth: boolean;
+};
+
+type StreakMonthCell = {
+  key: string;
+  dateKey: string | null;
+  dayNumber: number | null;
+  isCurrentMonth: boolean;
+  isToday: boolean;
+  streakLength: number;
+  hasSession: boolean;
+  isSaved: boolean;
+  leftConnected: boolean;
+  rightConnected: boolean;
 };
 
 type CalendarEntrySource = "plan" | "reminder" | "session";
@@ -240,6 +257,13 @@ type KpiDetailKey =
   | "averageSession"
   | "bestDay"
   | "weeklyProgress";
+
+type SickDaySave = {
+  id: string;
+  dateKey: string;
+  claimedAtISO: string;
+  reason: "sick";
+};
 
 const INSIGHT_CATEGORY_META: Record<
   NoteCategory,
@@ -349,6 +373,12 @@ function shiftMonth(date: Date, amount: number) {
   return new Date(date.getFullYear(), date.getMonth() + amount, 1);
 }
 
+function addDays(date: Date, amount: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + amount);
+  return next;
+}
+
 function normalizeTimeLabel(raw: string) {
   if (!raw) return "Any time";
   const parsed = new Date(`2000-01-01T${raw}:00`);
@@ -364,6 +394,21 @@ function parseTimeToMinutes(raw: string) {
 
 function isDateKeyBeforeToday(dateKey: string) {
   return dateKey < dayKeyLocal(new Date());
+}
+
+function buildNextBandanaMilestone(streak: number, countsTodayIfEarnedNow = false) {
+  const nextTier = STREAK_BANDANA_TIERS.find((tier) => streak < tier.minDays) ?? null;
+  if (!nextTier) return null;
+
+  const remainingDays = nextTier.minDays - streak;
+  const daysUntilTarget = Math.max(0, remainingDays - (countsTodayIfEarnedNow ? 1 : 0));
+  const targetDate = addDays(startOfDayLocal(new Date()), daysUntilTarget);
+
+  return {
+    tier: nextTier,
+    remainingDays,
+    targetDate,
+  };
 }
 
 function countSessionsForDate(sessions: SessionDoc[], dateKey: string) {
@@ -613,25 +658,155 @@ function inferCategoryFromText(text: string): NoteCategory {
   return "personal";
 }
 
-function iconForTab(tab: AppTab) {
-  switch (tab) {
+type NavIconKey = AppTab | "more";
+
+function WhelmNavIcon({ icon }: { icon: NavIconKey }) {
+  const svgProps = {
+    viewBox: "0 0 64 64",
+    "aria-hidden": true as const,
+    className: styles.navIconSvg,
+  };
+
+  switch (icon) {
     case "today":
-      return "◉";
+      return (
+        <svg {...svgProps}>
+          <defs>
+            <linearGradient id="todayFill" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#A7F6FF" />
+              <stop offset="100%" stopColor="#45D4FF" />
+            </linearGradient>
+          </defs>
+          <circle cx="32" cy="32" r="22" fill="url(#todayFill)" opacity="0.24" />
+          <circle cx="32" cy="32" r="17.5" fill="none" stroke="#1E86FF" strokeWidth="6" />
+          <circle cx="32" cy="32" r="8.5" fill="#83EEFF" stroke="#1E86FF" strokeWidth="3" />
+        </svg>
+      );
     case "calendar":
-      return "▦";
+      return (
+        <svg {...svgProps}>
+          <defs>
+            <linearGradient id="calendarFill" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#A3F4FF" />
+              <stop offset="100%" stopColor="#48D0FF" />
+            </linearGradient>
+          </defs>
+          <rect x="9" y="12" width="46" height="42" rx="12" fill="url(#calendarFill)" stroke="#1E86FF" strokeWidth="3.5" />
+          <rect x="9" y="20" width="46" height="8" rx="4" fill="#1E86FF" opacity="0.9" />
+          <rect x="18" y="8" width="6" height="12" rx="3" fill="#C7FBFF" stroke="#1E86FF" strokeWidth="2" />
+          <rect x="40" y="8" width="6" height="12" rx="3" fill="#C7FBFF" stroke="#1E86FF" strokeWidth="2" />
+          <line x1="19" y1="35" x2="45" y2="35" stroke="#1E86FF" strokeWidth="3.5" strokeLinecap="round" />
+          <line x1="19" y1="44" x2="45" y2="44" stroke="#1E86FF" strokeWidth="3.5" strokeLinecap="round" opacity="0.8" />
+        </svg>
+      );
     case "notes":
-      return "✎";
-    case "insights":
-      return "◍";
+      return (
+        <svg {...svgProps}>
+          <defs>
+            <linearGradient id="notesFill" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#A5F5FF" />
+              <stop offset="100%" stopColor="#4DD5FF" />
+            </linearGradient>
+          </defs>
+          <path d="M17 19h30v28a5 5 0 0 1-5 5H22a5 5 0 0 1-5-5V19Z" fill="url(#notesFill)" stroke="#1E86FF" strokeWidth="3.5" />
+          <path d="M24 16h16" stroke="#1E86FF" strokeWidth="4" strokeLinecap="round" />
+          <path d="m41 12 10 10" stroke="#1E86FF" strokeWidth="4" strokeLinecap="round" />
+          <circle cx="47" cy="18" r="8" fill="#FF6262" stroke="#261318" strokeWidth="3" />
+          <path d="M44.5 21.5 33 33" stroke="#261318" strokeWidth="3.5" strokeLinecap="round" />
+        </svg>
+      );
     case "streaks":
-      return "◌";
+      return (
+        <svg {...svgProps}>
+          <defs>
+            <linearGradient id="streakFill" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#8FF2FF" />
+              <stop offset="100%" stopColor="#39C6FF" />
+            </linearGradient>
+          </defs>
+          <path
+            d="M8 33c8-9 18-11 31-11 8 0 13 2 17 4-1 5-4 9-9 11l-5 2 9 10c-5 2-11 0-15-4l-3-4c-3 4-7 7-13 8 2-6 4-10 5-13l-17 3Z"
+            fill="url(#streakFill)"
+            stroke="#1388F5"
+            strokeWidth="3.5"
+            strokeLinejoin="round"
+          />
+          <path d="M16 32c8-4 18-6 28-5" stroke="#D8FFFF" strokeWidth="2.5" strokeLinecap="round" opacity="0.75" />
+        </svg>
+      );
     case "history":
-      return "☰";
+      return (
+        <svg {...svgProps}>
+          <defs>
+            <linearGradient id="historyFill" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#A0F2FF" />
+              <stop offset="100%" stopColor="#46CCFF" />
+            </linearGradient>
+          </defs>
+          <rect x="10" y="10" width="44" height="44" rx="14" fill="url(#historyFill)" stroke="#1E86FF" strokeWidth="3.5" />
+          <circle cx="22" cy="32" r="3.5" fill="none" stroke="#1E86FF" strokeWidth="3" />
+          <circle cx="32" cy="32" r="3.5" fill="none" stroke="#1E86FF" strokeWidth="3" />
+          <circle cx="42" cy="32" r="3.5" fill="none" stroke="#1E86FF" strokeWidth="3" />
+        </svg>
+      );
     case "reports":
-      return "◔";
+      return (
+        <svg {...svgProps}>
+          <defs>
+            <linearGradient id="reportsFill" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#9AEFFF" />
+              <stop offset="100%" stopColor="#41CBFF" />
+            </linearGradient>
+          </defs>
+          <circle cx="32" cy="32" r="22" fill="url(#reportsFill)" stroke="#1E86FF" strokeWidth="3.5" />
+          <path d="M32 32V10a22 22 0 0 1 22 22H32Z" fill="#7CE8FF" stroke="#1E86FF" strokeWidth="3" strokeLinejoin="round" />
+          <path d="M32 32 16.5 47.5A22 22 0 0 1 10 32h22Z" fill="#5AD9FF" stroke="#1E86FF" strokeWidth="3" strokeLinejoin="round" />
+          <circle cx="32" cy="32" r="4" fill="#1E86FF" />
+        </svg>
+      );
     case "settings":
-      return "⚙";
+      return (
+        <svg {...svgProps}>
+          <defs>
+            <linearGradient id="settingsFill" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#99F0FF" />
+              <stop offset="100%" stopColor="#3CCBFF" />
+            </linearGradient>
+          </defs>
+          <path
+            d="m32 11 4 2 5-1 4 5 5 2-1 5 2 4-2 4 1 5-5 2-4 5-5-1-4 2-4-2-5 1-4-5-5-2 1-5-2-4 2-4-1-5 5-2 4-5 5 1 4-2Z"
+            fill="url(#settingsFill)"
+            stroke="#1E86FF"
+            strokeWidth="3.5"
+            strokeLinejoin="round"
+          />
+          <circle cx="32" cy="32" r="9" fill="#CCFCFF" stroke="#1E86FF" strokeWidth="3.5" />
+        </svg>
+      );
+    case "more":
+      return (
+        <svg {...svgProps}>
+          <defs>
+            <linearGradient id="moreFill" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#9EF1FF" />
+              <stop offset="100%" stopColor="#44D0FF" />
+            </linearGradient>
+          </defs>
+          <rect x="10" y="10" width="44" height="44" rx="14" fill="url(#moreFill)" stroke="#1E86FF" strokeWidth="3.5" />
+          <circle cx="22" cy="32" r="3.5" fill="none" stroke="#1E86FF" strokeWidth="3" />
+          <circle cx="32" cy="32" r="3.5" fill="none" stroke="#1E86FF" strokeWidth="3" />
+          <circle cx="42" cy="32" r="3.5" fill="none" stroke="#1E86FF" strokeWidth="3" />
+        </svg>
+      );
   }
+}
+
+function iconForTab(tab: AppTab) {
+  return <WhelmNavIcon icon={tab} />;
+}
+
+function iconForNavKey(tab: NavIconKey) {
+  return <WhelmNavIcon icon={tab} />;
 }
 
 function tabTitle(tab: AppTab) {
@@ -642,8 +817,6 @@ function tabTitle(tab: AppTab) {
       return "Schedule";
     case "notes":
       return "Notes";
-    case "insights":
-      return "Insights";
     case "streaks":
       return "Streaks";
     case "history":
@@ -667,11 +840,21 @@ function themeModeStorageKey(uid: string) {
   return `whelm:theme-mode:${uid}`;
 }
 
+function sickDaySaveStorageKey(uid: string) {
+  return `whelm:sick-day-saves:${uid}`;
+}
+
+function sickDaySaveDismissalsStorageKey(uid: string) {
+  return `whelm:sick-day-save-dismissals:${uid}`;
+}
+
 function clearLocalAccountData(uid: string) {
   window.localStorage.removeItem(`whelm:notes:${uid}`);
   window.localStorage.removeItem(`whelm:sessions:${uid}`);
   window.localStorage.removeItem(plannedBlocksStorageKey(uid));
   window.localStorage.removeItem(senseiStyleStorageKey(uid));
+  window.localStorage.removeItem(sickDaySaveStorageKey(uid));
+  window.localStorage.removeItem(sickDaySaveDismissalsStorageKey(uid));
   window.localStorage.removeItem("whelm-pro-state-v1");
 }
 
@@ -712,6 +895,37 @@ function loadPlannedBlocks(uid: string): PlannedBlock[] {
 
 function savePlannedBlocks(uid: string, items: PlannedBlock[]) {
   window.localStorage.setItem(plannedBlocksStorageKey(uid), JSON.stringify(items));
+}
+
+function loadSickDaySaves(uid: string): SickDaySave[] {
+  try {
+    const raw = window.localStorage.getItem(sickDaySaveStorageKey(uid));
+    const parsed = raw ? (JSON.parse(raw) as SickDaySave[]) : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((item) => item && item.dateKey && item.claimedAtISO && item.reason === "sick")
+      .sort((a, b) => (a.claimedAtISO < b.claimedAtISO ? 1 : -1));
+  } catch {
+    return [];
+  }
+}
+
+function saveSickDaySaves(uid: string, saves: SickDaySave[]) {
+  window.localStorage.setItem(sickDaySaveStorageKey(uid), JSON.stringify(saves));
+}
+
+function loadSickDaySaveDismissals(uid: string) {
+  try {
+    const raw = window.localStorage.getItem(sickDaySaveDismissalsStorageKey(uid));
+    const parsed = raw ? (JSON.parse(raw) as string[]) : [];
+    return Array.isArray(parsed) ? parsed.filter((value) => typeof value === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveSickDaySaveDismissals(uid: string, dateKeys: string[]) {
+  window.localStorage.setItem(sickDaySaveDismissalsStorageKey(uid), JSON.stringify(dateKeys));
 }
 
 function notesShellBackground(themeMode: ThemeMode, noteColor?: string) {
@@ -760,20 +974,30 @@ const MOBILE_PRIMARY_TABS: Array<{ key: AppTab | "more"; label: string }> = [
   { key: "more", label: "More" },
 ];
 
-const MOBILE_MORE_TABS: AppTab[] = ["streaks", "insights", "history", "reports", "settings"];
+const MOBILE_MORE_TABS: AppTab[] = ["streaks", "history", "reports", "settings"];
 
 const INTRO_SPLASH_MIN_MS = 1500;
 const INTRO_SPLASH_MAX_MS = 2200;
 
-function StreakBandana({ streak }: { streak: number }) {
-  const tier = getStreakBandanaTier(streak);
+function StreakBandana({
+  streakDays,
+  className,
+}: {
+  streakDays: number;
+  className?: string;
+}) {
+  const tier = getStreakBandanaTier(streakDays);
   const { RiveComponent } = useRive({
     src: tier ? `/streak/${tier.assetFile}` : "/streak/moveband.riv",
     autoplay: true,
   });
 
   return (
-    <div className={styles.streakBandanaWrap} aria-hidden="true" title={tier?.label}>
+    <div
+      className={[styles.streakBandanaWrap, className].filter(Boolean).join(" ")}
+      aria-hidden="true"
+      title={tier?.label}
+    >
       <RiveComponent className={styles.streakBandanaRive} />
     </div>
   );
@@ -859,60 +1083,6 @@ function CompanionPulse({
   );
 }
 
-type EmotePanelItem = {
-  id: WhelmEmoteId;
-  message: string;
-};
-
-function EmotePanel({
-  eyebrow,
-  title,
-  note,
-  items,
-  isMobile = false,
-  mobilePrimaryId,
-  className,
-}: {
-  eyebrow: string;
-  title: string;
-  note?: string;
-  items: EmotePanelItem[];
-  isMobile?: boolean;
-  mobilePrimaryId?: WhelmEmoteId;
-  className?: string;
-}) {
-  const mobilePrimary = items.find((item) => item.id === mobilePrimaryId) ?? items[0];
-
-  return (
-    <article className={[styles.card, styles.emotePanel, className].filter(Boolean).join(" ")}>
-      <div className={styles.emotePanelHeader}>
-        <div>
-          <p className={styles.sectionLabel}>{eyebrow}</p>
-          <h2 className={styles.cardTitle}>{title}</h2>
-        </div>
-        {note ? <p className={styles.emotePanelNote}>{note}</p> : null}
-      </div>
-      {isMobile ? (
-        <div className={styles.emotePanelMobile}>
-          <WhelmEmote emoteId={mobilePrimary.id} size="inline" align="left" message={mobilePrimary.message} />
-        </div>
-      ) : (
-        <div className={styles.emotePanelGrid}>
-          {items.map((item) => (
-            <WhelmEmote
-              key={item.id}
-              emoteId={item.id}
-              size="badge"
-              align="left"
-              message={item.message}
-            />
-          ))}
-        </div>
-      )}
-    </article>
-  );
-}
-
 export default function HomePage() {
   const router = useRouter();
 
@@ -969,6 +1139,10 @@ export default function HomePage() {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
+  const [streakCalendarCursor, setStreakCalendarCursor] = useState<Date>(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
   const [calendarHoverEntryId, setCalendarHoverEntryId] = useState<string | null>(null);
   const [calendarPinnedEntryId, setCalendarPinnedEntryId] = useState<string | null>(null);
   const [calendarAuxPanel, setCalendarAuxPanel] = useState<"agenda" | "streak" | "guide">("agenda");
@@ -1008,6 +1182,9 @@ export default function HomePage() {
   const [accountDangerStatus, setAccountDangerStatus] = useState("");
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
+  const [sickDaySaves, setSickDaySaves] = useState<SickDaySave[]>([]);
+  const [sickDaySaveDismissals, setSickDaySaveDismissals] = useState<string[]>([]);
+  const [sickDaySavePromptOpen, setSickDaySavePromptOpen] = useState(false);
   const [mobileNotesRecentOpen, setMobileNotesRecentOpen] = useState(false);
   const [mobileNotesEditorOpen, setMobileNotesEditorOpen] = useState(false);
   const [mobileNotesToolsOpen, setMobileNotesToolsOpen] = useState<
@@ -1035,7 +1212,11 @@ export default function HomePage() {
   const activatedCalendarEntryTimeoutRef = useRef<number | null>(null);
   const calendarHoverPreviewTimeoutRef = useRef<number | null>(null);
 
-  const streak = computeStreak(sessions);
+  const protectedStreakDateKeys = useMemo(
+    () => sickDaySaves.map((save) => save.dateKey),
+    [sickDaySaves],
+  );
+  const streak = computeStreak(sessions, protectedStreakDateKeys);
 
   const focusMetrics = useMemo(() => {
     const now = new Date();
@@ -1618,6 +1799,9 @@ export default function HomePage() {
         setSessions([]);
         setNotes([]);
         setPlannedBlocks([]);
+        setSickDaySaves([]);
+        setSickDaySaveDismissals([]);
+        setSickDaySavePromptOpen(false);
         setSelectedNoteId(null);
         setSelectedCalendarDate(null);
         setAuthChecked(true);
@@ -1648,6 +1832,12 @@ export default function HomePage() {
     if (!user) return;
     const loaded = loadPlannedBlocks(user.uid);
     setPlannedBlocks(loaded);
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    setSickDaySaves(loadSickDaySaves(user.uid));
+    setSickDaySaveDismissals(loadSickDaySaveDismissals(user.uid));
   }, [user]);
 
   useEffect(() => {
@@ -1705,6 +1895,31 @@ export default function HomePage() {
     window.addEventListener("online", onOnline);
     return () => window.removeEventListener("online", onOnline);
   }, [notes, user]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const today = startOfDayLocal(new Date());
+    const yesterdayDateKey = dayKeyLocal(addDays(today, -1));
+    const dayBeforeYesterdayDateKey = dayKeyLocal(addDays(today, -2));
+    const protectedDateKeys = sickDaySaves.map((save) => save.dateKey);
+    const yesterdayAlreadyProtected = protectedDateKeys.includes(yesterdayDateKey);
+    const yesterdayMissed = !sessions.some(
+      (session) => dayKeyLocal(session.completedAtISO) === yesterdayDateKey,
+    );
+    const priorRun = computeStreakEndingAtDateKey(
+      sessions,
+      dayBeforeYesterdayDateKey,
+      protectedDateKeys,
+    );
+    const latestClaim = sickDaySaves.length > 0 ? new Date(sickDaySaves[0].claimedAtISO) : null;
+    const onCooldown = latestClaim !== null && latestClaim >= addDays(today, -30);
+    const dismissed = sickDaySaveDismissals.includes(yesterdayDateKey);
+
+    if (yesterdayMissed && !yesterdayAlreadyProtected && priorRun > 0 && !onCooldown && !dismissed) {
+      setSickDaySavePromptOpen(true);
+    }
+  }, [sessions, sickDaySaveDismissals, sickDaySaves, user]);
 
   useEffect(() => {
     async function pullLatest() {
@@ -1805,7 +2020,7 @@ export default function HomePage() {
         source: "timer",
         minutesSpent,
         todaySessions: countSessionsForDate(nextSessions, dayKeyLocal(new Date())),
-        streak: computeStreak(nextSessions),
+        streak: computeStreak(nextSessions, protectedStreakDateKeys),
       }),
     );
   }
@@ -2309,6 +2524,41 @@ export default function HomePage() {
     setPlanConflictWarning(null);
   }
 
+  function openSickDaySaveReview() {
+    setSickDaySavePromptOpen(false);
+    setActiveTab("streaks");
+  }
+
+  function dismissSickDaySavePrompt() {
+    setSickDaySavePromptOpen(false);
+  }
+
+  function declineSickDaySave() {
+    if (!user || !rawYesterdayMissed) return;
+    const nextDismissals = [...new Set([...sickDaySaveDismissals, yesterdayKey])];
+    setSickDaySaveDismissals(nextDismissals);
+    saveSickDaySaveDismissals(user.uid, nextDismissals);
+    setSickDaySavePromptOpen(false);
+  }
+
+  function claimSickDaySave() {
+    if (!user || !sickDaySaveEligible) return;
+
+    const nextSave: SickDaySave = {
+      id: typeof crypto !== "undefined" ? crypto.randomUUID() : `${Date.now()}`,
+      dateKey: yesterdayKey,
+      claimedAtISO: new Date().toISOString(),
+      reason: "sick",
+    };
+    const nextSaves = [nextSave, ...sickDaySaves.filter((save) => save.dateKey !== yesterdayKey)].sort((a, b) =>
+      a.claimedAtISO < b.claimedAtISO ? 1 : -1,
+    );
+    setSickDaySaves(nextSaves);
+    saveSickDaySaves(user.uid, nextSaves);
+    setSickDaySavePromptOpen(false);
+    setActiveTab("streaks");
+  }
+
   function handleTodayPrimaryAction() {
     if (senseiGuidance.actionLabel === "Start Today") {
       openTimeBlockFlow(dayKeyLocal(new Date()));
@@ -2365,6 +2615,10 @@ export default function HomePage() {
     }
     return map;
   }, [sessions]);
+  const historicalStreaksByDay = useMemo(
+    () => computeHistoricalStreaks(sessions, protectedStreakDateKeys),
+    [protectedStreakDateKeys, sessions],
+  );
   const dynamicMonthCalendar = useMemo<MonthCell[]>(() => {
     const monthStart = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth(), 1);
     const daysInMonth = new Date(
@@ -2410,6 +2664,95 @@ export default function HomePage() {
 
     return cells;
   }, [calendarCursor, sessionMinutesByDay]);
+  const streakMonthLabel = streakCalendarCursor.toLocaleDateString(undefined, {
+    month: "long",
+    year: "numeric",
+  });
+  const streakMonthCalendar = useMemo<StreakMonthCell[]>(() => {
+    const monthStart = new Date(
+      streakCalendarCursor.getFullYear(),
+      streakCalendarCursor.getMonth(),
+      1,
+    );
+    const daysInMonth = new Date(
+      streakCalendarCursor.getFullYear(),
+      streakCalendarCursor.getMonth() + 1,
+      0,
+    ).getDate();
+    const cells: StreakMonthCell[] = [];
+    const leadingSpaces = monthStart.getDay();
+    const todayKey = dayKeyLocal(new Date());
+
+    for (let i = 0; i < leadingSpaces; i += 1) {
+      cells.push({
+        key: `streak-leading-${i}`,
+        dateKey: null,
+        dayNumber: null,
+        isCurrentMonth: false,
+        isToday: false,
+        streakLength: 0,
+        hasSession: false,
+        isSaved: false,
+        leftConnected: false,
+        rightConnected: false,
+      });
+    }
+
+    for (let dayNumber = 1; dayNumber <= daysInMonth; dayNumber += 1) {
+      const day = new Date(
+        streakCalendarCursor.getFullYear(),
+        streakCalendarCursor.getMonth(),
+        dayNumber,
+      );
+      const dateKey = dayKeyLocal(day);
+      const isFutureDate = dateKey > todayKey;
+      cells.push({
+        key: dateKey,
+        dateKey,
+        dayNumber,
+        isCurrentMonth: true,
+        isToday: dateKey === todayKey,
+        streakLength: isFutureDate ? 0 : (historicalStreaksByDay.get(dateKey) ?? 0),
+        hasSession: !isFutureDate && sessionMinutesByDay.has(dateKey),
+        isSaved:
+          !isFutureDate &&
+          protectedStreakDateKeys.includes(dateKey) &&
+          !sessionMinutesByDay.has(dateKey),
+        leftConnected: false,
+        rightConnected: false,
+      });
+    }
+
+    while (cells.length < 42) {
+      cells.push({
+        key: `streak-trailing-${cells.length}`,
+        dateKey: null,
+        dayNumber: null,
+        isCurrentMonth: false,
+        isToday: false,
+        streakLength: 0,
+        hasSession: false,
+        isSaved: false,
+        leftConnected: false,
+        rightConnected: false,
+      });
+    }
+
+    return cells.map((cell, index, items) => {
+      if (!cell.dateKey || cell.streakLength <= 0) return cell;
+
+      const previous = items[index - 1];
+      const next = items[index + 1];
+      const sameWeekAsPrevious = previous ? Math.floor((index - 1) / 7) === Math.floor(index / 7) : false;
+      const sameWeekAsNext = next ? Math.floor((index + 1) / 7) === Math.floor(index / 7) : false;
+
+      return {
+        ...cell,
+        leftConnected: Boolean(previous?.dateKey) && (previous?.streakLength ?? 0) > 0 && sameWeekAsPrevious,
+        rightConnected: Boolean(next?.dateKey) && (next?.streakLength ?? 0) > 0 && sameWeekAsNext,
+      };
+    });
+  }, [historicalStreaksByDay, sessionMinutesByDay, streakCalendarCursor]);
   const selectedDatePlanGroups = useMemo(() => {
     const sameDate = plannedBlocks
       .filter((item) => item.dateKey === selectedDateKey)
@@ -2969,7 +3312,7 @@ export default function HomePage() {
         source: "plan",
         minutesSpent: item.durationMinutes,
         todaySessions: countSessionsForDate(nextSessions, dayKeyLocal(new Date())),
-        streak: computeStreak(nextSessions),
+        streak: computeStreak(nextSessions, protectedStreakDateKeys),
       }),
     );
     const updated = plannedBlocks.map((block) =>
@@ -3115,12 +3458,42 @@ export default function HomePage() {
   const nextPlannedBlock = todayActivePlannedBlocks[0] ?? null;
   const mobileMoreActive = MOBILE_MORE_TABS.includes(activeTab);
   const recentNotes = filteredNotes.slice(0, 4);
+  const todayKey = dayKeyLocal(new Date());
+  const yesterdayKey = dayKeyLocal(addDays(startOfDayLocal(new Date()), -1));
+  const dayBeforeYesterdayKey = dayKeyLocal(addDays(startOfDayLocal(new Date()), -2));
   const todaySessionNoteCount = sessions.filter((session) => {
-    return dayKeyLocal(session.completedAtISO) === dayKeyLocal(new Date()) && Boolean(session.note?.trim());
+    return dayKeyLocal(session.completedAtISO) === todayKey && Boolean(session.note?.trim());
   }).length;
-  const streakBandanaTier = getStreakBandanaTier(streak);
+  const hasEarnedToday = sessionMinutesByDay.has(todayKey) || protectedStreakDateKeys.includes(todayKey);
+  const yesterdaySave = sickDaySaves.find((save) => save.dateKey === yesterdayKey) ?? null;
+  const rawYesterdayMissed =
+    !sessionMinutesByDay.has(yesterdayKey) && !protectedStreakDateKeys.includes(yesterdayKey);
+  const priorRunBeforeYesterday = computeStreakEndingAtDateKey(
+    sessions,
+    dayBeforeYesterdayKey,
+    protectedStreakDateKeys,
+  );
+  const latestSickSaveClaim =
+    sickDaySaves.length > 0 ? new Date(sickDaySaves[0].claimedAtISO) : null;
+  const recentSickSaveUsed =
+    latestSickSaveClaim !== null &&
+    latestSickSaveClaim >= addDays(startOfDayLocal(new Date()), -30);
+  const sickDaySaveEligible =
+    rawYesterdayMissed &&
+    priorRunBeforeYesterday > 0 &&
+    !yesterdaySave &&
+    !recentSickSaveUsed &&
+    !sickDaySaveDismissals.includes(yesterdayKey);
+  const sickDaySaveCooldownUntil = recentSickSaveUsed
+    ? addDays(latestSickSaveClaim as Date, 30)
+    : null;
+  const rescuedRunDisplay =
+    !sessionMinutesByDay.has(todayKey) && yesterdaySave ? priorRunBeforeYesterday + 1 : 0;
+  const displayStreak = streak > 0 ? streak : rescuedRunDisplay;
+  const streakBandanaTier = getStreakBandanaTier(displayStreak);
+  const nextBandanaMilestone = buildNextBandanaMilestone(displayStreak, !hasEarnedToday);
   const todayCompletedBlocksCount = plannedBlocks.filter(
-    (item) => item.dateKey === dayKeyLocal(new Date()) && item.status === "completed",
+    (item) => item.dateKey === todayKey && item.status === "completed",
   ).length;
   const streakMinutesLeft = Math.max(0, 30 - focusMetrics.todayMinutes);
   const streakProtectedToday = todayCompletedBlocksCount >= 1 && focusMetrics.todayMinutes >= 30;
@@ -3143,87 +3516,21 @@ export default function HomePage() {
     insightsChart.segments.find((segment) => segment.key === selectedInsightCategory) ??
     insightsChart.ranked[0] ??
     insightsChart.segments[0];
-  const todayEmoteItems: EmotePanelItem[] = [
-    { id: "whelm.timer", message: "Guard the block." },
-    {
-      id: streakProtectedToday ? "whelm.proud" : "whelm.ready",
-      message: streakProtectedToday ? "Today is protected." : "Stand up to the drift.",
-    },
-    {
-      id: todayActivePlannedBlocks.length > 0 ? "whelm.encourage" : "whelm.heart",
-      message: todayActivePlannedBlocks.length > 0 ? "Start the first real block." : "Begin clean, not loud.",
-    },
-  ];
-  const scheduleEmoteItems: EmotePanelItem[] = [
-    { id: "whelm.neutral", message: "Let the calendar lead." },
-    { id: "whelm.enter", message: "Step into the day on purpose." },
-    {
-      id: calendarView === "day" ? "whelm.checklist" : "whelm.guide",
-      message: calendarView === "day" ? "Shape this room block by block." : "Place the next thing deliberately.",
-    },
-    {
-      id: selectedDateEntries.length > 0 ? "whelm.timer" : "whelm.encourage",
-      message: selectedDateEntries.length > 0 ? "Time is already moving here." : "An empty date is still usable.",
-    },
-  ];
-  const notesEmoteItems: EmotePanelItem[] = [
-    { id: "whelm.write", message: "Capture before it thins out." },
-    {
-      id: selectedNote ? "whelm.idea" : "whelm.wave",
-      message: selectedNote ? "Shape the page around the idea." : "Open the studio and begin.",
-    },
-    {
-      id: notesSearch.trim() ? "whelm.inspect" : "whelm.sort",
-      message: notesSearch.trim() ? "Search with intent." : "Sort the useful from the noise.",
-    },
-    {
-      id: filteredNotes.some((note) => (note.category || "personal") === "school")
-        ? "whelm.books"
-        : "whelm.read",
-      message:
-        filteredNotes.some((note) => (note.category || "personal") === "school")
-          ? "Study notes deserve structure."
-          : "Reopen the work that still matters.",
-    },
-  ];
-  const insightsEmoteItems: EmotePanelItem[] = [
-    { id: "whelm.progress", message: "Patterns matter more than moods." },
-    { id: "whelm.inspect", message: "Look closer before judging." },
-    {
-      id: activeInsight?.key === "school" ? "whelm.books" : "whelm.idea",
-      message: activeInsight?.key === "school" ? "Study has its own gravity." : "Insights should change behavior.",
-    },
-  ];
-  const historyEmoteItems: EmotePanelItem[] = [
-    { id: "whelm.checklist", message: "The record should stay honest." },
-    { id: "whelm.inspect", message: "Review the pattern, not one mood." },
-    {
-      id: sessionGroups.length > 0 ? "whelm.read" : "whelm.heart",
-      message: sessionGroups.length > 0 ? "Read the log like evidence." : "Your first saved session starts the record.",
-    },
-  ];
-  const reportsEmoteItems: EmotePanelItem[] = [
-    { id: "whelm.progress", message: "Trend before story." },
-    { id: "whelm.score", message: "Results should be explicit." },
-    {
-      id: reportMetrics.weeklyProgress >= 100 ? "whelm.wave_high" : "whelm.proud",
-      message:
-        reportMetrics.weeklyProgress >= 100 ? "That mark is worth noticing." : "Respect the earned gain.",
-    },
-  ];
-  const streakEmoteItems: EmotePanelItem[] = [
-    { id: "whelm.ready", message: "Runs survive by showing up again." },
-    {
-      id: streakProtectedToday ? "whelm.proud" : "whelm.encourage",
-      message: streakProtectedToday ? "You protected today." : "Protect today before night arrives.",
-    },
-    { id: "whelm.heart", message: "Consistency beats drama." },
-  ];
-  const settingsEmoteItems: EmotePanelItem[] = [
-    { id: "whelm.wave", message: "Tune the room to fit the work." },
-    { id: "whelm.wave_high", message: "Big changes should still feel human." },
-    { id: "whelm.heart", message: "Accountability works better with mercy." },
-  ];
+  const streakHeroEmoteId: WhelmEmoteId =
+    streak >= 100 ? "whelm.proud" : streak >= 50 ? "whelm.ready" : "whelm.encourage";
+  const streakMilestoneTitle = nextBandanaMilestone
+    ? `You'll reach ${nextBandanaMilestone.tier.label.replace(" Bandana", "")} on ${nextBandanaMilestone.targetDate.toLocaleDateString(
+        undefined,
+        { month: "long", day: "numeric" },
+      )}.`
+    : "You've reached the highest bandana tier.";
+  const streakMilestoneBody = nextBandanaMilestone
+    ? nextBandanaMilestone.remainingDays === 0
+      ? "Protect today and earn the next bandana tier."
+      : `${nextBandanaMilestone.remainingDays} more day${
+          nextBandanaMilestone.remainingDays === 1 ? "" : "s"
+        } of protection unlock the next color.`
+    : "White bandana is the summit. Keep the run alive and deepen the legacy.";
 
   return (
     <main
@@ -3235,15 +3542,15 @@ export default function HomePage() {
         <header className={styles.header}>
           <div>
             <p className={styles.kicker}>WHELM</p>
-            <h1 className={styles.title}>Schedule first. Whelm in the background.</h1>
+            <h1 className={styles.title}>Enter Whelm Flow.</h1>
             <p className={styles.subtitle}>
-              A calmer workspace for time management, with the assistant supporting the plan instead of competing with it.
+              Plan the line, protect the streak, and keep the day under command.
             </p>
           </div>
           <div className={styles.headerActions}>
-            <span className={styles.headerTag}>Calendar-first</span>
-            <span className={styles.headerTag}>Less clutter</span>
-            <span className={styles.headerTag}>Deeper tone</span>
+            <span className={styles.headerTag}>Whelm Flow</span>
+            <span className={styles.headerTag}>No drift</span>
+            <span className={styles.headerTag}>Daily command</span>
           </div>
         </header>
 
@@ -3264,7 +3571,7 @@ export default function HomePage() {
             className={`${styles.tabButton} ${mobileMoreActive || mobileMoreOpen ? styles.tabButtonActive : ""}`}
             onClick={() => setMobileMoreOpen(true)}
           >
-            <span className={styles.tabIcon}>⋯</span>
+            <span className={styles.tabIcon}>{iconForNavKey("more")}</span>
             <span>More</span>
           </button>
         </nav>
@@ -3272,7 +3579,7 @@ export default function HomePage() {
         <section className={styles.screen}>
           <div className={styles.topAppBar}>
             <div>
-              <p className={styles.topAppBarLabel}>Schedule first</p>
+              <p className={styles.topAppBarLabel}>Whelm Flow</p>
               <h2 className={styles.topAppBarTitle}>{tabTitle(activeTab)}</h2>
             </div>
             <div className={styles.topAppBarRight}>
@@ -3299,8 +3606,8 @@ export default function HomePage() {
                 <article className={styles.mobileSummaryCard} ref={todaySummaryRef}>
                   <div className={styles.mobileSummaryHeader}>
                     <div>
-                      <p className={styles.sectionLabel}>Today Summary</p>
-                      <p className={styles.accountMeta}>Keep this page moving. Act first, inspect later.</p>
+                      <p className={styles.sectionLabel}>Whelm Flow</p>
+                      <p className={styles.accountMeta}>Act before analysis. Protect the run and keep momentum visible.</p>
                     </div>
                     <button
                       type="button"
@@ -3325,15 +3632,6 @@ export default function HomePage() {
                     </div>
                   </div>
                 </article>
-
-                <EmotePanel
-                  eyebrow="Today Cast"
-                  title="Focus posture"
-                  note="One primary pose on mobile. The rest stay in the background."
-                  items={todayEmoteItems}
-                  isMobile
-                  mobilePrimaryId="whelm.timer"
-                />
 
                 <div className={styles.mobileTimerWrap} ref={todayTimerRef}>
                   <Timer
@@ -3467,7 +3765,7 @@ export default function HomePage() {
                     <div className={styles.cardHeader}>
                       <div>
                         <p className={styles.sectionLabel}>Command Center</p>
-                        <h2 className={styles.cardTitle}>Today at a glance</h2>
+                        <h2 className={styles.cardTitle}>Whelm Flow board</h2>
                       </div>
                       <button type="button" className={styles.reportButton} onClick={() => void copyWeeklyReport()}>
                         {reportCopyStatus || "Copy weekly report"}
@@ -3499,13 +3797,6 @@ export default function HomePage() {
                 </div>
 
                 <aside className={styles.rightColumn}>
-                  <EmotePanel
-                    eyebrow="Today Cast"
-                    title="What Whelm is signaling"
-                    note="The focus surface uses only a small active cast."
-                    items={todayEmoteItems}
-                  />
-
                   <article className={styles.card}>
                     <p className={styles.sectionLabel}>Quick Notes</p>
                     <h2 className={styles.cardTitle}>Capture fast</h2>
@@ -3590,7 +3881,7 @@ export default function HomePage() {
                 <div className={styles.calendarPrimaryHeader}>
                   <div>
                     <p className={styles.sectionLabel}>Primary View</p>
-                    <h2 className={styles.cardTitle}>Your schedule</h2>
+                    <h2 className={styles.cardTitle}>Command board</h2>
                   </div>
                   {isMobileViewport && (
                     <button
@@ -3611,15 +3902,6 @@ export default function HomePage() {
                     Start here first. Whelm stays nearby, but the calendar leads the page.
                   </p>
                 )}
-                <EmotePanel
-                  eyebrow="Schedule Cast"
-                  title={calendarView === "day" ? "Day chamber cues" : "Calendar cues"}
-                  note="The schedule keeps the character restrained and task-adjacent."
-                  items={scheduleEmoteItems}
-                  isMobile={isMobileViewport}
-                  mobilePrimaryId={calendarView === "day" ? "whelm.checklist" : "whelm.neutral"}
-                  className={styles.emotePanelInset}
-                />
                 <div className={styles.calendarToolbar}>
                   <div className={styles.calendarNav}>
                     <button
@@ -4401,13 +4683,6 @@ export default function HomePage() {
                 {calendarAuxPanel === "guide" && (
                   <div ref={calendarHeroRef}>
                     <CompanionPulse {...companionState.pulses.calendar} />
-                    <EmotePanel
-                      eyebrow="Guide Cast"
-                      title="Instructional poses"
-                      note="These stay in the guide lane so the calendar itself remains calm."
-                      items={scheduleEmoteItems}
-                      className={styles.emotePanelInset}
-                    />
                   </div>
                 )}
 
@@ -4419,17 +4694,16 @@ export default function HomePage() {
                       {focusMetrics.calendar.map((day, index, days) => {
                         const previous = days[index - 1];
                         const next = days[index + 1];
-                        const streakDay =
-                          day.minutes > 0 &&
-                          ((previous?.minutes ?? 0) > 0 || (next?.minutes ?? 0) > 0);
+                        const historicalStreakLength = historicalStreaksByDay.get(day.dateKey) ?? 0;
+                        const streakDay = historicalStreakLength > 0;
                         const leftConnected =
                           streakDay &&
                           index % 14 !== 0 &&
-                          (previous?.minutes ?? 0) > 0;
+                          (historicalStreaksByDay.get(previous?.dateKey ?? "") ?? 0) > 0;
                         const rightConnected =
                           streakDay &&
                           index % 14 !== 13 &&
-                          (next?.minutes ?? 0) > 0;
+                          (historicalStreaksByDay.get(next?.dateKey ?? "") ?? 0) > 0;
 
                         return (
                           <div
@@ -4445,7 +4719,7 @@ export default function HomePage() {
                               .join(" ")}
                             title={`${day.label}: ${day.minutes}m`}
                           >
-                            {streakDay ? <StreakBandana streak={streak} /> : null}
+                            {streakDay ? <StreakBandana streakDays={historicalStreakLength} /> : null}
                           </div>
                         );
                       })}
@@ -4939,15 +5213,6 @@ export default function HomePage() {
                   </div>
                 </article>
 
-                <EmotePanel
-                  eyebrow="Notes Cast"
-                  title="Writing mode"
-                  note="Mobile keeps a single visible pose while writing stays primary."
-                  items={notesEmoteItems}
-                  isMobile
-                  mobilePrimaryId="whelm.write"
-                />
-
                 <article className={styles.mobileNotesRecentCard} ref={notesRecentRef}>
                   <button
                     type="button"
@@ -5272,13 +5537,6 @@ export default function HomePage() {
                   className={styles.notesSidebar}
                   style={notesShellBackground(themeMode, selectedNote?.color)}
                 >
-                <EmotePanel
-                  eyebrow="Notes Cast"
-                  title="Capture, sort, revisit"
-                  note="The notes surface carries the broadest support cast."
-                  items={notesEmoteItems}
-                  className={styles.emotePanelInset}
-                />
                 <button type="button" className={styles.newNoteButton} onClick={createWorkspaceNote}>
                   + Add Note
                 </button>
@@ -5766,203 +6024,9 @@ export default function HomePage() {
             </section>
           )}
 
-          {activeTab === "insights" && (
-            <section className={styles.insightsGrid}>
-              <CompanionPulse {...companionState.pulses.insights} />
-              <EmotePanel
-                eyebrow="Insights Cast"
-                title="Review posture"
-                note="Analysis uses review/support poses rather than celebration by default."
-                items={insightsEmoteItems}
-                isMobile={isMobileViewport}
-                mobilePrimaryId="whelm.progress"
-              />
-              <article className={`${styles.card} ${styles.insightsHeroCard}`}>
-                <div className={styles.cardHeader}>
-                  <div>
-                    <p className={styles.sectionLabel}>Insights</p>
-                    <h2 className={styles.cardTitle}>Productivity pie chart</h2>
-                    <p className={styles.accountMeta}>
-                      Visual breakdown by category for your most important behavior signals.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    className={styles.reportButton}
-                    onClick={() => setActiveTab("reports")}
-                  >
-                    Open full reports
-                  </button>
-                </div>
-
-                <div className={styles.insightControls}>
-                  <div className={styles.rangeTabs}>
-                    <button
-                      type="button"
-                      className={`${styles.rangeTab} ${insightRange === 7 ? styles.rangeTabActive : ""}`}
-                      onClick={() => setInsightRange(7)}
-                    >
-                      7d
-                    </button>
-                    <button
-                      type="button"
-                      className={`${styles.rangeTab} ${insightRange === 30 ? styles.rangeTabActive : ""}`}
-                      onClick={() => setInsightRange(30)}
-                    >
-                      30d
-                    </button>
-                    <button
-                      type="button"
-                      className={`${styles.rangeTab} ${insightRange === 90 ? styles.rangeTabActive : ""}`}
-                      onClick={() => setInsightRange(90)}
-                    >
-                      90d
-                    </button>
-                  </div>
-                  <div className={styles.rangeTabs}>
-                    <button
-                      type="button"
-                      className={`${styles.rangeTab} ${insightMetric === "focus" ? styles.rangeTabActive : ""}`}
-                      onClick={() => setInsightMetric("focus")}
-                    >
-                      Focus
-                    </button>
-                    <button
-                      type="button"
-                      className={`${styles.rangeTab} ${insightMetric === "planned" ? styles.rangeTabActive : ""}`}
-                      onClick={() => setInsightMetric("planned")}
-                    >
-                      Planned
-                    </button>
-                    <button
-                      type="button"
-                      className={`${styles.rangeTab} ${insightMetric === "reminders" ? styles.rangeTabActive : ""}`}
-                      onClick={() => setInsightMetric("reminders")}
-                    >
-                      Reminders
-                    </button>
-                  </div>
-                </div>
-
-                <div className={styles.insightBody}>
-                  <div className={styles.insightDonutWrap}>
-                    <button
-                      type="button"
-                      className={styles.insightDonut}
-                      style={{ backgroundImage: insightsChart.donutGradient }}
-                      onClick={() =>
-                        setSelectedInsightCategory(
-                          insightsChart.topCategory?.key ?? selectedInsightCategory ?? "personal",
-                        )
-                      }
-                    >
-                      <span className={styles.insightDonutCenter}>
-                        <strong>
-                          {insightsChart.total}
-                          {insightsChart.unitSuffix}
-                        </strong>
-                        <small>{insightsChart.metricLabel}</small>
-                      </span>
-                    </button>
-                    <p className={styles.accountMeta}>{insightsChart.windowLabel}</p>
-                  </div>
-
-                  <div className={styles.insightLegend}>
-                    {insightsChart.ranked.map((segment) => {
-                      const share =
-                        insightsChart.total === 0
-                          ? 0
-                          : Math.round((segment.value / insightsChart.total) * 100);
-                      const isSelected = activeInsight?.key === segment.key;
-
-                      return (
-                        <button
-                          type="button"
-                          key={segment.key}
-                          className={`${styles.insightLegendItem} ${
-                            isSelected ? styles.insightLegendItemActive : ""
-                          }`}
-                          onClick={() => setSelectedInsightCategory(segment.key)}
-                        >
-                          <span
-                            className={styles.insightLegendSwatch}
-                            style={{ backgroundColor: segment.color }}
-                          />
-                          <span className={styles.insightLegendLabel}>{segment.label}</span>
-                          <strong className={styles.insightLegendValue}>
-                            {segment.value}
-                            {insightsChart.unitSuffix}
-                          </strong>
-                          <small className={styles.insightLegendShare}>{share}%</small>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </article>
-
-              {activeInsight && (
-                <article className={styles.card}>
-                  <p className={styles.sectionLabel}>Current Leader</p>
-                  <h2 className={styles.cardTitle}>{activeInsight.label}</h2>
-                  <p className={styles.accountMeta}>
-                    {activeInsight.description}
-                  </p>
-                  <ul className={styles.commandList}>
-                    <li>
-                      <strong>
-                        {activeInsight.value}
-                        {insightsChart.unitSuffix}
-                      </strong>{" "}
-                      in the current window
-                    </li>
-                    <li>
-                      <strong>{insightsChart.topCategory?.label ?? "None yet"}</strong> is currently leading
-                    </li>
-                  </ul>
-                </article>
-              )}
-
-              <article className={styles.card}>
-                <p className={styles.sectionLabel}>Apple Screen Time</p>
-                <h2 className={styles.cardTitle}>System usage integration</h2>
-                <p className={styles.accountMeta}>
-                  {screenTimeStatus === "approved"
-                    ? "Permission granted. Next: attach Device Activity report extension in Xcode."
-                    : "Grant permission to connect Apple Screen Time data into Whelm."}
-                </p>
-                <div className={styles.noteFooterActions}>
-                  <button
-                    type="button"
-                    className={styles.reportButton}
-                    onClick={() => void handleRequestScreenTimeAuth()}
-                    disabled={!screenTimeSupported || screenTimeBusy}
-                  >
-                    {screenTimeBusy ? "Working..." : "Enable Screen Time"}
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.secondaryPlanButton}
-                    onClick={() => setActiveTab("settings")}
-                  >
-                    Open setup panel
-                  </button>
-                </div>
-              </article>
-            </section>
-          )}
-
           {activeTab === "history" && (
             <section className={styles.historyShell}>
               <CompanionPulse {...companionState.pulses.history} />
-              <EmotePanel
-                eyebrow="History Cast"
-                title="Review the record"
-                note="History should feel forensic, not decorative."
-                items={historyEmoteItems}
-                isMobile={isMobileViewport}
-                mobilePrimaryId="whelm.inspect"
-              />
               <article className={styles.card}>
                 <p className={styles.sectionLabel}>Block History</p>
                 <h2 className={styles.cardTitle}>Completed and incomplete blocks</h2>
@@ -6108,17 +6172,146 @@ export default function HomePage() {
           {activeTab === "reports" && (
             <section className={styles.reportsGrid}>
               <CompanionPulse {...companionState.pulses.reports} />
-              <EmotePanel
-                eyebrow="Reports Cast"
-                title="Progress and result"
-                note="Reports can earn the higher-energy celebration poses."
-                items={reportsEmoteItems}
-                isMobile={isMobileViewport}
-                mobilePrimaryId="whelm.progress"
-              />
+              <article className={`${styles.card} ${styles.insightsHeroCard}`}>
+                <div className={styles.cardHeader}>
+                  <div>
+                    <p className={styles.sectionLabel}>Reports</p>
+                    <h2 className={styles.cardTitle}>Flow breakdown</h2>
+                    <p className={styles.accountMeta}>
+                      Visual breakdown by category for your most important productivity signals.
+                    </p>
+                  </div>
+                </div>
+
+                <div className={styles.insightControls}>
+                  <div className={styles.rangeTabs}>
+                    <button
+                      type="button"
+                      className={`${styles.rangeTab} ${insightRange === 7 ? styles.rangeTabActive : ""}`}
+                      onClick={() => setInsightRange(7)}
+                    >
+                      7d
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.rangeTab} ${insightRange === 30 ? styles.rangeTabActive : ""}`}
+                      onClick={() => setInsightRange(30)}
+                    >
+                      30d
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.rangeTab} ${insightRange === 90 ? styles.rangeTabActive : ""}`}
+                      onClick={() => setInsightRange(90)}
+                    >
+                      90d
+                    </button>
+                  </div>
+                  <div className={styles.rangeTabs}>
+                    <button
+                      type="button"
+                      className={`${styles.rangeTab} ${insightMetric === "focus" ? styles.rangeTabActive : ""}`}
+                      onClick={() => setInsightMetric("focus")}
+                    >
+                      Focus
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.rangeTab} ${insightMetric === "planned" ? styles.rangeTabActive : ""}`}
+                      onClick={() => setInsightMetric("planned")}
+                    >
+                      Planned
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.rangeTab} ${insightMetric === "reminders" ? styles.rangeTabActive : ""}`}
+                      onClick={() => setInsightMetric("reminders")}
+                    >
+                      Reminders
+                    </button>
+                  </div>
+                </div>
+
+                <div className={styles.insightBody}>
+                  <div className={styles.insightDonutWrap}>
+                    <button
+                      type="button"
+                      className={styles.insightDonut}
+                      style={{ backgroundImage: insightsChart.donutGradient }}
+                      onClick={() =>
+                        setSelectedInsightCategory(
+                          insightsChart.topCategory?.key ?? selectedInsightCategory ?? "personal",
+                        )
+                      }
+                    >
+                      <span className={styles.insightDonutCenter}>
+                        <strong>
+                          {insightsChart.total}
+                          {insightsChart.unitSuffix}
+                        </strong>
+                        <small>{insightsChart.metricLabel}</small>
+                      </span>
+                    </button>
+                    <p className={styles.accountMeta}>{insightsChart.windowLabel}</p>
+                  </div>
+
+                  <div className={styles.insightLegend}>
+                    {insightsChart.ranked.map((segment) => {
+                      const share =
+                        insightsChart.total === 0
+                          ? 0
+                          : Math.round((segment.value / insightsChart.total) * 100);
+                      const isSelected = activeInsight?.key === segment.key;
+
+                      return (
+                        <button
+                          type="button"
+                          key={segment.key}
+                          className={`${styles.insightLegendItem} ${
+                            isSelected ? styles.insightLegendItemActive : ""
+                          }`}
+                          onClick={() => setSelectedInsightCategory(segment.key)}
+                        >
+                          <span
+                            className={styles.insightLegendSwatch}
+                            style={{ backgroundColor: segment.color }}
+                          />
+                          <span className={styles.insightLegendLabel}>{segment.label}</span>
+                          <strong className={styles.insightLegendValue}>
+                            {segment.value}
+                            {insightsChart.unitSuffix}
+                          </strong>
+                          <small className={styles.insightLegendShare}>{share}%</small>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </article>
+
+              {activeInsight && (
+                <article className={styles.card}>
+                  <p className={styles.sectionLabel}>Flow Leader</p>
+                  <h2 className={styles.cardTitle}>{activeInsight.label}</h2>
+                  <p className={styles.accountMeta}>{activeInsight.description}</p>
+                  <ul className={styles.commandList}>
+                    <li>
+                      <strong>
+                        {activeInsight.value}
+                        {insightsChart.unitSuffix}
+                      </strong>{" "}
+                      in the current window
+                    </li>
+                    <li>
+                      <strong>{insightsChart.topCategory?.label ?? "None yet"}</strong> is currently leading
+                    </li>
+                  </ul>
+                </article>
+              )}
+
               <article className={styles.card}>
                 <p className={styles.sectionLabel}>Progress</p>
-                <h2 className={styles.cardTitle}>Your rhythm</h2>
+                <h2 className={styles.cardTitle}>Flow rhythm</h2>
                 <div className={styles.kpiGrid}>
                   <div className={styles.kpiItemStatic}>
                     <span>Total Focus</span>
@@ -6208,30 +6401,223 @@ export default function HomePage() {
                   <li>Use reports only to notice patterns, not to judge yourself.</li>
                 </ul>
               </article>
+
+              <article className={styles.card}>
+                <p className={styles.sectionLabel}>Apple Screen Time</p>
+                <h2 className={styles.cardTitle}>System usage integration</h2>
+                <p className={styles.accountMeta}>
+                  {screenTimeStatus === "approved"
+                    ? "Permission granted. Next: attach Device Activity report extension in Xcode."
+                    : "Grant permission to connect Apple Screen Time data into Whelm."}
+                </p>
+                <div className={styles.noteFooterActions}>
+                  <button
+                    type="button"
+                    className={styles.reportButton}
+                    onClick={() => void handleRequestScreenTimeAuth()}
+                    disabled={!screenTimeSupported || screenTimeBusy}
+                  >
+                    {screenTimeBusy ? "Working..." : "Enable Screen Time"}
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.secondaryPlanButton}
+                    onClick={() => setActiveTab("settings")}
+                  >
+                    Open setup panel
+                  </button>
+                </div>
+              </article>
             </section>
           )}
 
           {activeTab === "streaks" && (
-            <section className={styles.reportsGrid}>
-              <EmotePanel
-                eyebrow="Streak Cast"
-                title="Protect the run"
-                note="Bandanas carry the reward. These poses support the discipline around it."
-                items={streakEmoteItems}
-                isMobile={isMobileViewport}
-                mobilePrimaryId="whelm.ready"
-              />
+            <section className={styles.streaksShell}>
+              <article className={`${styles.card} ${styles.streakHeroCard}`}>
+                <div className={styles.streakHeroCopy}>
+                  <p className={styles.streakBadge}>
+                    {streakBandanaTier?.label ?? "Start your streak"}
+                  </p>
+                  <h2 className={styles.streakHeroTitle}>
+                    {displayStreak} day streak
+                  </h2>
+                  <p className={styles.streakHeroBody}>
+                    {yesterdaySave && !sessionMinutesByDay.has(todayKey)
+                      ? "Yesterday was protected by a sick day save. Complete today to carry the run forward."
+                      : streakProtectedToday
+                      ? "Today is protected. Keep the run alive and let tomorrow inherit the standard."
+                      : streakStatusLine}
+                  </p>
+                </div>
+                <div className={styles.streakHeroVisual}>
+                  <WhelmEmote emoteId={streakHeroEmoteId} size="card" />
+                </div>
+              </article>
+
+              <article className={`${styles.card} ${styles.streakMilestoneCard}`}>
+                <div className={styles.streakMilestoneIcon}>
+                  <StreakBandana
+                    streakDays={nextBandanaMilestone?.tier.minDays ?? Math.max(1, displayStreak)}
+                    className={styles.streakMilestoneBandana}
+                  />
+                </div>
+                <div className={styles.streakMilestoneCopy}>
+                  <h3 className={styles.streakMilestoneTitle}>{streakMilestoneTitle}</h3>
+                  <p className={styles.streakMilestoneBody}>{streakMilestoneBody}</p>
+                </div>
+              </article>
+
+              {(rawYesterdayMissed || yesterdaySave) &&
+                (sickDaySaveEligible || recentSickSaveUsed || Boolean(yesterdaySave)) && (
+                <article className={`${styles.card} ${styles.streakSaveCard}`}>
+                  <div>
+                    <p className={styles.sectionLabel}>Streak Saver</p>
+                    <h3 className={styles.cardTitle}>Sick day save</h3>
+                    <p className={styles.accountMeta}>
+                      {yesterdaySave
+                        ? "Yesterday was protected as a sick day. Today still needs a real session."
+                        : sickDaySaveEligible
+                          ? `If you genuinely missed ${new Date(`${yesterdayKey}T00:00:00`).toLocaleDateString(
+                              undefined,
+                              { weekday: "long" },
+                            )} because you were sick, you can protect that one day now.`
+                          : `No sick day save is available right now.${
+                              sickDaySaveCooldownUntil
+                                ? ` Next save window opens ${sickDaySaveCooldownUntil.toLocaleDateString(undefined, {
+                                    month: "long",
+                                    day: "numeric",
+                                  })}.`
+                                : ""
+                            }`}
+                    </p>
+                  </div>
+                  <div className={styles.noteFooterActions}>
+                    {sickDaySaveEligible ? (
+                      <>
+                        <button
+                          type="button"
+                          className={styles.reportButton}
+                          onClick={claimSickDaySave}
+                        >
+                          Use sick day save
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.secondaryPlanButton}
+                          onClick={declineSickDaySave}
+                        >
+                          Let it reset
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        className={styles.secondaryPlanButton}
+                        onClick={() => setActiveTab("today")}
+                      >
+                        Earn today now
+                      </button>
+                    )}
+                  </div>
+                </article>
+              )}
+
+              <article className={`${styles.card} ${styles.streakCalendarCard}`}>
+                <div className={styles.cardHeader}>
+                  <div>
+                    <p className={styles.sectionLabel}>Calendar</p>
+                    <h2 className={styles.cardTitle}>Real month streak view</h2>
+                  </div>
+                  <div className={styles.noteFooterActions}>
+                    <button
+                      type="button"
+                      className={styles.secondaryPlanButton}
+                      onClick={() => setStreakCalendarCursor((current) => shiftMonth(current, -1))}
+                    >
+                      Prev
+                    </button>
+                    <strong className={styles.streakCalendarMonthLabel}>{streakMonthLabel}</strong>
+                    <button
+                      type="button"
+                      className={styles.secondaryPlanButton}
+                      onClick={() => setStreakCalendarCursor((current) => shiftMonth(current, 1))}
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+                <div className={styles.streakWeekHeader}>
+                  <span>S</span>
+                  <span>M</span>
+                  <span>T</span>
+                  <span>W</span>
+                  <span>T</span>
+                  <span>F</span>
+                  <span>S</span>
+                </div>
+                <div className={styles.streakMonthGrid}>
+                  {streakMonthCalendar.map((cell) => (
+                    <div
+                      key={cell.key}
+                      className={[
+                        styles.streakMonthCell,
+                        cell.dayNumber ? "" : styles.streakMonthCellEmpty,
+                        cell.streakLength > 0 ? styles.streakMonthCellActive : "",
+                        cell.isSaved ? styles.streakMonthCellSaved : "",
+                        cell.leftConnected ? styles.streakMonthCellConnectLeft : "",
+                        cell.rightConnected ? styles.streakMonthCellConnectRight : "",
+                        cell.isToday ? styles.streakMonthCellToday : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                      title={
+                        cell.dateKey
+                          ? `${cell.dateKey}: ${
+                              cell.streakLength > 0
+                                ? cell.isSaved
+                                  ? `protected sick day, ${cell.streakLength}-day run preserved`
+                                  : `${cell.streakLength}-day streak tier`
+                                : cell.hasSession
+                                  ? "session saved"
+                                  : "no streak"
+                            }`
+                          : "Outside current month"
+                      }
+                    >
+                      {cell.dayNumber ? (
+                        <>
+                          <span className={styles.streakMonthDayNumber}>{cell.dayNumber}</span>
+                          {cell.streakLength > 0 ? (
+                            <StreakBandana
+                              streakDays={cell.streakLength}
+                              className={styles.streakMonthBandana}
+                            />
+                          ) : null}
+                        </>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+                <div className={styles.streakLegend}>
+                  <span>Run shape</span>
+                  <span>Historical bandana</span>
+                  <span>Today marker</span>
+                  <span>Next tier: {nextBandanaMilestone?.tier.color ?? "Mastery"}</span>
+                </div>
+                <p className={styles.streakLegendNote}>
+                  Each streak day keeps the bandana it earned on that specific day. Early days stay yellow/red even after the run reaches white.
+                </p>
+              </article>
+
               <article className={styles.card}>
-                <p className={styles.sectionLabel}>Streak</p>
-                <h2 className={styles.cardTitle}>Protect the run</h2>
                 <div className={styles.kpiGrid}>
                   <div className={styles.kpiItemStatic}>
                     <span>Current Run</span>
-                    <strong>{streak}d</strong>
+                    <strong>{displayStreak}d</strong>
                   </div>
                   <div className={styles.kpiItemStatic}>
-                    <span>Bandana</span>
-                    <strong>{streakBandanaTier?.label ?? "No bandana yet"}</strong>
+                    <span>Current Bandana</span>
+                    <strong>{streakBandanaTier?.label ?? "None yet"}</strong>
                   </div>
                   <div className={styles.kpiItemStatic}>
                     <span>Today Focus</span>
@@ -6242,16 +6628,16 @@ export default function HomePage() {
                     <strong>{streakProtectedToday ? "Protected" : "At risk"}</strong>
                   </div>
                 </div>
-                <p className={styles.accountMeta}>
-                  {streakStatusLine}
-                </p>
                 <div className={styles.noteFooterActions}>
                   <button
                     type="button"
                     className={styles.reportButton}
-                    onClick={() => setActiveTab("calendar")}
+                    onClick={() => {
+                      setActiveTab("calendar");
+                      setCalendarView("month");
+                    }}
                   >
-                    Open schedule
+                    Open command board
                   </button>
                   <button
                     type="button"
@@ -6262,67 +6648,12 @@ export default function HomePage() {
                   </button>
                 </div>
               </article>
-
-              <article className={styles.card}>
-                <p className={styles.sectionLabel}>Last 4 Weeks</p>
-                <h2 className={styles.cardTitle}>Streak chart</h2>
-                <div className={styles.streakGrid}>
-                  {focusMetrics.calendar.map((day, index, days) => {
-                    const previous = days[index - 1];
-                    const next = days[index + 1];
-                    const streakDay =
-                      day.minutes > 0 &&
-                      ((previous?.minutes ?? 0) > 0 || (next?.minutes ?? 0) > 0);
-                    const leftConnected =
-                      streakDay &&
-                      index % 14 !== 0 &&
-                      (previous?.minutes ?? 0) > 0;
-                    const rightConnected =
-                      streakDay &&
-                      index % 14 !== 13 &&
-                      (next?.minutes ?? 0) > 0;
-
-                    return (
-                      <div
-                        key={day.dateKey}
-                        className={[
-                          styles.streakCell,
-                          styles[`streakLevel${day.level}`],
-                          streakDay ? styles.streakCellRun : "",
-                          leftConnected ? styles.streakCellConnectLeft : "",
-                          rightConnected ? styles.streakCellConnectRight : "",
-                        ]
-                          .filter(Boolean)
-                          .join(" ")}
-                        title={`${day.label}: ${day.minutes}m`}
-                      >
-                        {streakDay ? <StreakBandana streak={streak} /> : null}
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className={styles.streakLegend}>
-                  <span>No focus</span>
-                  <span>Light</span>
-                  <span>Strong</span>
-                  <span>Deep</span>
-                </div>
-                <p className={styles.streakLegendNote}>Moving bandana = streak day</p>
-              </article>
             </section>
           )}
 
           {activeTab === "settings" && (
             <section className={styles.settingsGrid}>
               <CompanionPulse {...companionState.pulses.settings} />
-              <EmotePanel
-                eyebrow="Welcome Cast"
-                title="Account and tone"
-                note="The settings surface carries the softer welcome/reassurance poses."
-                items={settingsEmoteItems}
-                isMobile={isMobileViewport}
-                mobilePrimaryId="whelm.wave"
-              />
               <article className={`${styles.card} ${styles.settingsHeroCard}`}>
                 <div className={styles.settingsHeroHeader}>
                   <div className={styles.settingsAvatar}>
@@ -6375,7 +6706,7 @@ export default function HomePage() {
 
               <article className={styles.card}>
                 <p className={styles.sectionLabel}>Account</p>
-                <h2 className={styles.cardTitle}>Experience</h2>
+                <h2 className={styles.cardTitle}>Whelm setup</h2>
                 <ul className={styles.settingsList}>
                   <li>
                     <span>Clean Focus Mode</span>
@@ -6386,7 +6717,7 @@ export default function HomePage() {
                     <strong>On</strong>
                   </li>
                   <li>
-                    <span>Behavior Insights</span>
+                    <span>Productivity Reports</span>
                     <strong>{isPro ? "Full" : "Growing"}</strong>
                   </li>
                 </ul>
@@ -6491,7 +6822,7 @@ export default function HomePage() {
 
               <article className={styles.card}>
                 <p className={styles.sectionLabel}>Support</p>
-                <h2 className={styles.cardTitle}>Need help?</h2>
+                <h2 className={styles.cardTitle}>Feedback</h2>
                 <button
                   type="button"
                   className={styles.reportButton}
@@ -6500,7 +6831,7 @@ export default function HomePage() {
                     setFeedbackStatus("");
                   }}
                 >
-                  Send feedback
+                  Send Whelm feedback
                 </button>
                 <p className={styles.accountMeta}>Report bugs, request features, or share ideas.</p>
               </article>
@@ -6541,7 +6872,7 @@ export default function HomePage() {
             onClick={() => handleMobileTabSelect(tab.key)}
           >
             <span className={styles.bottomTabIcon}>
-              {tab.key === "more" ? "⋯" : iconForTab(tab.key)}
+              {tab.key === "more" ? iconForNavKey("more") : iconForTab(tab.key)}
             </span>
             <span>{tab.label}</span>
           </button>
@@ -6573,26 +6904,6 @@ export default function HomePage() {
                   <span>{tabTitle(tab)}</span>
                 </button>
               ))}
-              <button
-                type="button"
-                className={styles.mobileMoreButton}
-                onClick={() => {
-                  setMobileMoreOpen(false);
-                  setFeedbackOpen(true);
-                  setFeedbackStatus("");
-                }}
-              >
-                <span className={styles.bottomTabIcon}>✉</span>
-                <span>Feedback</span>
-              </button>
-              <button
-                type="button"
-                className={styles.mobileMoreButton}
-                onClick={() => void signOut(auth)}
-              >
-                <span className={styles.bottomTabIcon}>⇢</span>
-                <span>Sign out</span>
-              </button>
             </div>
           </div>
         </div>
@@ -6772,6 +7083,42 @@ export default function HomePage() {
         </div>
       )}
 
+      {sickDaySavePromptOpen && sickDaySaveEligible && (
+        <div className={styles.feedbackOverlay} onClick={dismissSickDaySavePrompt}>
+          <div className={styles.feedbackModal} onClick={(event) => event.stopPropagation()}>
+            <div className={styles.feedbackHeader}>
+              <h2 className={styles.feedbackTitle}>Yesterday broke your streak</h2>
+              <button
+                type="button"
+                className={styles.feedbackClose}
+                onClick={dismissSickDaySavePrompt}
+              >
+                Later
+              </button>
+            </div>
+            <p className={styles.feedbackMeta}>
+              If you genuinely missed yesterday because you were sick, you can review a one-day sick save in Streaks.
+            </p>
+            <div className={styles.noteFooterActions}>
+              <button
+                type="button"
+                className={styles.feedbackSubmit}
+                onClick={openSickDaySaveReview}
+              >
+                Open Streaks
+              </button>
+              <button
+                type="button"
+                className={styles.secondaryPlanButton}
+                onClick={dismissSickDaySavePrompt}
+              >
+                Ask later
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {(noteUndoItem || deletedPlanUndo) && (
         <div className={styles.undoToast}>
           <span>
@@ -6796,7 +7143,7 @@ export default function HomePage() {
         <div className={styles.feedbackOverlay} onClick={() => setPaywallOpen(false)}>
           <div className={styles.paywallModal} onClick={(event) => event.stopPropagation()}>
             <div className={styles.feedbackHeader}>
-              <h2 className={styles.feedbackTitle}>Whelm Pro is on the way</h2>
+              <h2 className={styles.feedbackTitle}>Whelm Pro is forming</h2>
               <button type="button" className={styles.feedbackClose} onClick={() => setPaywallOpen(false)}>
                 Close
               </button>
@@ -6807,12 +7154,12 @@ export default function HomePage() {
             <div className={styles.planGrid}>
               <article className={`${styles.planCard} ${styles.planCardFeatured}`}>
                 <p className={styles.planName}>Founding release</p>
-                <p className={styles.planPrice}>Coming soon</p>
+                <p className={styles.planPrice}>Soon</p>
                 <p className={styles.planMeta}>early users will receive a strong launch offer</p>
               </article>
             </div>
             <ul className={styles.proList}>
-              <li>Advanced discipline insights and score history</li>
+              <li>Advanced discipline reports and score history</li>
               <li>Monthly streak intelligence and weekly reports</li>
               <li>Premium focus workflows and a cleaner workspace</li>
             </ul>
