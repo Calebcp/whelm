@@ -659,6 +659,12 @@ function inferCategoryFromText(text: string): NoteCategory {
 }
 
 type NavIconKey = AppTab | "more";
+type ProfileAvatarSize = "compact" | "hero";
+
+type ProfileTierTheme = {
+  title: string;
+  imagePath: string;
+};
 
 function WhelmNavIcon({ icon }: { icon: NavIconKey }) {
   const svgProps = {
@@ -807,6 +813,68 @@ function iconForTab(tab: AppTab) {
 
 function iconForNavKey(tab: NavIconKey) {
   return <WhelmNavIcon icon={tab} />;
+}
+
+function getProfileTierTheme(tier: string | null | undefined): ProfileTierTheme {
+  switch (tier) {
+    case "white":
+      return {
+        title: "White Ascendant",
+        imagePath: "/profile-tiers/white_profile.PNG",
+      };
+    case "black":
+      return {
+        title: "Black Resolve",
+        imagePath: "/profile-tiers/black_profile.PNG",
+      };
+    case "blue":
+      return {
+        title: "Blue Voltage",
+        imagePath: "/profile-tiers/blue_profile.PNG",
+      };
+    case "purple":
+      return {
+        title: "Purple Pulse",
+        imagePath: "/profile-tiers/purple_profile.PNG",
+      };
+    case "green":
+      return {
+        title: "Green Current",
+        imagePath: "/profile-tiers/green_profile.PNG",
+      };
+    case "red":
+      return {
+        title: "Red Return",
+        imagePath: "/profile-tiers/red_profile.PNG",
+      };
+    case "yellow":
+    default:
+      return {
+        title: "Yellow Spark",
+        imagePath: "/profile-tiers/yellow_profile.PNG",
+      };
+  }
+}
+
+function WhelmProfileAvatar({
+  tierColor,
+  size,
+}: {
+  tierColor: string | null | undefined;
+  size: ProfileAvatarSize;
+}) {
+  const theme = getProfileTierTheme(tierColor);
+
+  return (
+    <div
+      className={`${styles.profileAvatarCard} ${
+        size === "compact" ? styles.profileAvatarCardCompact : styles.profileAvatarCardHero
+      }`}
+      aria-hidden="true"
+    >
+      <img src={theme.imagePath} alt="" className={styles.profileAvatarImage} />
+    </div>
+  );
 }
 
 function tabTitle(tab: AppTab) {
@@ -1132,6 +1200,7 @@ export default function HomePage() {
   const [feedbackMessage, setFeedbackMessage] = useState("");
   const [feedbackStatus, setFeedbackStatus] = useState("");
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [reportCopyStatus, setReportCopyStatus] = useState("");
   const [paywallOpen, setPaywallOpen] = useState(false);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
@@ -3515,7 +3584,16 @@ export default function HomePage() {
     !sessionMinutesByDay.has(todayKey) && yesterdaySave ? priorRunBeforeYesterday + 1 : 0;
   const displayStreak = streak > 0 ? streak : rescuedRunDisplay;
   const streakBandanaTier = getStreakBandanaTier(displayStreak);
+  const profileTierTheme = getProfileTierTheme(streakBandanaTier?.color);
   const nextBandanaMilestone = buildNextBandanaMilestone(displayStreak, !hasEarnedToday);
+  const longestStreak = useMemo(
+    () => Math.max(0, ...Array.from(historicalStreaksByDay.values())),
+    [historicalStreaksByDay],
+  );
+  const lifetimeFocusMinutes = useMemo(
+    () => sessions.reduce((sum, session) => sum + session.minutes, 0),
+    [sessions],
+  );
   const todayCompletedBlocksCount = plannedBlocks.filter(
     (item) => item.dateKey === todayKey && item.status === "completed",
   ).length;
@@ -3614,13 +3692,27 @@ export default function HomePage() {
                   day: "numeric",
                 })}
               </span>
-              <button
-                type="button"
-                className={styles.topAppBarAction}
-                onClick={() => setMobileMoreOpen(true)}
-              >
-                More
-              </button>
+              {isMobileViewport ? (
+                <button
+                  type="button"
+                  className={styles.profileDockButton}
+                  onClick={() => setProfileOpen(true)}
+                >
+                  <WhelmProfileAvatar tierColor={streakBandanaTier?.color} size="compact" />
+                  <span className={styles.profileDockCopy}>
+                    <small>{profileTierTheme.title}</small>
+                    <strong>{displayStreak}d</strong>
+                  </span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className={styles.topAppBarAction}
+                  onClick={() => setMobileMoreOpen(true)}
+                >
+                  More
+                </button>
+              )}
             </div>
           </div>
 
@@ -6910,6 +7002,92 @@ export default function HomePage() {
           </button>
         ))}
       </nav>
+
+      {profileOpen && (
+        <div className={styles.feedbackOverlay} onClick={() => setProfileOpen(false)}>
+          <div className={styles.profileSheet} onClick={(event) => event.stopPropagation()}>
+            <div className={styles.feedbackHeader}>
+              <h2 className={styles.feedbackTitle}>Profile</h2>
+              <button
+                type="button"
+                className={styles.feedbackClose}
+                onClick={() => setProfileOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+
+            <article className={styles.profileHero}>
+              <WhelmProfileAvatar tierColor={streakBandanaTier?.color} size="hero" />
+              <div className={styles.profileHeroCopy}>
+                <p className={styles.sectionLabel}>Whelm Identity</p>
+                <h3 className={styles.profileHeroTitle}>{profileTierTheme.title}</h3>
+                <p className={styles.accountMeta}>
+                  {streakBandanaTier?.label ?? "No bandana yet"} tier
+                </p>
+              </div>
+            </article>
+
+            <div className={styles.profileStatsGrid}>
+              <article className={styles.profileStatCard}>
+                <span>Current streak</span>
+                <strong>{displayStreak}d</strong>
+              </article>
+              <article className={styles.profileStatCard}>
+                <span>Longest streak</span>
+                <strong>{longestStreak}d</strong>
+              </article>
+              <article className={styles.profileStatCard}>
+                <span>Lifetime focus</span>
+                <strong>{lifetimeFocusMinutes}m</strong>
+              </article>
+              <article className={styles.profileStatCard}>
+                <span>Total sessions</span>
+                <strong>{sessions.length}</strong>
+              </article>
+            </div>
+
+            <article className={styles.profileProgressCard}>
+              <p className={styles.sectionLabel}>Next ascent</p>
+              <h3 className={styles.cardTitle}>
+                {nextBandanaMilestone
+                  ? `${nextBandanaMilestone.tier.label} at ${nextBandanaMilestone.tier.minDays} days`
+                  : "White Bandana reached"}
+              </h3>
+              <p className={styles.accountMeta}>
+                {nextBandanaMilestone
+                  ? `${nextBandanaMilestone.remainingDays} more day${
+                      nextBandanaMilestone.remainingDays === 1 ? "" : "s"
+                    } to level up the profile.`
+                  : "Top tier achieved. Keep the run alive."}
+              </p>
+            </article>
+
+            <div className={styles.noteFooterActions}>
+              <button
+                type="button"
+                className={styles.reportButton}
+                onClick={() => {
+                  setProfileOpen(false);
+                  setActiveTab("streaks");
+                }}
+              >
+                Open streaks
+              </button>
+              <button
+                type="button"
+                className={styles.secondaryPlanButton}
+                onClick={() => {
+                  setProfileOpen(false);
+                  setMobileMoreOpen(true);
+                }}
+              >
+                More
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {mobileMoreOpen && (
         <div className={styles.feedbackOverlay} onClick={() => setMobileMoreOpen(false)}>

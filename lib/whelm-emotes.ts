@@ -51,7 +51,7 @@ export type WhelmEmoteDefinition = {
   notes: string;
 };
 
-const sourceRoot = "/Users/calebroemhildtsultan/Downloads/batch1riv";
+const sourceRoot = "/public/whelm-emotes";
 
 export const WHELM_EMOTES: readonly WhelmEmoteDefinition[] = [
   {

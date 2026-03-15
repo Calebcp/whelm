@@ -19,7 +19,7 @@ export type StreakBandanaTier = {
   notes: string;
 };
 
-const assetRoot = "/Users/calebroemhildtsultan/Downloads/colorbandanastreak";
+const assetRoot = "/public/streak";
 
 export const STREAK_BANDANA_TIERS: readonly StreakBandanaTier[] = [
   {
