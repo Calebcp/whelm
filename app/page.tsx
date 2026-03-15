@@ -2509,17 +2509,19 @@ export default function HomePage() {
 
     const positionedItems = withRange.map((entry) => ({
       ...entry,
+      durationMinutes: Math.max(5, entry.endMinute - entry.startMinute),
       topPct: ((entry.startMinute - startMinute) / totalMinutes) * 100,
-      heightPct: (Math.max(10, entry.endMinute - entry.startMinute) / totalMinutes) * 100,
+      heightPct: (Math.max(5, entry.endMinute - entry.startMinute) / totalMinutes) * 100,
     }));
 
     const hourTicks: Array<{ minute: number; label: string }> = [];
     for (
       let minute = startMinute;
-      minute < endMinute || (!isMobileViewport && minute === endMinute);
+      minute <= endMinute;
       minute += 60
     ) {
-      const hour = Math.floor(minute / 60);
+      const normalizedMinute = minute % (24 * 60);
+      const hour = Math.floor(normalizedMinute / 60);
       const suffix = hour >= 12 ? "PM" : "AM";
       const hour12 = hour % 12 === 0 ? 12 : hour % 12;
       hourTicks.push({ minute, label: `${hour12}:00 ${suffix}` });
@@ -2582,10 +2584,7 @@ export default function HomePage() {
     const viewportHeight = container.clientHeight;
     const targetScrollTop = Math.max(0, relative * contentHeight - viewportHeight * 0.32);
 
-    container.scrollTo({
-      top: targetScrollTop,
-      behavior: "smooth",
-    });
+    container.scrollTop = targetScrollTop;
   }, [
     calendarView,
     currentTimeMarker?.minute,
@@ -3749,7 +3748,7 @@ export default function HomePage() {
                                 </label>
                                 <button
                                   type="button"
-                                  className={styles.planAddButton}
+                                  className={`${styles.planAddButton} ${styles.blockActionButton}`}
                                   onClick={() => {
                                     const added = addPlannedBlock();
                                     if (added) {
@@ -3833,11 +3832,13 @@ export default function HomePage() {
                               key={`timeline-${entry.id}`}
                               data-calendar-entry-id={entry.id}
                               className={`${styles.dayViewEvent} ${styles[`dayViewEvent${entry.tone}`]} ${
+                                isMobileViewport ? styles.dayViewEventMobile : ""
+                              } ${entry.durationMinutes < 40 ? styles.dayViewEventCompact : ""} ${
                                 activatedCalendarEntryId === entry.id ? styles.dayViewEventActivated : ""
                               }`}
                               style={{
                                 top: `${entry.topPct}%`,
-                                height: `${Math.max(7.5, entry.heightPct)}%`,
+                                height: `${entry.heightPct}%`,
                               }}
                               onMouseEnter={() => showCalendarHoverPreview(entry.id)}
                               onMouseLeave={() => scheduleCalendarHoverPreviewClear(entry.id)}
@@ -3934,7 +3935,7 @@ export default function HomePage() {
                             </div>
                           </div>
                         )}
-                        {activeCalendarPreview && activeDayViewPreviewItem && (
+                        {!isMobileViewport && activeCalendarPreview && activeDayViewPreviewItem && (
                           <div
                             className={`${styles.calendarEntryPopover} ${
                               calendarPinnedEntryId ? styles.calendarEntryPopoverPinned : ""
@@ -4031,6 +4032,68 @@ export default function HomePage() {
                         )}
                       </div>
                     </div>
+                    {isMobileViewport && activeCalendarPreview && (
+                      <div className={styles.calendarEntryPreview}>
+                        <div>
+                          <p className={styles.calendarEntryPreviewLabel}>
+                            {new Date(`${activeCalendarPreview.dateKey}T00:00:00`).toLocaleDateString(
+                              undefined,
+                              { weekday: "short", month: "short", day: "numeric" },
+                            )}{" "}
+                            • {activeCalendarPreview.timeLabel}
+                          </p>
+                          <h3 className={styles.calendarEntryPreviewTitle}>
+                            {activeCalendarPreview.title}
+                          </h3>
+                          <p className={styles.calendarEntryPreviewBody}>
+                            {activeCalendarPreview.preview}
+                          </p>
+                        </div>
+                        <div className={styles.calendarEntryPreviewActions}>
+                          {activeCalendarPreview.source === "reminder" && activeCalendarPreview.noteId && (
+                            <button
+                              type="button"
+                              className={styles.secondaryPlanButton}
+                              onClick={() => {
+                                setSelectedNoteId(activeCalendarPreview.noteId ?? null);
+                                openNotesTab();
+                              }}
+                            >
+                              Open note
+                            </button>
+                          )}
+                          {activeCalendarPreview.source === "plan" && activeCalendarPreview.planId && (
+                            <button
+                              type="button"
+                              className={styles.planCompleteButton}
+                              onClick={() => {
+                                const plan = plannedBlockById.get(activeCalendarPreview.planId ?? "");
+                                if (!plan) return;
+                                void completePlannedBlock(plan);
+                              }}
+                            >
+                              Complete
+                            </button>
+                          )}
+                          {activeCalendarPreview.source === "session" && (
+                            <button
+                              type="button"
+                              className={styles.secondaryPlanButton}
+                              onClick={() => setActiveTab("history")}
+                            >
+                              View history
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className={styles.secondaryPlanButton}
+                            onClick={() => setCalendarPinnedEntryId(null)}
+                          >
+                            Close
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
                 {calendarView !== "day" && activeCalendarPreview && (
@@ -4590,7 +4653,7 @@ export default function HomePage() {
                         </label>
                         <button
                           type="button"
-                          className={styles.planAddButton}
+                          className={`${styles.planAddButton} ${styles.blockActionButton}`}
                           onClick={() => {
                             const added = addPlannedBlock();
                             if (added) {
@@ -4962,7 +5025,7 @@ export default function HomePage() {
                     <div className={styles.noteFooterActions}>
                       <button
                         type="button"
-                        className={styles.reportButton}
+                        className={`${styles.reportButton} ${styles.blockActionButton}`}
                         onClick={() => convertNoteToPlannedBlock(selectedNote)}
                       >
                         Convert to Block
@@ -5450,7 +5513,7 @@ export default function HomePage() {
                       <div className={styles.noteFooterActions}>
                       <button
                         type="button"
-                        className={styles.reportButton}
+                        className={`${styles.reportButton} ${styles.blockActionButton}`}
                         onClick={() => convertNoteToPlannedBlock(selectedNote)}
                       >
                         Convert to Block
