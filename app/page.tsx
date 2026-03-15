@@ -2474,9 +2474,10 @@ export default function HomePage() {
       }),
     [selectedDateEntries, selectedDateFocusedMinutes, selectedDateKey, selectedDatePlans],
   );
+  const isSelectedDateToday = selectedDateKey === dayKeyLocal(new Date());
   const dayViewTimeline = useMemo(() => {
-    const defaultStart = 6 * 60;
-    const defaultEnd = 22 * 60;
+    const defaultStart = isMobileViewport ? 0 : 6 * 60;
+    const defaultEnd = isMobileViewport ? 24 * 60 : 22 * 60;
     const withRange = selectedDateEntries.map((entry) => ({
       ...entry,
       startMinute: Math.min(entry.startMinute, entry.endMinute - 5),
@@ -2495,7 +2496,11 @@ export default function HomePage() {
     }));
 
     const hourTicks: Array<{ minute: number; label: string }> = [];
-    for (let minute = startMinute; minute <= endMinute; minute += 60) {
+    for (
+      let minute = startMinute;
+      minute < endMinute || (!isMobileViewport && minute === endMinute);
+      minute += 60
+    ) {
       const hour = Math.floor(minute / 60);
       const suffix = hour >= 12 ? "PM" : "AM";
       const hour12 = hour % 12 === 0 ? 12 : hour % 12;
@@ -2522,7 +2527,7 @@ export default function HomePage() {
       }),
       hourTicks,
     };
-  }, [selectedDateEntries]);
+  }, [isMobileViewport, selectedDateEntries]);
   const mobileDayTimelineHeight = useMemo(() => {
     const hourCount = Math.max(8, Math.ceil(dayViewTimeline.totalMinutes / 60));
     return hourCount * 72;
@@ -3432,14 +3437,7 @@ export default function HomePage() {
                       </button>
                     </div>
                     <div className={styles.mobileInlineActions}>
-                      <button
-                        type="button"
-                        className={styles.secondaryPlanButton}
-                        onClick={jumpToToday}
-                      >
-                        Today
-                      </button>
-                      {isMobileViewport && (
+                      {isMobileViewport && calendarView !== "day" && (
                         <button
                           type="button"
                           className={styles.calendarSectionButton}
@@ -3597,7 +3595,9 @@ export default function HomePage() {
                         <div className={styles.dayPortalCopy}>
                           <div className={styles.dayPortalHeader}>
                             <div>
-                              <p className={styles.sectionLabel}>{selectedDateSummary.eyebrow}</p>
+                              <p className={styles.sectionLabel}>
+                                {isSelectedDateToday ? "Today Chamber" : selectedDateSummary.eyebrow}
+                              </p>
                               <h3 className={styles.dayPortalTitle}>{selectedDateSummary.title}</h3>
                             </div>
                             <div className={styles.dayPortalActions}>
@@ -3615,22 +3615,33 @@ export default function HomePage() {
                               >
                                 Back to month
                               </button>
+                              {isMobileViewport && (
+                                <button
+                                  type="button"
+                                  className={styles.calendarSectionButton}
+                                  onClick={() => setMobileCalendarControlsOpen((open) => !open)}
+                                >
+                                  Jump
+                                </button>
+                              )}
                             </div>
                           </div>
                           {!isMobileViewport && (
                             <p className={styles.dayPortalMeta}>{selectedDateSummary.body}</p>
                           )}
-                          <div className={styles.dayPortalStats}>
-                            <span className={styles.dayPortalPill}>
-                              Focus: {selectedDateFocusedMinutes}m
-                            </span>
-                            <span className={styles.dayPortalPill}>
-                              Plans: {selectedDatePlans.length}
-                            </span>
-                            <span className={styles.dayPortalPill}>
-                              Entries: {selectedDateEntries.length}
-                            </span>
-                          </div>
+                          {!isMobileViewport && (
+                            <div className={styles.dayPortalStats}>
+                              <span className={styles.dayPortalPill}>
+                                Focus: {selectedDateFocusedMinutes}m
+                              </span>
+                              <span className={styles.dayPortalPill}>
+                                Plans: {selectedDatePlans.length}
+                              </span>
+                              <span className={styles.dayPortalPill}>
+                                Entries: {selectedDateEntries.length}
+                              </span>
+                            </div>
+                          )}
                           {!isMobileViewport && dayPortalComposerOpen && (
                             <div id="calendar-planner" className={styles.dayPortalComposer}>
                               <div className={styles.dayPortalComposerHeader}>
