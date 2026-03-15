@@ -5086,6 +5086,8 @@
 
   .topAppBarRight {
     align-items: flex-start;
+    min-width: 78px;
+    justify-content: flex-end;
   }
 
   .profileDockButtonMobile .profileDockCopy {
@@ -5093,17 +5095,27 @@
   }
 
   .profileDockButtonMobile .profileDockCopy strong {
-    font-size: 0.76rem;
-    line-height: 1.1;
-    max-width: 72px;
+    font-size: 0.78rem;
+    line-height: 1.05;
+    max-width: 78px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   .profileDockButtonMobile .profileAvatarCardCompact {
-    width: 58px;
-    height: 58px;
+    width: 68px;
+    height: 68px;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    border-radius: 0;
+    overflow: visible;
+  }
+
+  .profileDockButtonMobile .profileAvatarImage {
+    object-fit: contain;
+    filter: drop-shadow(0 8px 18px rgba(14, 28, 60, 0.28));
   }
 
   .dailyRitualGrid {
