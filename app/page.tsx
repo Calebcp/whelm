@@ -3621,7 +3621,7 @@ export default function HomePage() {
                             <div className={styles.dayPortalActions}>
                               <button
                                 type="button"
-                                className={styles.planAddButton}
+                                className={`${styles.planAddButton} ${styles.dayPortalBlockButton}`}
                                 onClick={openCalendarBlockComposer}
                               >
                                 + Block

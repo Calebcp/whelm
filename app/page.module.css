@@ -2527,6 +2527,33 @@
   padding: 10px 12px;
 }
 
+.dayPortalBlockButton {
+  position: relative;
+  border: 1px solid rgba(139, 176, 255, 0.52);
+  background:
+    linear-gradient(135deg, rgba(18, 91, 181, 0.98), rgba(87, 88, 215, 0.98)),
+    #102033;
+  box-shadow:
+    0 0 0 1px rgba(139, 176, 255, 0.14),
+    0 12px 24px rgba(25, 76, 173, 0.28),
+    0 0 28px rgba(109, 131, 255, 0.2);
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  text-shadow: 0 1px 2px rgba(8, 12, 24, 0.32);
+}
+
+.dayPortalBlockButton::after {
+  content: "FOUNDATIONAL";
+  position: absolute;
+  left: 50%;
+  bottom: -16px;
+  transform: translateX(-50%);
+  font-size: 0.53rem;
+  letter-spacing: 0.18em;
+  color: rgba(171, 194, 255, 0.84);
+  white-space: nowrap;
+}
+
 .planConflictBanner {
   border: 1px solid rgba(245, 158, 11, 0.24);
   border-radius: 14px;
@@ -3599,6 +3626,21 @@
 .themeLight .planAddButton {
   background: linear-gradient(135deg, #4769b6, #5f5fd4);
   color: #fffdf8;
+}
+
+.themeLight .dayPortalBlockButton {
+  border-color: rgba(87, 116, 209, 0.42);
+  background:
+    linear-gradient(135deg, rgba(63, 117, 219, 0.98), rgba(108, 106, 224, 0.98)),
+    #4769b6;
+  box-shadow:
+    0 0 0 1px rgba(103, 126, 221, 0.12),
+    0 12px 22px rgba(89, 113, 191, 0.22),
+    0 0 26px rgba(118, 129, 225, 0.16);
+}
+
+.themeLight .dayPortalBlockButton::after {
+  color: rgba(87, 103, 176, 0.86);
 }
 
 .themeLight .statsGrid .statCard {
