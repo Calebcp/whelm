@@ -3,6 +3,10 @@
   --timer-accent-soft: #edf4fb;
   --timer-accent-strong: #102033;
   --timer-ring: rgba(36, 74, 114, 0.12);
+  --timer-glow: rgba(129, 140, 248, 0.3);
+  --timer-surface-top: rgba(32, 31, 72, 0.96);
+  --timer-surface-bottom: rgba(17, 18, 44, 0.96);
+  --timer-pulse: rgba(165, 180, 252, 0.95);
   --timer-progress: 0;
   position: relative;
   overflow: hidden;
@@ -20,7 +24,8 @@
 .card[data-appearance="dark"] {
   border-color: rgba(123, 138, 184, 0.18);
   background:
-    radial-gradient(circle at top right, rgba(86, 107, 255, 0.18), transparent 30%),
+    radial-gradient(circle at top right, color-mix(in srgb, var(--timer-accent) 28%, transparent), transparent 32%),
+    radial-gradient(circle at 16% 100%, color-mix(in srgb, var(--timer-glow) 18%, transparent), transparent 34%),
     linear-gradient(180deg, rgba(18, 22, 40, 0.98), rgba(12, 16, 30, 0.96));
   box-shadow:
     0 24px 60px rgba(3, 6, 18, 0.28),
@@ -33,7 +38,7 @@
   inset: 0;
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.34), transparent 38%),
-    radial-gradient(circle at 75% 28%, rgba(20, 93, 160, 0.08), transparent 22%);
+    radial-gradient(circle at 75% 28%, color-mix(in srgb, var(--timer-accent) 16%, transparent), transparent 24%);
   pointer-events: none;
 }
 
@@ -105,8 +110,8 @@
 
 .card[data-appearance="dark"] .timerFace {
   background:
-    radial-gradient(circle at 50% 42%, rgba(31, 38, 65, 0.98), rgba(20, 25, 45, 0.94)),
-    linear-gradient(180deg, rgba(20, 25, 45, 0.98), rgba(15, 20, 37, 0.94));
+    radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--timer-accent) 14%, rgba(31, 38, 65, 0.98)), rgba(20, 25, 45, 0.94)),
+    linear-gradient(180deg, var(--timer-surface-top), var(--timer-surface-bottom));
 }
 
 .card[data-appearance="dark"] .faceGrid span {
@@ -114,11 +119,11 @@
 }
 
 .card[data-appearance="dark"] .faceHalo {
-  background: radial-gradient(circle, rgba(91, 100, 176, 0.32), transparent 66%);
+  background: radial-gradient(circle, color-mix(in srgb, var(--timer-glow) 72%, rgba(255, 255, 255, 0.12)), transparent 66%);
 }
 
 .card[data-appearance="dark"] .ringTrack {
-  border-color: rgba(123, 138, 184, 0.14);
+  border-color: color-mix(in srgb, var(--timer-accent) 16%, rgba(123, 138, 184, 0.14));
   box-shadow:
     inset 0 0 0 1px rgba(155, 168, 218, 0.12),
     0 12px 28px rgba(3, 6, 18, 0.18);
@@ -161,6 +166,60 @@
   align-items: center;
   gap: 14px;
   margin-bottom: 18px;
+}
+
+.identityRow {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.identityChip {
+  border: 1px solid rgba(123, 138, 184, 0.12);
+  border-radius: 18px;
+  padding: 10px 10px 9px;
+  background:
+    linear-gradient(180deg, rgba(26, 31, 54, 0.72), rgba(17, 22, 40, 0.92));
+  display: grid;
+  gap: 2px;
+  text-align: left;
+  box-shadow: inset 0 1px 0 rgba(155, 168, 218, 0.08);
+}
+
+.identityChipCompact {
+  align-content: center;
+  min-height: 52px;
+}
+
+.identityChipActive {
+  border-color: color-mix(in srgb, var(--timer-accent) 52%, rgba(255, 255, 255, 0.14));
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--timer-accent) 28%, rgba(34, 41, 70, 0.96)), rgba(18, 22, 40, 0.94));
+  box-shadow:
+    0 12px 24px rgba(3, 6, 18, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.identityChip:disabled {
+  opacity: 0.88;
+}
+
+.identityChipLabel {
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: #eff4ff;
+  line-height: 1.1;
+}
+
+.identityChipMeta {
+  font-size: 0.64rem;
+  color: #9fb0db;
+  line-height: 1.05;
 }
 
 .modeTabs {
@@ -326,8 +385,8 @@
   inset: 16% 20%;
   border-radius: 999px;
   background:
-    radial-gradient(circle, rgba(59, 130, 246, 0.12), transparent 60%),
-    radial-gradient(circle at 45% 55%, rgba(167, 139, 250, 0.1), transparent 46%);
+    radial-gradient(circle, color-mix(in srgb, var(--timer-glow) 72%, transparent), transparent 60%),
+    radial-gradient(circle at 45% 55%, color-mix(in srgb, var(--timer-accent) 28%, transparent), transparent 46%);
   filter: blur(14px);
 }
 
@@ -352,7 +411,7 @@
   width: min(76vw, 282px);
   aspect-ratio: 1;
   border-radius: 999px;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.82), transparent 66%);
+  background: radial-gradient(circle, color-mix(in srgb, var(--timer-glow) 72%, rgba(255, 255, 255, 0.22)), transparent 66%);
   filter: blur(8px);
 }
 
@@ -365,7 +424,7 @@
 }
 
 .ringTrack {
-  border: 20px solid rgba(36, 74, 114, 0.12);
+  border: 20px solid color-mix(in srgb, var(--timer-accent) 16%, rgba(36, 74, 114, 0.12));
   box-shadow:
     inset 0 0 0 1px rgba(255, 255, 255, 0.56),
     0 12px 28px rgba(16, 32, 51, 0.06);
@@ -376,10 +435,10 @@
     from -90deg,
     rgba(0, 0, 0, 0) 0turn,
     rgba(0, 0, 0, 0) calc(var(--timer-progress-turn) - 0.16turn),
-    rgba(96, 165, 250, 0.2) calc(var(--timer-progress-turn) - 0.12turn),
-    rgba(99, 102, 241, 0.72) calc(var(--timer-progress-turn) - 0.06turn),
-    rgba(109, 40, 217, 0.98) calc(var(--timer-progress-turn) - 0.02turn),
-    rgba(196, 181, 253, 1) var(--timer-progress-turn),
+    color-mix(in srgb, var(--timer-accent) 22%, transparent) calc(var(--timer-progress-turn) - 0.12turn),
+    color-mix(in srgb, var(--timer-accent) 78%, white) calc(var(--timer-progress-turn) - 0.06turn),
+    var(--timer-accent) calc(var(--timer-progress-turn) - 0.02turn),
+    color-mix(in srgb, var(--timer-accent-soft) 84%, white) var(--timer-progress-turn),
     rgba(0, 0, 0, 0) calc(var(--timer-progress-turn) + 0.006turn),
     rgba(0, 0, 0, 0) 1turn
   );
@@ -387,8 +446,8 @@
   mask: radial-gradient(farthest-side, transparent calc(100% - 20px), #000 calc(100% - 19px));
   opacity: 1;
   filter:
-    drop-shadow(0 0 8px rgba(109, 40, 217, 0.2))
-    drop-shadow(0 0 14px rgba(96, 165, 250, 0.16));
+    drop-shadow(0 0 8px color-mix(in srgb, var(--timer-accent) 32%, transparent))
+    drop-shadow(0 0 14px color-mix(in srgb, var(--timer-glow) 44%, transparent));
 }
 
 .ringPulse {
@@ -409,11 +468,65 @@
   transform: translateX(-50%);
   border-radius: 999px;
   background:
-    radial-gradient(circle, rgba(255, 255, 255, 0.95) 0%, rgba(196, 181, 253, 0.94) 34%, rgba(96, 165, 250, 0.88) 64%, rgba(109, 40, 217, 0.58) 100%);
+    radial-gradient(circle, rgba(255, 255, 255, 0.95) 0%, color-mix(in srgb, var(--timer-accent-soft) 84%, white) 34%, color-mix(in srgb, var(--timer-pulse) 86%, white) 64%, color-mix(in srgb, var(--timer-accent) 58%, transparent) 100%);
   box-shadow:
-    0 0 12px rgba(109, 40, 217, 0.24),
-    0 0 22px rgba(96, 165, 250, 0.18);
+    0 0 12px color-mix(in srgb, var(--timer-accent) 34%, transparent),
+    0 0 22px color-mix(in srgb, var(--timer-glow) 42%, transparent);
   animation: ringPulseBreath 1.6s ease-in-out infinite;
+}
+
+.timerFace[data-focus-mode="timer"] .ringPulse::before,
+.timerFace[data-focus-mode="language"] .ringPulse::before {
+  animation: ringPulseBreath 2s ease-in-out infinite;
+}
+
+.timerFace[data-focus-mode="school"] .ringPulse::before {
+  animation: ringPulseSteady 1.8s linear infinite;
+}
+
+.timerFace[data-focus-mode="work"] .ringPulse::before {
+  animation: ringPulseWork 1.15s steps(3, end) infinite;
+}
+
+.timerFace[data-focus-mode="timer"] .faceAura,
+.timerFace[data-focus-mode="language"] .faceAura {
+  animation: auraDrift 4.8s ease-in-out infinite;
+}
+
+.timerFace[data-focus-mode="school"] .faceAura {
+  animation: auraSettle 4.2s ease-in-out infinite;
+}
+
+.timerFace[data-focus-mode="work"] .faceAura {
+  animation: auraTighten 2.2s ease-in-out infinite;
+}
+
+.entryOverlay {
+  position: absolute;
+  inset: 22px;
+  z-index: 3;
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  padding-top: 28px;
+  pointer-events: none;
+  animation: entryModeReveal 0.65s ease-out forwards;
+}
+
+.entryEyebrow {
+  font-size: 0.68rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--timer-accent-soft) 88%, white);
+}
+
+.entryMode {
+  margin-top: 6px;
+  font-size: 1rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #ffffff;
+  text-shadow: 0 0 16px color-mix(in srgb, var(--timer-glow) 66%, transparent);
 }
 
 .faceInner {
@@ -428,7 +541,18 @@
   font-size: 0.74rem;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: #6f83a0;
+  color: color-mix(in srgb, var(--timer-accent-soft) 68%, #8aa0c3);
+}
+
+.identityAnchor {
+  margin: 0 0 14px;
+  font-size: 0.9rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--timer-accent-soft) 92%, white);
+  text-shadow:
+    0 0 12px color-mix(in srgb, var(--timer-glow) 64%, transparent),
+    0 0 24px color-mix(in srgb, var(--timer-accent) 26%, transparent);
 }
 
 .time {
@@ -437,14 +561,18 @@
   line-height: 0.92;
   letter-spacing: -0.09em;
   font-variant-numeric: tabular-nums;
-  color: var(--timer-accent-strong);
-  text-shadow: 0 16px 30px rgba(20, 93, 160, 0.08);
+  color: #f7f9ff;
+  text-shadow:
+    0 0 26px color-mix(in srgb, var(--timer-glow) 38%, transparent),
+    0 16px 30px color-mix(in srgb, var(--timer-accent) 18%, transparent);
 }
 
 .status {
   margin-top: 12px;
   font-size: 0.98rem;
-  color: color-mix(in srgb, var(--timer-accent-strong) 56%, #607185);
+  max-width: 18ch;
+  text-align: center;
+  color: color-mix(in srgb, var(--timer-accent-soft) 72%, #9aa8c7);
 }
 
 .primaryButton,
@@ -545,6 +673,10 @@
     align-items: stretch;
   }
 
+  .identityRow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .timerFace {
     min-height: 320px;
   }
@@ -587,6 +719,23 @@
   .minutesPicker {
     justify-content: center;
   }
+
+  .identityChipLabel {
+    font-size: 0.7rem;
+  }
+
+  .identityChipMeta {
+    font-size: 0.62rem;
+  }
+
+  .identityChipCompact {
+    min-height: 48px;
+  }
+
+  .identityAnchor {
+    margin-bottom: 10px;
+    font-size: 0.8rem;
+  }
 }
 
 @keyframes ringPulseBreath {
@@ -598,5 +747,81 @@
   50% {
     transform: translateX(-50%) scale(1.08);
     opacity: 1;
+  }
+}
+
+@keyframes ringPulseSteady {
+  0%,
+  100% {
+    transform: translateX(-50%) scale(0.94);
+    opacity: 0.9;
+  }
+  50% {
+    transform: translateX(-50%) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes ringPulseWork {
+  0%,
+  100% {
+    transform: translateX(-50%) scale(0.88);
+    opacity: 0.84;
+  }
+  50% {
+    transform: translateX(-50%) scale(1.08);
+    opacity: 1;
+  }
+}
+
+@keyframes auraDrift {
+  0%,
+  100% {
+    transform: scale(0.98);
+    opacity: 0.82;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 1;
+  }
+}
+
+@keyframes auraSettle {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.9;
+  }
+  50% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+@keyframes auraTighten {
+  0%,
+  100% {
+    transform: scale(0.98);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.03);
+    opacity: 1;
+  }
+}
+
+@keyframes entryModeReveal {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  20%,
+  70% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-6px) scale(1.02);
   }
 }

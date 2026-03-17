@@ -11,6 +11,75 @@ type TimerTheme = {
   ring: string;
 };
 
+type FocusIdentity = "timer" | "language" | "school" | "work";
+
+const FOCUS_IDENTITIES: Record<
+  FocusIdentity,
+  {
+    label: string;
+    entryLabel: string;
+    descriptor?: string;
+    accent: string;
+    accentSoft: string;
+    accentStrong: string;
+    ring: string;
+    glow: string;
+    surfaceTop: string;
+    surfaceBottom: string;
+    pulse: string;
+  }
+> = {
+  timer: {
+    label: "Timer",
+    entryLabel: "TIMER",
+    descriptor: "Default",
+    accent: "#6c5ce7",
+    accentSoft: "#e2dcff",
+    accentStrong: "#342a7a",
+    ring: "rgba(129, 140, 248, 0.18)",
+    glow: "rgba(129, 140, 248, 0.32)",
+    surfaceTop: "rgba(32, 31, 72, 0.96)",
+    surfaceBottom: "rgba(17, 18, 44, 0.96)",
+    pulse: "rgba(165, 180, 252, 0.95)",
+  },
+  language: {
+    label: "Language",
+    entryLabel: "LANGUAGE",
+    accent: "#d8a125",
+    accentSoft: "#f7ecd0",
+    accentStrong: "#8f5b0d",
+    ring: "rgba(244, 191, 78, 0.18)",
+    glow: "rgba(245, 196, 93, 0.34)",
+    surfaceTop: "rgba(46, 34, 16, 0.96)",
+    surfaceBottom: "rgba(24, 18, 8, 0.96)",
+    pulse: "rgba(252, 211, 77, 0.95)",
+  },
+  school: {
+    label: "School",
+    entryLabel: "SCHOOL",
+    accent: "#4d8eff",
+    accentSoft: "#dce9ff",
+    accentStrong: "#1e4ea8",
+    ring: "rgba(96, 165, 250, 0.18)",
+    glow: "rgba(96, 165, 250, 0.3)",
+    surfaceTop: "rgba(18, 34, 62, 0.96)",
+    surfaceBottom: "rgba(11, 20, 40, 0.96)",
+    pulse: "rgba(96, 165, 250, 0.95)",
+  },
+  work: {
+    label: "Work",
+    entryLabel: "WORK",
+    accent: "#d35555",
+    accentSoft: "#f9d7d7",
+    accentStrong: "#8d2424",
+    ring: "rgba(248, 113, 113, 0.18)",
+    glow: "rgba(239, 68, 68, 0.28)",
+    surfaceTop: "rgba(56, 19, 23, 0.97)",
+    surfaceBottom: "rgba(28, 10, 14, 0.97)",
+    pulse: "rgba(248, 113, 113, 0.95)",
+  },
+};
+
 export default function Timer({
   minutes = 30,
   title,
@@ -44,7 +113,12 @@ export default function Timer({
   const [showNotebook, setShowNotebook] = useState(false);
   const [showNotebookMenu, setShowNotebookMenu] = useState(false);
   const [note, setNote] = useState("");
+  const [focusIdentity, setFocusIdentity] = useState<FocusIdentity>("timer");
+  const [entryModeLabel, setEntryModeLabel] = useState<string | null>(null);
   const intervalRef = useRef<number | null>(null);
+  const entryTimeoutRef = useRef<number | null>(null);
+
+  const identityTheme = FOCUS_IDENTITIES[focusIdentity];
 
   useEffect(() => {
     if (mode === "countdown") {
@@ -88,6 +162,14 @@ export default function Timer({
       }
     };
   }, [mode, running]);
+
+  useEffect(() => {
+    return () => {
+      if (entryTimeoutRef.current) {
+        window.clearTimeout(entryTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const displaySeconds = mode === "countdown" ? secondsLeft : secondsElapsed;
   const mm = Math.floor(displaySeconds / 60);
@@ -142,20 +224,51 @@ export default function Timer({
     setShowNotebookMenu((current) => !current);
   }
 
+  function startSession() {
+    if (entryTimeoutRef.current) {
+      window.clearTimeout(entryTimeoutRef.current);
+    }
+
+    setEntryModeLabel(identityTheme.entryLabel);
+    setRunning(true);
+    entryTimeoutRef.current = window.setTimeout(() => {
+      setEntryModeLabel(null);
+      entryTimeoutRef.current = null;
+    }, 650);
+  }
+
+  const timerFaceLabel = mode === "countdown" ? "Countdown" : "Stopwatch";
+  const statusLabel = done
+    ? `Exit ${identityTheme.entryLabel} mode and lock it in.`
+    : running
+      ? mode === "countdown"
+        ? `${identityTheme.label} mode is active. Stay with it.`
+        : `${identityTheme.label} mode is tracking live focus.`
+      : `Enter ${identityTheme.entryLabel} mode when ready.`;
+
   const themeVars = {
-    "--timer-accent": theme.accent,
-    "--timer-accent-soft": theme.accentSoft,
-    "--timer-accent-strong": theme.accentStrong,
-    "--timer-ring": theme.ring,
+    "--timer-accent": identityTheme.accent ?? theme.accent,
+    "--timer-accent-soft": identityTheme.accentSoft ?? theme.accentSoft,
+    "--timer-accent-strong": identityTheme.accentStrong ?? theme.accentStrong,
+    "--timer-ring": identityTheme.ring ?? theme.ring,
+    "--timer-glow": identityTheme.glow,
+    "--timer-surface-top": identityTheme.surfaceTop,
+    "--timer-surface-bottom": identityTheme.surfaceBottom,
+    "--timer-pulse": identityTheme.pulse,
     "--timer-progress": `${Math.max(0, Math.min(1, progress))}`,
     "--timer-progress-turn": `${Math.max(0, Math.min(1, progress))}turn`,
   } as CSSProperties;
 
   return (
-    <section className={styles.card} style={themeVars} data-appearance={appearance}>
+    <section
+      className={styles.card}
+      style={themeVars}
+      data-appearance={appearance}
+      data-focus-mode={focusIdentity}
+    >
       <div className={styles.header}>
         <div>
-          <p className={styles.kicker}>Focus Chamber</p>
+          <p className={styles.kicker}>Whelm Focus Modes</p>
           <h2 className={styles.title}>{title}</h2>
           {!running && !done && mode === "countdown" && (
             <p className={styles.streakHint}>{streakMinimumMinutes}m protects today&apos;s streak.</p>
@@ -205,7 +318,30 @@ export default function Timer({
         )}
       </div>
 
-      <div className={styles.timerFace}>
+      <div className={styles.identityRow}>
+        {(Object.entries(FOCUS_IDENTITIES) as Array<[FocusIdentity, (typeof FOCUS_IDENTITIES)[FocusIdentity]]>).map(
+          ([identityKey, identity]) => (
+            <button
+              key={identityKey}
+              type="button"
+              className={`${styles.identityChip} ${
+                focusIdentity === identityKey ? styles.identityChipActive : ""
+              } ${
+                identity.descriptor ? "" : styles.identityChipCompact
+              }`}
+              onClick={() => setFocusIdentity(identityKey)}
+              disabled={running || submitting}
+            >
+              <span className={styles.identityChipLabel}>{identity.label}</span>
+              {identity.descriptor ? (
+                <span className={styles.identityChipMeta}>{identity.descriptor}</span>
+              ) : null}
+            </button>
+          ),
+        )}
+      </div>
+
+      <div className={styles.timerFace} data-focus-mode={focusIdentity}>
         <div className={styles.faceAura} aria-hidden="true" />
         <div className={styles.faceGrid} aria-hidden="true">
           <span />
@@ -216,24 +352,23 @@ export default function Timer({
         <div className={styles.ringTrack} aria-hidden="true" />
         <div className={styles.ringProgress} aria-hidden="true" />
         <div className={styles.ringPulse} aria-hidden="true" />
+        {entryModeLabel && (
+          <div className={styles.entryOverlay}>
+            <span className={styles.entryEyebrow}>Entering</span>
+            <strong className={styles.entryMode}>{entryModeLabel} mode</strong>
+          </div>
+        )}
         <div className={styles.faceInner}>
-          <p className={styles.faceLabel}>{mode === "countdown" ? "Countdown" : "Stopwatch"}</p>
+          <p className={styles.faceLabel}>{timerFaceLabel}</p>
+          <p className={styles.identityAnchor}>{identityTheme.entryLabel}</p>
           <div className={styles.time}>
             {String(mm).padStart(2, "0")}:{String(ss).padStart(2, "0")}
           </div>
-          <div className={styles.status}>
-            {done
-              ? "Session ended. Lock it in."
-              : running
-                ? mode === "countdown"
-                  ? "In WHELM."
-                  : "Stopwatch running."
-                : "Ready."}
-          </div>
+          <div className={styles.status}>{statusLabel}</div>
         </div>
         <div className={styles.faceDock}>
           {!running && !done ? (
-            <button onClick={() => setRunning(true)} className={styles.faceDockPrimaryButton}>
+            <button onClick={startSession} className={styles.faceDockPrimaryButton}>
               Start
             </button>
           ) : running ? (
