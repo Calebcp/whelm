@@ -162,82 +162,28 @@
   position: relative;
   z-index: 1;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  gap: 14px;
-  margin-bottom: 18px;
-}
-
-.identityRow {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
+  gap: 10px;
   margin-bottom: 16px;
-}
-
-.identityChip {
-  border: 1px solid rgba(123, 138, 184, 0.12);
-  border-radius: 18px;
-  padding: 10px 10px 9px;
-  background:
-    linear-gradient(180deg, rgba(26, 31, 54, 0.72), rgba(17, 22, 40, 0.92));
-  display: grid;
-  gap: 2px;
-  text-align: left;
-  box-shadow: inset 0 1px 0 rgba(155, 168, 218, 0.08);
-}
-
-.identityChipCompact {
-  align-content: center;
-  min-height: 52px;
-}
-
-.identityChipActive {
-  border-color: color-mix(in srgb, var(--timer-accent) 52%, rgba(255, 255, 255, 0.14));
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--timer-accent) 28%, rgba(34, 41, 70, 0.96)), rgba(18, 22, 40, 0.94));
-  box-shadow:
-    0 12px 24px rgba(3, 6, 18, 0.18),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
-}
-
-.identityChip:disabled {
-  opacity: 0.88;
-}
-
-.identityChipLabel {
-  font-size: 0.74rem;
-  font-weight: 700;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: #eff4ff;
-  line-height: 1.1;
-}
-
-.identityChipMeta {
-  font-size: 0.64rem;
-  color: #9fb0db;
-  line-height: 1.05;
 }
 
 .modeTabs {
   display: inline-flex;
+  flex: 1 1 auto;
   gap: 6px;
   border-radius: 999px;
   background: rgba(15, 23, 42, 0.05);
-  padding: 5px;
+  padding: 4px;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78);
 }
 
 .modeTab {
   border: 0;
   border-radius: 999px;
-  padding: 9px 14px;
+  padding: 8px 12px;
   background: transparent;
   color: #48607a;
-  font-size: 0.86rem;
+  font-size: 0.8rem;
 }
 
 .modeTabActive {
@@ -250,23 +196,97 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 10px 8px 12px;
-  border-radius: 16px;
+  padding: 7px 8px 7px 10px;
+  border-radius: 14px;
   background: rgba(255, 255, 255, 0.78);
   border: 1px solid rgba(15, 23, 42, 0.1);
   color: #5f6f82;
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .minutesPicker input {
-  width: 74px;
+  width: 58px;
   border: 0;
   border-radius: 10px;
-  padding: 6px 8px;
+  padding: 5px 8px;
   background: rgba(219, 234, 254, 0.3);
   color: #102033;
+}
+
+.settingsWrap {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.settingsButton {
+  min-width: 122px;
+  border: 1px solid rgba(123, 138, 184, 0.18);
+  border-radius: 16px;
+  padding: 8px 10px;
+  background: rgba(26, 31, 54, 0.84);
+  display: grid;
+  text-align: left;
+  gap: 1px;
+  box-shadow: inset 0 1px 0 rgba(155, 168, 218, 0.08);
+}
+
+.settingsButtonLabel {
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #9fb0db;
+}
+
+.settingsButtonValue {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #eef3ff;
+}
+
+.settingsMenu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 4;
+  width: min(220px, 64vw);
+  border-radius: 18px;
+  border: 1px solid rgba(123, 138, 184, 0.18);
+  background: rgba(18, 22, 40, 0.98);
+  box-shadow: 0 18px 40px rgba(3, 6, 18, 0.28);
+  padding: 8px;
+  display: grid;
+  gap: 6px;
+}
+
+.settingsMenuButton {
+  border: 0;
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: rgba(34, 41, 70, 0.92);
+  display: grid;
+  gap: 2px;
+  text-align: left;
+  color: #eef3ff;
+}
+
+.settingsMenuButton span:first-child {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.settingsMenuButton span:last-child {
+  font-size: 0.68rem;
+  color: #9fb0db;
+}
+
+.settingsMenuButtonActive {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--timer-accent) 28%, rgba(34, 41, 70, 0.96)), rgba(18, 22, 40, 0.94));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--timer-accent) 40%, transparent);
 }
 
 .timerFace {
@@ -669,12 +689,7 @@
 
   .header,
   .modeRow {
-    flex-direction: column;
     align-items: stretch;
-  }
-
-  .identityRow {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .timerFace {
@@ -713,23 +728,25 @@
   }
 
   .modeTabs {
+    width: 100%;
     justify-content: center;
   }
 
   .minutesPicker {
     justify-content: center;
+    align-self: flex-start;
   }
 
-  .identityChipLabel {
-    font-size: 0.7rem;
+  .settingsWrap {
+    align-self: flex-start;
   }
 
-  .identityChipMeta {
-    font-size: 0.62rem;
+  .settingsButton {
+    min-width: 112px;
   }
 
-  .identityChipCompact {
-    min-height: 48px;
+  .settingsMenu {
+    width: min(220px, 72vw);
   }
 
   .identityAnchor {

@@ -112,6 +112,7 @@ export default function Timer({
   const [submitting, setSubmitting] = useState(false);
   const [showNotebook, setShowNotebook] = useState(false);
   const [showNotebookMenu, setShowNotebookMenu] = useState(false);
+  const [showTimerSettings, setShowTimerSettings] = useState(false);
   const [note, setNote] = useState("");
   const [focusIdentity, setFocusIdentity] = useState<FocusIdentity>("timer");
   const [entryModeLabel, setEntryModeLabel] = useState<string | null>(null);
@@ -192,6 +193,7 @@ export default function Timer({
     }
     setShowNotebook(false);
     setShowNotebookMenu(false);
+    setShowTimerSettings(false);
     setNote("");
   }
 
@@ -316,29 +318,41 @@ export default function Timer({
             />
           </label>
         )}
-      </div>
 
-      <div className={styles.identityRow}>
-        {(Object.entries(FOCUS_IDENTITIES) as Array<[FocusIdentity, (typeof FOCUS_IDENTITIES)[FocusIdentity]]>).map(
-          ([identityKey, identity]) => (
-            <button
-              key={identityKey}
-              type="button"
-              className={`${styles.identityChip} ${
-                focusIdentity === identityKey ? styles.identityChipActive : ""
-              } ${
-                identity.descriptor ? "" : styles.identityChipCompact
-              }`}
-              onClick={() => setFocusIdentity(identityKey)}
-              disabled={running || submitting}
-            >
-              <span className={styles.identityChipLabel}>{identity.label}</span>
-              {identity.descriptor ? (
-                <span className={styles.identityChipMeta}>{identity.descriptor}</span>
-              ) : null}
-            </button>
-          ),
-        )}
+        <div className={styles.settingsWrap}>
+          <button
+            type="button"
+            className={styles.settingsButton}
+            onClick={() => setShowTimerSettings((current) => !current)}
+            disabled={running || submitting}
+          >
+            <span className={styles.settingsButtonLabel}>Timer settings</span>
+            <span className={styles.settingsButtonValue}>{identityTheme.label}</span>
+          </button>
+
+          {showTimerSettings && (
+            <div className={styles.settingsMenu}>
+              {(Object.entries(FOCUS_IDENTITIES) as Array<[FocusIdentity, (typeof FOCUS_IDENTITIES)[FocusIdentity]]>).map(
+                ([identityKey, identity]) => (
+                  <button
+                    key={identityKey}
+                    type="button"
+                    className={`${styles.settingsMenuButton} ${
+                      focusIdentity === identityKey ? styles.settingsMenuButtonActive : ""
+                    }`}
+                    onClick={() => {
+                      setFocusIdentity(identityKey);
+                      setShowTimerSettings(false);
+                    }}
+                  >
+                    <span>{identity.label}</span>
+                    {identity.descriptor ? <span>{identity.descriptor}</span> : null}
+                  </button>
+                ),
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className={styles.timerFace} data-focus-mode={focusIdentity}>
