@@ -110,26 +110,11 @@ function hasActivity(metric: AnalyticsDailyMetricRecord) {
   return metric.focusMinutes > 0 || metric.sessionsStarted > 0 || metric.taskCompletedCount > 0;
 }
 
-function toDateKey(date: Date, timezone: string) {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: timezone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(date);
-}
-
 function getWeekStartDateKey(dateLocal: string) {
   const date = new Date(`${dateLocal}T00:00:00Z`);
   const day = date.getUTCDay();
   const mondayOffset = day === 0 ? -6 : 1 - day;
   date.setUTCDate(date.getUTCDate() + mondayOffset);
-  return date.toISOString().slice(0, 10);
-}
-
-function addDays(dateLocal: string, days: number) {
-  const date = new Date(`${dateLocal}T00:00:00Z`);
-  date.setUTCDate(date.getUTCDate() + days);
   return date.toISOString().slice(0, 10);
 }
 
@@ -193,10 +178,6 @@ function getLocalHour(occurredAtISO: string, timezone: string) {
 
   const hourPart = parts.find((part) => part.type === "hour")?.value ?? "00";
   return Number(hourPart);
-}
-
-function getLocalDateKey(occurredAtISO: string, timezone: string) {
-  return toDateKey(new Date(occurredAtISO), timezone);
 }
 
 function bestFocusWindowDetector(context: InsightContext): PerformanceInsight | null {

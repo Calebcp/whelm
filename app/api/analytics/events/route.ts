@@ -3,10 +3,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { aggregateAnalyticsDailyMetrics } from "@/lib/analytics-aggregation";
 import { parseTrackAnalyticsRequest } from "@/lib/analytics-events";
 
-const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
-const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
-const databaseId = process.env.FIREBASE_DATABASE_ID?.trim() || "(default)";
-
 type FirestoreValue =
   | { stringValue: string }
   | { integerValue: string }
@@ -17,6 +13,8 @@ type FirestoreValue =
   | { mapValue: { fields: Record<string, FirestoreValue> } };
 
 function requireConfig() {
+  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+  const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
   if (!projectId || !apiKey) {
     throw new Error("Missing Firebase environment variables on the server.");
   }
@@ -27,7 +25,7 @@ function requireConfig() {
   };
 }
 
-function firestoreDocumentsBaseUrl(targetDatabaseId = databaseId) {
+function firestoreDocumentsBaseUrl(targetDatabaseId = process.env.FIREBASE_DATABASE_ID?.trim() || "(default)") {
   const { projectId } = requireConfig();
   return `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${targetDatabaseId}/documents`;
 }
