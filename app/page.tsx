@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useRive } from "@rive-app/react-canvas";
 import {
@@ -1070,16 +1070,6 @@ const MOBILE_MORE_TABS: AppTab[] = ["streaks", "history", "reports", "settings"]
 
 const INTRO_SPLASH_MIN_MS = 1500;
 const INTRO_SPLASH_MAX_MS = 2200;
-const STREAK_BANDANA_COLOR_MAP: Record<string, string> = {
-  yellow: "#f2c84b",
-  red: "#db5f5f",
-  green: "#47a86d",
-  purple: "#7466db",
-  blue: "#4d80d9",
-  black: "#273142",
-  white: "#f8fbff",
-};
-
 function StreakBandana({
   streakDays,
   className,
@@ -1113,6 +1103,19 @@ function DailyRitualWaveIcon({ className }: { className?: string }) {
   return (
     <div className={[styles.dailyRitualWaveIcon, className].filter(Boolean).join(" ")} aria-hidden="true">
       <RiveComponent className={styles.dailyRitualWaveIconCanvas} />
+    </div>
+  );
+}
+
+function DailyRitualSubmitBandana({ className }: { className?: string }) {
+  const { RiveComponent } = useRive({
+    src: "/streak/white_bandana_submit.riv",
+    autoplay: true,
+  });
+
+  return (
+    <div className={[styles.dailyRitualSubmitBandanaWrap, className].filter(Boolean).join(" ")} aria-hidden="true">
+      <RiveComponent className={styles.dailyRitualSubmitBandanaCanvas} />
     </div>
   );
 }
@@ -7272,15 +7275,7 @@ export default function HomePage() {
                   <span className={styles.dailyRitualSubmitLabel}>Submit</span>
                 </span>
                 <span className={styles.dailyRitualSubmitBandanaPanel} aria-hidden="true">
-                  <span
-                    className={styles.dailyRitualSubmitBandana}
-                    style={
-                      {
-                        "--daily-ritual-bandana":
-                          STREAK_BANDANA_COLOR_MAP[streakBandanaTier?.color ?? "yellow"] ?? "#f2c84b",
-                      } as CSSProperties
-                    }
-                  />
+                  <DailyRitualSubmitBandana className={styles.dailyRitualSubmitBandana} />
                 </span>
               </button>
             </div>
