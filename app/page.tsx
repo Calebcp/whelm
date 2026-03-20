@@ -7268,17 +7268,20 @@ export default function HomePage() {
                 className={`${styles.feedbackSubmit} ${styles.dailyRitualSubmit}`}
                 onClick={submitDailyRitual}
               >
-                <span className={styles.dailyRitualSubmitLabel}>Submit</span>
-                <span
-                  className={styles.dailyRitualSubmitBandana}
-                  style={
-                    {
-                      "--daily-ritual-bandana":
-                        STREAK_BANDANA_COLOR_MAP[streakBandanaTier?.color ?? "yellow"] ?? "#f2c84b",
-                    } as CSSProperties
-                  }
-                  aria-hidden="true"
-                />
+                <span className={styles.dailyRitualSubmitLabelWrap}>
+                  <span className={styles.dailyRitualSubmitLabel}>Submit</span>
+                </span>
+                <span className={styles.dailyRitualSubmitBandanaPanel} aria-hidden="true">
+                  <span
+                    className={styles.dailyRitualSubmitBandana}
+                    style={
+                      {
+                        "--daily-ritual-bandana":
+                          STREAK_BANDANA_COLOR_MAP[streakBandanaTier?.color ?? "yellow"] ?? "#f2c84b",
+                      } as CSSProperties
+                    }
+                  />
+                </span>
               </button>
             </div>
           </div>
