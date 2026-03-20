@@ -189,6 +189,10 @@ test("aggregateAnalyticsDailyMetrics handles low usage, abandoned sessions, and 
     assert.ok(highUsageDay.dailyPerformanceScore >= 80);
 
     assert.equal(persistedBodies.length, 2);
+    const firstMetricBody = persistedBodies[0] as {
+      fields: { updatedAtISO: { stringValue: string } };
+    };
+    assert.equal(typeof firstMetricBody.fields.updatedAtISO.stringValue, "string");
   } finally {
     restoreFetch();
   }
@@ -276,4 +280,3 @@ test("aggregateAnalyticsDailyMetrics keeps very high usage days within the scori
     restoreFetch();
   }
 });
-

@@ -7,7 +7,7 @@
   "theme_color": "#0b1020",
   "icons": [
     {
-      "src": "/icon.png",
+      "src": "/whelm-icon.png",
       "sizes": "512x512",
       "type": "image/png"
     }

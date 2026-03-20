@@ -46,8 +46,8 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
   },
   icons: {
-    icon: "/icon.png",
-    apple: "/icon.png",
+    icon: "/whelm-icon.png",
+    apple: "/whelm-icon.png",
   },
 };
 

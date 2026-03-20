@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { aggregateAnalyticsDailyMetrics } from "@/lib/analytics-aggregation";
 import { parseTrackAnalyticsRequest } from "@/lib/analytics-events";
 
+const ANALYTICS_DEBUG_BUILD = "ANALYTICS_DEBUG_BUILD_2026_03_21_V1";
+
 type FirestoreValue =
   | { stringValue: string }
   | { integerValue: string }
@@ -36,7 +38,17 @@ function getAuthHeader(request: NextRequest) {
 }
 
 function jsonError(message: string, status = 500) {
-  return NextResponse.json({ error: message }, { status });
+  return NextResponse.json({ error: message, debugBuild: ANALYTICS_DEBUG_BUILD }, { status });
+}
+
+function isPermissionDeniedMessage(message: string) {
+  const lowered = message.toLowerCase();
+  return (
+    lowered.includes("missing or insufficient permissions") ||
+    lowered.includes("permission_denied") ||
+    lowered.includes("permission denied") ||
+    lowered.includes("insufficient permissions")
+  );
 }
 
 function encodeFirestoreValue(value: unknown): FirestoreValue {
@@ -45,9 +57,6 @@ function encodeFirestoreValue(value: unknown): FirestoreValue {
   }
 
   if (typeof value === "string") {
-    if (!Number.isNaN(new Date(value).getTime()) && value.includes("T")) {
-      return { timestampValue: value };
-    }
     return { stringValue: value };
   }
 
@@ -118,7 +127,17 @@ export async function POST(request: NextRequest) {
       const body = (await response.json().catch(() => null)) as
         | { error?: { message?: string; status?: string } }
         | null;
-      throw new Error(body?.error?.message || body?.error?.status || "Failed to write analytics event.");
+      const writeMessage =
+        body?.error?.message || body?.error?.status || "Failed to write analytics event.";
+      if (isPermissionDeniedMessage(writeMessage)) {
+        return NextResponse.json({
+          ok: false,
+          skipped: true,
+          reason: `analyticsEvents write skipped: ${writeMessage}`,
+          debugBuild: ANALYTICS_DEBUG_BUILD,
+        });
+      }
+      return jsonError(`analyticsEvents write failed: ${writeMessage}`, 400);
     }
 
     const datesToRebuild = new Set<string>([payload.event.occurredDateLocal]);
@@ -130,11 +149,21 @@ export async function POST(request: NextRequest) {
       datesToRebuild.add(payload.event.properties.streakDate);
     }
 
-    await aggregateAnalyticsDailyMetrics(authHeader, payload.userId, [...datesToRebuild]);
+    let aggregationWarning = "";
+    try {
+      await aggregateAnalyticsDailyMetrics(authHeader, payload.userId, [...datesToRebuild]);
+    } catch (error: unknown) {
+      aggregationWarning =
+        error instanceof Error
+          ? error.message
+          : "Failed to rebuild analytics daily metrics.";
+    }
 
     return NextResponse.json({
       ok: true,
       eventId: payload.event.eventId,
+      aggregationWarning,
+      debugBuild: ANALYTICS_DEBUG_BUILD,
     });
   } catch (error: unknown) {
     const message =

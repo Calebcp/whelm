@@ -17,11 +17,29 @@ import {
   type TaskCreatedEventInput,
 } from "@/lib/analytics-events";
 
+const ANALYTICS_FAILURE_COOLDOWN_MS = 5 * 60 * 1000;
+
+let analyticsDisabledUntil = 0;
+
 function detectClientPlatform(): AnalyticsClientPlatform {
   const platform = Capacitor.getPlatform();
   if (platform === "ios" || platform === "android") return platform;
   if (platform === "web") return "web";
   return "desktop";
+}
+
+function analyticsTemporarilyDisabled() {
+  return Date.now() < analyticsDisabledUntil;
+}
+
+function markAnalyticsFailure(errorMessage: string) {
+  if (
+    errorMessage.includes("Missing or insufficient permissions") ||
+    errorMessage.includes("permission") ||
+    errorMessage.includes("analyticsEvents write failed")
+  ) {
+    analyticsDisabledUntil = Date.now() + ANALYTICS_FAILURE_COOLDOWN_MS;
+  }
 }
 
 function buildEventInput<T extends AnalyticsEventInput>(input: T): T {
@@ -34,6 +52,10 @@ function buildEventInput<T extends AnalyticsEventInput>(input: T): T {
 }
 
 async function authorizedTrack(user: User, input: AnalyticsEventInput) {
+  if (analyticsTemporarilyDisabled()) {
+    return null;
+  }
+
   const validated = validateAnalyticsEventInput(buildEventInput(input));
   const token = await user.getIdToken();
 
@@ -53,7 +75,9 @@ async function authorizedTrack(user: User, input: AnalyticsEventInput) {
     const body = (await response.json().catch(() => null)) as
       | { error?: string }
       | null;
-    throw new Error(body?.error || "Failed to track analytics event.");
+    const message = body?.error || "Failed to track analytics event.";
+    markAnalyticsFailure(message);
+    throw new Error(message);
   }
 
   return normalizeAnalyticsEvent(user.uid, validated);

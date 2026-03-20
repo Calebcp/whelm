@@ -132,9 +132,6 @@ function encodeFirestoreValue(value: unknown): FirestoreValue {
   }
 
   if (typeof value === "string") {
-    if (!Number.isNaN(new Date(value).getTime()) && value.includes("T")) {
-      return { timestampValue: value };
-    }
     return { stringValue: value };
   }
 

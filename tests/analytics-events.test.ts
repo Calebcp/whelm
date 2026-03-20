@@ -155,7 +155,12 @@ test("analytics event route stores the event and triggers daily aggregation", as
     const payload = await response.json();
 
     assert.equal(response.status, 200);
-    assert.deepEqual(payload, { ok: true, eventId: "evt-1" });
+    assert.deepEqual(payload, {
+      ok: true,
+      eventId: "evt-1",
+      aggregationWarning: "",
+      debugBuild: "ANALYTICS_DEBUG_BUILD_2026_03_21_V1",
+    });
     assert.equal(calls.length, 3);
     assert.match(calls[0].url, /analyticsEvents/);
     assert.match(calls[1].url, /:runQuery/);
@@ -163,7 +168,130 @@ test("analytics event route stores the event and triggers daily aggregation", as
 
     const storedBody = JSON.parse(String(calls[0].init?.body));
     assert.equal(storedBody.fields.userId.stringValue, "user-3");
+    assert.equal(storedBody.fields.occurredAt.stringValue, "2026-03-21T12:00:00.000Z");
     assert.equal(storedBody.fields.properties.mapValue.fields.durationMinutes.integerValue, "25");
+
+    const metricBody = JSON.parse(String(calls[2].init?.body));
+    assert.equal(typeof metricBody.fields.updatedAtISO.stringValue, "string");
+  } finally {
+    restoreFetch();
+  }
+});
+
+test("analytics event route still returns success when daily aggregation fails", async () => {
+  process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID = "demo-project";
+  process.env.NEXT_PUBLIC_FIREBASE_API_KEY = "demo-key";
+  process.env.FIREBASE_DATABASE_ID = "(default)";
+  const { POST: trackAnalyticsEvent } = await import("@/app/api/analytics/events/route");
+
+  const restoreFetch = installFetchMock(async (input) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+
+    if (url.includes("/analyticsEvents/")) {
+      return createJsonResponse({ json: { name: "stored-event" } });
+    }
+
+    if (url.includes(":runQuery")) {
+      return createJsonResponse(
+        {
+          json: { error: { message: "Missing or insufficient permissions." } },
+          status: 403,
+        },
+      );
+    }
+
+    throw new Error(`Unexpected fetch call: ${url}`);
+  });
+
+  try {
+    const request = new NextRequest("http://localhost/api/analytics/events", {
+      method: "POST",
+      headers: {
+        authorization: "Bearer token-1",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        userId: "user-3",
+        event: {
+          eventId: "evt-aggregation-warning",
+          eventName: "session_completed",
+          occurredAt: "2026-03-21T12:00:00.000Z",
+          clientTimezone: "UTC",
+          clientPlatform: "ios",
+          sessionId: "session-3",
+          sessionType: "focus",
+          subjectMode: "work",
+          durationMinutes: 25,
+        },
+      }),
+    });
+
+    const response = await trackAnalyticsEvent(request);
+    const payload = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(payload.ok, true);
+    assert.equal(payload.eventId, "evt-aggregation-warning");
+    assert.match(payload.aggregationWarning, /Missing or insufficient permissions/);
+  } finally {
+    restoreFetch();
+  }
+});
+
+test("analytics event route soft-skips permission-denied analytics writes", async () => {
+  process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID = "demo-project";
+  process.env.NEXT_PUBLIC_FIREBASE_API_KEY = "demo-key";
+  process.env.FIREBASE_DATABASE_ID = "(default)";
+  const { POST: trackAnalyticsEvent } = await import("@/app/api/analytics/events/route");
+
+  const restoreFetch = installFetchMock(async (input) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+
+    if (url.includes("/analyticsEvents/")) {
+      return createJsonResponse(
+        {
+          json: { error: { message: "Missing or insufficient permissions." } },
+          status: 403,
+        },
+      );
+    }
+
+    throw new Error(`Unexpected fetch call: ${url}`);
+  });
+
+  try {
+    const request = new NextRequest("http://localhost/api/analytics/events", {
+      method: "POST",
+      headers: {
+        authorization: "Bearer token-1",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        userId: "user-3",
+        event: {
+          eventId: "evt-soft-skip",
+          eventName: "session_completed",
+          occurredAt: "2026-03-21T12:00:00.000Z",
+          clientTimezone: "UTC",
+          clientPlatform: "ios",
+          sessionId: "session-3",
+          sessionType: "focus",
+          subjectMode: "work",
+          durationMinutes: 25,
+        },
+      }),
+    });
+
+    const response = await trackAnalyticsEvent(request);
+    const payload = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(payload, {
+      ok: false,
+      skipped: true,
+      reason: "analyticsEvents write skipped: Missing or insufficient permissions.",
+      debugBuild: "ANALYTICS_DEBUG_BUILD_2026_03_21_V1",
+    });
   } finally {
     restoreFetch();
   }
