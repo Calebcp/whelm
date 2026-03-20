@@ -4897,8 +4897,17 @@
   overflow: hidden;
 }
 
-.dailyRitualCornerIconImage {
+.dailyRitualWaveIcon {
   width: 100%;
+  height: 100%;
+}
+
+.dailyRitualWaveIconCanvas {
+  width: 100%;
+  height: 100%;
+}
+
+.dailyRitualCornerIconImage {
   animation: dailyRitualFloat 3.8s ease-in-out infinite;
   filter: drop-shadow(0 10px 16px rgba(19, 27, 52, 0.14));
 }

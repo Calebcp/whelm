@@ -1104,6 +1104,19 @@ function StreakBandana({
   );
 }
 
+function DailyRitualWaveIcon({ className }: { className?: string }) {
+  const { RiveComponent } = useRive({
+    src: "/whelm-emotes/wavinghand_whelm.riv",
+    autoplay: true,
+  });
+
+  return (
+    <div className={[styles.dailyRitualWaveIcon, className].filter(Boolean).join(" ")} aria-hidden="true">
+      <RiveComponent className={styles.dailyRitualWaveIconCanvas} />
+    </div>
+  );
+}
+
 function IntroSplash({ onComplete }: { onComplete: () => void }) {
   return (
     <main className={styles.splashScreen}>
@@ -7150,13 +7163,8 @@ export default function HomePage() {
             className={`${styles.feedbackModal} ${styles.dailyRitualModal}`}
             onClick={(event) => event.stopPropagation()}
           >
-            <div className={styles.dailyRitualCornerIcon} aria-hidden="true">
-              <WhelmEmote
-                emoteId="whelm.wave"
-                size="inline"
-                align="right"
-                className={styles.dailyRitualCornerIconImage}
-              />
+            <div className={styles.dailyRitualCornerIcon}>
+              <DailyRitualWaveIcon className={styles.dailyRitualCornerIconImage} />
             </div>
             <div className={styles.feedbackHeader}>
               <div>
