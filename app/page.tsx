@@ -7146,13 +7146,9 @@ export default function HomePage() {
                 <p className={styles.sectionLabel}>Daily Entry Ritual</p>
                 <h2 className={styles.feedbackTitle}>Claim today before it claims you.</h2>
               </div>
-              <button
-                type="button"
-                className={styles.feedbackClose}
-                onClick={() => setDailyPlanningOpen(false)}
-              >
-                Close
-              </button>
+              <div className={styles.dailyRitualMascot} aria-hidden="true">
+                <WhelmEmote emoteId="whelm.wave" size="inline" align="right" className={styles.dailyRitualMascotFigure} />
+              </div>
             </div>
             <p className={styles.feedbackMeta}>
               <strong className={styles.dailyRitualCallout}>3 foundational blocks to enter.</strong>{" "}
@@ -7240,10 +7236,21 @@ export default function HomePage() {
             <div className={`${styles.feedbackFooter} ${styles.dailyRitualFooter}`}>
               <button
                 type="button"
-                className={styles.feedbackSubmit}
+                className={`${styles.feedbackClose} ${styles.dailyRitualFooterClose}`}
+                onClick={() => setDailyPlanningOpen(false)}
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                className={`${styles.feedbackSubmit} ${styles.dailyRitualSubmit}`}
                 onClick={submitDailyRitual}
               >
-                Submit 3 blocks
+                <span className={styles.dailyRitualSubmitLabel}>Submit 3 blocks</span>
+                <StreakBandana
+                  streakDays={Math.max(1, displayStreak)}
+                  className={styles.dailyRitualSubmitBandana}
+                />
               </button>
             </div>
           </div>

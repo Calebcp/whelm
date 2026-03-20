@@ -4759,6 +4759,15 @@
   border-color: rgba(111, 122, 150, 0.14);
 }
 
+.themeLight .dailyRitualMascotFigure {
+  filter: drop-shadow(0 12px 18px rgba(89, 102, 145, 0.18));
+}
+
+.themeLight .dailyRitualFooter {
+  background: rgba(249, 245, 239, 0.98);
+  border-top-color: rgba(111, 122, 150, 0.14);
+}
+
 .feedbackSelect,
 .feedbackTextarea {
   width: 100%;
@@ -4875,6 +4884,20 @@
   gap: 0;
 }
 
+.dailyRitualMascot {
+  flex: 0 0 auto;
+  width: 104px;
+  margin-top: -8px;
+  margin-right: -4px;
+  pointer-events: none;
+}
+
+.dailyRitualMascotFigure {
+  width: 100%;
+  animation: dailyRitualFloat 3.8s ease-in-out infinite;
+  filter: drop-shadow(0 16px 24px rgba(19, 27, 52, 0.22));
+}
+
 .dailyRitualCallout {
   color: #f3f7ff;
 }
@@ -4886,6 +4909,31 @@
   position: sticky;
   bottom: 0;
   background: rgba(11, 15, 29, 0.98);
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+}
+
+.dailyRitualFooterClose {
+  justify-self: start;
+  min-width: 96px;
+}
+
+.dailyRitualSubmit {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding-inline: 18px 14px;
+}
+
+.dailyRitualSubmitLabel {
+  white-space: nowrap;
+}
+
+.dailyRitualSubmitBandana {
+  width: 34px;
+  flex: 0 0 34px;
 }
 
 .dailyLockOverlay {
@@ -4917,6 +4965,17 @@
 .feedbackSubmit:disabled,
 .feedbackClose:disabled {
   opacity: 0.6;
+}
+
+@keyframes dailyRitualFloat {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-8px);
+  }
 }
 
 @media (min-width: 980px) {
@@ -5161,9 +5220,30 @@
     min-height: 56px;
   }
 
+  .dailyRitualMascot {
+    width: 88px;
+    margin-top: -2px;
+    margin-right: 0;
+  }
+
+  .dailyRitualFooter {
+    grid-template-columns: 1fr;
+  }
+
+  .dailyRitualFooterClose,
   .dailyRitualFooter .feedbackSubmit {
     width: 100%;
     padding: 12px 14px;
+  }
+
+  .dailyRitualFooterClose {
+    justify-self: stretch;
+    order: 2;
+  }
+
+  .dailyRitualSubmit {
+    order: 1;
+    gap: 10px;
   }
 
   .mobileJumpRow {
