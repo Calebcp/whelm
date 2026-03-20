@@ -1106,7 +1106,7 @@ function StreakBandana({
 
 function DailyRitualWaveIcon({ className }: { className?: string }) {
   const { RiveComponent } = useRive({
-    src: "/whelm-emotes/wavinghand_whelm.riv",
+    src: "/whelm-emotes/wavinghandhigher_whelm.riv",
     autoplay: true,
   });
 
