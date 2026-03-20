@@ -4939,7 +4939,7 @@
   position: relative;
   width: 100%;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 152px;
+  grid-template-columns: minmax(0, 1fr) 124px;
   align-items: center;
   overflow: hidden;
   padding: 0;
@@ -4963,18 +4963,14 @@
   position: relative;
   min-height: 100%;
   overflow: hidden;
-  border-radius: 999px;
-  background:
-    linear-gradient(135deg, rgba(120, 126, 224, 0.38), rgba(84, 88, 194, 0.12)),
-    radial-gradient(circle at 30% 50%, rgba(255, 255, 255, 0.08), transparent 60%);
 }
 
 .dailyRitualSubmitBandana {
   position: absolute;
   top: 50%;
-  right: -18px;
-  width: 188px;
-  height: 86px;
+  right: -26px;
+  width: 198px;
+  height: 92px;
   transform: translateY(-50%);
   background: var(--daily-ritual-bandana, #f2c84b);
   -webkit-mask-image: url("/streak/whitebandana.png");
@@ -5300,7 +5296,7 @@
 
   .dailyRitualSubmit {
     order: 2;
-    grid-template-columns: minmax(0, 1fr) 136px;
+    grid-template-columns: minmax(0, 1fr) 114px;
   }
 
   .dailyRitualSubmitLabelWrap {
@@ -5308,9 +5304,9 @@
   }
 
   .dailyRitualSubmitBandana {
-    right: -20px;
-    width: 170px;
-    height: 76px;
+    right: -24px;
+    width: 180px;
+    height: 82px;
   }
 
   .mobileJumpRow {
