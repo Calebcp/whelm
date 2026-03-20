@@ -13,6 +13,14 @@ type TimerTheme = {
 
 type FocusIdentity = "timer" | "language" | "school" | "work";
 
+export type TimerSessionContext = {
+  sessionId: string;
+  sessionType: "focus" | "stopwatch";
+  subjectMode: "language" | "school" | "work" | "general";
+  targetMinutes: number | null;
+  interruptionCount: number;
+};
+
 const FOCUS_IDENTITIES: Record<
   FocusIdentity,
   {
@@ -88,6 +96,8 @@ export default function Timer({
   theme,
   appearance = "dark",
   onComplete,
+  onSessionStart,
+  onSessionAbandon,
   sessionNoteCount = 0,
   onOpenSessionNotes,
   streakMinimumMinutes = 30,
@@ -98,7 +108,18 @@ export default function Timer({
   actionLabel: string;
   theme: TimerTheme;
   appearance?: "dark" | "light";
-  onComplete: (note: string, minutesSpent: number) => Promise<void> | void;
+  onComplete: (
+    note: string,
+    minutesSpent: number,
+    sessionContext?: TimerSessionContext,
+  ) => Promise<void> | void;
+  onSessionStart?: (context: TimerSessionContext) => Promise<void> | void;
+  onSessionAbandon?: (
+    context: TimerSessionContext & {
+      elapsedMinutes: number;
+      abandonReason: "reset" | "route_change" | "component_unmount" | "unknown";
+    },
+  ) => Promise<void> | void;
   sessionNoteCount?: number;
   onOpenSessionNotes?: () => void;
   streakMinimumMinutes?: number;
@@ -118,6 +139,7 @@ export default function Timer({
   const [entryModeLabel, setEntryModeLabel] = useState<string | null>(null);
   const intervalRef = useRef<number | null>(null);
   const entryTimeoutRef = useRef<number | null>(null);
+  const sessionContextRef = useRef<TimerSessionContext | null>(null);
 
   const identityTheme = FOCUS_IDENTITIES[focusIdentity];
 
@@ -169,8 +191,16 @@ export default function Timer({
       if (entryTimeoutRef.current) {
         window.clearTimeout(entryTimeoutRef.current);
       }
+      const activeSession = sessionContextRef.current;
+      if (activeSession) {
+        void onSessionAbandon?.({
+          ...activeSession,
+          elapsedMinutes: calculateMinutesSpent(),
+          abandonReason: "component_unmount",
+        });
+      }
     };
-  }, []);
+  }, [onSessionAbandon, secondsElapsed, secondsLeft]);
 
   const displaySeconds = mode === "countdown" ? secondsLeft : secondsElapsed;
   const mm = Math.floor(displaySeconds / 60);
@@ -184,6 +214,15 @@ export default function Timer({
       : (secondsElapsed % 60) / 60;
 
   function reset() {
+    const activeSession = sessionContextRef.current;
+    if (activeSession && (running || done)) {
+      void onSessionAbandon?.({
+        ...activeSession,
+        elapsedMinutes: calculateMinutesSpent(),
+        abandonReason: "reset",
+      });
+    }
+
     setRunning(false);
     setDone(false);
     if (mode === "countdown") {
@@ -195,6 +234,7 @@ export default function Timer({
     setShowNotebookMenu(false);
     setShowTimerSettings(false);
     setNote("");
+    sessionContextRef.current = null;
   }
 
   function calculateMinutesSpent() {
@@ -208,7 +248,8 @@ export default function Timer({
     setSubmitting(true);
 
     try {
-      await onComplete(note.trim(), calculateMinutesSpent());
+      await onComplete(note.trim(), calculateMinutesSpent(), sessionContextRef.current ?? undefined);
+      sessionContextRef.current = null;
       reset();
     } finally {
       setSubmitting(false);
@@ -231,8 +272,27 @@ export default function Timer({
       window.clearTimeout(entryTimeoutRef.current);
     }
 
+    const existingSession = sessionContextRef.current;
+    const sessionContext =
+      existingSession && !done
+        ? existingSession
+        : ({
+            sessionId:
+              typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+                ? crypto.randomUUID()
+                : `${Date.now()}`,
+            sessionType: mode === "countdown" ? "focus" : "stopwatch",
+            subjectMode: focusIdentity === "timer" ? "general" : focusIdentity,
+            targetMinutes: mode === "countdown" ? configuredMinutes : null,
+            interruptionCount: 0,
+          } satisfies TimerSessionContext);
+
+    sessionContextRef.current = sessionContext;
     setEntryModeLabel(identityTheme.entryLabel);
     setRunning(true);
+    if (!existingSession || done) {
+      void onSessionStart?.(sessionContext);
+    }
     entryTimeoutRef.current = window.setTimeout(() => {
       setEntryModeLabel(null);
       entryTimeoutRef.current = null;
@@ -383,10 +443,21 @@ export default function Timer({
         <div className={styles.faceDock}>
           {!running && !done ? (
             <button onClick={startSession} className={styles.faceDockPrimaryButton}>
-              Start
+              {sessionContextRef.current ? "Resume" : "Start"}
             </button>
           ) : running ? (
-            <button onClick={() => setRunning(false)} className={styles.faceDockPrimaryButton}>
+            <button
+              onClick={() => {
+                setRunning(false);
+                if (sessionContextRef.current) {
+                  sessionContextRef.current = {
+                    ...sessionContextRef.current,
+                    interruptionCount: sessionContextRef.current.interruptionCount + 1,
+                  };
+                }
+              }}
+              className={styles.faceDockPrimaryButton}
+            >
               Pause
             </button>
           ) : (

@@ -13,9 +13,18 @@ import {
 } from "firebase/auth";
 
 import SenseiFigure, { type SenseiVariant } from "@/components/SenseiFigure";
-import Timer from "@/components/Timer";
+import Timer, { type TimerSessionContext } from "@/components/Timer";
 import WhelmEmote from "@/components/WhelmEmote";
 import WhelmRitualScene from "@/components/WhelmRitualScene";
+import {
+  trackAppOpened,
+  trackSessionAbandoned,
+  trackSessionCompleted,
+  trackSessionStarted,
+  trackStreakUpdated,
+  trackTaskCompleted,
+  trackTaskCreated,
+} from "@/lib/analytics-tracker";
 import { auth } from "@/lib/firebase";
 import {
   loadNotes,
@@ -44,6 +53,7 @@ import {
   buildSenseiCompanionState,
   type SenseiCompanionStyle,
 } from "@/lib/sensei-companion";
+import { evaluateSessionQuality } from "@/lib/session-quality";
 import { getStreakBandanaTier, STREAK_BANDANA_TIERS } from "@/lib/streak-bandanas";
 import type { WhelmEmoteId } from "@/lib/whelm-emotes";
 import styles from "./page.module.css";
@@ -656,6 +666,30 @@ function inferCategoryFromText(text: string): NoteCategory {
   if (schoolKeywords.some((keyword) => value.includes(keyword))) return "school";
   if (workKeywords.some((keyword) => value.includes(keyword))) return "work";
   return "personal";
+}
+
+function analyticsSubjectModeFromText(text: string): "language" | "school" | "work" | "general" {
+  const lowered = text.toLowerCase();
+
+  if (
+    [
+      "language",
+      "spanish",
+      "french",
+      "japanese",
+      "korean",
+      "mandarin",
+      "vocabulary",
+      "grammar",
+    ].some((keyword) => lowered.includes(keyword))
+  ) {
+    return "language";
+  }
+
+  const category = inferCategoryFromText(text);
+  if (category === "school") return "school";
+  if (category === "work") return "work";
+  return "general";
 }
 
 type NavIconKey = AppTab | "more";
@@ -1326,6 +1360,7 @@ export default function HomePage() {
   const notesStartRef = useRef<HTMLElement | null>(null);
   const notesRecentRef = useRef<HTMLElement | null>(null);
   const notesEditorRef = useRef<HTMLElement | null>(null);
+  const appOpenTrackedRef = useRef<string | null>(null);
   const mobileDayTimelineScrollRef = useRef<HTMLDivElement | null>(null);
   const activatedCalendarEntryTimeoutRef = useRef<number | null>(null);
   const calendarHoverPreviewTimeoutRef = useRef<number | null>(null);
@@ -1913,6 +1948,7 @@ export default function HomePage() {
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (nextUser) => {
       if (!nextUser) {
+        appOpenTrackedRef.current = null;
         setUser(null);
         setSessions([]);
         setNotes([]);
@@ -1928,6 +1964,15 @@ export default function HomePage() {
       }
 
       setUser(nextUser);
+      if (appOpenTrackedRef.current !== nextUser.uid) {
+        appOpenTrackedRef.current = nextUser.uid;
+        fireAndForgetTracking(
+          trackAppOpened(nextUser, {
+            screenName: "today",
+            launchSource: "cold_start",
+          }),
+        );
+      }
       // Unblock the shell immediately after auth; sync data in the background.
       setAuthChecked(true);
       void Promise.all([refreshSessions(nextUser.uid), refreshNotes(nextUser.uid)]).catch(() => {
@@ -2118,9 +2163,85 @@ export default function HomePage() {
     setNotesSyncMessage(result.message ?? "");
   }
 
-  async function completeSession(note: string, minutesSpent: number) {
+  function fireAndForgetTracking(work: Promise<unknown>) {
+    void work.catch(() => {
+      // Analytics must not block the product workflow.
+    });
+  }
+
+  function trackStreakChange(
+    previousLength: number,
+    nextLength: number,
+    source: "session_completed" | "task_completed" | "sick_day_save",
+    linkedSessionId?: string | null,
+    streakDate = dayKeyLocal(new Date()),
+  ) {
+    if (!user || previousLength === nextLength) return;
+
+    fireAndForgetTracking(
+      trackStreakUpdated(user, {
+        streakDate,
+        previousLength,
+        newLength: nextLength,
+        updateSource: source,
+        linkedSessionId: linkedSessionId ?? null,
+      }),
+    );
+  }
+
+  async function handleSessionStarted(context: TimerSessionContext) {
     if (!user) return;
 
+    fireAndForgetTracking(
+      trackSessionStarted(user, {
+        sessionId: context.sessionId,
+        sessionType: context.sessionType,
+        subjectMode: context.subjectMode,
+        targetMinutes: context.targetMinutes,
+      }),
+    );
+  }
+
+  async function handleSessionAbandoned(
+    context: TimerSessionContext & {
+      elapsedMinutes: number;
+      abandonReason: "reset" | "route_change" | "component_unmount" | "unknown";
+    },
+  ) {
+    if (!user) return;
+
+    const quality = evaluateSessionQuality({
+      plannedDurationMinutes: context.targetMinutes,
+      actualDurationMinutes: context.elapsedMinutes,
+      completionStatus: "abandoned",
+      earlyExit: true,
+      interruptionCount: context.interruptionCount,
+      tasksCompletedCount: 0,
+    });
+
+    fireAndForgetTracking(
+      trackSessionAbandoned(user, {
+        sessionId: context.sessionId,
+        sessionType: context.sessionType,
+        subjectMode: context.subjectMode,
+        elapsedMinutes: context.elapsedMinutes,
+        abandonReason: context.abandonReason,
+        plannedDurationMinutes: context.targetMinutes,
+        interruptionCount: context.interruptionCount,
+        qualityScore: quality.score,
+        qualityRating: quality.rating,
+      }),
+    );
+  }
+
+  async function completeSession(
+    note: string,
+    minutesSpent: number,
+    sessionContext?: TimerSessionContext,
+  ) {
+    if (!user) return;
+
+    const previousStreak = computeStreak(sessions, protectedStreakDateKeys);
     const now = new Date().toISOString();
     const session: SessionDoc = {
       uid: user.uid,
@@ -2133,6 +2254,40 @@ export default function HomePage() {
 
     const nextSessions = await saveSession(user, session);
     setSessions(nextSessions);
+    if (sessionContext) {
+      const quality = evaluateSessionQuality({
+        plannedDurationMinutes: sessionContext.targetMinutes,
+        actualDurationMinutes: minutesSpent,
+        completionStatus: "completed",
+        earlyExit:
+          sessionContext.targetMinutes !== null && minutesSpent < sessionContext.targetMinutes,
+        interruptionCount: sessionContext.interruptionCount,
+        tasksCompletedCount: 0,
+      });
+      fireAndForgetTracking(
+        trackSessionCompleted(user, {
+          sessionId: sessionContext.sessionId,
+          sessionType: sessionContext.sessionType,
+          subjectMode: sessionContext.subjectMode,
+          durationMinutes: minutesSpent,
+          plannedDurationMinutes: sessionContext.targetMinutes,
+          completionStatus: "completed",
+          earlyExit:
+            sessionContext.targetMinutes !== null && minutesSpent < sessionContext.targetMinutes,
+          interruptionCount: sessionContext.interruptionCount,
+          tasksCompletedCount: 0,
+          qualityScore: quality.score,
+          qualityRating: quality.rating,
+          noteAttached: Boolean(note.trim()),
+        }),
+      );
+    }
+    trackStreakChange(
+      previousStreak,
+      computeStreak(nextSessions, protectedStreakDateKeys),
+      "session_completed",
+      sessionContext?.sessionId ?? null,
+    );
     setSenseiReaction(
       buildSenseiReaction({
         source: "timer",
@@ -2662,6 +2817,7 @@ export default function HomePage() {
   function claimSickDaySave() {
     if (!user || !sickDaySaveEligible) return;
 
+    const previousStreak = computeStreak(sessions, protectedStreakDateKeys);
     const nextSave: SickDaySave = {
       id: typeof crypto !== "undefined" ? crypto.randomUUID() : `${Date.now()}`,
       dateKey: yesterdayKey,
@@ -2673,6 +2829,13 @@ export default function HomePage() {
     );
     setSickDaySaves(nextSaves);
     saveSickDaySaves(user.uid, nextSaves);
+    trackStreakChange(
+      previousStreak,
+      computeStreak(sessions, nextSaves.map((save) => save.dateKey)),
+      "sick_day_save",
+      null,
+      yesterdayKey,
+    );
     setSickDaySavePromptOpen(false);
     setActiveTab("streaks");
   }
@@ -3324,6 +3487,15 @@ export default function HomePage() {
     const updated = [...plannedBlocks, next];
     setPlannedBlocks(updated);
     savePlannedBlocks(user.uid, updated);
+    fireAndForgetTracking(
+      trackTaskCreated(user, {
+        taskId: next.id,
+        scheduledDate: next.dateKey,
+        durationMinutes: next.durationMinutes,
+        subjectMode: analyticsSubjectModeFromText(`${next.title} ${next.note}`),
+        source: "manual",
+      }),
+    );
     setPlanTitle("");
     setPlanNote("");
     setPlanNoteExpanded(false);
@@ -3407,6 +3579,7 @@ export default function HomePage() {
   async function completePlannedBlock(item: PlannedBlock) {
     if (!user) return;
 
+    const previousStreak = computeStreak(sessions, protectedStreakDateKeys);
     const localDateTime = new Date(`${item.dateKey}T${item.timeOfDay}:00`);
     const completedAtISO = Number.isNaN(localDateTime.getTime())
       ? new Date().toISOString()
@@ -3423,8 +3596,53 @@ export default function HomePage() {
       noteSavedAtISO: new Date().toISOString(),
     };
 
+    const linkedSessionId =
+      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `${Date.now()}`;
     const nextSessions = await saveSession(user, session);
     setSessions(nextSessions);
+    const quality = evaluateSessionQuality({
+      plannedDurationMinutes: item.durationMinutes,
+      actualDurationMinutes: item.durationMinutes,
+      completionStatus: "completed",
+      earlyExit: false,
+      interruptionCount: 0,
+      tasksCompletedCount: 1,
+    });
+    fireAndForgetTracking(
+      trackSessionCompleted(user, {
+        sessionId: linkedSessionId,
+        sessionType: "focus",
+        subjectMode: analyticsSubjectModeFromText(`${item.title} ${item.note}`),
+        durationMinutes: item.durationMinutes,
+        plannedDurationMinutes: item.durationMinutes,
+        completionStatus: "completed",
+        earlyExit: false,
+        interruptionCount: 0,
+        tasksCompletedCount: 1,
+        qualityScore: quality.score,
+        qualityRating: quality.rating,
+        noteAttached: Boolean(item.note.trim()),
+        completedFromTaskId: item.id,
+      }),
+    );
+    fireAndForgetTracking(
+      trackTaskCompleted(user, {
+        taskId: item.id,
+        scheduledDate: item.dateKey,
+        durationMinutes: item.durationMinutes,
+        subjectMode: analyticsSubjectModeFromText(`${item.title} ${item.note}`),
+        linkedSessionId,
+      }),
+    );
+    trackStreakChange(
+      previousStreak,
+      computeStreak(nextSessions, protectedStreakDateKeys),
+      "task_completed",
+      linkedSessionId,
+      item.dateKey,
+    );
     setSenseiReaction(
       buildSenseiReaction({
         source: "plan",
@@ -3529,6 +3747,17 @@ export default function HomePage() {
     const updated = [...plannedBlocks, ...newBlocks];
     setPlannedBlocks(updated);
     savePlannedBlocks(user.uid, updated);
+    newBlocks.forEach((block) => {
+      fireAndForgetTracking(
+        trackTaskCreated(user, {
+          taskId: block.id,
+          scheduledDate: block.dateKey,
+          durationMinutes: block.durationMinutes,
+          subjectMode: analyticsSubjectModeFromText(`${block.title} ${block.note}`),
+          source: "daily_ritual",
+        }),
+      );
+    });
     setDailyPlanningStatus("");
     setDailyPlanningOpen(false);
     setActiveTab("calendar");
@@ -3783,7 +4012,11 @@ export default function HomePage() {
                     sessionNoteCount={todaySessionNoteCount}
                     onOpenSessionNotes={() => setActiveTab("history")}
                     streakMinimumMinutes={30}
-                    onComplete={(note, minutesSpent) => completeSession(note, minutesSpent)}
+                    onSessionStart={handleSessionStarted}
+                    onSessionAbandon={handleSessionAbandoned}
+                    onComplete={(note, minutesSpent, sessionContext) =>
+                      completeSession(note, minutesSpent, sessionContext)
+                    }
                   />
                 </div>
               </section>}
@@ -3898,7 +4131,11 @@ export default function HomePage() {
                     sessionNoteCount={todaySessionNoteCount}
                     onOpenSessionNotes={() => setActiveTab("history")}
                     streakMinimumMinutes={30}
-                    onComplete={(note, minutesSpent) => completeSession(note, minutesSpent)}
+                    onSessionStart={handleSessionStarted}
+                    onSessionAbandon={handleSessionAbandoned}
+                    onComplete={(note, minutesSpent, sessionContext) =>
+                      completeSession(note, minutesSpent, sessionContext)
+                    }
                   />
 
                   <article className={styles.card}>
