@@ -4888,10 +4888,10 @@
 
 .dailyRitualCornerIcon {
   position: absolute;
-  top: 2px;
-  right: -2px;
-  width: 134px;
-  height: 134px;
+  top: 8px;
+  right: 4px;
+  width: 112px;
+  height: 112px;
   pointer-events: none;
   z-index: 1;
 }
@@ -4908,11 +4908,11 @@
 
 .dailyRitualCornerIconImage {
   animation: dailyRitualFloat 3.8s ease-in-out infinite;
-  filter: drop-shadow(0 10px 16px rgba(19, 27, 52, 0.14));
+  filter: drop-shadow(0 8px 14px rgba(19, 27, 52, 0.12));
 }
 
 .dailyRitualModal .feedbackHeader {
-  padding-right: 132px;
+  padding-right: 116px;
 }
 
 .dailyRitualCallout {
@@ -4920,8 +4920,8 @@
 }
 
 .dailyRitualFooter {
-  margin-top: 12px;
-  padding-top: 12px;
+  margin-top: 10px;
+  padding-top: 10px;
   border-top: 1px solid rgba(123, 138, 184, 0.14);
   position: sticky;
   bottom: 0;
@@ -4932,14 +4932,14 @@
 
 .dailyRitualFooterClose {
   justify-self: start;
-  min-width: 112px;
+  min-width: 108px;
 }
 
 .dailyRitualSubmit {
   position: relative;
   width: 100%;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 124px;
+  grid-template-columns: minmax(0, 1fr) 136px;
   align-items: center;
   overflow: hidden;
   padding: 0;
@@ -4952,17 +4952,21 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 12px 20px 12px 28px;
+  padding: 12px 16px 12px 24px;
 }
 
 .dailyRitualSubmitLabel {
   white-space: nowrap;
+  transform: translateX(4px);
 }
 
 .dailyRitualSubmitBandanaPanel {
   position: relative;
   min-height: 100%;
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
 }
 
 .dailyRitualSubmitBandanaWrap {
@@ -4976,8 +4980,10 @@
 }
 
 .dailyRitualSubmitBandana {
-  position: absolute;
-  inset: -6px -20px -6px -8px;
+  position: relative;
+  width: 168px;
+  height: 72px;
+  margin-right: -18px;
 }
 
 .dailyLockOverlay {
@@ -5265,14 +5271,14 @@
   }
 
   .dailyRitualCornerIcon {
-    top: 0;
-    right: -6px;
-    width: 122px;
-    height: 122px;
+    top: 6px;
+    right: 2px;
+    width: 96px;
+    height: 96px;
   }
 
   .dailyRitualModal .feedbackHeader {
-    padding-right: 118px;
+    padding-right: 94px;
   }
 
   .dailyRitualFooter {
@@ -5292,15 +5298,17 @@
 
   .dailyRitualSubmit {
     order: 2;
-    grid-template-columns: minmax(0, 1fr) 114px;
+    grid-template-columns: minmax(0, 1fr) 126px;
   }
 
   .dailyRitualSubmitLabelWrap {
-    padding: 12px 16px 12px 22px;
+    padding: 12px 14px 12px 20px;
   }
 
   .dailyRitualSubmitBandana {
-    inset: -4px -18px -4px -6px;
+    width: 150px;
+    height: 64px;
+    margin-right: -18px;
   }
 
   .mobileJumpRow {
