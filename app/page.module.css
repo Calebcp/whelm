@@ -4760,7 +4760,7 @@
 }
 
 .themeLight .dailyRitualCornerIconImage {
-  filter: drop-shadow(0 10px 16px rgba(89, 102, 145, 0.14));
+  filter: drop-shadow(0 8px 14px rgba(89, 102, 145, 0.12));
 }
 
 .themeLight .dailyRitualFooter {
@@ -4888,24 +4888,23 @@
 
 .dailyRitualCornerIcon {
   position: absolute;
-  top: 18px;
-  right: 18px;
-  width: 68px;
-  height: 68px;
+  top: 12px;
+  right: 12px;
+  width: 102px;
+  height: 102px;
   pointer-events: none;
   z-index: 1;
+  overflow: hidden;
 }
 
 .dailyRitualCornerIconImage {
-  height: 100%;
-  object-fit: contain;
   width: 100%;
   animation: dailyRitualFloat 3.8s ease-in-out infinite;
-  filter: drop-shadow(0 12px 18px rgba(19, 27, 52, 0.16));
+  filter: drop-shadow(0 10px 16px rgba(19, 27, 52, 0.14));
 }
 
 .dailyRitualModal .feedbackHeader {
-  padding-right: 84px;
+  padding-right: 112px;
 }
 
 .dailyRitualCallout {
@@ -4942,9 +4941,9 @@
 }
 
 .dailyRitualSubmitBandana {
-  width: 30px;
-  height: 16px;
-  flex: 0 0 30px;
+  width: 56px;
+  height: 28px;
+  flex: 0 0 56px;
   background: var(--daily-ritual-bandana, #f2c84b);
   -webkit-mask-image: url("/streak/whitebandana.png");
   mask-image: url("/streak/whitebandana.png");
@@ -4954,7 +4953,7 @@
   mask-position: center;
   -webkit-mask-size: contain;
   mask-size: contain;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1);
 }
 
 .dailyLockOverlay {
@@ -5242,14 +5241,14 @@
   }
 
   .dailyRitualCornerIcon {
-    top: 16px;
-    right: 16px;
-    width: 58px;
-    height: 58px;
+    top: 10px;
+    right: 8px;
+    width: 92px;
+    height: 92px;
   }
 
   .dailyRitualModal .feedbackHeader {
-    padding-right: 72px;
+    padding-right: 96px;
   }
 
   .dailyRitualFooter {
@@ -5269,7 +5268,7 @@
 
   .dailyRitualSubmit {
     order: 2;
-    gap: 10px;
+    gap: 12px;
   }
 
   .mobileJumpRow {
