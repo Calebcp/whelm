@@ -4759,8 +4759,8 @@
   border-color: rgba(111, 122, 150, 0.14);
 }
 
-.themeLight .dailyRitualMascotFigure {
-  filter: drop-shadow(0 12px 18px rgba(89, 102, 145, 0.18));
+.themeLight .dailyRitualCornerIconImage {
+  filter: drop-shadow(0 10px 16px rgba(89, 102, 145, 0.14));
 }
 
 .themeLight .dailyRitualFooter {
@@ -4882,20 +4882,30 @@
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr) auto auto;
   gap: 0;
+  position: relative;
+  overflow: hidden;
 }
 
-.dailyRitualMascot {
-  flex: 0 0 auto;
-  width: 104px;
-  margin-top: -8px;
-  margin-right: -4px;
+.dailyRitualCornerIcon {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  width: 68px;
+  height: 68px;
   pointer-events: none;
+  z-index: 1;
 }
 
-.dailyRitualMascotFigure {
+.dailyRitualCornerIconImage {
+  height: 100%;
+  object-fit: contain;
   width: 100%;
   animation: dailyRitualFloat 3.8s ease-in-out infinite;
-  filter: drop-shadow(0 16px 24px rgba(19, 27, 52, 0.22));
+  filter: drop-shadow(0 12px 18px rgba(19, 27, 52, 0.16));
+}
+
+.dailyRitualModal .feedbackHeader {
+  padding-right: 84px;
 }
 
 .dailyRitualCallout {
@@ -4915,7 +4925,7 @@
 
 .dailyRitualFooterClose {
   justify-self: start;
-  min-width: 96px;
+  min-width: 112px;
 }
 
 .dailyRitualSubmit {
@@ -4932,8 +4942,19 @@
 }
 
 .dailyRitualSubmitBandana {
-  width: 34px;
-  flex: 0 0 34px;
+  width: 30px;
+  height: 16px;
+  flex: 0 0 30px;
+  background: var(--daily-ritual-bandana, #f2c84b);
+  -webkit-mask-image: url("/streak/whitebandana.png");
+  mask-image: url("/streak/whitebandana.png");
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12);
 }
 
 .dailyLockOverlay {
@@ -5220,29 +5241,34 @@
     min-height: 56px;
   }
 
-  .dailyRitualMascot {
-    width: 88px;
-    margin-top: -2px;
-    margin-right: 0;
+  .dailyRitualCornerIcon {
+    top: 16px;
+    right: 16px;
+    width: 58px;
+    height: 58px;
+  }
+
+  .dailyRitualModal .feedbackHeader {
+    padding-right: 72px;
   }
 
   .dailyRitualFooter {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(110px, 0.34fr) minmax(0, 1fr);
+    gap: 10px;
   }
 
   .dailyRitualFooterClose,
   .dailyRitualFooter .feedbackSubmit {
-    width: 100%;
     padding: 12px 14px;
   }
 
   .dailyRitualFooterClose {
     justify-self: stretch;
-    order: 2;
+    order: 1;
   }
 
   .dailyRitualSubmit {
-    order: 1;
+    order: 2;
     gap: 10px;
   }
 

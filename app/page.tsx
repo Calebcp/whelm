@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { useRive } from "@rive-app/react-canvas";
 import {
@@ -1070,6 +1071,15 @@ const MOBILE_MORE_TABS: AppTab[] = ["streaks", "history", "reports", "settings"]
 
 const INTRO_SPLASH_MIN_MS = 1500;
 const INTRO_SPLASH_MAX_MS = 2200;
+const STREAK_BANDANA_COLOR_MAP: Record<string, string> = {
+  yellow: "#f2c84b",
+  red: "#db5f5f",
+  green: "#47a86d",
+  purple: "#7466db",
+  blue: "#4d80d9",
+  black: "#273142",
+  white: "#f8fbff",
+};
 
 function StreakBandana({
   streakDays,
@@ -7141,13 +7151,20 @@ export default function HomePage() {
             className={`${styles.feedbackModal} ${styles.dailyRitualModal}`}
             onClick={(event) => event.stopPropagation()}
           >
+            <div className={styles.dailyRitualCornerIcon} aria-hidden="true">
+              <Image
+                src="/icon.png"
+                alt=""
+                width={76}
+                height={76}
+                className={styles.dailyRitualCornerIconImage}
+                priority
+              />
+            </div>
             <div className={styles.feedbackHeader}>
               <div>
                 <p className={styles.sectionLabel}>Daily Entry Ritual</p>
                 <h2 className={styles.feedbackTitle}>Claim today before it claims you.</h2>
-              </div>
-              <div className={styles.dailyRitualMascot} aria-hidden="true">
-                <WhelmEmote emoteId="whelm.wave" size="inline" align="right" className={styles.dailyRitualMascotFigure} />
               </div>
             </div>
             <p className={styles.feedbackMeta}>
@@ -7247,9 +7264,15 @@ export default function HomePage() {
                 onClick={submitDailyRitual}
               >
                 <span className={styles.dailyRitualSubmitLabel}>Submit 3 blocks</span>
-                <StreakBandana
-                  streakDays={Math.max(1, displayStreak)}
+                <span
                   className={styles.dailyRitualSubmitBandana}
+                  style={
+                    {
+                      "--daily-ritual-bandana":
+                        STREAK_BANDANA_COLOR_MAP[streakBandanaTier?.color ?? "yellow"] ?? "#f2c84b",
+                    } as CSSProperties
+                  }
+                  aria-hidden="true"
                 />
               </button>
             </div>
