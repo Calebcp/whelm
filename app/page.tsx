@@ -995,6 +995,7 @@ type BackgroundSkinSetting = {
   dim: number;
   surfaceOpacity: number;
   blur: number;
+  imageFit: "fill" | "fit";
 };
 
 const DEFAULT_BACKGROUND_SKIN: BackgroundSkinSetting = {
@@ -1002,6 +1003,7 @@ const DEFAULT_BACKGROUND_SKIN: BackgroundSkinSetting = {
   dim: 0.58,
   surfaceOpacity: 0.72,
   blur: 18,
+  imageFit: "fit",
 };
 
 function getXpMultiplierForStreak(streakLength: number) {
@@ -1601,13 +1603,14 @@ function loadBackgroundSkin(uid: string): BackgroundSkinSetting {
     if (!raw) return DEFAULT_BACKGROUND_SKIN;
     const parsed = JSON.parse(raw) as Partial<BackgroundSkinSetting>;
     const mode = parsed.mode === "solid" ? "solid" : "glass";
-    const dim = Math.min(0.82, Math.max(0.2, Number(parsed.dim) || DEFAULT_BACKGROUND_SKIN.dim));
+    const dim = Math.min(0.96, Math.max(0.02, Number(parsed.dim) || DEFAULT_BACKGROUND_SKIN.dim));
     const surfaceOpacity = Math.min(
-      0.92,
-      Math.max(0.38, Number(parsed.surfaceOpacity) || DEFAULT_BACKGROUND_SKIN.surfaceOpacity),
+      0.98,
+      Math.max(0.08, Number(parsed.surfaceOpacity) || DEFAULT_BACKGROUND_SKIN.surfaceOpacity),
     );
-    const blur = Math.min(28, Math.max(0, Number(parsed.blur) || DEFAULT_BACKGROUND_SKIN.blur));
-    return { mode, dim, surfaceOpacity, blur };
+    const blur = Math.min(40, Math.max(0, Number(parsed.blur) || DEFAULT_BACKGROUND_SKIN.blur));
+    const imageFit = parsed.imageFit === "fill" ? "fill" : "fit";
+    return { mode, dim, surfaceOpacity, blur, imageFit };
   } catch {
     return DEFAULT_BACKGROUND_SKIN;
   }
@@ -1643,12 +1646,13 @@ function getPageShellBackgroundStyle(
   }
 
   if (!setting.value) return undefined;
+  const uploadOverlayStart = skin.mode === "glass" ? skin.dim : 0.68;
+  const uploadOverlayEnd = skin.mode === "glass" ? Math.min(0.98, skin.dim + 0.16) : 0.86;
   return {
-    backgroundImage: `linear-gradient(180deg, rgba(7, 9, 18, ${skin.mode === "glass" ? skin.dim : 0.68}), rgba(14, 18, 34, ${
-      skin.mode === "glass" ? Math.min(0.94, skin.dim + 0.18) : 0.86
-    })), url("${setting.value}")`,
-    backgroundSize: "cover",
-    backgroundPosition: "center",
+    backgroundImage: `linear-gradient(180deg, rgba(7, 9, 18, ${uploadOverlayStart}), rgba(14, 18, 34, ${uploadOverlayEnd})), url("${setting.value}")`,
+    backgroundSize: skin.imageFit === "fit" ? "contain" : "cover",
+    backgroundPosition: skin.imageFit === "fit" ? "center top" : "center",
+    backgroundRepeat: "no-repeat",
     backgroundAttachment: "fixed",
     backgroundColor: themeMode === "light" ? "#f6f2eb" : "#0d1121",
   };
@@ -5125,6 +5129,9 @@ export default function HomePage() {
     ...(backgroundSkinActive
       ? {
           ["--glass-surface-opacity" as const]: String(backgroundSkin.surfaceOpacity),
+          ["--glass-surface-opacity-strong" as const]: String(
+            Math.min(0.99, backgroundSkin.surfaceOpacity + 0.08),
+          ),
           ["--glass-blur" as const]: `${backgroundSkin.blur}px`,
           ["--glass-border-alpha" as const]: themeMode === "light" ? "0.18" : "0.24",
           ["--glass-highlight-alpha" as const]: themeMode === "light" ? "0.5" : "0.08",
@@ -8687,13 +8694,41 @@ export default function HomePage() {
                       </div>
                       {backgroundSkin.mode === "glass" ? (
                         <div className={styles.backgroundSkinControls}>
+                          {appBackgroundSetting.kind === "upload" ? (
+                            <div className={styles.companionStyleRow}>
+                              {(
+                                [
+                                  { key: "fit", label: "Fit image" },
+                                  { key: "fill", label: "Fill screen" },
+                                ] as const
+                              ).map((option) => (
+                                <button
+                                  key={option.key}
+                                  type="button"
+                                  className={`${styles.companionStyleButton} ${
+                                    backgroundSkin.imageFit === option.key
+                                      ? styles.companionStyleButtonActive
+                                      : ""
+                                  }`}
+                                  onClick={() =>
+                                    setBackgroundSkin((current) => ({
+                                      ...current,
+                                      imageFit: option.key,
+                                    }))
+                                  }
+                                >
+                                  {option.label}
+                                </button>
+                              ))}
+                            </div>
+                          ) : null}
                           <label className={styles.backgroundSkinControl}>
-                            <span>Background visibility</span>
+                            <span>Background prominence</span>
                             <strong>{Math.round((1 - backgroundSkin.dim) * 100)}%</strong>
                             <input
                               type="range"
-                              min="20"
-                              max="80"
+                              min="2"
+                              max="96"
                               step="1"
                               value={Math.round(backgroundSkin.dim * 100)}
                               onChange={(event) =>
@@ -8705,12 +8740,12 @@ export default function HomePage() {
                             />
                           </label>
                           <label className={styles.backgroundSkinControl}>
-                            <span>Surface opacity</span>
+                            <span>App surface opacity</span>
                             <strong>{Math.round(backgroundSkin.surfaceOpacity * 100)}%</strong>
                             <input
                               type="range"
-                              min="38"
-                              max="92"
+                              min="8"
+                              max="98"
                               step="1"
                               value={Math.round(backgroundSkin.surfaceOpacity * 100)}
                               onChange={(event) =>
@@ -8727,7 +8762,7 @@ export default function HomePage() {
                             <input
                               type="range"
                               min="0"
-                              max="28"
+                              max="40"
                               step="1"
                               value={backgroundSkin.blur}
                               onChange={(event) =>

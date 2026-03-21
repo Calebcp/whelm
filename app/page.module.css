@@ -4917,7 +4917,7 @@
 .themeDark.pageShellGlass .mobileRecentNote,
 .themeDark.pageShellGlass .mobileBlockItem,
 .themeDark.pageShellGlass .mobileSummaryItem {
-  background: rgba(19, 26, 46, calc(var(--glass-surface-opacity) + 0.08));
+  background: rgba(19, 26, 46, var(--glass-surface-opacity-strong));
   border-color: rgba(188, 205, 255, calc(var(--glass-border-alpha) - 0.04));
   backdrop-filter: blur(calc(var(--glass-blur) * 0.75)) saturate(130%);
 }
@@ -5035,7 +5035,7 @@
 .themeLight.pageShellGlass .mobileRecentNote,
 .themeLight.pageShellGlass .mobileBlockItem,
 .themeLight.pageShellGlass .mobileSummaryItem {
-  background: rgba(255, 249, 241, calc(var(--glass-surface-opacity) + 0.08));
+  background: rgba(255, 249, 241, var(--glass-surface-opacity-strong));
   border-color: rgba(111, 122, 150, calc(var(--glass-border-alpha) - 0.03));
   backdrop-filter: blur(calc(var(--glass-blur) * 0.75)) saturate(130%);
 }
