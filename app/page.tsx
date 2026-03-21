@@ -8017,25 +8017,6 @@ export default function HomePage() {
                     </button>
                   </div>
                 </div>
-                <div className={styles.streakCalendarSummary}>
-                  <div className={styles.streakCalendarPanel}>
-                    <span>Current streak</span>
-                    <strong>{displayStreak} day{displayStreak === 1 ? "" : "s"}</strong>
-                    <small>{renderBandanaBadgeLabel(streakBandanaTier?.label)}</small>
-                  </div>
-                  <div className={styles.streakCalendarPanel}>
-                    <span>Today</span>
-                    <strong>{streakProtectedToday ? "Protected" : "In progress"}</strong>
-                    <small>{streakStatusLine}</small>
-                  </div>
-                  <div className={styles.streakCalendarPanel}>
-                    <span>Bandana power</span>
-                    <strong>{currentXpMultiplierLabel} XP pace</strong>
-                    <small>
-                      {bandanaAspiration.title}. {bandanaAspiration.body}
-                    </small>
-                  </div>
-                </div>
                 <div className={styles.streakWeekHeader}>
                   <span>S</span>
                   <span>M</span>

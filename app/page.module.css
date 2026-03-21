@@ -2107,38 +2107,6 @@
   color: #eef3ff;
 }
 
-.streakCalendarSummary {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.streakCalendarPanel {
-  display: grid;
-  gap: 6px;
-  padding: 12px 14px;
-  border-radius: 18px;
-  border: 1px solid rgba(123, 138, 184, 0.16);
-  background: rgba(9, 16, 31, 0.64);
-}
-
-.streakCalendarPanel span {
-  font-size: 0.72rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: #96a7c8;
-}
-
-.streakCalendarPanel strong {
-  font-size: 1rem;
-  color: #f3f6ff;
-}
-
-.streakCalendarPanel small {
-  color: #c4d0ea;
-  line-height: 1.45;
-}
-
 .streakWeekHeader {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
@@ -4273,10 +4241,10 @@
 }
 
 .mobileStreakJump {
-  border: 1px solid rgba(137, 220, 174, 0.34);
+  border: 1px solid rgba(164, 255, 198, 0.82);
   border-radius: 18px;
   background:
-    linear-gradient(135deg, rgba(27, 122, 80, 0.98), rgba(46, 155, 105, 0.96)),
+    linear-gradient(135deg, rgba(29, 138, 88, 0.98), rgba(55, 176, 116, 0.96)),
     #1d6f4f;
   color: #f4fff7;
   padding: 10px 13px;
@@ -4284,8 +4252,11 @@
   justify-items: start;
   gap: 2px;
   box-shadow:
-    0 0 0 1px rgba(178, 245, 202, 0.1),
-    0 12px 24px rgba(20, 84, 57, 0.22);
+    inset 0 0 0 1px rgba(232, 255, 239, 0.28),
+    0 0 0 2px rgba(82, 246, 137, 0.22),
+    0 0 22px rgba(86, 244, 142, 0.28),
+    0 14px 28px rgba(20, 84, 57, 0.28);
+  animation: mobileStreakPulse 2.6s ease-in-out infinite;
 }
 
 .mobileStreakJump strong {
@@ -4298,6 +4269,25 @@
   letter-spacing: 0.14em;
   text-transform: uppercase;
   opacity: 0.9;
+}
+
+@keyframes mobileStreakPulse {
+  0%,
+  100% {
+    box-shadow:
+      inset 0 0 0 1px rgba(232, 255, 239, 0.24),
+      0 0 0 2px rgba(82, 246, 137, 0.18),
+      0 0 18px rgba(86, 244, 142, 0.22),
+      0 14px 26px rgba(20, 84, 57, 0.24);
+  }
+
+  50% {
+    box-shadow:
+      inset 0 0 0 1px rgba(245, 255, 247, 0.4),
+      0 0 0 2px rgba(116, 255, 164, 0.3),
+      0 0 30px rgba(117, 255, 169, 0.38),
+      0 16px 30px rgba(20, 84, 57, 0.32);
+  }
 }
 
 .mobileSummaryHeader {
@@ -5520,13 +5510,15 @@
 }
 
 .themeLight .mobileStreakJump {
-  border-color: rgba(96, 165, 133, 0.28);
+  border-color: rgba(71, 189, 125, 0.7);
   background:
     linear-gradient(135deg, rgba(68, 155, 116, 0.96), rgba(88, 183, 138, 0.94)),
     #58b78a;
   color: #fafffc;
   box-shadow:
-    0 0 0 1px rgba(120, 191, 158, 0.1),
+    inset 0 0 0 1px rgba(240, 255, 245, 0.3),
+    0 0 0 2px rgba(91, 214, 144, 0.18),
+    0 0 18px rgba(91, 214, 144, 0.18),
     0 12px 22px rgba(87, 155, 122, 0.18);
 }
 
@@ -5646,18 +5638,15 @@
   color: #14532d;
 }
 
-.themeLight .streakCalendarPanel,
 .themeLight .streakCalendarFooter {
   border-color: rgba(125, 135, 160, 0.14);
   background: rgba(255, 255, 255, 0.78);
 }
 
-.themeLight .streakCalendarPanel span,
 .themeLight .streakCalendarFooterCopy span {
   color: #607089;
 }
 
-.themeLight .streakCalendarPanel strong,
 .themeLight .streakCalendarFooterCopy strong {
   color: #13243a;
 }
@@ -6529,8 +6518,7 @@
     padding: 16px;
   }
 
-  .streakRulesList,
-  .streakCalendarSummary {
+  .streakRulesList {
     grid-template-columns: 1fr;
   }
 
