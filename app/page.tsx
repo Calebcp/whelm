@@ -4788,9 +4788,12 @@ export default function HomePage() {
   const sickDaySaveCooldownUntil = recentSickSaveUsed
     ? addDays(latestSickSaveClaim as Date, 30)
     : null;
-  const rescuedRunDisplay =
-    !hasEarnedToday && yesterdaySave ? priorRunBeforeYesterday + 1 : 0;
-  const displayStreak = streak > 0 ? streak : rescuedRunDisplay;
+  const carriedRunThroughYesterday = computeStreakEndingAtDateKey(
+    [],
+    yesterdayKey,
+    streakQualifiedDateKeys,
+  );
+  const displayStreak = hasEarnedToday ? streak : carriedRunThroughYesterday;
   const streakBandanaTier = getStreakBandanaTier(displayStreak);
   const xpTierTheme = getStreakTierColorTheme(streakBandanaTier?.color);
   const xpDockStyle = {
