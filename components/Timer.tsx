@@ -3,6 +3,7 @@
 import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
 import styles from "./Timer.module.css";
+import WhelmEmote from "./WhelmEmote";
 
 type TimerTheme = {
   accent: string;
@@ -359,63 +360,72 @@ export default function Timer({
             Stopwatch
           </button>
         </div>
-
-        {mode === "countdown" && (
-          <label className={styles.minutesPicker}>
-            Min
-            <input
-              type="number"
-              min={1}
-              max={480}
-              value={configuredMinutes}
-              onChange={(event) => {
-                const next = Number(event.target.value);
-                if (Number.isFinite(next)) {
-                  setConfiguredMinutes(Math.min(480, Math.max(1, next)));
-                }
-              }}
-              disabled={running}
-            />
-          </label>
-        )}
-
-        <div className={styles.settingsWrap}>
-          <button
-            type="button"
-            className={styles.settingsButton}
-            onClick={() => setShowTimerSettings((current) => !current)}
-            disabled={running || submitting}
-          >
-            <span className={styles.settingsButtonLabel}>Timer settings</span>
-            <span className={styles.settingsButtonValue}>{identityTheme.label}</span>
-          </button>
-
-          {showTimerSettings && (
-            <div className={styles.settingsMenu}>
-              {(Object.entries(FOCUS_IDENTITIES) as Array<[FocusIdentity, (typeof FOCUS_IDENTITIES)[FocusIdentity]]>).map(
-                ([identityKey, identity]) => (
-                  <button
-                    key={identityKey}
-                    type="button"
-                    className={`${styles.settingsMenuButton} ${
-                      focusIdentity === identityKey ? styles.settingsMenuButtonActive : ""
-                    }`}
-                    onClick={() => {
-                      setFocusIdentity(identityKey);
-                      setShowTimerSettings(false);
-                    }}
-                  >
-                    <span>{identity.label}</span>
-                    {identity.descriptor ? <span>{identity.descriptor}</span> : null}
-                  </button>
-                ),
-              )}
-            </div>
-          )}
-        </div>
       </div>
 
       <div className={styles.timerFace} data-focus-mode={focusIdentity}>
+        <div className={styles.faceSettingsWrap}>
+          <button
+            type="button"
+            className={styles.faceSettingsButton}
+            onClick={() => setShowTimerSettings((current) => !current)}
+            disabled={running || submitting}
+            aria-label="Open timer settings"
+            aria-expanded={showTimerSettings}
+          >
+            <span />
+            <span />
+            <span />
+          </button>
+
+          {showTimerSettings && (
+            <div className={styles.faceSettingsMenu}>
+              {mode === "countdown" && (
+                <label className={styles.faceMinutesPicker}>
+                  <span>Minutes</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={480}
+                    value={configuredMinutes}
+                    onChange={(event) => {
+                      const next = Number(event.target.value);
+                      if (Number.isFinite(next)) {
+                        setConfiguredMinutes(Math.min(480, Math.max(1, next)));
+                      }
+                    }}
+                    disabled={running}
+                  />
+                </label>
+              )}
+
+              <div className={styles.faceIdentityGroup}>
+                <p className={styles.faceSettingsLabel}>Focus Mode</p>
+                <div className={styles.faceIdentityOptions}>
+                  {(
+                    Object.entries(FOCUS_IDENTITIES) as Array<
+                      [FocusIdentity, (typeof FOCUS_IDENTITIES)[FocusIdentity]]
+                    >
+                  ).map(([identityKey, identity]) => (
+                    <button
+                      key={identityKey}
+                      type="button"
+                      className={`${styles.settingsMenuButton} ${
+                        focusIdentity === identityKey ? styles.settingsMenuButtonActive : ""
+                      }`}
+                      onClick={() => {
+                        setFocusIdentity(identityKey);
+                        setShowTimerSettings(false);
+                      }}
+                    >
+                      <span>{identity.label}</span>
+                      {identity.descriptor ? <span>{identity.descriptor}</span> : null}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
         <div className={styles.faceAura} aria-hidden="true" />
         <div className={styles.faceGrid} aria-hidden="true">
           <span />
@@ -437,6 +447,9 @@ export default function Timer({
           <p className={styles.identityAnchor}>{identityTheme.entryLabel}</p>
           <div className={styles.time}>
             {String(mm).padStart(2, "0")}:{String(ss).padStart(2, "0")}
+          </div>
+          <div className={styles.faceWhelm}>
+            <WhelmEmote emoteId="whelm.timer" size="card" className={styles.faceWhelmFigure} />
           </div>
           <div className={styles.status}>{statusLabel}</div>
         </div>

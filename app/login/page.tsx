@@ -25,7 +25,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
-      if (user) router.push("/");
+      if (user) router.replace("/");
     });
 
     return () => unsub();
@@ -73,7 +73,7 @@ export default function LoginPage() {
         await signInWithEmailAndPassword(auth, trimmedEmail, password);
       }
 
-      router.push("/");
+      router.replace("/");
     } catch (error: unknown) {
       const message =
         error instanceof Error ? error.message : "Authentication failed.";

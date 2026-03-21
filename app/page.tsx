@@ -1959,7 +1959,7 @@ export default function HomePage() {
         setSelectedNoteId(null);
         setSelectedCalendarDate(null);
         setAuthChecked(true);
-        router.push("/login");
+        router.replace("/login");
         return;
       }
 
@@ -2674,7 +2674,7 @@ export default function HomePage() {
         await runDeletion();
       }
 
-      router.push("/login");
+      router.replace("/login");
     } catch (error: unknown) {
       const message =
         error instanceof Error ? error.message : "Failed to delete account.";

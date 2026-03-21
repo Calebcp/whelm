@@ -175,6 +175,7 @@
   background: rgba(15, 23, 42, 0.05);
   padding: 4px;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78);
+  min-width: 0;
 }
 
 .modeTab {
@@ -190,74 +191,6 @@
   background: linear-gradient(180deg, #ffffff, rgba(239, 246, 255, 0.96));
   color: var(--timer-accent-strong);
   box-shadow: 0 8px 18px rgba(16, 32, 51, 0.08);
-}
-
-.minutesPicker {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 8px 7px 10px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.78);
-  border: 1px solid rgba(15, 23, 42, 0.1);
-  color: #5f6f82;
-  font-size: 0.72rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.minutesPicker input {
-  width: 58px;
-  border: 0;
-  border-radius: 10px;
-  padding: 5px 8px;
-  background: rgba(219, 234, 254, 0.3);
-  color: #102033;
-}
-
-.settingsWrap {
-  position: relative;
-  flex: 0 0 auto;
-}
-
-.settingsButton {
-  min-width: 122px;
-  border: 1px solid rgba(123, 138, 184, 0.18);
-  border-radius: 16px;
-  padding: 8px 10px;
-  background: rgba(26, 31, 54, 0.84);
-  display: grid;
-  text-align: left;
-  gap: 1px;
-  box-shadow: inset 0 1px 0 rgba(155, 168, 218, 0.08);
-}
-
-.settingsButtonLabel {
-  font-size: 0.62rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: #9fb0db;
-}
-
-.settingsButtonValue {
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: #eef3ff;
-}
-
-.settingsMenu {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  z-index: 4;
-  width: min(220px, 64vw);
-  border-radius: 18px;
-  border: 1px solid rgba(123, 138, 184, 0.18);
-  background: rgba(18, 22, 40, 0.98);
-  box-shadow: 0 18px 40px rgba(3, 6, 18, 0.28);
-  padding: 8px;
-  display: grid;
-  gap: 6px;
 }
 
 .settingsMenuButton {
@@ -300,6 +233,84 @@
     radial-gradient(circle at 50% 42%, rgba(255, 255, 255, 0.98), rgba(232, 240, 251, 0.94)),
     linear-gradient(180deg, rgba(246, 250, 255, 0.98), rgba(234, 242, 251, 0.92));
   overflow: hidden;
+  padding: 24px 16px 84px;
+}
+
+.faceSettingsWrap {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 4;
+}
+
+.faceSettingsButton {
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgba(123, 138, 184, 0.2);
+  border-radius: 999px;
+  background: rgba(17, 23, 41, 0.74);
+  display: grid;
+  place-items: center;
+  gap: 3px;
+  box-shadow:
+    0 10px 26px rgba(3, 6, 18, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.faceSettingsButton span {
+  display: block;
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: #eef3ff;
+}
+
+.faceSettingsMenu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: min(236px, calc(100vw - 56px));
+  border-radius: 20px;
+  border: 1px solid rgba(123, 138, 184, 0.18);
+  background: rgba(18, 22, 40, 0.98);
+  box-shadow: 0 18px 40px rgba(3, 6, 18, 0.28);
+  padding: 10px;
+  display: grid;
+  gap: 10px;
+}
+
+.faceMinutesPicker {
+  display: grid;
+  gap: 7px;
+  color: #c4cee8;
+}
+
+.faceMinutesPicker span,
+.faceSettingsLabel {
+  margin: 0;
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #9fb0db;
+}
+
+.faceMinutesPicker input {
+  width: 100%;
+  border: 1px solid rgba(123, 138, 184, 0.18);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: rgba(52, 63, 107, 0.48);
+  color: #f2f6ff;
+}
+
+.faceIdentityGroup {
+  display: grid;
+  gap: 8px;
+}
+
+.faceIdentityOptions {
+  display: grid;
+  gap: 6px;
 }
 
 .faceDock {
@@ -554,6 +565,9 @@
   z-index: 1;
   display: grid;
   justify-items: center;
+  align-content: center;
+  width: min(100%, 260px);
+  padding-top: 10px;
 }
 
 .faceLabel {
@@ -565,7 +579,7 @@
 }
 
 .identityAnchor {
-  margin: 0 0 14px;
+  margin: 0 0 10px;
   font-size: 0.9rem;
   letter-spacing: 0.28em;
   text-transform: uppercase;
@@ -576,7 +590,7 @@
 }
 
 .time {
-  font-size: clamp(3.8rem, 11vw, 6rem);
+  font-size: clamp(3.2rem, 10vw, 5.5rem);
   font-weight: 800;
   line-height: 0.92;
   letter-spacing: -0.09em;
@@ -587,10 +601,33 @@
     0 16px 30px color-mix(in srgb, var(--timer-accent) 18%, transparent);
 }
 
+.faceWhelm {
+  width: min(54vw, 170px);
+  margin-top: 6px;
+}
+
+.faceWhelmFigure {
+  width: 100%;
+}
+
+.faceWhelmFigure :global(.figure) {
+  width: 100%;
+}
+
+.faceWhelmFigure :global(.shell) {
+  aspect-ratio: 0.92;
+}
+
+.faceWhelmFigure :global(.shell::before) {
+  inset: auto 18% 2% 18%;
+  height: 18px;
+  background: radial-gradient(circle, color-mix(in srgb, var(--timer-glow) 34%, transparent), transparent 72%);
+}
+
 .status {
-  margin-top: 12px;
-  font-size: 0.98rem;
-  max-width: 18ch;
+  margin-top: 8px;
+  font-size: 0.9rem;
+  max-width: 20ch;
   text-align: center;
   color: color-mix(in srgb, var(--timer-accent-soft) 72%, #9aa8c7);
 }
@@ -693,14 +730,15 @@
   }
 
   .timerFace {
-    min-height: 320px;
+    min-height: 340px;
+    padding: 22px 12px 80px;
   }
 
   .ringTrack,
   .ringProgress,
   .ringPulse,
   .faceHalo {
-    width: min(72vw, 236px);
+    width: min(74vw, 236px);
   }
 
   .notebookActions {
@@ -732,26 +770,73 @@
     justify-content: center;
   }
 
-  .minutesPicker {
-    justify-content: center;
-    align-self: flex-start;
-  }
-
-  .settingsWrap {
-    align-self: flex-start;
-  }
-
-  .settingsButton {
-    min-width: 112px;
-  }
-
-  .settingsMenu {
-    width: min(220px, 72vw);
-  }
-
   .identityAnchor {
     margin-bottom: 10px;
     font-size: 0.8rem;
+  }
+
+  .time {
+    font-size: clamp(2.8rem, 14vw, 4rem);
+  }
+
+  .faceWhelm {
+    width: min(48vw, 148px);
+  }
+
+  .status {
+    max-width: 17ch;
+    font-size: 0.82rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .card {
+    padding: 16px;
+    border-radius: 28px;
+  }
+
+  .modeTab {
+    padding: 8px 10px;
+    font-size: 0.75rem;
+  }
+
+  .timerFace {
+    min-height: 318px;
+    border-radius: 28px;
+    padding: 18px 10px 76px;
+  }
+
+  .ringTrack {
+    border-width: 16px;
+  }
+
+  .ringProgress {
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 16px), #000 calc(100% - 15px));
+    mask: radial-gradient(farthest-side, transparent calc(100% - 16px), #000 calc(100% - 15px));
+  }
+
+  .faceSettingsWrap {
+    top: 10px;
+    right: 10px;
+  }
+
+  .faceSettingsButton {
+    width: 36px;
+    height: 36px;
+  }
+
+  .faceSettingsMenu {
+    width: min(220px, calc(100vw - 44px));
+  }
+
+  .faceDock {
+    grid-template-columns: 1fr;
+  }
+
+  .faceDockMenu {
+    right: 0;
+    left: auto;
+    width: min(180px, 60vw);
   }
 }
 
