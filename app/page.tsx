@@ -990,6 +990,20 @@ type AppBackgroundSetting =
   | { kind: "preset"; value: string }
   | { kind: "upload"; value: string };
 
+type BackgroundSkinSetting = {
+  mode: "solid" | "glass";
+  dim: number;
+  surfaceOpacity: number;
+  blur: number;
+};
+
+const DEFAULT_BACKGROUND_SKIN: BackgroundSkinSetting = {
+  mode: "glass",
+  dim: 0.58,
+  surfaceOpacity: 0.72,
+  blur: 18,
+};
+
 function getXpMultiplierForStreak(streakLength: number) {
   switch (getStreakBandanaTier(streakLength)?.color) {
     case "white":
@@ -1560,6 +1574,10 @@ function backgroundSettingStorageKey(uid: string) {
   return `whelm:background-setting:${uid}`;
 }
 
+function backgroundSkinStorageKey(uid: string) {
+  return `whelm:background-skin:${uid}`;
+}
+
 function loadBackgroundSetting(uid: string): AppBackgroundSetting {
   try {
     const raw = window.localStorage.getItem(backgroundSettingStorageKey(uid));
@@ -1577,21 +1595,58 @@ function saveBackgroundSetting(uid: string, setting: AppBackgroundSetting) {
   window.localStorage.setItem(backgroundSettingStorageKey(uid), JSON.stringify(setting));
 }
 
+function loadBackgroundSkin(uid: string): BackgroundSkinSetting {
+  try {
+    const raw = window.localStorage.getItem(backgroundSkinStorageKey(uid));
+    if (!raw) return DEFAULT_BACKGROUND_SKIN;
+    const parsed = JSON.parse(raw) as Partial<BackgroundSkinSetting>;
+    const mode = parsed.mode === "solid" ? "solid" : "glass";
+    const dim = Math.min(0.82, Math.max(0.2, Number(parsed.dim) || DEFAULT_BACKGROUND_SKIN.dim));
+    const surfaceOpacity = Math.min(
+      0.92,
+      Math.max(0.38, Number(parsed.surfaceOpacity) || DEFAULT_BACKGROUND_SKIN.surfaceOpacity),
+    );
+    const blur = Math.min(28, Math.max(0, Number(parsed.blur) || DEFAULT_BACKGROUND_SKIN.blur));
+    return { mode, dim, surfaceOpacity, blur };
+  } catch {
+    return DEFAULT_BACKGROUND_SKIN;
+  }
+}
+
+function saveBackgroundSkin(uid: string, skin: BackgroundSkinSetting) {
+  window.localStorage.setItem(backgroundSkinStorageKey(uid), JSON.stringify(skin));
+}
+
 function getPageShellBackgroundStyle(
   themeMode: ThemeMode,
   setting: AppBackgroundSetting,
+  skin: BackgroundSkinSetting,
 ): CSSProperties | undefined {
   if (setting.kind === "default") return undefined;
 
   if (setting.kind === "preset") {
     const preset = PRO_BACKGROUND_PRESETS.find((item) => item.id === setting.value);
     if (!preset) return undefined;
-    return { background: preset.background };
+    if (skin.mode === "solid") {
+      return { background: preset.background };
+    }
+    return {
+      backgroundImage: `linear-gradient(180deg, rgba(7, 9, 18, ${skin.dim}), rgba(14, 18, 34, ${Math.min(
+        0.94,
+        skin.dim + 0.12,
+      )})), ${preset.background}`,
+      backgroundAttachment: "fixed",
+      backgroundSize: "cover",
+      backgroundPosition: "center",
+      backgroundColor: themeMode === "light" ? "#ece8de" : "#0d1121",
+    };
   }
 
   if (!setting.value) return undefined;
   return {
-    backgroundImage: `linear-gradient(180deg, rgba(7, 9, 18, 0.68), rgba(14, 18, 34, 0.86)), url("${setting.value}")`,
+    backgroundImage: `linear-gradient(180deg, rgba(7, 9, 18, ${skin.mode === "glass" ? skin.dim : 0.68}), rgba(14, 18, 34, ${
+      skin.mode === "glass" ? Math.min(0.94, skin.dim + 0.18) : 0.86
+    })), url("${setting.value}")`,
     backgroundSize: "cover",
     backgroundPosition: "center",
     backgroundAttachment: "fixed",
@@ -1895,6 +1950,7 @@ export default function HomePage() {
   const [appBackgroundSetting, setAppBackgroundSetting] = useState<AppBackgroundSetting>({
     kind: "default",
   });
+  const [backgroundSkin, setBackgroundSkin] = useState<BackgroundSkinSetting>(DEFAULT_BACKGROUND_SKIN);
   const [proPanelsOpen, setProPanelsOpen] = useState({
     notes: false,
     history: false,
@@ -2910,8 +2966,18 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!user) return;
+    setBackgroundSkin(loadBackgroundSkin(user.uid));
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
     saveBackgroundSetting(user.uid, appBackgroundSetting);
   }, [appBackgroundSetting, user]);
+
+  useEffect(() => {
+    if (!user) return;
+    saveBackgroundSkin(user.uid, backgroundSkin);
+  }, [backgroundSkin, user]);
 
   useEffect(() => {
     if (!user) return;
@@ -5047,14 +5113,32 @@ export default function HomePage() {
   const streakHeroEmoteId: WhelmEmoteId =
     streak >= 100 ? "whelm.proud" : streak >= 50 ? "whelm.ready" : "whelm.encourage";
   const effectiveBackgroundSetting = isPro ? appBackgroundSetting : { kind: "default" as const };
-  const pageShellBackgroundStyle = getPageShellBackgroundStyle(themeMode, effectiveBackgroundSetting);
+  const backgroundSkinActive =
+    isPro && effectiveBackgroundSetting.kind !== "default" && backgroundSkin.mode === "glass";
+  const pageShellBackgroundStyle = getPageShellBackgroundStyle(
+    themeMode,
+    effectiveBackgroundSetting,
+    backgroundSkin,
+  );
+  const pageShellStyle = {
+    ...pageShellBackgroundStyle,
+    ...(backgroundSkinActive
+      ? {
+          ["--glass-surface-opacity" as const]: String(backgroundSkin.surfaceOpacity),
+          ["--glass-blur" as const]: `${backgroundSkin.blur}px`,
+          ["--glass-border-alpha" as const]: themeMode === "light" ? "0.18" : "0.24",
+          ["--glass-highlight-alpha" as const]: themeMode === "light" ? "0.5" : "0.08",
+          ["--glass-shadow-alpha" as const]: themeMode === "light" ? "0.16" : "0.34",
+        }
+      : {}),
+  } as CSSProperties;
 
   return (
     <main
       className={`${styles.pageShell} ${
         themeMode === "light" ? styles.themeLight : styles.themeDark
-      }`}
-      style={pageShellBackgroundStyle}
+      } ${backgroundSkinActive ? styles.pageShellGlass : ""}`}
+      style={pageShellStyle}
     >
       <div className={styles.pageFrame}>
         <header className={styles.header}>
@@ -8510,7 +8594,7 @@ export default function HomePage() {
                 <p className={styles.sectionLabel}>Whelm Pro</p>
                 <h2 className={styles.cardTitle}>App background</h2>
                 <p className={styles.accountMeta}>
-                  Choose a full-scene background design or upload your own image, like the customization style you described from ATracker.
+                  Keep the standard Whelm shell, or switch premium backgrounds into an adaptive glass mode so presets and uploaded photos actually show through the app.
                 </p>
                 {isPro ? (
                   <>
@@ -8567,6 +8651,94 @@ export default function HomePage() {
                         >
                           Clear upload
                         </button>
+                      ) : null}
+                    </div>
+                    <div className={styles.backgroundSkinPanel}>
+                      <div className={styles.backgroundSkinHeader}>
+                        <div>
+                          <strong>Surface behavior</strong>
+                          <p className={styles.accountMeta}>
+                            Default keeps the current solid Whelm look. Adaptive glass opens the shell so the premium background can breathe through.
+                          </p>
+                        </div>
+                      </div>
+                      <div className={styles.companionStyleRow}>
+                        {(
+                          [
+                            { key: "solid", label: "Default solid" },
+                            { key: "glass", label: "Adaptive glass" },
+                          ] as const
+                        ).map((option) => (
+                          <button
+                            key={option.key}
+                            type="button"
+                            className={`${styles.companionStyleButton} ${
+                              backgroundSkin.mode === option.key
+                                ? styles.companionStyleButtonActive
+                                : ""
+                            }`}
+                            onClick={() =>
+                              setBackgroundSkin((current) => ({ ...current, mode: option.key }))
+                            }
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                      {backgroundSkin.mode === "glass" ? (
+                        <div className={styles.backgroundSkinControls}>
+                          <label className={styles.backgroundSkinControl}>
+                            <span>Background visibility</span>
+                            <strong>{Math.round((1 - backgroundSkin.dim) * 100)}%</strong>
+                            <input
+                              type="range"
+                              min="20"
+                              max="80"
+                              step="1"
+                              value={Math.round(backgroundSkin.dim * 100)}
+                              onChange={(event) =>
+                                setBackgroundSkin((current) => ({
+                                  ...current,
+                                  dim: Number(event.target.value) / 100,
+                                }))
+                              }
+                            />
+                          </label>
+                          <label className={styles.backgroundSkinControl}>
+                            <span>Surface opacity</span>
+                            <strong>{Math.round(backgroundSkin.surfaceOpacity * 100)}%</strong>
+                            <input
+                              type="range"
+                              min="38"
+                              max="92"
+                              step="1"
+                              value={Math.round(backgroundSkin.surfaceOpacity * 100)}
+                              onChange={(event) =>
+                                setBackgroundSkin((current) => ({
+                                  ...current,
+                                  surfaceOpacity: Number(event.target.value) / 100,
+                                }))
+                              }
+                            />
+                          </label>
+                          <label className={styles.backgroundSkinControl}>
+                            <span>Glass blur</span>
+                            <strong>{backgroundSkin.blur}px</strong>
+                            <input
+                              type="range"
+                              min="0"
+                              max="28"
+                              step="1"
+                              value={backgroundSkin.blur}
+                              onChange={(event) =>
+                                setBackgroundSkin((current) => ({
+                                  ...current,
+                                  blur: Number(event.target.value),
+                                }))
+                              }
+                            />
+                          </label>
+                        </div>
                       ) : null}
                     </div>
                   </>

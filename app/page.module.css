@@ -7,6 +7,14 @@
     linear-gradient(180deg, rgba(7, 9, 18, 0.92), rgba(14, 18, 34, 0.98));
 }
 
+.pageShellGlass {
+  --glass-surface-opacity: 0.72;
+  --glass-blur: 18px;
+  --glass-border-alpha: 0.24;
+  --glass-highlight-alpha: 0.08;
+  --glass-shadow-alpha: 0.34;
+}
+
 .splashScreen {
   min-height: 100vh;
   display: grid;
@@ -3224,6 +3232,49 @@
     linear-gradient(180deg, rgba(7, 9, 18, 0.92), rgba(14, 18, 34, 0.98));
 }
 
+.backgroundSkinPanel {
+  margin-top: 14px;
+  border: 1px solid rgba(123, 138, 184, 0.16);
+  border-radius: 18px;
+  background: rgba(15, 20, 36, 0.66);
+  padding: 14px;
+  display: grid;
+  gap: 12px;
+}
+
+.backgroundSkinHeader strong {
+  font-size: 0.98rem;
+  color: #f4f7ff;
+}
+
+.backgroundSkinControls {
+  display: grid;
+  gap: 12px;
+}
+
+.backgroundSkinControl {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 12px;
+  align-items: center;
+}
+
+.backgroundSkinControl span {
+  font-size: 0.84rem;
+  color: #d2dbef;
+}
+
+.backgroundSkinControl strong {
+  font-size: 0.82rem;
+  color: #ffffff;
+}
+
+.backgroundSkinControl input {
+  grid-column: 1 / -1;
+  width: 100%;
+  accent-color: #7cb3ff;
+}
+
 .kpiGrid {
   margin-top: 12px;
   display: grid;
@@ -4813,6 +4864,64 @@
   color: #d8e0f4;
 }
 
+.themeDark.pageShellGlass .topAppBar,
+.themeDark.pageShellGlass .tabRail,
+.themeDark.pageShellGlass .bottomTabs,
+.themeDark.pageShellGlass .card,
+.themeDark.pageShellGlass .statCard,
+.themeDark.pageShellGlass .profileDockButton,
+.themeDark.pageShellGlass .companionPulse,
+.themeDark.pageShellGlass .companionPulseSpeech,
+.themeDark.pageShellGlass .senseiCard,
+.themeDark.pageShellGlass .settingsHeroCard,
+.themeDark.pageShellGlass .feedbackModal,
+.themeDark.pageShellGlass .paywallModal,
+.themeDark.pageShellGlass .kpiModal,
+.themeDark.pageShellGlass .profileSheet,
+.themeDark.pageShellGlass .mobileMoreSheet,
+.themeDark.pageShellGlass .mobileBlockModal,
+.themeDark.pageShellGlass .loadingCard,
+.themeDark.pageShellGlass .notesSidebar,
+.themeDark.pageShellGlass .notesEditorCard,
+.themeDark.pageShellGlass .mobileNotesStartCard,
+.themeDark.pageShellGlass .mobileNotesRecentCard,
+.themeDark.pageShellGlass .mobileNotesEditorCard,
+.themeDark.pageShellGlass .mobileSectionToggle,
+.themeDark.pageShellGlass .mobileQuickAction,
+.themeDark.pageShellGlass .mobileToolPanel,
+.themeDark.pageShellGlass .mobileSummaryCard,
+.themeDark.pageShellGlass .mobileQueueItem,
+.themeDark.pageShellGlass .mobileAgendaStat,
+.themeDark.pageShellGlass .mobileMoreButton,
+.themeDark.pageShellGlass .proUnlockCard,
+.themeDark.pageShellGlass .backgroundPresetButton,
+.themeDark.pageShellGlass .backgroundSkinPanel,
+.themeDark.pageShellGlass .settingsPill {
+  background:
+    linear-gradient(
+      180deg,
+      rgba(10, 14, 26, var(--glass-surface-opacity)),
+      rgba(13, 18, 33, calc(var(--glass-surface-opacity) + 0.04))
+    ),
+    radial-gradient(circle at top left, rgba(120, 152, 255, 0.12), transparent 42%);
+  border-color: rgba(188, 205, 255, var(--glass-border-alpha));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, var(--glass-highlight-alpha)),
+    0 22px 50px rgba(3, 6, 18, var(--glass-shadow-alpha));
+  backdrop-filter: blur(var(--glass-blur)) saturate(135%);
+}
+
+.themeDark.pageShellGlass .topAppBarAction,
+.themeDark.pageShellGlass .mobileJumpButton,
+.themeDark.pageShellGlass .mobileControlToggle,
+.themeDark.pageShellGlass .mobileRecentNote,
+.themeDark.pageShellGlass .mobileBlockItem,
+.themeDark.pageShellGlass .mobileSummaryItem {
+  background: rgba(19, 26, 46, calc(var(--glass-surface-opacity) + 0.08));
+  border-color: rgba(188, 205, 255, calc(var(--glass-border-alpha) - 0.04));
+  backdrop-filter: blur(calc(var(--glass-blur) * 0.75)) saturate(130%);
+}
+
 .themeDark .accountDangerCard {
   background:
     radial-gradient(circle at top right, rgba(185, 28, 28, 0.24), transparent 28%),
@@ -4871,6 +4980,64 @@
   color: #16253c;
   border-color: rgba(111, 122, 150, 0.14);
   box-shadow: 0 18px 42px rgba(85, 95, 128, 0.1);
+}
+
+.themeLight.pageShellGlass .topAppBar,
+.themeLight.pageShellGlass .tabRail,
+.themeLight.pageShellGlass .bottomTabs,
+.themeLight.pageShellGlass .card,
+.themeLight.pageShellGlass .statCard,
+.themeLight.pageShellGlass .profileDockButton,
+.themeLight.pageShellGlass .companionPulse,
+.themeLight.pageShellGlass .companionPulseSpeech,
+.themeLight.pageShellGlass .senseiCard,
+.themeLight.pageShellGlass .settingsHeroCard,
+.themeLight.pageShellGlass .feedbackModal,
+.themeLight.pageShellGlass .paywallModal,
+.themeLight.pageShellGlass .kpiModal,
+.themeLight.pageShellGlass .profileSheet,
+.themeLight.pageShellGlass .mobileMoreSheet,
+.themeLight.pageShellGlass .mobileBlockModal,
+.themeLight.pageShellGlass .loadingCard,
+.themeLight.pageShellGlass .notesSidebar,
+.themeLight.pageShellGlass .notesEditorCard,
+.themeLight.pageShellGlass .mobileNotesStartCard,
+.themeLight.pageShellGlass .mobileNotesRecentCard,
+.themeLight.pageShellGlass .mobileNotesEditorCard,
+.themeLight.pageShellGlass .mobileSectionToggle,
+.themeLight.pageShellGlass .mobileQuickAction,
+.themeLight.pageShellGlass .mobileToolPanel,
+.themeLight.pageShellGlass .mobileSummaryCard,
+.themeLight.pageShellGlass .mobileQueueItem,
+.themeLight.pageShellGlass .mobileAgendaStat,
+.themeLight.pageShellGlass .mobileMoreButton,
+.themeLight.pageShellGlass .proUnlockCard,
+.themeLight.pageShellGlass .backgroundPresetButton,
+.themeLight.pageShellGlass .backgroundSkinPanel,
+.themeLight.pageShellGlass .settingsPill {
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 251, 246, var(--glass-surface-opacity)),
+      rgba(244, 239, 231, calc(var(--glass-surface-opacity) + 0.04))
+    ),
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.5), transparent 42%);
+  border-color: rgba(111, 122, 150, var(--glass-border-alpha));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, var(--glass-highlight-alpha)),
+    0 18px 42px rgba(85, 95, 128, var(--glass-shadow-alpha));
+  backdrop-filter: blur(var(--glass-blur)) saturate(135%);
+}
+
+.themeLight.pageShellGlass .topAppBarAction,
+.themeLight.pageShellGlass .mobileJumpButton,
+.themeLight.pageShellGlass .mobileControlToggle,
+.themeLight.pageShellGlass .mobileRecentNote,
+.themeLight.pageShellGlass .mobileBlockItem,
+.themeLight.pageShellGlass .mobileSummaryItem {
+  background: rgba(255, 249, 241, calc(var(--glass-surface-opacity) + 0.08));
+  border-color: rgba(111, 122, 150, calc(var(--glass-border-alpha) - 0.03));
+  backdrop-filter: blur(calc(var(--glass-blur) * 0.75)) saturate(130%);
 }
 
 .themeLight .title,
