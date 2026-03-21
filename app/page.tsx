@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { useRive } from "@rive-app/react-canvas";
 import {
@@ -172,6 +172,19 @@ const MIN_PLANNED_BLOCK_MINUTES = 15;
 const MAX_PLANNED_BLOCK_MINUTES = 240;
 const MIN_PLANNED_BLOCK_GAP_MINUTES = 15;
 const STREAK_RULE_V2_START_DATE = "2026-03-22";
+const XP_DAILY_TARGET = 120;
+const XP_DAILY_CAP = 150;
+const XP_FOCUS_DAILY_CAP = 90;
+const XP_COMPLETED_BLOCK_XP = 25;
+const XP_COMPLETED_BLOCK_DAILY_CAP = 50;
+const XP_STREAK_DAILY_BONUS = 10;
+const XP_COMBO_BONUS = 15;
+const XP_DEEP_WORK_BONUS = 25;
+const XP_WRITING_ENTRY_THRESHOLD = 33;
+const XP_WRITING_ENTRY_BONUS = 10;
+const XP_WRITING_BONUS_THRESHOLD = 100;
+const XP_WRITING_BONUS_XP = 10;
+const XP_WRITING_DAILY_CAP = 20;
 const STREAK_SAVE_ACCOUNTABILITY_QUESTIONS = [
   "What specific symptoms or condition made yesterday unrealistic?",
   "What would have made you push through anyway if this had been non-negotiable?",
@@ -915,6 +928,225 @@ type ProfileTierTheme = {
   imagePath: string;
 };
 
+type DayXpSummary = {
+  dateKey: string;
+  streakLength: number;
+  multiplier: number;
+  baseActionXp: number;
+  completedBlocksXp: number;
+  focusXp: number;
+  writingXp: number;
+  multipliedBaseXp: number;
+  streakDailyXp: number;
+  streakMilestoneXp: number;
+  deepWorkXp: number;
+  comboXp: number;
+  totalXp: number;
+};
+
+type LifetimeXpSummary = {
+  totalXp: number;
+  todayXp: number;
+  todayTarget: number;
+  dailyCap: number;
+  currentLevel: number;
+  currentLevelFloorXp: number;
+  nextLevelXp: number;
+  progressInLevel: number;
+  progressToNextLevel: number;
+};
+
+function getXpMultiplierForStreak(streakLength: number) {
+  switch (getStreakBandanaTier(streakLength)?.color) {
+    case "white":
+      return 2.4;
+    case "black":
+      return 2;
+    case "blue":
+      return 1.6;
+    case "purple":
+      return 1.35;
+    case "green":
+      return 1.2;
+    case "red":
+      return 1.1;
+    case "yellow":
+    default:
+      return 1;
+  }
+}
+
+function getStreakTierColorTheme(tierColor: string | null | undefined) {
+  switch (tierColor) {
+    case "white":
+      return {
+        accent: "#f6fbff",
+        accentStrong: "#dbeafe",
+        accentDeep: "#93c5fd",
+        accentGlow: "rgba(255, 255, 255, 0.34)",
+        shell: "rgba(218, 233, 255, 0.18)",
+        textStrong: "#08101e",
+        textSoft: "rgba(11, 24, 46, 0.76)",
+      };
+    case "black":
+      return {
+        accent: "#8f9fc7",
+        accentStrong: "#56698d",
+        accentDeep: "#293750",
+        accentGlow: "rgba(142, 163, 207, 0.28)",
+        shell: "rgba(62, 79, 112, 0.24)",
+        textStrong: "#f5f8ff",
+        textSoft: "rgba(227, 235, 255, 0.8)",
+      };
+    case "blue":
+      return {
+        accent: "#59c7ff",
+        accentStrong: "#2f86ff",
+        accentDeep: "#143d9a",
+        accentGlow: "rgba(84, 173, 255, 0.34)",
+        shell: "rgba(48, 106, 212, 0.24)",
+        textStrong: "#f5fbff",
+        textSoft: "rgba(222, 241, 255, 0.86)",
+      };
+    case "purple":
+      return {
+        accent: "#bf86ff",
+        accentStrong: "#8a4dff",
+        accentDeep: "#4a2398",
+        accentGlow: "rgba(174, 98, 255, 0.34)",
+        shell: "rgba(104, 55, 177, 0.25)",
+        textStrong: "#fbf8ff",
+        textSoft: "rgba(241, 231, 255, 0.86)",
+      };
+    case "green":
+      return {
+        accent: "#59e07f",
+        accentStrong: "#1fb850",
+        accentDeep: "#0e6b30",
+        accentGlow: "rgba(77, 212, 124, 0.32)",
+        shell: "rgba(22, 122, 55, 0.24)",
+        textStrong: "#f6fff8",
+        textSoft: "rgba(225, 255, 233, 0.84)",
+      };
+    case "red":
+      return {
+        accent: "#ff7676",
+        accentStrong: "#f24545",
+        accentDeep: "#a11f2a",
+        accentGlow: "rgba(255, 92, 92, 0.32)",
+        shell: "rgba(166, 36, 48, 0.24)",
+        textStrong: "#fff8f8",
+        textSoft: "rgba(255, 229, 229, 0.84)",
+      };
+    case "yellow":
+    default:
+      return {
+        accent: "#ffd84d",
+        accentStrong: "#ffb400",
+        accentDeep: "#b56f00",
+        accentGlow: "rgba(255, 196, 38, 0.32)",
+        shell: "rgba(171, 112, 10, 0.22)",
+        textStrong: "#fff9ee",
+        textSoft: "rgba(255, 242, 214, 0.84)",
+      };
+  }
+}
+
+function getStreakBandanaAssetPath(tierColor: string | null | undefined) {
+  const tier =
+    STREAK_BANDANA_TIERS.find((item) => item.color === tierColor) ??
+    STREAK_BANDANA_TIERS.find((item) => item.color === "yellow");
+  return tier ? `/streak/${tier.assetFile}` : "/streak/moveband.riv";
+}
+
+function getXpWritingBonus(wordCount: number) {
+  if (wordCount >= XP_WRITING_BONUS_THRESHOLD) {
+    return XP_WRITING_DAILY_CAP;
+  }
+
+  if (wordCount >= XP_WRITING_ENTRY_THRESHOLD) {
+    return XP_WRITING_ENTRY_BONUS;
+  }
+
+  return 0;
+}
+
+function getXpMilestoneBonus(streakLength: number) {
+  if (streakLength === 100) return 350;
+  if (streakLength === 30) return 120;
+  if (streakLength === 7) return 40;
+  return 0;
+}
+
+function getXpRequiredToReachLevel(level: number) {
+  if (level <= 1) return 0;
+
+  let total = 0;
+  for (let currentLevel = 1; currentLevel < level; currentLevel += 1) {
+    total += Math.round(85 * currentLevel ** 1.45);
+  }
+
+  return total;
+}
+
+function formatXpMultiplier(multiplier: number) {
+  return `x${multiplier.toFixed(multiplier % 1 === 0 ? 1 : 2).replace(/\.?0+$/, "")}`;
+}
+
+function getBandanaAspirationCopy(streakLength: number) {
+  if (streakLength >= 100) {
+    return {
+      title: "White Whelm",
+      body: "Peak pace is live. Protecting White keeps lifetime growth at its strongest rate.",
+    };
+  }
+
+  if (streakLength >= 50) {
+    return {
+      title: "Hold for White",
+      body: "Black is elite. Reach 100 protected days to become White and unlock the peak XP multiplier.",
+    };
+  }
+
+  if (streakLength >= 20) {
+    return {
+      title: "Hold for Black",
+      body: "Blue is where growth starts compounding. Protect this run to reach Black and break into elite pace.",
+    };
+  }
+
+  return {
+    title: "Reach Blue",
+    body: "Blue starts at 20 protected days. That is the first tier where XP growth becomes seriously stronger.",
+  };
+}
+
+function getLifetimeXpSummary(totalXp: number, todayXp: number): LifetimeXpSummary {
+  let currentLevel = 1;
+  let nextLevelXp = getXpRequiredToReachLevel(2);
+
+  while (totalXp >= nextLevelXp) {
+    currentLevel += 1;
+    nextLevelXp = getXpRequiredToReachLevel(currentLevel + 1);
+  }
+
+  const currentLevelFloorXp = getXpRequiredToReachLevel(currentLevel);
+  const progressInLevel = Math.max(0, totalXp - currentLevelFloorXp);
+  const levelRange = Math.max(1, nextLevelXp - currentLevelFloorXp);
+
+  return {
+    totalXp,
+    todayXp,
+    todayTarget: XP_DAILY_TARGET,
+    dailyCap: XP_DAILY_CAP,
+    currentLevel,
+    currentLevelFloorXp,
+    nextLevelXp,
+    progressInLevel,
+    progressToNextLevel: Math.min(1, progressInLevel / levelRange),
+  };
+}
+
 function getDailyRitualWaveImagePath(tier: string | null | undefined) {
   switch (tier) {
     case "white":
@@ -1403,15 +1635,43 @@ function DailyRitualWaveIcon({
   );
 }
 
-function DailyRitualSubmitBandana({ className }: { className?: string }) {
+function DailyRitualSubmitBandana({
+  className,
+  tierColor,
+}: {
+  className?: string;
+  tierColor: string | null | undefined;
+}) {
   const { RiveComponent } = useRive({
-    src: "/streak/white_bandana_submit.riv",
+    src: getStreakBandanaAssetPath(tierColor),
     autoplay: true,
   });
 
   return (
     <div className={[styles.dailyRitualSubmitBandanaWrap, className].filter(Boolean).join(" ")} aria-hidden="true">
       <RiveComponent className={styles.dailyRitualSubmitBandanaCanvas} />
+    </div>
+  );
+}
+
+function XpBandanaLevelMark({
+  className,
+  tierColor,
+  level,
+}: {
+  className?: string;
+  tierColor: string | null | undefined;
+  level: number;
+}) {
+  const { RiveComponent } = useRive({
+    src: getStreakBandanaAssetPath(tierColor),
+    autoplay: true,
+  });
+
+  return (
+    <div className={[styles.xpBandanaLevelMark, className].filter(Boolean).join(" ")} aria-hidden="true">
+      <RiveComponent className={styles.xpBandanaLevelCanvas} />
+      <span className={styles.xpBandanaLevelValue}>{level}</span>
     </div>
   );
 }
@@ -3460,6 +3720,79 @@ export default function HomePage() {
     () => computeHistoricalStreaks([], streakQualifiedDateKeys),
     [streakQualifiedDateKeys],
   );
+  const xpByDay = useMemo(() => {
+    const allDayKeys = new Set<string>();
+    const todayKey = dayKeyLocal(new Date());
+
+    for (const key of sessionMinutesByDay.keys()) {
+      if (key <= todayKey) allDayKeys.add(key);
+    }
+    for (const key of noteWordsByDay.keys()) {
+      if (key <= todayKey) allDayKeys.add(key);
+    }
+    for (const key of completedBlocksByDay.keys()) {
+      if (key <= todayKey) allDayKeys.add(key);
+    }
+    for (const key of protectedStreakDateKeys) {
+      if (key <= todayKey) allDayKeys.add(key);
+    }
+
+    return [...allDayKeys]
+      .sort()
+      .map<DayXpSummary>((dateKey) => {
+        const focusMinutes = sessionMinutesByDay.get(dateKey) ?? 0;
+        const completedBlocks = completedBlocksByDay.get(dateKey) ?? 0;
+        const noteWords = noteWordsByDay.get(dateKey) ?? 0;
+        const streakLength = historicalStreaksByDay.get(dateKey) ?? 0;
+        const multiplier = getXpMultiplierForStreak(streakLength);
+        const completedBlocksXp = Math.min(
+          XP_COMPLETED_BLOCK_DAILY_CAP,
+          completedBlocks * XP_COMPLETED_BLOCK_XP,
+        );
+        const focusXp = Math.min(XP_FOCUS_DAILY_CAP, focusMinutes);
+        const writingXp = getXpWritingBonus(noteWords);
+        const baseActionXp = completedBlocksXp + focusXp + writingXp;
+        const multipliedBaseXp = Math.round(baseActionXp * multiplier);
+        const streakDailyXp = streakLength > 0 ? XP_STREAK_DAILY_BONUS : 0;
+        const streakMilestoneXp = streakLength > 0 ? getXpMilestoneBonus(streakLength) : 0;
+        const deepWorkXp = focusMinutes >= 90 ? XP_DEEP_WORK_BONUS : 0;
+        const comboXp =
+          completedBlocks >= 1 && (focusMinutes >= 30 || noteWords >= XP_WRITING_ENTRY_THRESHOLD)
+            ? XP_COMBO_BONUS
+            : 0;
+
+        return {
+          dateKey,
+          streakLength,
+          multiplier,
+          baseActionXp,
+          completedBlocksXp,
+          focusXp,
+          writingXp,
+          multipliedBaseXp,
+          streakDailyXp,
+          streakMilestoneXp,
+          deepWorkXp,
+          comboXp,
+          totalXp: Math.min(
+            XP_DAILY_CAP,
+            multipliedBaseXp + streakDailyXp + streakMilestoneXp + deepWorkXp + comboXp,
+          ),
+        };
+      });
+  }, [
+    completedBlocksByDay,
+    historicalStreaksByDay,
+    noteWordsByDay,
+    protectedStreakDateKeys,
+    sessionMinutesByDay,
+  ]);
+  const lifetimeXpSummary = useMemo(() => {
+    const totalXp = xpByDay.reduce((sum, day) => sum + day.totalXp, 0);
+    const todayKey = dayKeyLocal(new Date());
+    const todayXp = xpByDay.find((day) => day.dateKey === todayKey)?.totalXp ?? 0;
+    return getLifetimeXpSummary(totalXp, todayXp);
+  }, [xpByDay]);
   const dynamicMonthCalendar = useMemo<MonthCell[]>(() => {
     const monthStart = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth(), 1);
     const daysInMonth = new Date(
@@ -4459,11 +4792,27 @@ export default function HomePage() {
     !hasEarnedToday && yesterdaySave ? priorRunBeforeYesterday + 1 : 0;
   const displayStreak = streak > 0 ? streak : rescuedRunDisplay;
   const streakBandanaTier = getStreakBandanaTier(displayStreak);
+  const xpTierTheme = getStreakTierColorTheme(streakBandanaTier?.color);
+  const xpDockStyle = {
+    "--xp-accent": xpTierTheme.accent,
+    "--xp-accent-strong": xpTierTheme.accentStrong,
+    "--xp-accent-deep": xpTierTheme.accentDeep,
+    "--xp-accent-glow": xpTierTheme.accentGlow,
+    "--xp-shell": xpTierTheme.shell,
+    "--xp-text-strong": xpTierTheme.textStrong,
+    "--xp-text-soft": xpTierTheme.textSoft,
+  } as CSSProperties;
   const profileTierTheme = getProfileTierTheme(streakBandanaTier?.color, isPro);
   const profileDisplayName =
     user.displayName?.trim() ||
     user.email?.split("@")[0]?.trim() ||
     "Whelm user";
+  const formattedLifetimeXp = lifetimeXpSummary.totalXp.toLocaleString();
+  const formattedNextLevelXp = lifetimeXpSummary.nextLevelXp.toLocaleString();
+  const formattedTodayXp = lifetimeXpSummary.todayXp.toLocaleString();
+  const currentXpMultiplier = getXpMultiplierForStreak(displayStreak);
+  const currentXpMultiplierLabel = formatXpMultiplier(currentXpMultiplier);
+  const bandanaAspiration = getBandanaAspirationCopy(displayStreak);
   const nextBandanaMilestone = buildNextBandanaMilestone(displayStreak, !hasEarnedToday);
   const longestStreak = Math.max(0, ...Array.from(historicalStreaksByDay.values()));
   const lifetimeFocusMinutes = sessions.reduce((sum, session) => sum + session.minutes, 0);
@@ -4597,6 +4946,29 @@ export default function HomePage() {
                   day: "numeric",
                 })}
               </span>
+              <div
+                className={styles.xpDock}
+                style={xpDockStyle}
+                aria-label={`Level ${lifetimeXpSummary.currentLevel}. ${formattedLifetimeXp} XP total. ${formattedTodayXp} XP earned today.`}
+              >
+                <XpBandanaLevelMark
+                  className={styles.xpDockBadge}
+                  tierColor={streakBandanaTier?.color}
+                  level={lifetimeXpSummary.currentLevel}
+                />
+                <div className={styles.xpDockTrack}>
+                  <div
+                    className={styles.xpDockFill}
+                    style={{ width: `${Math.max(8, lifetimeXpSummary.progressToNextLevel * 100)}%` }}
+                  />
+                  <div className={styles.xpDockCopy}>
+                    <strong>{formattedLifetimeXp}/{formattedNextLevelXp}</strong>
+                    <small>
+                      Today {formattedTodayXp}/{XP_DAILY_TARGET} · {currentXpMultiplierLabel} streak pace
+                    </small>
+                  </div>
+                </div>
+              </div>
               <button
                 type="button"
                 className={`${styles.profileDockButton} ${
@@ -7659,13 +8031,11 @@ export default function HomePage() {
                     <small>{streakStatusLine}</small>
                   </div>
                   <div className={styles.streakCalendarPanel}>
-                    <span>Next bandana</span>
-                    <strong>
-                      {nextBandanaMilestone
-                        ? nextBandanaMilestone.tier.label.replace(" Bandana", "")
-                        : "White reached"}
-                    </strong>
-                    <small>{streakMilestoneBody}</small>
+                    <span>Bandana power</span>
+                    <strong>{currentXpMultiplierLabel} XP pace</strong>
+                    <small>
+                      {bandanaAspiration.title}. {bandanaAspiration.body}
+                    </small>
                   </div>
                 </div>
                 <div className={styles.streakWeekHeader}>
@@ -8276,7 +8646,10 @@ export default function HomePage() {
                   </span>
                 </span>
                 <span className={styles.dailyRitualSubmitBandanaPanel} aria-hidden="true">
-                  <DailyRitualSubmitBandana className={styles.dailyRitualSubmitBandana} />
+                  <DailyRitualSubmitBandana
+                    className={styles.dailyRitualSubmitBandana}
+                    tierColor={streakBandanaTier?.color}
+                  />
                 </span>
               </button>
             </div>
