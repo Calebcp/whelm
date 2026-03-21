@@ -171,6 +171,7 @@ const NOTE_HIGHLIGHTS = [
 const MIN_PLANNED_BLOCK_MINUTES = 15;
 const MAX_PLANNED_BLOCK_MINUTES = 240;
 const MIN_PLANNED_BLOCK_GAP_MINUTES = 15;
+const STREAK_RULE_V2_START_DATE = "2026-03-22";
 const STREAK_SAVE_ACCOUNTABILITY_QUESTIONS = [
   "What specific symptoms or condition made yesterday unrealistic?",
   "What would have made you push through anyway if this had been non-negotiable?",
@@ -1617,6 +1618,7 @@ export default function HomePage() {
   const [sickDaySavePromptPreview, setSickDaySavePromptPreview] = useState(false);
   const [streakSaveQuestionnaireOpen, setStreakSaveQuestionnaireOpen] = useState(false);
   const [streakSaveQuestionnairePreview, setStreakSaveQuestionnairePreview] = useState(false);
+  const [streakRulesOpen, setStreakRulesOpen] = useState(false);
   const [streakSaveAnswers, setStreakSaveAnswers] = useState<Record<string, string>>({});
   const [streakSaveStatus, setStreakSaveStatus] = useState("");
   const [dailyPlanningPreviewOpen, setDailyPlanningPreviewOpen] = useState(false);
@@ -1682,6 +1684,11 @@ export default function HomePage() {
     const qualifyingDays = new Set(protectedStreakDateKeys);
 
     for (const [dateKey, minutes] of sessionMinutesByDay.entries()) {
+      if (dateKey < STREAK_RULE_V2_START_DATE) {
+        qualifyingDays.add(dateKey);
+        continue;
+      }
+
       const completedBlocks = completedBlocksByDay.get(dateKey) ?? 0;
       const noteWords = noteWordsByDay.get(dateKey) ?? 0;
       if (dateKey <= todayKey && completedBlocks >= 1 && (minutes >= 30 || noteWords >= 33)) {
@@ -4464,17 +4471,23 @@ export default function HomePage() {
   const streakWordsLeft = Math.max(0, 33 - todayNoteWords);
   const streakBlocksLeft = Math.max(0, 1 - todayCompletedBlocksCount);
   const streakEffortRequirementMet = todayFocusMinutes >= 30 || todayNoteWords >= 33;
+  const streakRuleV2ActiveToday = todayKey >= STREAK_RULE_V2_START_DATE;
   const streakProtectedToday = hasEarnedToday;
   const streakProgressMinutesLabel = `${todayMinutesProgress}/30 focus minutes`;
   const streakProgressBlocksLabel = `${Math.min(todayCompletedBlocksCount, 1)}/1 completed block`;
   const streakProgressWordsLabel = `${todayWordsProgress}/33 note words`;
   const streakStatusLine = streakProtectedToday
-    ? `Congratulations. ${todayLabel} is protected and your streak is secured for today.`
+    ? streakRuleV2ActiveToday
+      ? `Congratulations. ${todayLabel} is protected and your streak is secured for today.`
+      : `${todayLabel} already counts toward your streak. The stricter rule starts on March 22.`
     : streakBlocksLeft > 0 && streakEffortRequirementMet
       ? `${todayLabel} is not protected yet. You met the focus or writing requirement. Complete 1 block to secure the streak.`
       : streakBlocksLeft === 0
         ? `${todayLabel} is not protected yet. Your block is done. Finish ${streakMinutesLeft} more focus minute${streakMinutesLeft === 1 ? "" : "s"} or write ${streakWordsLeft} more note word${streakWordsLeft === 1 ? "" : "s"}.`
         : `${todayLabel} is not protected yet. Complete 1 block and either reach 30 focus minutes or write 33 note words.`;
+  const streakRuleSummaryLine = streakRuleV2ActiveToday
+    ? "A streak day needs 1 completed block and either 30 focus minutes or 33 note words."
+    : "Your previous streak days stay unchanged. The new stricter rule starts on March 22.";
   const maxTrendMinutes = Math.max(30, ...trendPoints.map((point) => point.minutes));
   const trendPath = trendPoints
     .map((point, index) => {
@@ -7515,76 +7528,44 @@ export default function HomePage() {
           {activeTab === "streaks" && (
             <section className={styles.streaksShell}>
               <article className={`${styles.card} ${styles.streakRulesCard}`}>
-                <div className={styles.cardHeader}>
-                  <div>
-                    <p className={styles.sectionLabel}>Rules</p>
-                    <h2 className={styles.cardTitle}>How a streak day is earned</h2>
-                    <p className={styles.accountMeta}>
-                      A day counts only when the block requirement is done and one effort requirement is done on the same day.
+                <button
+                  type="button"
+                  className={styles.streakRulesToggle}
+                  onClick={() => setStreakRulesOpen((current) => !current)}
+                  aria-expanded={streakRulesOpen}
+                >
+                  <span>How a streak day is earned</span>
+                  <span className={styles.streakRulesToggleDots}>{streakRulesOpen ? "Close" : "•••"}</span>
+                </button>
+                {streakRulesOpen && (
+                  <div className={styles.streakRulesPanel}>
+                    <p className={styles.accountMeta}>{streakRuleSummaryLine}</p>
+                    <div className={styles.streakRulesList}>
+                      <div className={styles.streakRuleChip}>
+                        <strong>{streakProgressBlocksLabel}</strong>
+                        <span>Completed block</span>
+                      </div>
+                      <div className={styles.streakRulesEffortGroup}>
+                        <div className={styles.streakRuleChip}>
+                          <strong>{streakProgressMinutesLabel}</strong>
+                          <span>Focus option</span>
+                        </div>
+                        <div className={styles.streakRuleOrBubble}>OR</div>
+                        <div className={styles.streakRuleChip}>
+                          <strong>{streakProgressWordsLabel}</strong>
+                          <span>Writing option</span>
+                        </div>
+                      </div>
+                    </div>
+                    <p
+                      className={`${styles.streakRuleStatus} ${
+                        streakProtectedToday ? styles.streakRuleStatusProtected : ""
+                      }`}
+                    >
+                      {streakStatusLine}
                     </p>
                   </div>
-                </div>
-                <div className={styles.streakRulesList}>
-                  <div className={styles.streakRuleChip}>
-                    <strong>{streakProgressBlocksLabel}</strong>
-                    <span>Completed block required</span>
-                  </div>
-                  <div className={styles.streakRuleChip}>
-                    <strong>{streakProgressMinutesLabel}</strong>
-                    <span>Focus option</span>
-                  </div>
-                  <div className={styles.streakRuleChip}>
-                    <strong>{streakProgressWordsLabel}</strong>
-                    <span>Writing option</span>
-                  </div>
-                </div>
-                <p
-                  className={`${styles.streakRuleStatus} ${
-                    streakProtectedToday ? styles.streakRuleStatusProtected : ""
-                  }`}
-                >
-                  {streakStatusLine}
-                </p>
-              </article>
-
-              <article className={`${styles.card} ${styles.streakHeroCard}`}>
-                <div className={styles.streakHeroCopy}>
-                  <p className={styles.streakBadge}>
-                    {renderBandanaBadgeLabel(streakBandanaTier?.label)}
-                  </p>
-                  <h2 className={styles.streakHeroTitle}>
-                    {displayStreak} day streak
-                  </h2>
-                  <p className={styles.streakHeroBody}>
-                    {yesterdaySave && !sessionMinutesByDay.has(todayKey)
-                      ? "Yesterday was protected by a sick day save. Complete today to carry the run forward."
-                      : streakStatusLine}
-                  </p>
-                </div>
-                {!isMobileViewport && (
-                  <div className={styles.streakHeroVisual}>
-                    <WhelmEmote emoteId={streakHeroEmoteId} size="card" />
-                  </div>
                 )}
-              </article>
-
-              <article className={`${styles.card} ${styles.streakMilestoneCard}`}>
-                <div className={styles.streakMilestoneIcon}>
-                  <StreakBandana
-                    streakDays={nextBandanaMilestone?.tier.minDays ?? Math.max(1, displayStreak)}
-                    className={styles.streakMilestoneBandana}
-                  />
-                </div>
-                <div className={styles.streakMilestoneCopy}>
-                  <h3 className={styles.streakMilestoneTitle}>{streakMilestoneTitle}</h3>
-                  <p className={styles.streakMilestoneBody}>
-                    {isMobileViewport && nextBandanaMilestone
-                      ? `${nextBandanaMilestone.remainingDays} more day${
-                          nextBandanaMilestone.remainingDays === 1 ? "" : "s"
-                        } to ${nextBandanaMilestone.tier.color.toLowerCase()}.`
-                      : streakMilestoneBody}
-                  </p>
-                </div>
               </article>
 
               {(rawYesterdayMissed || yesterdaySave) &&
@@ -7666,6 +7647,27 @@ export default function HomePage() {
                     </button>
                   </div>
                 </div>
+                <div className={styles.streakCalendarSummary}>
+                  <div className={styles.streakCalendarPanel}>
+                    <span>Current streak</span>
+                    <strong>{displayStreak} day{displayStreak === 1 ? "" : "s"}</strong>
+                    <small>{renderBandanaBadgeLabel(streakBandanaTier?.label)}</small>
+                  </div>
+                  <div className={styles.streakCalendarPanel}>
+                    <span>Today</span>
+                    <strong>{streakProtectedToday ? "Protected" : "In progress"}</strong>
+                    <small>{streakStatusLine}</small>
+                  </div>
+                  <div className={styles.streakCalendarPanel}>
+                    <span>Next bandana</span>
+                    <strong>
+                      {nextBandanaMilestone
+                        ? nextBandanaMilestone.tier.label.replace(" Bandana", "")
+                        : "White reached"}
+                    </strong>
+                    <small>{streakMilestoneBody}</small>
+                  </div>
+                </div>
                 <div className={styles.streakWeekHeader}>
                   <span>S</span>
                   <span>M</span>
@@ -7730,56 +7732,24 @@ export default function HomePage() {
                     );
                   })}
                 </div>
+                <div className={styles.streakCalendarFooter}>
+                  <div className={styles.streakCalendarFooterCopy}>
+                    <strong>{streakProtectedToday ? "Today secured" : "Today still open"}</strong>
+                    <span>
+                      {streakProtectedToday
+                        ? streakStatusLine
+                        : `${streakProgressBlocksLabel} + (${streakProgressMinutesLabel} or ${streakProgressWordsLabel})`}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className={styles.secondaryPlanButton}
+                    onClick={() => setActiveTab("today")}
+                  >
+                    Open today
+                  </button>
+                </div>
               </article>
-
-              {isMobileViewport ? (
-                <article className={`${styles.card} ${styles.streakStatusCard}`}>
-                  <div className={styles.kpiItemStatic}>
-                    <span>Status</span>
-                    <strong>{streakProtectedToday ? "Protected" : "At risk"}</strong>
-                  </div>
-                </article>
-              ) : (
-                <article className={styles.card}>
-                  <div className={styles.kpiGrid}>
-                    <div className={styles.kpiItemStatic}>
-                      <span>Current Run</span>
-                      <strong>{displayStreak}d</strong>
-                    </div>
-                    <div className={styles.kpiItemStatic}>
-                      <span>Current Bandana</span>
-                      <strong>{streakBandanaTier?.label ?? "None yet"}</strong>
-                    </div>
-                    <div className={styles.kpiItemStatic}>
-                      <span>Today Focus</span>
-                      <strong>{focusMetrics.todayMinutes}m</strong>
-                    </div>
-                    <div className={styles.kpiItemStatic}>
-                      <span>Status</span>
-                      <strong>{streakProtectedToday ? "Protected" : "At risk"}</strong>
-                    </div>
-                  </div>
-                  <div className={styles.noteFooterActions}>
-                    <button
-                      type="button"
-                      className={styles.reportButton}
-                      onClick={() => {
-                        setActiveTab("calendar");
-                        setCalendarView("month");
-                      }}
-                    >
-                      Open command board
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.secondaryPlanButton}
-                      onClick={() => setActiveTab("today")}
-                    >
-                      Focus now
-                    </button>
-                  </div>
-                </article>
-              )}
             </section>
           )}
 
