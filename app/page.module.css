@@ -3156,6 +3156,74 @@
   font-weight: 700;
 }
 
+.proUnlockCard {
+  margin-top: 14px;
+  border: 1px solid rgba(123, 138, 184, 0.16);
+  border-radius: 18px;
+  background: rgba(16, 22, 40, 0.74);
+  overflow: hidden;
+}
+
+.proUnlockToggle {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: #f3f7ff;
+  padding: 14px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+}
+
+.proUnlockToggle strong {
+  font-size: 0.98rem;
+}
+
+.proUnlockBody {
+  border-top: 1px solid rgba(123, 138, 184, 0.14);
+  padding: 0 16px 16px;
+}
+
+.backgroundUploadInput {
+  display: none;
+}
+
+.backgroundPresetGrid {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 10px;
+}
+
+.backgroundPresetButton {
+  border: 1px solid rgba(123, 138, 184, 0.16);
+  border-radius: 16px;
+  background: rgba(18, 22, 40, 0.82);
+  color: #f4f7ff;
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+  text-align: left;
+}
+
+.backgroundPresetButtonActive {
+  border-color: rgba(117, 181, 255, 0.42);
+  box-shadow: 0 0 0 1px rgba(117, 181, 255, 0.18);
+}
+
+.backgroundPresetSwatch {
+  display: block;
+  width: 100%;
+  height: 68px;
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 8% 0%, rgba(73, 102, 255, 0.18), transparent 26%),
+    radial-gradient(circle at 100% 12%, rgba(136, 76, 255, 0.16), transparent 24%),
+    linear-gradient(180deg, rgba(7, 9, 18, 0.92), rgba(14, 18, 34, 0.98));
+}
+
 .kpiGrid {
   margin-top: 12px;
   display: grid;
@@ -4241,21 +4309,30 @@
 }
 
 .mobileStreakJump {
-  border: 1px solid rgba(164, 255, 198, 0.82);
+  --mobile-streak-accent: #59e07f;
+  --mobile-streak-accent-strong: #1fb850;
+  --mobile-streak-accent-deep: #0e6b30;
+  --mobile-streak-glow: rgba(77, 212, 124, 0.32);
+  --mobile-streak-text: #f6fff8;
+  border: 1px solid color-mix(in srgb, var(--mobile-streak-accent) 68%, white);
   border-radius: 18px;
   background:
-    linear-gradient(135deg, rgba(29, 138, 88, 0.98), rgba(55, 176, 116, 0.96)),
-    #1d6f4f;
-  color: #f4fff7;
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--mobile-streak-accent-deep) 88%, black),
+      color-mix(in srgb, var(--mobile-streak-accent-strong) 94%, var(--mobile-streak-accent) 6%)
+    ),
+    var(--mobile-streak-accent-deep);
+  color: var(--mobile-streak-text);
   padding: 10px 13px;
   display: grid;
   justify-items: start;
   gap: 2px;
   box-shadow:
-    inset 0 0 0 1px rgba(232, 255, 239, 0.28),
-    0 0 0 2px rgba(82, 246, 137, 0.22),
-    0 0 22px rgba(86, 244, 142, 0.28),
-    0 14px 28px rgba(20, 84, 57, 0.28);
+    inset 0 0 0 1px color-mix(in srgb, var(--mobile-streak-accent) 20%, white),
+    0 0 0 2px color-mix(in srgb, var(--mobile-streak-accent) 26%, transparent),
+    0 0 22px var(--mobile-streak-glow),
+    0 14px 28px color-mix(in srgb, var(--mobile-streak-accent-deep) 35%, transparent);
   animation: mobileStreakPulse 2.6s ease-in-out infinite;
 }
 
@@ -4275,18 +4352,18 @@
   0%,
   100% {
     box-shadow:
-      inset 0 0 0 1px rgba(232, 255, 239, 0.24),
-      0 0 0 2px rgba(82, 246, 137, 0.18),
-      0 0 18px rgba(86, 244, 142, 0.22),
-      0 14px 26px rgba(20, 84, 57, 0.24);
+      inset 0 0 0 1px color-mix(in srgb, var(--mobile-streak-accent) 16%, white),
+      0 0 0 2px color-mix(in srgb, var(--mobile-streak-accent) 20%, transparent),
+      0 0 18px color-mix(in srgb, var(--mobile-streak-glow) 78%, transparent),
+      0 14px 26px color-mix(in srgb, var(--mobile-streak-accent-deep) 28%, transparent);
   }
 
   50% {
     box-shadow:
-      inset 0 0 0 1px rgba(245, 255, 247, 0.4),
-      0 0 0 2px rgba(116, 255, 164, 0.3),
-      0 0 30px rgba(117, 255, 169, 0.38),
-      0 16px 30px rgba(20, 84, 57, 0.32);
+      inset 0 0 0 1px color-mix(in srgb, var(--mobile-streak-accent) 32%, white),
+      0 0 0 2px color-mix(in srgb, var(--mobile-streak-accent) 34%, transparent),
+      0 0 30px color-mix(in srgb, var(--mobile-streak-glow) 100%, transparent),
+      0 16px 30px color-mix(in srgb, var(--mobile-streak-accent-deep) 34%, transparent);
   }
 }
 
@@ -4903,6 +4980,13 @@
   border-color: rgba(102, 111, 188, 0.16);
 }
 
+.themeLight .proUnlockCard,
+.themeLight .backgroundPresetButton {
+  background: rgba(252, 249, 245, 0.96);
+  border-color: rgba(125, 135, 160, 0.14);
+  color: #1d2a40;
+}
+
 .themeLight .reportButton,
 .themeLight .newNoteButton,
 .themeLight .feedbackSubmit,
@@ -5510,16 +5594,11 @@
 }
 
 .themeLight .mobileStreakJump {
-  border-color: rgba(71, 189, 125, 0.7);
-  background:
-    linear-gradient(135deg, rgba(68, 155, 116, 0.96), rgba(88, 183, 138, 0.94)),
-    #58b78a;
-  color: #fafffc;
   box-shadow:
-    inset 0 0 0 1px rgba(240, 255, 245, 0.3),
-    0 0 0 2px rgba(91, 214, 144, 0.18),
-    0 0 18px rgba(91, 214, 144, 0.18),
-    0 12px 22px rgba(87, 155, 122, 0.18);
+    inset 0 0 0 1px color-mix(in srgb, var(--mobile-streak-accent) 24%, white),
+    0 0 0 2px color-mix(in srgb, var(--mobile-streak-accent) 18%, transparent),
+    0 0 18px color-mix(in srgb, var(--mobile-streak-glow) 58%, transparent),
+    0 12px 22px color-mix(in srgb, var(--mobile-streak-accent-deep) 18%, transparent);
 }
 
 .themeLight .notesEmptyEditor {

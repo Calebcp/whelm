@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useRive } from "@rive-app/react-canvas";
 import {
@@ -166,6 +166,35 @@ const NOTE_HIGHLIGHTS = [
   { label: "Sky", value: "#bae6fd" },
   { label: "Lavender", value: "#ddd6fe" },
   { label: "Rose", value: "#fecdd3" },
+] as const;
+
+const PRO_HISTORY_FREE_DAYS = 5;
+
+const PRO_BACKGROUND_PRESETS = [
+  {
+    id: "aurora",
+    label: "Aurora",
+    background:
+      "radial-gradient(circle at 12% 0%, rgba(62, 115, 255, 0.24), transparent 28%), radial-gradient(circle at 88% 12%, rgba(82, 214, 255, 0.2), transparent 26%), linear-gradient(180deg, rgba(7, 9, 18, 0.92), rgba(14, 18, 34, 0.98))",
+  },
+  {
+    id: "ember",
+    label: "Ember",
+    background:
+      "radial-gradient(circle at 18% 8%, rgba(255, 127, 80, 0.24), transparent 26%), radial-gradient(circle at 82% 0%, rgba(244, 63, 94, 0.18), transparent 24%), linear-gradient(180deg, rgba(19, 8, 12, 0.94), rgba(28, 14, 20, 0.98))",
+  },
+  {
+    id: "forest",
+    label: "Forest",
+    background:
+      "radial-gradient(circle at 10% 10%, rgba(34, 197, 94, 0.2), transparent 24%), radial-gradient(circle at 92% 0%, rgba(45, 212, 191, 0.14), transparent 22%), linear-gradient(180deg, rgba(6, 16, 14, 0.94), rgba(9, 24, 20, 0.98))",
+  },
+  {
+    id: "dawn",
+    label: "Dawn",
+    background:
+      "radial-gradient(circle at 12% 0%, rgba(251, 191, 36, 0.22), transparent 28%), radial-gradient(circle at 88% 10%, rgba(249, 115, 22, 0.18), transparent 26%), linear-gradient(180deg, rgba(20, 14, 9, 0.94), rgba(31, 22, 14, 0.98))",
+  },
 ] as const;
 
 const MIN_PLANNED_BLOCK_MINUTES = 15;
@@ -956,6 +985,11 @@ type LifetimeXpSummary = {
   progressToNextLevel: number;
 };
 
+type AppBackgroundSetting =
+  | { kind: "default" }
+  | { kind: "preset"; value: string }
+  | { kind: "upload"; value: string };
+
 function getXpMultiplierForStreak(streakLength: number) {
   switch (getStreakBandanaTier(streakLength)?.color) {
     case "white":
@@ -1091,34 +1125,6 @@ function getXpRequiredToReachLevel(level: number) {
 
 function formatXpMultiplier(multiplier: number) {
   return `x${multiplier.toFixed(multiplier % 1 === 0 ? 1 : 2).replace(/\.?0+$/, "")}`;
-}
-
-function getBandanaAspirationCopy(streakLength: number) {
-  if (streakLength >= 100) {
-    return {
-      title: "White Whelm",
-      body: "Peak pace is live. Protecting White keeps lifetime growth at its strongest rate.",
-    };
-  }
-
-  if (streakLength >= 50) {
-    return {
-      title: "Hold for White",
-      body: "Black is elite. Reach 100 protected days to become White and unlock the peak XP multiplier.",
-    };
-  }
-
-  if (streakLength >= 20) {
-    return {
-      title: "Hold for Black",
-      body: "Blue is where growth starts compounding. Protect this run to reach Black and break into elite pace.",
-    };
-  }
-
-  return {
-    title: "Reach Blue",
-    body: "Blue starts at 20 protected days. That is the first tier where XP growth becomes seriously stronger.",
-  };
 }
 
 function getLifetimeXpSummary(totalXp: number, todayXp: number): LifetimeXpSummary {
@@ -1550,6 +1556,49 @@ function notesShellBackground(themeMode: ThemeMode, noteColor?: string) {
     : { background: "#e7e5e4" };
 }
 
+function backgroundSettingStorageKey(uid: string) {
+  return `whelm:background-setting:${uid}`;
+}
+
+function loadBackgroundSetting(uid: string): AppBackgroundSetting {
+  try {
+    const raw = window.localStorage.getItem(backgroundSettingStorageKey(uid));
+    if (!raw) return { kind: "default" };
+    const parsed = JSON.parse(raw) as AppBackgroundSetting;
+    if (parsed.kind === "preset" && typeof parsed.value === "string") return parsed;
+    if (parsed.kind === "upload" && typeof parsed.value === "string") return parsed;
+    return { kind: "default" };
+  } catch {
+    return { kind: "default" };
+  }
+}
+
+function saveBackgroundSetting(uid: string, setting: AppBackgroundSetting) {
+  window.localStorage.setItem(backgroundSettingStorageKey(uid), JSON.stringify(setting));
+}
+
+function getPageShellBackgroundStyle(
+  themeMode: ThemeMode,
+  setting: AppBackgroundSetting,
+): CSSProperties | undefined {
+  if (setting.kind === "default") return undefined;
+
+  if (setting.kind === "preset") {
+    const preset = PRO_BACKGROUND_PRESETS.find((item) => item.id === setting.value);
+    if (!preset) return undefined;
+    return { background: preset.background };
+  }
+
+  if (!setting.value) return undefined;
+  return {
+    backgroundImage: `linear-gradient(180deg, rgba(7, 9, 18, 0.68), rgba(14, 18, 34, 0.86)), url("${setting.value}")`,
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+    backgroundAttachment: "fixed",
+    backgroundColor: themeMode === "light" ? "#f6f2eb" : "#0d1121",
+  };
+}
+
 function createDailyRitualDrafts(existing: PlannedBlock[]): DailyRitualBlockDraft[] {
   const seeded: DailyRitualBlockDraft[] = existing
     .slice(0, 3)
@@ -1751,6 +1800,42 @@ function CompanionPulse({
   );
 }
 
+function ProUnlockCard({
+  title,
+  body,
+  open,
+  onToggle,
+  onPreview,
+}: {
+  title: string;
+  body: string;
+  open: boolean;
+  onToggle: () => void;
+  onPreview: () => void;
+}) {
+  return (
+    <div className={styles.proUnlockCard}>
+      <button type="button" className={styles.proUnlockToggle} onClick={onToggle}>
+        <div>
+          <p className={styles.sectionLabel}>Whelm Pro Available</p>
+          <strong>{title}</strong>
+        </div>
+        <span>{open ? "Hide" : "Open"}</span>
+      </button>
+      {open ? (
+        <div className={styles.proUnlockBody}>
+          <p className={styles.accountMeta}>{body}</p>
+          <div className={styles.noteFooterActions}>
+            <button type="button" className={styles.inlineUpgrade} onClick={onPreview}>
+              Enter premium preview
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export default function HomePage() {
   const router = useRouter();
 
@@ -1807,6 +1892,15 @@ export default function HomePage() {
   const [dailyRitualExpandedId, setDailyRitualExpandedId] = useState<string | null>(null);
   const [isPro, setIsPro] = useState(false);
   const [proSource, setProSource] = useState<"preview" | "store" | "none">("none");
+  const [appBackgroundSetting, setAppBackgroundSetting] = useState<AppBackgroundSetting>({
+    kind: "default",
+  });
+  const [proPanelsOpen, setProPanelsOpen] = useState({
+    notes: false,
+    history: false,
+    reports: false,
+    background: false,
+  });
   const [trendRange, setTrendRange] = useState<TrendRange>(7);
   const [activeTab, setActiveTab] = useState<AppTab>("calendar");
   const [insightRange, setInsightRange] = useState<TrendRange>(30);
@@ -1884,6 +1978,7 @@ export default function HomePage() {
   >(null);
   const [mobileBlockSheetOpen, setMobileBlockSheetOpen] = useState(false);
   const reportsInsightToastRef = useRef<string | null>(null);
+  const backgroundUploadInputRef = useRef<HTMLInputElement | null>(null);
   const [mobileCalendarControlsOpen, setMobileCalendarControlsOpen] = useState(false);
   const [mobileAgendaEntriesOpen, setMobileAgendaEntriesOpen] = useState(false);
 
@@ -1976,6 +2071,7 @@ export default function HomePage() {
     let todayMinutes = 0;
     let todaySessions = 0;
     let weekMinutes = 0;
+    let monthMinutes = 0;
     const byDay = new Map<string, number>();
 
     for (const session of sessions) {
@@ -1990,6 +2086,10 @@ export default function HomePage() {
 
       if (sessionDate >= weekStart && sessionDate <= now) {
         weekMinutes += session.minutes;
+      }
+
+      if (sessionDate >= monthStart && sessionDate <= now) {
+        monthMinutes += session.minutes;
       }
     }
 
@@ -2080,6 +2180,7 @@ export default function HomePage() {
       todayMinutes,
       todaySessions,
       weekMinutes,
+      monthMinutes,
       activeDaysInMonth,
       disciplineScore,
       calendar,
@@ -2094,6 +2195,7 @@ export default function HomePage() {
     () => notes.find((note) => note.id === selectedNoteId) ?? null,
     [notes, selectedNoteId],
   );
+  const selectedNoteSurfaceColor = isPro ? selectedNote?.color : undefined;
   const selectedNoteWordCount = selectedNote
     ? countWords(editorBodyDraft || selectedNote.body)
     : 0;
@@ -2218,6 +2320,45 @@ export default function HomePage() {
         };
       });
   }, [sessions]);
+  const freeSessionHistoryGroups = useMemo<SessionHistoryMonthGroup[]>(() => {
+    let remainingDays = PRO_HISTORY_FREE_DAYS;
+
+    return sessionHistoryGroups
+      .map((monthGroup) => {
+        const weeks = monthGroup.weeks
+          .map((weekGroup) => {
+            const days = weekGroup.days.filter(() => {
+              if (remainingDays <= 0) return false;
+              remainingDays -= 1;
+              return true;
+            });
+
+            if (days.length === 0) return null;
+            return {
+              ...weekGroup,
+              totalMinutes: days.reduce((sum, day) => sum + day.totalMinutes, 0),
+              days,
+            };
+          })
+          .filter((weekGroup): weekGroup is SessionHistoryWeekGroup => Boolean(weekGroup));
+
+        if (weeks.length === 0) return null;
+        return {
+          ...monthGroup,
+          totalMinutes: weeks.reduce((sum, week) => sum + week.totalMinutes, 0),
+          weeks,
+        };
+      })
+      .filter((monthGroup): monthGroup is SessionHistoryMonthGroup => Boolean(monthGroup));
+  }, [sessionHistoryGroups]);
+  const hasLockedHistoryDays = useMemo(() => {
+    const totalDays = sessionHistoryGroups.reduce(
+      (sum, monthGroup) =>
+        sum + monthGroup.weeks.reduce((weekSum, weekGroup) => weekSum + weekGroup.days.length, 0),
+      0,
+    );
+    return totalDays > PRO_HISTORY_FREE_DAYS;
+  }, [sessionHistoryGroups]);
 
   const reportMetrics = useMemo(() => {
     const sessionCount = sessions.length;
@@ -2761,6 +2902,16 @@ export default function HomePage() {
     const loaded = loadPlannedBlocks(user.uid);
     setPlannedBlocks(loaded);
   }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    setAppBackgroundSetting(loadBackgroundSetting(user.uid));
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    saveBackgroundSetting(user.uid, appBackgroundSetting);
+  }, [appBackgroundSetting, user]);
 
   useEffect(() => {
     if (!user) return;
@@ -4612,6 +4763,23 @@ export default function HomePage() {
     setThemePromptOpen(false);
   }
 
+  function applyBackgroundSetting(nextSetting: AppBackgroundSetting) {
+    setAppBackgroundSetting(nextSetting);
+  }
+
+  function handleBackgroundUpload(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file || !isPro) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        applyBackgroundSetting({ kind: "upload", value: reader.result });
+      }
+    };
+    reader.readAsDataURL(file);
+    event.target.value = "";
+  }
+
   function updateDailyRitualDraft(
     draftId: string,
     patch: Partial<Pick<DailyRitualBlockDraft, "title" | "note" | "timeOfDay" | "durationMinutes">>,
@@ -4800,6 +4968,13 @@ export default function HomePage() {
     "--xp-text-strong": xpTierTheme.textStrong,
     "--xp-text-soft": xpTierTheme.textSoft,
   } as CSSProperties;
+  const mobileStreakJumpStyle = {
+    "--mobile-streak-accent": xpTierTheme.accent,
+    "--mobile-streak-accent-strong": xpTierTheme.accentStrong,
+    "--mobile-streak-accent-deep": xpTierTheme.accentDeep,
+    "--mobile-streak-glow": xpTierTheme.accentGlow,
+    "--mobile-streak-text": xpTierTheme.textStrong,
+  } as CSSProperties;
   const profileTierTheme = getProfileTierTheme(streakBandanaTier?.color, isPro);
   const profileDisplayName =
     user.displayName?.trim() ||
@@ -4810,7 +4985,6 @@ export default function HomePage() {
   const formattedTodayXp = lifetimeXpSummary.todayXp.toLocaleString();
   const currentXpMultiplier = getXpMultiplierForStreak(displayStreak);
   const currentXpMultiplierLabel = formatXpMultiplier(currentXpMultiplier);
-  const bandanaAspiration = getBandanaAspirationCopy(displayStreak);
   const nextBandanaMilestone = buildNextBandanaMilestone(displayStreak, !hasEarnedToday);
   const longestStreak = Math.max(0, ...Array.from(historicalStreaksByDay.values()));
   const lifetimeFocusMinutes = sessions.reduce((sum, session) => sum + session.minutes, 0);
@@ -4872,25 +5046,15 @@ export default function HomePage() {
   const analyticsTopSubjectMinutes = Math.max(1, ...analyticsTopSubjects.map((subject) => subject.focusMinutes));
   const streakHeroEmoteId: WhelmEmoteId =
     streak >= 100 ? "whelm.proud" : streak >= 50 ? "whelm.ready" : "whelm.encourage";
-  const streakMilestoneTitle = nextBandanaMilestone
-    ? `You'll reach ${nextBandanaMilestone.tier.label.replace(" Bandana", "")} on ${nextBandanaMilestone.targetDate.toLocaleDateString(
-        undefined,
-        { month: "long", day: "numeric" },
-      )}.`
-    : "You've reached the highest bandana tier.";
-  const streakMilestoneBody = nextBandanaMilestone
-    ? nextBandanaMilestone.remainingDays === 0
-      ? "Protect today and earn the next bandana tier."
-      : `${nextBandanaMilestone.remainingDays} more day${
-          nextBandanaMilestone.remainingDays === 1 ? "" : "s"
-        } of protection unlock the next color.`
-    : "White bandana is the summit. Keep the run alive and deepen the legacy.";
+  const effectiveBackgroundSetting = isPro ? appBackgroundSetting : { kind: "default" as const };
+  const pageShellBackgroundStyle = getPageShellBackgroundStyle(themeMode, effectiveBackgroundSetting);
 
   return (
     <main
       className={`${styles.pageShell} ${
         themeMode === "light" ? styles.themeLight : styles.themeDark
       }`}
+      style={pageShellBackgroundStyle}
     >
       <div className={styles.pageFrame}>
         <header className={styles.header}>
@@ -5287,6 +5451,7 @@ export default function HomePage() {
                     <button
                       type="button"
                       className={styles.mobileStreakJump}
+                      style={mobileStreakJumpStyle}
                       onClick={() => {
                         setMobileMoreOpen(false);
                         setActiveTab("streaks");
@@ -6634,7 +6799,7 @@ export default function HomePage() {
                   <article
                     className={styles.mobileNotesEditorCard}
                     ref={notesEditorRef}
-                    style={notesShellBackground(themeMode, selectedNote.color)}
+                    style={notesShellBackground(themeMode, selectedNoteSurfaceColor)}
                   >
                     <div className={styles.notesStudioHero}>
                       <div>
@@ -6644,21 +6809,23 @@ export default function HomePage() {
                         </h2>
                       </div>
                       <div className={styles.noteFooterActions}>
-                        <button
-                          type="button"
-                          className={`${styles.noteColorPickerTrigger} ${styles.noteToneButton}`}
-                          onClick={() => {
-                            setColorPickerOpen((open) => !open);
-                            setTextColorPickerOpen(false);
-                            setHighlightPickerOpen(false);
-                          }}
-                        >
-                          <span
-                            className={styles.noteColorPickerPreview}
-                            style={{ backgroundColor: selectedNote.color || "#e7e5e4" }}
-                          />
-                          Page tone
-                        </button>
+                        {isPro ? (
+                          <button
+                            type="button"
+                            className={`${styles.noteColorPickerTrigger} ${styles.noteToneButton}`}
+                            onClick={() => {
+                              setColorPickerOpen((open) => !open);
+                              setTextColorPickerOpen(false);
+                              setHighlightPickerOpen(false);
+                            }}
+                          >
+                            <span
+                              className={styles.noteColorPickerPreview}
+                              style={{ backgroundColor: selectedNote.color || "#e7e5e4" }}
+                            />
+                            Page tone
+                          </button>
+                        ) : null}
                         <button
                           type="button"
                           className={`${styles.secondaryPlanButton} ${styles.noteDoneButton}`}
@@ -6669,7 +6836,7 @@ export default function HomePage() {
                       </div>
                     </div>
 
-                    {colorPickerOpen && (
+                    {isPro && colorPickerOpen && (
                       <div className={styles.noteColorPickerPopover}>
                         {NOTE_COLORS.map((color) => (
                           <button
@@ -6706,6 +6873,7 @@ export default function HomePage() {
                         className={`${styles.mobileControlToggle} ${
                           mobileNotesToolsOpen === "type" ? styles.mobileControlToggleActive : ""
                         }`}
+                        disabled={!isPro}
                         onClick={() =>
                           setMobileNotesToolsOpen((current) => (current === "type" ? null : "type"))
                         }
@@ -6717,6 +6885,7 @@ export default function HomePage() {
                         className={`${styles.mobileControlToggle} ${
                           mobileNotesToolsOpen === "color" ? styles.mobileControlToggleActive : ""
                         }`}
+                        disabled={!isPro}
                         onClick={() =>
                           setMobileNotesToolsOpen((current) => (current === "color" ? null : "color"))
                         }
@@ -6856,6 +7025,15 @@ export default function HomePage() {
                         )}
                       </div>
                     )}
+                    {!isPro ? (
+                      <ProUnlockCard
+                        title="Note colors and fonts"
+                        body="Custom page tones, font families, text colors, highlights, and visual note styling are part of Whelm Pro."
+                        open={proPanelsOpen.notes}
+                        onToggle={() => setProPanelsOpen((current) => ({ ...current, notes: !current.notes }))}
+                        onPreview={() => void handleStartProPreview()}
+                      />
+                    ) : null}
 
                     <input
                       value={selectedNote.title}
@@ -6915,7 +7093,7 @@ export default function HomePage() {
               {!isMobileViewport && (
                 <aside
                   className={styles.notesSidebar}
-                  style={notesShellBackground(themeMode, selectedNote?.color)}
+                  style={notesShellBackground(themeMode, selectedNoteSurfaceColor)}
                 >
                 <button type="button" className={styles.newNoteButton} onClick={createWorkspaceNote}>
                   + Add Note
@@ -6985,7 +7163,7 @@ export default function HomePage() {
               {!isMobileViewport && (
                 <article
                   className={styles.notesEditorCard}
-                  style={notesShellBackground(themeMode, selectedNote?.color)}
+                  style={notesShellBackground(themeMode, selectedNoteSurfaceColor)}
                 >
                 {!selectedNote ? (
                   <div className={styles.notesEmptyEditor}>
@@ -7010,40 +7188,54 @@ export default function HomePage() {
                         </p>
                       </div>
                       <div className={styles.noteColorRow}>
-                        <button
-                          type="button"
-                          className={styles.noteColorPickerTrigger}
-                          onClick={() => {
-                            setColorPickerOpen((open) => !open);
-                            setTextColorPickerOpen(false);
-                            setHighlightPickerOpen(false);
-                          }}
-                        >
-                          <span
-                            className={styles.noteColorPickerPreview}
-                            style={{ backgroundColor: selectedNote.color || "#e7e5e4" }}
-                          />
-                          Page tone
-                        </button>
-
-                        {colorPickerOpen && (
-                          <div className={styles.noteColorPickerPopover}>
-                            {NOTE_COLORS.map((color) => (
-                              <button
-                                type="button"
-                                key={color.value}
-                                className={`${styles.noteColorSwatch} ${
-                                  selectedNote.color === color.value ? styles.noteColorSwatchActive : ""
-                                }`}
-                                style={{ backgroundColor: color.value }}
-                                title={color.label}
-                                onClick={() => {
-                                  void updateSelectedNote({ color: color.value });
-                                  setColorPickerOpen(false);
-                                }}
+                        {isPro ? (
+                          <>
+                            <button
+                              type="button"
+                              className={styles.noteColorPickerTrigger}
+                              onClick={() => {
+                                setColorPickerOpen((open) => !open);
+                                setTextColorPickerOpen(false);
+                                setHighlightPickerOpen(false);
+                              }}
+                            >
+                              <span
+                                className={styles.noteColorPickerPreview}
+                                style={{ backgroundColor: selectedNote.color || "#e7e5e4" }}
                               />
-                            ))}
-                          </div>
+                              Page tone
+                            </button>
+
+                            {colorPickerOpen && (
+                              <div className={styles.noteColorPickerPopover}>
+                                {NOTE_COLORS.map((color) => (
+                                  <button
+                                    type="button"
+                                    key={color.value}
+                                    className={`${styles.noteColorSwatch} ${
+                                      selectedNote.color === color.value ? styles.noteColorSwatchActive : ""
+                                    }`}
+                                    style={{ backgroundColor: color.value }}
+                                    title={color.label}
+                                    onClick={() => {
+                                      void updateSelectedNote({ color: color.value });
+                                      setColorPickerOpen(false);
+                                    }}
+                                  />
+                                ))}
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <ProUnlockCard
+                            title="Note colors and fonts"
+                            body="Custom page tones, type styling, text colors, and highlights unlock in Whelm Pro."
+                            open={proPanelsOpen.notes}
+                            onToggle={() =>
+                              setProPanelsOpen((current) => ({ ...current, notes: !current.notes }))
+                            }
+                            onPreview={() => void handleStartProPreview()}
+                          />
                         )}
                       </div>
                     </div>
@@ -7230,7 +7422,7 @@ export default function HomePage() {
                         </button>
                       </div>
 
-                      <div className={styles.noteToolbarGroup}>
+                      {isPro ? <div className={styles.noteToolbarGroup}>
                         <select
                           className={styles.noteToolSelect}
                           value={selectedNote.fontFamily}
@@ -7265,9 +7457,9 @@ export default function HomePage() {
                             </option>
                           ))}
                         </select>
-                      </div>
+                      </div> : null}
 
-                      <div className={styles.noteToolbarGroup}>
+                      {isPro ? <div className={styles.noteToolbarGroup}>
                         <div className={styles.noteInlinePalette}>
                           <button
                             type="button"
@@ -7337,7 +7529,7 @@ export default function HomePage() {
                             </div>
                           )}
                         </div>
-                      </div>
+                      </div> : null}
                     </div>
 
                     <input
@@ -7507,7 +7699,7 @@ export default function HomePage() {
               <article className={styles.card}>
                 <p className={styles.sectionLabel}>History</p>
                 <h2 className={styles.cardTitle}>Session log</h2>
-                {sessionHistoryGroups.length === 0 ? (
+                {(isPro ? sessionHistoryGroups : freeSessionHistoryGroups).length === 0 ? (
                   <div className={styles.historyEmptyState}>
                     <SenseiFigure
                       variant="wave"
@@ -7521,7 +7713,7 @@ export default function HomePage() {
                   </div>
                 ) : (
                   <div className={styles.groupList}>
-                    {sessionHistoryGroups.map((monthGroup) => (
+                    {(isPro ? sessionHistoryGroups : freeSessionHistoryGroups).map((monthGroup) => (
                       <section key={monthGroup.key} className={`${styles.sessionGroup} ${styles.historyMonthGroup}`}>
                         <button
                           type="button"
@@ -7635,6 +7827,15 @@ export default function HomePage() {
                     ))}
                   </div>
                 )}
+                {!isPro && hasLockedHistoryDays ? (
+                  <ProUnlockCard
+                    title="Older history"
+                    body="Free mode shows the latest five days. Whelm Pro unlocks the full month, week, and day archive beyond that."
+                    open={proPanelsOpen.history}
+                    onToggle={() => setProPanelsOpen((current) => ({ ...current, history: !current.history }))}
+                    onPreview={() => void handleStartProPreview()}
+                  />
+                ) : null}
               </article>
             </section>
           )}
@@ -7642,6 +7843,55 @@ export default function HomePage() {
           {activeTab === "reports" && (
             <section className={styles.reportsGrid}>
               <CompanionPulse {...companionState.pulses.reports} />
+              {!isPro ? (
+                <>
+                  <article className={`${styles.card} ${styles.analyticsHeroCard}`}>
+                    <div className={styles.cardHeader}>
+                      <div>
+                        <p className={styles.sectionLabel}>Focus Minutes</p>
+                        <h2 className={styles.cardTitle}>Basic focus readout</h2>
+                        <p className={styles.accountMeta}>
+                          Free mode keeps this simple. Deeper analytics stay inside Whelm Pro.
+                        </p>
+                      </div>
+                    </div>
+                    <div className={styles.analyticsHeroGrid}>
+                      <div className={styles.analyticsHeroMetric}>
+                        <span>Today</span>
+                        <strong>{focusMetrics.todayMinutes}m</strong>
+                        <small>{focusMetrics.todaySessions} saved session{focusMetrics.todaySessions === 1 ? "" : "s"}</small>
+                      </div>
+                      <div className={styles.analyticsHeroMetric}>
+                        <span>7 days</span>
+                        <strong>{focusMetrics.weekMinutes}m</strong>
+                        <small>last week of focus</small>
+                      </div>
+                      <div className={styles.analyticsHeroMetric}>
+                        <span>30 days</span>
+                        <strong>{focusMetrics.monthMinutes}m</strong>
+                        <small>recent monthly total</small>
+                      </div>
+                      <div className={styles.analyticsHeroMetric}>
+                        <span>Active days</span>
+                        <strong>{focusMetrics.activeDaysInMonth}</strong>
+                        <small>days with saved minutes</small>
+                      </div>
+                    </div>
+                  </article>
+                  <article className={styles.card}>
+                    <p className={styles.sectionLabel}>Whelm Pro</p>
+                    <h2 className={styles.cardTitle}>Advanced reports are premium</h2>
+                    <ProUnlockCard
+                      title="Unlock score history, insight feed, best hours, and subject analysis"
+                      body="Whelm Pro opens the full reports suite: performance score history, quality and completion analytics, focus windows, insights, and deeper breakdowns."
+                      open={proPanelsOpen.reports}
+                      onToggle={() => setProPanelsOpen((current) => ({ ...current, reports: !current.reports }))}
+                      onPreview={() => void handleStartProPreview()}
+                    />
+                  </article>
+                </>
+              ) : (
+                <>
               <article className={`${styles.card} ${styles.analyticsHeroCard}`}>
                 <div className={styles.cardHeader}>
                   <div>
@@ -7892,6 +8142,8 @@ export default function HomePage() {
                   <p className={styles.analyticsEmptyState}>Once today has analytics data, Whelm can propose targeted nudges here.</p>
                 )}
               </article>
+                </>
+              )}
             </section>
           )}
 
@@ -8252,6 +8504,83 @@ export default function HomePage() {
                     </button>
                   ))}
                 </div>
+              </article>
+
+              <article className={styles.card}>
+                <p className={styles.sectionLabel}>Whelm Pro</p>
+                <h2 className={styles.cardTitle}>App background</h2>
+                <p className={styles.accountMeta}>
+                  Choose a full-scene background design or upload your own image, like the customization style you described from ATracker.
+                </p>
+                {isPro ? (
+                  <>
+                    <input
+                      ref={backgroundUploadInputRef}
+                      type="file"
+                      accept="image/*"
+                      className={styles.backgroundUploadInput}
+                      onChange={handleBackgroundUpload}
+                    />
+                    <div className={styles.backgroundPresetGrid}>
+                      <button
+                        type="button"
+                        className={`${styles.backgroundPresetButton} ${
+                          appBackgroundSetting.kind === "default" ? styles.backgroundPresetButtonActive : ""
+                        }`}
+                        onClick={() => applyBackgroundSetting({ kind: "default" })}
+                      >
+                        <span className={styles.backgroundPresetSwatch} />
+                        <strong>Default</strong>
+                      </button>
+                      {PRO_BACKGROUND_PRESETS.map((preset) => (
+                        <button
+                          key={preset.id}
+                          type="button"
+                          className={`${styles.backgroundPresetButton} ${
+                            appBackgroundSetting.kind === "preset" && appBackgroundSetting.value === preset.id
+                              ? styles.backgroundPresetButtonActive
+                              : ""
+                          }`}
+                          onClick={() => applyBackgroundSetting({ kind: "preset", value: preset.id })}
+                        >
+                          <span
+                            className={styles.backgroundPresetSwatch}
+                            style={{ background: preset.background }}
+                          />
+                          <strong>{preset.label}</strong>
+                        </button>
+                      ))}
+                    </div>
+                    <div className={styles.noteFooterActions}>
+                      <button
+                        type="button"
+                        className={styles.reportButton}
+                        onClick={() => backgroundUploadInputRef.current?.click()}
+                      >
+                        Upload image
+                      </button>
+                      {appBackgroundSetting.kind === "upload" ? (
+                        <button
+                          type="button"
+                          className={styles.secondaryPlanButton}
+                          onClick={() => applyBackgroundSetting({ kind: "default" })}
+                        >
+                          Clear upload
+                        </button>
+                      ) : null}
+                    </div>
+                  </>
+                ) : (
+                  <ProUnlockCard
+                    title="Custom backgrounds and uploads"
+                    body="Whelm Pro unlocks alternate full-app background designs plus your own uploaded wallpaper."
+                    open={proPanelsOpen.background}
+                    onToggle={() =>
+                      setProPanelsOpen((current) => ({ ...current, background: !current.background }))
+                    }
+                    onPreview={() => void handleStartProPreview()}
+                  />
+                )}
               </article>
 
               <article className={styles.card}>
