@@ -838,6 +838,16 @@ function isHexColor(value: string) {
   return /^#([0-9a-f]{6}|[0-9a-f]{3})$/i.test(value.trim());
 }
 
+function countWords(value: string) {
+  const plainText = value
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return plainText ? plainText.split(" ").length : 0;
+}
+
 function inferCategoryFromText(text: string): NoteCategory {
   const value = text.toLowerCase();
   const schoolKeywords = [
@@ -1643,7 +1653,48 @@ export default function HomePage() {
     () => sickDaySaves.map((save) => save.dateKey),
     [sickDaySaves],
   );
-  const streak = computeStreak(sessions, protectedStreakDateKeys);
+  const sessionMinutesByDay = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const session of sessions) {
+      const key = dayKeyLocal(session.completedAtISO);
+      map.set(key, (map.get(key) ?? 0) + session.minutes);
+    }
+    return map;
+  }, [sessions]);
+  const noteWordsByDay = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const note of notes) {
+      const dateKey = dayKeyLocal(note.updatedAtISO);
+      map.set(dateKey, (map.get(dateKey) ?? 0) + countWords(note.body));
+    }
+    return map;
+  }, [notes]);
+  const completedBlocksByDay = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const block of plannedBlocks) {
+      if (block.status !== "completed") continue;
+      map.set(block.dateKey, (map.get(block.dateKey) ?? 0) + 1);
+    }
+    return map;
+  }, [plannedBlocks]);
+  const streakQualifiedDateKeys = useMemo(() => {
+    const todayKey = dayKeyLocal(new Date());
+    const qualifyingDays = new Set(protectedStreakDateKeys);
+
+    for (const [dateKey, minutes] of sessionMinutesByDay.entries()) {
+      const completedBlocks = completedBlocksByDay.get(dateKey) ?? 0;
+      const noteWords = noteWordsByDay.get(dateKey) ?? 0;
+      if (dateKey <= todayKey && completedBlocks >= 1 && (minutes >= 30 || noteWords >= 33)) {
+        qualifyingDays.add(dateKey);
+      }
+    }
+
+    return [...qualifyingDays].sort();
+  }, [completedBlocksByDay, noteWordsByDay, protectedStreakDateKeys, sessionMinutesByDay]);
+  const streak = useMemo(
+    () => computeStreak([], streakQualifiedDateKeys),
+    [streakQualifiedDateKeys],
+  );
 
   const focusMetrics = useMemo(() => {
     const now = new Date();
@@ -1781,6 +1832,9 @@ export default function HomePage() {
     () => notes.find((note) => note.id === selectedNoteId) ?? null,
     [notes, selectedNoteId],
   );
+  const selectedNoteWordCount = selectedNote
+    ? countWords(editorBodyDraft || selectedNote.body)
+    : 0;
 
   const trendPoints = useMemo(() => {
     if (trendRange === 30) return focusMetrics.trendPoints30;
@@ -3395,17 +3449,9 @@ export default function HomePage() {
     year: "numeric",
   });
   const calendarMonthInput = monthInputFromDate(calendarCursor);
-  const sessionMinutesByDay = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const session of sessions) {
-      const key = dayKeyLocal(session.completedAtISO);
-      map.set(key, (map.get(key) ?? 0) + session.minutes);
-    }
-    return map;
-  }, [sessions]);
   const historicalStreaksByDay = useMemo(
-    () => computeHistoricalStreaks(sessions, protectedStreakDateKeys),
-    [protectedStreakDateKeys, sessions],
+    () => computeHistoricalStreaks([], streakQualifiedDateKeys),
+    [streakQualifiedDateKeys],
   );
   const dynamicMonthCalendar = useMemo<MonthCell[]>(() => {
     const monthStart = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth(), 1);
@@ -4368,17 +4414,25 @@ export default function HomePage() {
   const todayKey = dayKeyLocal(new Date());
   const yesterdayKey = dayKeyLocal(addDays(startOfDayLocal(new Date()), -1));
   const dayBeforeYesterdayKey = dayKeyLocal(addDays(startOfDayLocal(new Date()), -2));
+  const todayLabel = new Date().toLocaleDateString(undefined, {
+    month: "long",
+    day: "numeric",
+  });
   const todaySessionNoteCount = sessions.filter((session) => {
     return dayKeyLocal(session.completedAtISO) === todayKey && Boolean(session.note?.trim());
   }).length;
-  const hasEarnedToday = sessionMinutesByDay.has(todayKey) || protectedStreakDateKeys.includes(todayKey);
+  const todayCompletedBlocksCount = completedBlocksByDay.get(todayKey) ?? 0;
+  const todayFocusMinutes = sessionMinutesByDay.get(todayKey) ?? 0;
+  const todayNoteWords = noteWordsByDay.get(todayKey) ?? 0;
+  const todayMinutesProgress = Math.min(30, todayFocusMinutes);
+  const todayWordsProgress = Math.min(33, todayNoteWords);
+  const hasEarnedToday = streakQualifiedDateKeys.includes(todayKey);
   const yesterdaySave = sickDaySaves.find((save) => save.dateKey === yesterdayKey) ?? null;
-  const rawYesterdayMissed =
-    !sessionMinutesByDay.has(yesterdayKey) && !protectedStreakDateKeys.includes(yesterdayKey);
+  const rawYesterdayMissed = !streakQualifiedDateKeys.includes(yesterdayKey);
   const priorRunBeforeYesterday = computeStreakEndingAtDateKey(
-    sessions,
+    [],
     dayBeforeYesterdayKey,
-    protectedStreakDateKeys,
+    streakQualifiedDateKeys,
   );
   const latestSickSaveClaim =
     sickDaySaves.length > 0 ? new Date(sickDaySaves[0].claimedAtISO) : null;
@@ -4395,7 +4449,7 @@ export default function HomePage() {
     ? addDays(latestSickSaveClaim as Date, 30)
     : null;
   const rescuedRunDisplay =
-    !sessionMinutesByDay.has(todayKey) && yesterdaySave ? priorRunBeforeYesterday + 1 : 0;
+    !hasEarnedToday && yesterdaySave ? priorRunBeforeYesterday + 1 : 0;
   const displayStreak = streak > 0 ? streak : rescuedRunDisplay;
   const streakBandanaTier = getStreakBandanaTier(displayStreak);
   const profileTierTheme = getProfileTierTheme(streakBandanaTier?.color, isPro);
@@ -4406,18 +4460,21 @@ export default function HomePage() {
   const nextBandanaMilestone = buildNextBandanaMilestone(displayStreak, !hasEarnedToday);
   const longestStreak = Math.max(0, ...Array.from(historicalStreaksByDay.values()));
   const lifetimeFocusMinutes = sessions.reduce((sum, session) => sum + session.minutes, 0);
-  const todayCompletedBlocksCount = plannedBlocks.filter(
-    (item) => item.dateKey === todayKey && item.status === "completed",
-  ).length;
-  const streakMinutesLeft = Math.max(0, 30 - focusMetrics.todayMinutes);
-  const streakProtectedToday = todayCompletedBlocksCount >= 1 && focusMetrics.todayMinutes >= 30;
+  const streakMinutesLeft = Math.max(0, 30 - todayFocusMinutes);
+  const streakWordsLeft = Math.max(0, 33 - todayNoteWords);
+  const streakBlocksLeft = Math.max(0, 1 - todayCompletedBlocksCount);
+  const streakEffortRequirementMet = todayFocusMinutes >= 30 || todayNoteWords >= 33;
+  const streakProtectedToday = hasEarnedToday;
+  const streakProgressMinutesLabel = `${todayMinutesProgress}/30 focus minutes`;
+  const streakProgressBlocksLabel = `${Math.min(todayCompletedBlocksCount, 1)}/1 completed block`;
+  const streakProgressWordsLabel = `${todayWordsProgress}/33 note words`;
   const streakStatusLine = streakProtectedToday
-    ? "Today protected."
-    : todayCompletedBlocksCount >= 1
-      ? `1 block done, ${streakMinutesLeft}m left.`
-      : focusMetrics.todayMinutes >= 30
-        ? "30m reached. Complete 1 block."
-        : "Claim today before it claims you.";
+    ? `Congratulations. ${todayLabel} is protected and your streak is secured for today.`
+    : streakBlocksLeft > 0 && streakEffortRequirementMet
+      ? `${todayLabel} is not protected yet. You met the focus or writing requirement. Complete 1 block to secure the streak.`
+      : streakBlocksLeft === 0
+        ? `${todayLabel} is not protected yet. Your block is done. Finish ${streakMinutesLeft} more focus minute${streakMinutesLeft === 1 ? "" : "s"} or write ${streakWordsLeft} more note word${streakWordsLeft === 1 ? "" : "s"}.`
+        : `${todayLabel} is not protected yet. Complete 1 block and either reach 30 focus minutes or write 33 note words.`;
   const maxTrendMinutes = Math.max(30, ...trendPoints.map((point) => point.minutes));
   const trendPath = trendPoints
     .map((point, index) => {
@@ -6445,6 +6502,12 @@ export default function HomePage() {
                       onKeyUp={() => saveEditorSelection()}
                       onFocus={() => saveEditorSelection()}
                     />
+                    <div className={styles.noteEditorFooter}>
+                      <span className={styles.noteWordCount}>
+                        {selectedNoteWordCount} word{selectedNoteWordCount === 1 ? "" : "s"}
+                        {selectedNoteWordCount >= 33 ? " · streak writing met" : ""}
+                      </span>
+                    </div>
                     <div className={styles.noteFooterActions}>
                       <button
                         type="button"
@@ -6932,6 +6995,10 @@ export default function HomePage() {
                             ? "Syncing notes..."
                             : "Saved locally only. Sync needed for other devices."}
                         {notesSyncMessage ? ` ${notesSyncMessage}` : ""}
+                      </span>
+                      <span className={styles.noteWordCount}>
+                        {selectedNoteWordCount} word{selectedNoteWordCount === 1 ? "" : "s"}
+                        {selectedNoteWordCount >= 33 ? " · streak writing met" : ""}
                       </span>
                       <div className={styles.noteFooterActions}>
                       <button
@@ -7447,6 +7514,39 @@ export default function HomePage() {
 
           {activeTab === "streaks" && (
             <section className={styles.streaksShell}>
+              <article className={`${styles.card} ${styles.streakRulesCard}`}>
+                <div className={styles.cardHeader}>
+                  <div>
+                    <p className={styles.sectionLabel}>Rules</p>
+                    <h2 className={styles.cardTitle}>How a streak day is earned</h2>
+                    <p className={styles.accountMeta}>
+                      A day counts only when the block requirement is done and one effort requirement is done on the same day.
+                    </p>
+                  </div>
+                </div>
+                <div className={styles.streakRulesList}>
+                  <div className={styles.streakRuleChip}>
+                    <strong>{streakProgressBlocksLabel}</strong>
+                    <span>Completed block required</span>
+                  </div>
+                  <div className={styles.streakRuleChip}>
+                    <strong>{streakProgressMinutesLabel}</strong>
+                    <span>Focus option</span>
+                  </div>
+                  <div className={styles.streakRuleChip}>
+                    <strong>{streakProgressWordsLabel}</strong>
+                    <span>Writing option</span>
+                  </div>
+                </div>
+                <p
+                  className={`${styles.streakRuleStatus} ${
+                    streakProtectedToday ? styles.streakRuleStatusProtected : ""
+                  }`}
+                >
+                  {streakStatusLine}
+                </p>
+              </article>
+
               <article className={`${styles.card} ${styles.streakHeroCard}`}>
                 <div className={styles.streakHeroCopy}>
                   <p className={styles.streakBadge}>
@@ -7458,8 +7558,6 @@ export default function HomePage() {
                   <p className={styles.streakHeroBody}>
                     {yesterdaySave && !sessionMinutesByDay.has(todayKey)
                       ? "Yesterday was protected by a sick day save. Complete today to carry the run forward."
-                      : streakProtectedToday
-                      ? "Today is protected. Keep the run alive and let tomorrow inherit the standard."
                       : streakStatusLine}
                   </p>
                 </div>
@@ -7578,48 +7676,59 @@ export default function HomePage() {
                   <span>S</span>
                 </div>
                 <div className={styles.streakMonthGrid}>
-                  {streakMonthCalendar.map((cell) => (
-                    <div
-                      key={cell.key}
-                      className={[
-                        styles.streakMonthCell,
-                        cell.dayNumber ? "" : styles.streakMonthCellEmpty,
-                        cell.streakLength > 0 ? styles.streakMonthCellActive : "",
-                        cell.streakTierColor ? styles[`streakMonthCellTier${cell.streakTierColor.charAt(0).toUpperCase()}${cell.streakTierColor.slice(1)}`] : "",
-                        cell.isSaved ? styles.streakMonthCellSaved : "",
-                        cell.leftConnected ? styles.streakMonthCellConnectLeft : "",
-                        cell.rightConnected ? styles.streakMonthCellConnectRight : "",
-                        cell.isToday ? styles.streakMonthCellToday : "",
-                      ]
-                        .filter(Boolean)
-                        .join(" ")}
-                      title={
-                        cell.dateKey
-                          ? `${cell.dateKey}: ${
-                              cell.streakLength > 0
-                                ? cell.isSaved
-                                  ? `protected sick day, ${cell.streakLength}-day run preserved`
-                                  : `${cell.streakLength}-day streak tier`
-                                : cell.hasSession
-                                  ? "session saved"
-                                  : "no streak"
-                            }`
-                          : "Outside current month"
-                      }
-                    >
-                      {cell.dayNumber ? (
-                        <>
-                          <span className={styles.streakMonthDayNumber}>{cell.dayNumber}</span>
-                          {cell.streakLength > 0 ? (
-                            <StreakBandana
-                              streakDays={cell.streakLength}
-                              className={styles.streakMonthBandana}
-                            />
-                          ) : null}
-                        </>
-                      ) : null}
-                    </div>
-                  ))}
+                  {streakMonthCalendar.map((cell) => {
+                    const cellFocusMinutes = cell.dateKey ? sessionMinutesByDay.get(cell.dateKey) ?? 0 : 0;
+                    const cellCompletedBlocks = cell.dateKey ? completedBlocksByDay.get(cell.dateKey) ?? 0 : 0;
+                    const cellNoteWords = cell.dateKey ? noteWordsByDay.get(cell.dateKey) ?? 0 : 0;
+                    const cellQualified = cell.dateKey ? streakQualifiedDateKeys.includes(cell.dateKey) : false;
+                    const title = cell.dateKey
+                      ? `${cell.dateKey}: ${
+                          cellQualified
+                            ? cell.isSaved
+                              ? `protected sick day, ${cell.streakLength}-day run preserved`
+                              : `${cell.streakLength}-day streak earned`
+                            : cell.isToday
+                              ? `today not earned yet. ${cellCompletedBlocks}/1 block, ${Math.min(
+                                  30,
+                                  cellFocusMinutes,
+                                )}/30 focus minutes, ${Math.min(33, cellNoteWords)}/33 note words`
+                              : cellFocusMinutes > 0 || cellCompletedBlocks > 0 || cellNoteWords > 0
+                                ? `activity logged, but streak rule not completed`
+                                : "no streak"
+                        }`
+                      : "Outside current month";
+
+                    return (
+                      <div
+                        key={cell.key}
+                        className={[
+                          styles.streakMonthCell,
+                          cell.dayNumber ? "" : styles.streakMonthCellEmpty,
+                          cell.streakLength > 0 ? styles.streakMonthCellActive : "",
+                          cell.streakTierColor ? styles[`streakMonthCellTier${cell.streakTierColor.charAt(0).toUpperCase()}${cell.streakTierColor.slice(1)}`] : "",
+                          cell.isSaved ? styles.streakMonthCellSaved : "",
+                          cell.leftConnected ? styles.streakMonthCellConnectLeft : "",
+                          cell.rightConnected ? styles.streakMonthCellConnectRight : "",
+                          cell.isToday ? styles.streakMonthCellToday : "",
+                        ]
+                          .filter(Boolean)
+                          .join(" ")}
+                        title={title}
+                      >
+                        {cell.dayNumber ? (
+                          <>
+                            <span className={styles.streakMonthDayNumber}>{cell.dayNumber}</span>
+                            {cell.streakLength > 0 ? (
+                              <StreakBandana
+                                streakDays={cell.streakLength}
+                                className={styles.streakMonthBandana}
+                              />
+                            ) : null}
+                          </>
+                        ) : null}
+                      </div>
+                    );
+                  })}
                 </div>
               </article>
 
