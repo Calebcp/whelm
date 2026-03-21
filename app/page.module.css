@@ -322,70 +322,37 @@
 
 .profileAvatarCard {
   position: relative;
-  overflow: hidden;
-  border-radius: 22px;
-  border: 1px solid rgba(149, 227, 255, 0.22);
-  background: rgba(16, 22, 42, 0.42);
-  box-shadow: 0 18px 30px rgba(8, 18, 41, 0.18);
+  overflow: visible;
+  border-radius: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  display: grid;
+  place-items: center;
 }
 
 .profileAvatarCardCompact {
-  width: 54px;
-  height: 54px;
-  border-radius: 18px;
+  width: 66px;
+  height: 66px;
 }
 
 .profileAvatarCardHero {
-  width: 138px;
-  height: 138px;
+  width: 162px;
+  height: 162px;
 }
 
 .profileAvatarImage {
   width: 100%;
   height: 100%;
   display: block;
-  object-fit: cover;
+  object-fit: contain;
+  transform: scale(1.12);
+  transform-origin: center;
+  filter: drop-shadow(0 12px 24px rgba(14, 28, 60, 0.18));
 }
 
-.profilePremiumBadge {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 28px;
-  height: 28px;
-  display: grid;
-  place-items: center;
-  border-radius: 999px;
-  background:
-    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.95), rgba(201, 236, 255, 0.72) 32%, transparent 58%),
-    linear-gradient(135deg, #c9f6ff, #4dc3ff 42%, #0b5cff 78%, #e7fdff);
-  box-shadow:
-    0 8px 20px rgba(14, 39, 82, 0.28),
-    inset 0 1px 0 rgba(255, 255, 255, 0.72);
-}
-
-.profilePremiumBandana {
-  width: 14px;
-  height: 14px;
-  transform: rotate(45deg);
-  border-radius: 3px;
-  background:
-    linear-gradient(135deg, #ffffff, #d8f9ff 34%, #6ae1ff 56%, #0d6fff 100%);
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.52),
-    0 0 18px rgba(88, 214, 255, 0.48);
-}
-
-.profileAvatarCardHero .profilePremiumBadge {
-  top: 14px;
-  right: 14px;
-  width: 42px;
-  height: 42px;
-}
-
-.profileAvatarCardHero .profilePremiumBandana {
-  width: 20px;
-  height: 20px;
+.profileAvatarCardHero .profileAvatarImage {
+  transform: scale(1.08);
 }
 
 .profileSheet {
@@ -1963,6 +1930,7 @@
 }
 
 .streakMonthCell {
+  --streak-cell-bridge-bg: linear-gradient(180deg, rgba(71, 105, 220, 0.98), rgba(83, 117, 242, 0.98));
   position: relative;
   min-height: 92px;
   border-radius: 22px;
@@ -1983,6 +1951,7 @@
 
 .streakMonthCellActive {
   border-color: rgba(117, 143, 255, 0.3);
+  --streak-cell-bridge-bg: linear-gradient(180deg, rgba(71, 105, 220, 0.98), rgba(83, 117, 242, 0.98));
   background:
     radial-gradient(circle at 50% 40%, rgba(122, 235, 255, 0.22), transparent 58%),
     radial-gradient(circle at center, rgba(110, 126, 255, 0.36), transparent 74%),
@@ -1991,6 +1960,97 @@
     inset 0 1px 0 rgba(230, 243, 255, 0.46),
     inset 0 -10px 24px rgba(43, 63, 151, 0.24),
     0 10px 22px rgba(47, 72, 178, 0.26);
+}
+
+.streakMonthCellTierYellow {
+  border-color: rgba(255, 196, 62, 0.36);
+  --streak-cell-bridge-bg: linear-gradient(180deg, rgba(244, 173, 24, 0.98), rgba(223, 146, 12, 0.96));
+  background:
+    radial-gradient(circle at 50% 40%, rgba(255, 245, 169, 0.24), transparent 56%),
+    radial-gradient(circle at center, rgba(255, 194, 56, 0.34), transparent 74%),
+    linear-gradient(180deg, rgba(244, 173, 24, 0.98), rgba(223, 146, 12, 0.96));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 247, 214, 0.5),
+    inset 0 -10px 24px rgba(151, 94, 10, 0.22),
+    0 10px 22px rgba(191, 126, 18, 0.26);
+}
+
+.streakMonthCellTierRed {
+  border-color: rgba(255, 110, 110, 0.34);
+  --streak-cell-bridge-bg: linear-gradient(180deg, rgba(224, 67, 67, 0.98), rgba(189, 36, 36, 0.96));
+  background:
+    radial-gradient(circle at 50% 40%, rgba(255, 196, 186, 0.22), transparent 56%),
+    radial-gradient(circle at center, rgba(255, 93, 93, 0.34), transparent 74%),
+    linear-gradient(180deg, rgba(224, 67, 67, 0.98), rgba(189, 36, 36, 0.96));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 230, 230, 0.46),
+    inset 0 -10px 24px rgba(130, 24, 24, 0.24),
+    0 10px 22px rgba(169, 35, 35, 0.24);
+}
+
+.streakMonthCellTierGreen {
+  border-color: rgba(110, 255, 153, 0.34);
+  --streak-cell-bridge-bg: linear-gradient(180deg, rgba(46, 184, 80, 0.98), rgba(24, 138, 56, 0.96));
+  background:
+    radial-gradient(circle at 50% 40%, rgba(208, 255, 214, 0.22), transparent 56%),
+    radial-gradient(circle at center, rgba(76, 223, 108, 0.34), transparent 74%),
+    linear-gradient(180deg, rgba(46, 184, 80, 0.98), rgba(24, 138, 56, 0.96));
+  box-shadow:
+    inset 0 1px 0 rgba(230, 255, 236, 0.44),
+    inset 0 -10px 24px rgba(16, 99, 40, 0.24),
+    0 10px 22px rgba(31, 134, 62, 0.24);
+}
+
+.streakMonthCellTierPurple {
+  border-color: rgba(214, 122, 255, 0.34);
+  --streak-cell-bridge-bg: linear-gradient(180deg, rgba(153, 76, 232, 0.98), rgba(114, 41, 196, 0.96));
+  background:
+    radial-gradient(circle at 50% 40%, rgba(244, 204, 255, 0.22), transparent 56%),
+    radial-gradient(circle at center, rgba(198, 105, 255, 0.34), transparent 74%),
+    linear-gradient(180deg, rgba(153, 76, 232, 0.98), rgba(114, 41, 196, 0.96));
+  box-shadow:
+    inset 0 1px 0 rgba(247, 231, 255, 0.46),
+    inset 0 -10px 24px rgba(74, 22, 135, 0.24),
+    0 10px 22px rgba(104, 44, 178, 0.24);
+}
+
+.streakMonthCellTierBlue {
+  border-color: rgba(112, 197, 255, 0.34);
+  --streak-cell-bridge-bg: linear-gradient(180deg, rgba(48, 145, 230, 0.98), rgba(25, 111, 196, 0.96));
+  background:
+    radial-gradient(circle at 50% 40%, rgba(206, 242, 255, 0.24), transparent 56%),
+    radial-gradient(circle at center, rgba(83, 183, 255, 0.34), transparent 74%),
+    linear-gradient(180deg, rgba(48, 145, 230, 0.98), rgba(25, 111, 196, 0.96));
+  box-shadow:
+    inset 0 1px 0 rgba(229, 248, 255, 0.46),
+    inset 0 -10px 24px rgba(18, 74, 135, 0.24),
+    0 10px 22px rgba(31, 101, 173, 0.24);
+}
+
+.streakMonthCellTierBlack {
+  border-color: rgba(170, 176, 198, 0.3);
+  --streak-cell-bridge-bg: linear-gradient(180deg, rgba(40, 42, 66, 0.98), rgba(20, 24, 40, 0.96));
+  background:
+    radial-gradient(circle at 50% 40%, rgba(214, 203, 255, 0.14), transparent 56%),
+    radial-gradient(circle at center, rgba(75, 70, 111, 0.3), transparent 74%),
+    linear-gradient(180deg, rgba(40, 42, 66, 0.98), rgba(20, 24, 40, 0.96));
+  box-shadow:
+    inset 0 1px 0 rgba(232, 236, 255, 0.18),
+    inset 0 -10px 24px rgba(6, 9, 18, 0.3),
+    0 10px 22px rgba(8, 12, 24, 0.34);
+}
+
+.streakMonthCellTierWhite {
+  border-color: rgba(236, 240, 255, 0.42);
+  --streak-cell-bridge-bg: linear-gradient(180deg, rgba(224, 230, 255, 0.98), rgba(197, 208, 246, 0.96));
+  background:
+    radial-gradient(circle at 50% 40%, rgba(255, 255, 255, 0.36), transparent 56%),
+    radial-gradient(circle at center, rgba(223, 232, 255, 0.32), transparent 72%),
+    linear-gradient(180deg, rgba(224, 230, 255, 0.98), rgba(197, 208, 246, 0.96));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -10px 24px rgba(161, 175, 221, 0.2),
+    0 10px 22px rgba(173, 186, 231, 0.24);
 }
 
 .streakMonthCellConnectLeft {
@@ -2010,7 +2070,8 @@
   top: 8px;
   bottom: 8px;
   width: 14px;
-  background: linear-gradient(180deg, rgba(71, 105, 220, 0.98), rgba(83, 117, 242, 0.98));
+  background: var(--streak-cell-bridge-bg);
+  border-radius: 999px;
   z-index: -1;
 }
 
@@ -2207,15 +2268,19 @@
   border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: 18px;
   padding: 12px;
-  background: #f8fbff;
+  background: linear-gradient(180deg, rgba(249, 251, 255, 0.98), rgba(243, 247, 252, 0.96));
 }
 
 .groupHeader {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 10px;
-  margin-bottom: 10px;
+  text-align: left;
 }
 
 .groupHeader h3 {
@@ -2223,14 +2288,69 @@
   font-size: 0.95rem;
 }
 
+.historyGroupCopy {
+  display: grid;
+  gap: 4px;
+}
+
+.historyGroupLabel {
+  margin: 0;
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #7b89a2;
+}
+
+.historyGroupMeta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .groupHeader span {
   font-size: 0.84rem;
   color: #5f6f82;
 }
 
+.historyGroupMeta strong {
+  font-size: 0.9rem;
+  color: #1a2940;
+}
+
+.historyDisclosure {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: rgba(111, 122, 150, 0.12);
+  color: #314357;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.historyMonthGroup {
+  padding: 14px 16px;
+}
+
+.historyWeekList,
+.historyDayList,
 .sessionList {
   display: grid;
   gap: 8px;
+  margin-top: 10px;
+}
+
+.historyWeekGroup {
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.54);
+}
+
+.historyDayGroup {
+  padding: 10px 12px;
+  background: rgba(248, 251, 255, 0.9);
 }
 
 .sessionItem {
@@ -2239,13 +2359,15 @@
   align-items: flex-start;
   gap: 12px;
   border-radius: 12px;
-  background: rgba(241, 245, 249, 0.92);
+  border: 1px solid rgba(111, 122, 150, 0.08);
+  background: rgba(255, 255, 255, 0.78);
   padding: 10px 12px;
 }
 
 .sessionPrimary {
   font-size: 0.9rem;
   font-weight: 600;
+  color: #1a2940;
 }
 
 .sessionMinutes {
@@ -2258,7 +2380,7 @@
   margin-top: 4px;
   font-size: 0.82rem;
   line-height: 1.45;
-  color: #314357;
+  color: #66758c;
 }
 
 .notesWorkspace {
@@ -4209,6 +4331,7 @@
 .themeDark .segmentButton,
 .themeDark .rangeTab,
 .themeDark .groupHeader span,
+.themeDark .historyGroupLabel,
 .themeDark .sessionMinutes,
 .themeDark .sessionNote,
 .themeDark .noteListMeta,
@@ -4287,6 +4410,14 @@
   box-shadow: 0 14px 34px rgba(3, 6, 18, 0.2);
 }
 
+.themeDark .historyWeekGroup {
+  background: rgba(12, 16, 31, 0.56);
+}
+
+.themeDark .historyDayGroup {
+  background: rgba(15, 20, 36, 0.82);
+}
+
 .themeDark .notesEmptyEditor {
   background: rgba(8, 11, 22, 0.28);
   color: #b9c6e2;
@@ -4326,6 +4457,15 @@
 .themeDark .feedbackTextarea,
 .themeDark .feedbackInput {
   color: #f3f6ff;
+}
+
+.themeDark .historyGroupMeta strong,
+.themeDark .historyDisclosure {
+  color: #f3f6ff;
+}
+
+.themeDark .historyDisclosure {
+  background: rgba(59, 68, 110, 0.58);
 }
 
 .themeDark .progressTrack {
@@ -4392,6 +4532,7 @@
 .themeLight .feedbackModal,
 .themeLight .paywallModal,
 .themeLight .kpiModal,
+.themeLight .profileSheet,
 .themeLight .mobileMoreSheet,
 .themeLight .mobileBlockModal,
 .themeLight .loadingCard {
@@ -4406,6 +4547,7 @@
 .themeLight .cardTitle,
 .themeLight .companionPulseTitle,
 .themeLight .senseiGreeting,
+.themeLight .profileHeroTitle,
 .themeLight .calendarMonthLabel,
 .themeLight .calendarEntryPreviewTitle {
   color: #102033;
@@ -4428,6 +4570,23 @@
 
 .themeLight .tabButton {
   color: #8594b3;
+}
+
+.themeLight .profileDockButton {
+  background:
+    radial-gradient(circle at top left, rgba(215, 222, 245, 0.5), transparent 42%),
+    linear-gradient(180deg, rgba(251, 248, 243, 0.98), rgba(242, 237, 230, 0.96));
+  border-color: rgba(125, 135, 160, 0.14);
+  color: #1d2a40;
+  box-shadow: 0 12px 28px rgba(104, 114, 145, 0.12);
+}
+
+.themeLight .profileDockCopy small {
+  color: #6b7890;
+}
+
+.themeLight .profileDockCopy strong {
+  color: #1d2a40;
 }
 
 .themeLight .tabIcon {
@@ -4596,6 +4755,7 @@
 
 .themeLight .streakMonthCellActive {
   border-color: rgba(99, 119, 205, 0.28);
+  --streak-cell-bridge-bg: linear-gradient(180deg, rgba(116, 142, 238, 0.98), rgba(97, 123, 226, 0.98));
   background:
     radial-gradient(circle at 50% 40%, rgba(208, 242, 255, 0.34), transparent 56%),
     radial-gradient(circle at center, rgba(158, 176, 242, 0.36), transparent 72%),
@@ -4606,9 +4766,95 @@
     0 10px 18px rgba(103, 117, 189, 0.18);
 }
 
-.themeLight .streakMonthCellConnectLeft::before,
-.themeLight .streakMonthCellConnectRight::after {
-  background: linear-gradient(180deg, rgba(116, 142, 238, 0.98), rgba(97, 123, 226, 0.98));
+.themeLight .streakMonthCellTierYellow {
+  border-color: rgba(232, 178, 48, 0.28);
+  --streak-cell-bridge-bg: linear-gradient(180deg, rgba(250, 219, 129, 0.98), rgba(236, 187, 77, 0.96));
+  background:
+    radial-gradient(circle at 50% 40%, rgba(255, 245, 193, 0.4), transparent 56%),
+    radial-gradient(circle at center, rgba(255, 207, 92, 0.3), transparent 72%),
+    linear-gradient(180deg, rgba(250, 219, 129, 0.98), rgba(236, 187, 77, 0.96));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 252, 237, 0.92),
+    inset 0 -10px 24px rgba(209, 163, 67, 0.18),
+    0 10px 18px rgba(209, 168, 71, 0.18);
+}
+
+.themeLight .streakMonthCellTierRed {
+  border-color: rgba(220, 96, 96, 0.26);
+  --streak-cell-bridge-bg: linear-gradient(180deg, rgba(251, 171, 171, 0.98), rgba(235, 110, 110, 0.96));
+  background:
+    radial-gradient(circle at 50% 40%, rgba(255, 222, 214, 0.38), transparent 56%),
+    radial-gradient(circle at center, rgba(249, 131, 131, 0.28), transparent 72%),
+    linear-gradient(180deg, rgba(251, 171, 171, 0.98), rgba(235, 110, 110, 0.96));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 246, 246, 0.92),
+    inset 0 -10px 24px rgba(201, 104, 104, 0.18),
+    0 10px 18px rgba(203, 109, 109, 0.18);
+}
+
+.themeLight .streakMonthCellTierGreen {
+  border-color: rgba(76, 191, 106, 0.26);
+  --streak-cell-bridge-bg: linear-gradient(180deg, rgba(177, 244, 183, 0.98), rgba(92, 209, 115, 0.96));
+  background:
+    radial-gradient(circle at 50% 40%, rgba(223, 255, 224, 0.38), transparent 56%),
+    radial-gradient(circle at center, rgba(119, 224, 136, 0.28), transparent 72%),
+    linear-gradient(180deg, rgba(177, 244, 183, 0.98), rgba(92, 209, 115, 0.96));
+  box-shadow:
+    inset 0 1px 0 rgba(245, 255, 246, 0.92),
+    inset 0 -10px 24px rgba(99, 181, 113, 0.18),
+    0 10px 18px rgba(106, 188, 119, 0.18);
+}
+
+.themeLight .streakMonthCellTierPurple {
+  border-color: rgba(166, 111, 222, 0.26);
+  --streak-cell-bridge-bg: linear-gradient(180deg, rgba(222, 188, 252, 0.98), rgba(180, 122, 240, 0.96));
+  background:
+    radial-gradient(circle at 50% 40%, rgba(248, 224, 255, 0.38), transparent 56%),
+    radial-gradient(circle at center, rgba(206, 146, 252, 0.28), transparent 72%),
+    linear-gradient(180deg, rgba(222, 188, 252, 0.98), rgba(180, 122, 240, 0.96));
+  box-shadow:
+    inset 0 1px 0 rgba(252, 246, 255, 0.92),
+    inset 0 -10px 24px rgba(160, 118, 205, 0.18),
+    0 10px 18px rgba(165, 122, 211, 0.18);
+}
+
+.themeLight .streakMonthCellTierBlue {
+  border-color: rgba(95, 152, 224, 0.26);
+  --streak-cell-bridge-bg: linear-gradient(180deg, rgba(176, 219, 253, 0.98), rgba(107, 176, 241, 0.96));
+  background:
+    radial-gradient(circle at 50% 40%, rgba(221, 243, 255, 0.38), transparent 56%),
+    radial-gradient(circle at center, rgba(138, 196, 252, 0.28), transparent 72%),
+    linear-gradient(180deg, rgba(176, 219, 253, 0.98), rgba(107, 176, 241, 0.96));
+  box-shadow:
+    inset 0 1px 0 rgba(244, 251, 255, 0.92),
+    inset 0 -10px 24px rgba(103, 155, 204, 0.18),
+    0 10px 18px rgba(107, 162, 210, 0.18);
+}
+
+.themeLight .streakMonthCellTierBlack {
+  border-color: rgba(108, 115, 145, 0.22);
+  --streak-cell-bridge-bg: linear-gradient(180deg, rgba(101, 108, 135, 0.98), rgba(66, 73, 101, 0.96));
+  background:
+    radial-gradient(circle at 50% 40%, rgba(226, 228, 243, 0.24), transparent 56%),
+    radial-gradient(circle at center, rgba(137, 145, 173, 0.22), transparent 72%),
+    linear-gradient(180deg, rgba(101, 108, 135, 0.98), rgba(66, 73, 101, 0.96));
+  box-shadow:
+    inset 0 1px 0 rgba(245, 247, 255, 0.74),
+    inset 0 -10px 24px rgba(79, 87, 118, 0.18),
+    0 10px 18px rgba(89, 96, 129, 0.18);
+}
+
+.themeLight .streakMonthCellTierWhite {
+  border-color: rgba(196, 203, 225, 0.32);
+  --streak-cell-bridge-bg: linear-gradient(180deg, rgba(247, 249, 255, 0.98), rgba(225, 231, 245, 0.96));
+  background:
+    radial-gradient(circle at 50% 40%, rgba(255, 255, 255, 0.56), transparent 56%),
+    radial-gradient(circle at center, rgba(229, 234, 247, 0.32), transparent 72%),
+    linear-gradient(180deg, rgba(247, 249, 255, 0.98), rgba(225, 231, 245, 0.96));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.96),
+    inset 0 -10px 24px rgba(183, 190, 213, 0.16),
+    0 10px 18px rgba(188, 194, 216, 0.16);
 }
 
 .themeLight .streakMonthDayNumber {
@@ -4759,6 +5005,119 @@
     radial-gradient(circle at top right, rgba(220, 224, 247, 0.54), transparent 36%),
     linear-gradient(180deg, rgba(250, 247, 242, 0.98), rgba(243, 238, 231, 0.96));
   box-shadow: 0 14px 30px rgba(104, 114, 145, 0.08);
+}
+
+.themeLight .profileStatCard,
+.themeLight .profileProgressCard {
+  background:
+    radial-gradient(circle at top right, rgba(220, 224, 247, 0.42), transparent 34%),
+    linear-gradient(180deg, rgba(250, 247, 242, 0.98), rgba(243, 238, 231, 0.96));
+  border-color: rgba(125, 135, 160, 0.14);
+  box-shadow:
+    0 12px 28px rgba(104, 114, 145, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.themeLight .profileStatCard span {
+  color: #6b7890;
+}
+
+.themeLight .profileStatCard strong {
+  color: #1d2a40;
+}
+
+.themeLight .analyticsHeroCard {
+  border-color: rgba(125, 135, 160, 0.14);
+  background:
+    radial-gradient(circle at top left, rgba(214, 221, 247, 0.52), transparent 28%),
+    radial-gradient(circle at top right, rgba(196, 231, 248, 0.38), transparent 24%),
+    linear-gradient(180deg, rgba(250, 247, 242, 0.98), rgba(243, 238, 231, 0.96));
+  box-shadow: 0 18px 34px rgba(104, 114, 145, 0.1);
+}
+
+.themeLight .analyticsHeroMetric {
+  background:
+    radial-gradient(circle at top right, rgba(216, 221, 245, 0.36), transparent 34%),
+    linear-gradient(180deg, rgba(250, 247, 242, 0.98), rgba(242, 237, 230, 0.96));
+  border-color: rgba(125, 135, 160, 0.14);
+  box-shadow:
+    0 12px 28px rgba(104, 114, 145, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.themeLight .analyticsHeroMetric span,
+.themeLight .analyticsHeroMetric small,
+.themeLight .analyticsChartLabels,
+.themeLight .analyticsBandSummary,
+.themeLight .analyticsNotificationHeader span,
+.themeLight .analyticsSubjectHeader span {
+  color: #6b7890;
+}
+
+.themeLight .analyticsHeroMetric strong,
+.themeLight .analyticsInsightTitle,
+.themeLight .analyticsFocusWindow strong,
+.themeLight .analyticsNotificationHeader strong,
+.themeLight .analyticsSubjectHeader strong,
+.themeLight .analyticsHourRow strong {
+  color: #1d2a40;
+}
+
+.themeLight .analyticsChartFrame {
+  border-color: rgba(125, 135, 160, 0.14);
+  background:
+    radial-gradient(circle at top, rgba(210, 223, 250, 0.48), transparent 40%),
+    linear-gradient(180deg, rgba(250, 247, 242, 0.98), rgba(242, 237, 230, 0.96));
+  box-shadow: 0 14px 28px rgba(104, 114, 145, 0.08);
+}
+
+.themeLight .analyticsInsightCard,
+.themeLight .analyticsNotificationCard,
+.themeLight .analyticsFocusWindow,
+.themeLight .analyticsHourRow,
+.themeLight .analyticsSubjectRow {
+  border-color: rgba(125, 135, 160, 0.14);
+  box-shadow:
+    0 10px 22px rgba(104, 114, 145, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.56);
+}
+
+.themeLight .analyticsInsightPositive {
+  background: linear-gradient(180deg, rgba(228, 247, 233, 0.98), rgba(214, 240, 220, 0.96));
+}
+
+.themeLight .analyticsInsightNeutral {
+  background: linear-gradient(180deg, rgba(240, 236, 247, 0.98), rgba(232, 226, 242, 0.96));
+}
+
+.themeLight .analyticsInsightWarning {
+  background: linear-gradient(180deg, rgba(252, 232, 227, 0.98), rgba(246, 218, 210, 0.96));
+}
+
+.themeLight .analyticsFocusWindow {
+  background:
+    radial-gradient(circle at left center, rgba(189, 219, 248, 0.42), transparent 36%),
+    linear-gradient(180deg, rgba(250, 247, 242, 0.98), rgba(242, 237, 230, 0.96));
+}
+
+.themeLight .analyticsFocusWindow span,
+.themeLight .analyticsFocusWindow small {
+  color: #5f6d85;
+}
+
+.themeLight .analyticsHourRow,
+.themeLight .analyticsSubjectRow {
+  background: rgba(250, 247, 242, 0.98);
+}
+
+.themeLight .analyticsBarTrack {
+  background: rgba(126, 138, 170, 0.14);
+}
+
+.themeLight .analyticsEmptyState {
+  border-color: rgba(125, 135, 160, 0.16);
+  background: rgba(247, 243, 236, 0.96);
+  color: #6b7890;
 }
 
 .themeLight .dayViewTicks {
@@ -4938,6 +5297,38 @@
   background: rgba(252, 249, 245, 0.96);
   color: #1d2a40;
   border-color: rgba(125, 135, 160, 0.14);
+}
+
+.themeLight .sessionGroup,
+.themeLight .sessionItem {
+  border-color: rgba(125, 135, 160, 0.14);
+  box-shadow: 0 12px 28px rgba(104, 114, 145, 0.06);
+}
+
+.themeLight .historyWeekGroup {
+  background: rgba(252, 249, 245, 0.72);
+}
+
+.themeLight .historyDayGroup {
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.themeLight .groupHeader h3,
+.themeLight .sessionPrimary,
+.themeLight .historyGroupMeta strong,
+.themeLight .historyDisclosure {
+  color: #13243a;
+}
+
+.themeLight .groupHeader span,
+.themeLight .historyGroupLabel,
+.themeLight .sessionMinutes,
+.themeLight .sessionNote {
+  color: #607089;
+}
+
+.themeLight .historyDisclosure {
+  background: rgba(125, 135, 160, 0.12);
 }
 
 .themeLight .planItemCompleted,
@@ -5184,6 +5575,10 @@
 }
 
 .dailyRitualCornerIconImage {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
   animation: dailyRitualFloat 3.8s ease-in-out infinite;
   filter: drop-shadow(0 8px 14px rgba(19, 27, 52, 0.12));
 }

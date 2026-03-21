@@ -301,6 +301,7 @@ type StreakMonthCell = {
   isCurrentMonth: boolean;
   isToday: boolean;
   streakLength: number;
+  streakTierColor: string | null;
   hasSession: boolean;
   isSaved: boolean;
   leftConnected: boolean;
@@ -330,11 +331,25 @@ type TrendPoint = {
   minutes: number;
 };
 
-type SessionDayGroup = {
+type SessionHistoryDayGroup = {
   key: string;
   label: string;
   totalMinutes: number;
   items: SessionDoc[];
+};
+
+type SessionHistoryWeekGroup = {
+  key: string;
+  label: string;
+  totalMinutes: number;
+  days: SessionHistoryDayGroup[];
+};
+
+type SessionHistoryMonthGroup = {
+  key: string;
+  label: string;
+  totalMinutes: number;
+  weeks: SessionHistoryWeekGroup[];
 };
 
 type PlannedBlock = {
@@ -465,6 +480,23 @@ function weekStartKeyLocal(dateInput: string | Date) {
   const mondayOffset = day === 0 ? -6 : 1 - day;
   value.setDate(value.getDate() + mondayOffset);
   return dayKeyLocal(value);
+}
+
+function formatHistoryWeekLabel(dateInput: string | Date) {
+  const start = startOfDayLocal(dateInput);
+  const end = addDaysLocal(start, 6);
+  const sameMonth = start.getMonth() === end.getMonth();
+  const sameYear = start.getFullYear() === end.getFullYear();
+
+  if (sameMonth && sameYear) {
+    return `${start.toLocaleDateString(undefined, { month: "short", day: "numeric" })} - ${end.toLocaleDateString(undefined, { day: "numeric" })}`;
+  }
+
+  if (sameYear) {
+    return `${start.toLocaleDateString(undefined, { month: "short", day: "numeric" })} - ${end.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
+  }
+
+  return `${start.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })} - ${end.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`;
 }
 
 function formatAnalyticsWindowLabel(startHour: number, endHour: number) {
@@ -872,6 +904,26 @@ type ProfileTierTheme = {
   imagePath: string;
 };
 
+function getDailyRitualWaveImagePath(tier: string | null | undefined) {
+  switch (tier) {
+    case "white":
+      return "/waving-intro-whelms/wave-white.png";
+    case "black":
+      return "/waving-intro-whelms/wave-black.png";
+    case "blue":
+      return "/waving-intro-whelms/wave-blue.png";
+    case "purple":
+      return "/waving-intro-whelms/wave-purple.png";
+    case "green":
+      return "/waving-intro-whelms/wave-green.png";
+    case "red":
+      return "/waving-intro-whelms/wave-red.png";
+    case "yellow":
+    default:
+      return "/waving-intro-whelms/wave-yellow.png";
+  }
+}
+
 function WhelmNavIcon({ icon }: { icon: NavIconKey }) {
   const svgProps = {
     viewBox: "0 0 64 64",
@@ -1021,43 +1073,60 @@ function iconForNavKey(tab: NavIconKey) {
   return <WhelmNavIcon icon={tab} />;
 }
 
-function getProfileTierTheme(tier: string | null | undefined): ProfileTierTheme {
+function getProfileTierTheme(
+  tier: string | null | undefined,
+  isPro = false,
+): ProfileTierTheme {
   switch (tier) {
     case "white":
       return {
         title: "White Ascendant",
-        imagePath: "/profile-tiers/white_profile.PNG",
+        imagePath: isPro
+          ? "/profile-tiers/premium_profile_white.PNG"
+          : "/profile-tiers/white_profile.PNG",
       };
     case "black":
       return {
         title: "Black Resolve",
-        imagePath: "/profile-tiers/black_profile.PNG",
+        imagePath: isPro
+          ? "/profile-tiers/premium_profile_black.PNG"
+          : "/profile-tiers/black_profile.PNG",
       };
     case "blue":
       return {
         title: "Blue Voltage",
-        imagePath: "/profile-tiers/blue_profile.PNG",
+        imagePath: isPro
+          ? "/profile-tiers/premium_profile_blue.PNG"
+          : "/profile-tiers/blue_profile.PNG",
       };
     case "purple":
       return {
         title: "Purple Pulse",
-        imagePath: "/profile-tiers/purple_profile.PNG",
+        imagePath: isPro
+          ? "/profile-tiers/premium_profile_purple.PNG"
+          : "/profile-tiers/purple_profile.PNG",
       };
     case "green":
       return {
         title: "Green Current",
-        imagePath: "/profile-tiers/green_profile.PNG",
+        imagePath: isPro
+          ? "/profile-tiers/premium_profile_green.PNG"
+          : "/profile-tiers/green_profile.PNG",
       };
     case "red":
       return {
         title: "Red Return",
-        imagePath: "/profile-tiers/red_profile.PNG",
+        imagePath: isPro
+          ? "/profile-tiers/premium_profile_red.PNG"
+          : "/profile-tiers/red_profile.PNG",
       };
     case "yellow":
     default:
       return {
         title: "Yellow Spark",
-        imagePath: "/profile-tiers/yellow_profile.PNG",
+        imagePath: isPro
+          ? "/profile-tiers/premium_profile_yellow.PNG"
+          : "/profile-tiers/yellow_profile.PNG",
       };
   }
 }
@@ -1071,7 +1140,7 @@ function WhelmProfileAvatar({
   size: ProfileAvatarSize;
   isPro?: boolean;
 }) {
-  const theme = getProfileTierTheme(tierColor);
+  const theme = getProfileTierTheme(tierColor, isPro);
 
   return (
     <div
@@ -1081,11 +1150,6 @@ function WhelmProfileAvatar({
       aria-hidden="true"
     >
       <img src={theme.imagePath} alt="" className={styles.profileAvatarImage} />
-      {isPro ? (
-        <div className={styles.profilePremiumBadge}>
-          <span className={styles.profilePremiumBandana} />
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -1310,15 +1374,20 @@ function StreakBandana({
   );
 }
 
-function DailyRitualWaveIcon({ className }: { className?: string }) {
-  const { RiveComponent } = useRive({
-    src: "/whelm-emotes/wavinghandhigher_whelm.riv",
-    autoplay: true,
-  });
-
+function DailyRitualWaveIcon({
+  className,
+  tierColor,
+}: {
+  className?: string;
+  tierColor: string | null | undefined;
+}) {
   return (
     <div className={[styles.dailyRitualWaveIcon, className].filter(Boolean).join(" ")} aria-hidden="true">
-      <RiveComponent className={styles.dailyRitualWaveIconCanvas} />
+      <img
+        src={getDailyRitualWaveImagePath(tierColor)}
+        alt=""
+        className={styles.dailyRitualCornerIconImage}
+      />
     </div>
   );
 }
@@ -1521,6 +1590,7 @@ export default function HomePage() {
     completed: false,
     incomplete: false,
   });
+  const [historyGroupsOpen, setHistoryGroupsOpen] = useState<Record<string, boolean>>({});
   const [noteUndoItem, setNoteUndoItem] = useState<WorkspaceNote | null>(null);
   const [deletedPlanUndo, setDeletedPlanUndo] = useState<PlannedBlock | null>(null);
   const [screenTimeStatus, setScreenTimeStatus] =
@@ -1748,31 +1818,89 @@ export default function HomePage() {
     });
   }, [orderedNotes]);
 
-  const sessionGroups = useMemo<SessionDayGroup[]>(() => {
-    const grouped = new Map<string, SessionDoc[]>();
+  const sessionHistoryGroups = useMemo<SessionHistoryMonthGroup[]>(() => {
+    const grouped = new Map<
+      string,
+      {
+        monthDate: Date;
+        weeks: Map<
+          string,
+          {
+            weekStart: Date;
+            days: Map<string, SessionDoc[]>;
+          }
+        >;
+      }
+    >();
 
     for (const session of sessions) {
-      const key = dayKeyLocal(session.completedAtISO);
-      const existing = grouped.get(key) ?? [];
-      existing.push(session);
-      grouped.set(key, existing);
+      const completedAt = new Date(session.completedAtISO);
+      const monthKey = `${completedAt.getFullYear()}-${String(completedAt.getMonth() + 1).padStart(2, "0")}`;
+      const weekKey = weekStartKeyLocal(completedAt);
+      const dayKey = dayKeyLocal(completedAt);
+
+      if (!grouped.has(monthKey)) {
+        grouped.set(monthKey, {
+          monthDate: new Date(completedAt.getFullYear(), completedAt.getMonth(), 1),
+          weeks: new Map(),
+        });
+      }
+
+      const monthGroup = grouped.get(monthKey)!;
+
+      if (!monthGroup.weeks.has(weekKey)) {
+        monthGroup.weeks.set(weekKey, {
+          weekStart: startOfDayLocal(`${weekKey}T00:00:00`),
+          days: new Map(),
+        });
+      }
+
+      const weekGroup = monthGroup.weeks.get(weekKey)!;
+      const existingDay = weekGroup.days.get(dayKey) ?? [];
+      existingDay.push(session);
+      weekGroup.days.set(dayKey, existingDay);
     }
 
     return [...grouped.entries()]
       .sort(([a], [b]) => (a < b ? 1 : -1))
-      .map(([key, items]) => ({
-        key,
-        label: new Date(items[0]?.completedAtISO ?? `${key}T00:00:00`).toLocaleDateString(
-          undefined,
-          {
-            weekday: "short",
-            month: "short",
-            day: "numeric",
-          },
-        ),
-        totalMinutes: items.reduce((sum, item) => sum + item.minutes, 0),
-        items: [...items].sort((a, b) => (a.completedAtISO < b.completedAtISO ? 1 : -1)),
-      }));
+      .map(([monthKey, monthGroup]) => {
+        const weeks = [...monthGroup.weeks.entries()]
+          .sort(([a], [b]) => (a < b ? 1 : -1))
+          .map(([weekKey, weekGroup]) => {
+            const days = [...weekGroup.days.entries()]
+              .sort(([a], [b]) => (a < b ? 1 : -1))
+              .map(([dayKey, items]) => ({
+                key: `day-${dayKey}`,
+                label: new Date(items[0]?.completedAtISO ?? `${dayKey}T00:00:00`).toLocaleDateString(
+                  undefined,
+                  {
+                    weekday: "short",
+                    month: "short",
+                    day: "numeric",
+                  },
+                ),
+                totalMinutes: items.reduce((sum, item) => sum + item.minutes, 0),
+                items: [...items].sort((a, b) => (a.completedAtISO < b.completedAtISO ? 1 : -1)),
+              }));
+
+            return {
+              key: `week-${weekKey}`,
+              label: formatHistoryWeekLabel(weekGroup.weekStart),
+              totalMinutes: days.reduce((sum, day) => sum + day.totalMinutes, 0),
+              days,
+            };
+          });
+
+        return {
+          key: `month-${monthKey}`,
+          label: monthGroup.monthDate.toLocaleDateString(undefined, {
+            month: "long",
+            year: "numeric",
+          }),
+          totalMinutes: weeks.reduce((sum, week) => sum + week.totalMinutes, 0),
+          weeks,
+        };
+      });
   }, [sessions]);
 
   const reportMetrics = useMemo(() => {
@@ -3351,6 +3479,7 @@ export default function HomePage() {
         isCurrentMonth: false,
         isToday: false,
         streakLength: 0,
+        streakTierColor: null,
         hasSession: false,
         isSaved: false,
         leftConnected: false,
@@ -3366,13 +3495,15 @@ export default function HomePage() {
       );
       const dateKey = dayKeyLocal(day);
       const isFutureDate = dateKey > todayKey;
+      const streakLength = isFutureDate ? 0 : (historicalStreaksByDay.get(dateKey) ?? 0);
       cells.push({
         key: dateKey,
         dateKey,
         dayNumber,
         isCurrentMonth: true,
         isToday: dateKey === todayKey,
-        streakLength: isFutureDate ? 0 : (historicalStreaksByDay.get(dateKey) ?? 0),
+        streakLength,
+        streakTierColor: isFutureDate ? null : (getStreakBandanaTier(streakLength)?.color ?? null),
         hasSession: !isFutureDate && sessionMinutesByDay.has(dateKey),
         isSaved:
           !isFutureDate &&
@@ -3391,6 +3522,7 @@ export default function HomePage() {
         isCurrentMonth: false,
         isToday: false,
         streakLength: 0,
+        streakTierColor: null,
         hasSession: false,
         isSaved: false,
         leftConnected: false,
@@ -4266,7 +4398,7 @@ export default function HomePage() {
     !sessionMinutesByDay.has(todayKey) && yesterdaySave ? priorRunBeforeYesterday + 1 : 0;
   const displayStreak = streak > 0 ? streak : rescuedRunDisplay;
   const streakBandanaTier = getStreakBandanaTier(displayStreak);
-  const profileTierTheme = getProfileTierTheme(streakBandanaTier?.color);
+  const profileTierTheme = getProfileTierTheme(streakBandanaTier?.color, isPro);
   const profileDisplayName =
     user.displayName?.trim() ||
     user.email?.split("@")[0]?.trim() ||
@@ -6925,7 +7057,7 @@ export default function HomePage() {
               <article className={styles.card}>
                 <p className={styles.sectionLabel}>History</p>
                 <h2 className={styles.cardTitle}>Session log</h2>
-                {sessionGroups.length === 0 ? (
+                {sessionHistoryGroups.length === 0 ? (
                   <div className={styles.historyEmptyState}>
                     <SenseiFigure
                       variant="wave"
@@ -6939,30 +7071,116 @@ export default function HomePage() {
                   </div>
                 ) : (
                   <div className={styles.groupList}>
-                    {sessionGroups.map((group) => (
-                      <section key={group.key} className={styles.sessionGroup}>
-                        <header className={styles.groupHeader}>
-                          <h3>{group.label}</h3>
-                          <span>{group.totalMinutes}m</span>
-                        </header>
-                        <div className={styles.sessionList}>
-                          {group.items.map((session, index) => (
-                            <div key={`${session.completedAtISO}-${index}`} className={styles.sessionItem}>
-                              <div>
-                                <div className={styles.sessionPrimary}>
-                                  {new Date(session.completedAtISO).toLocaleTimeString([], {
-                                    hour: "numeric",
-                                    minute: "2-digit",
-                                  })}{" "}
-                                  {session.note?.trim()
-                                    ? stripCompletedBlockPrefix(session.note.trim())
-                                    : "Session"}
-                                </div>
-                              </div>
-                              <div className={styles.sessionMinutes}>{session.minutes}m</div>
-                            </div>
-                          ))}
-                        </div>
+                    {sessionHistoryGroups.map((monthGroup) => (
+                      <section key={monthGroup.key} className={`${styles.sessionGroup} ${styles.historyMonthGroup}`}>
+                        <button
+                          type="button"
+                          className={styles.groupHeader}
+                          onClick={() =>
+                            setHistoryGroupsOpen((current) => ({
+                              ...current,
+                              [monthGroup.key]: !current[monthGroup.key],
+                            }))
+                          }
+                        >
+                          <div className={styles.historyGroupCopy}>
+                            <p className={styles.historyGroupLabel}>Month</p>
+                            <h3>{monthGroup.label}</h3>
+                          </div>
+                          <div className={styles.historyGroupMeta}>
+                            <span>{monthGroup.weeks.length} week{monthGroup.weeks.length === 1 ? "" : "s"}</span>
+                            <strong>{monthGroup.totalMinutes}m</strong>
+                            <span className={styles.historyDisclosure}>
+                              {historyGroupsOpen[monthGroup.key] ? "-" : "+"}
+                            </span>
+                          </div>
+                        </button>
+                        {historyGroupsOpen[monthGroup.key] && (
+                          <div className={styles.historyWeekList}>
+                            {monthGroup.weeks.map((weekGroup) => (
+                              <section
+                                key={weekGroup.key}
+                                className={`${styles.sessionGroup} ${styles.historyWeekGroup}`}
+                              >
+                                <button
+                                  type="button"
+                                  className={styles.groupHeader}
+                                  onClick={() =>
+                                    setHistoryGroupsOpen((current) => ({
+                                      ...current,
+                                      [weekGroup.key]: !current[weekGroup.key],
+                                    }))
+                                  }
+                                >
+                                  <div className={styles.historyGroupCopy}>
+                                    <p className={styles.historyGroupLabel}>Week</p>
+                                    <h3>{weekGroup.label}</h3>
+                                  </div>
+                                  <div className={styles.historyGroupMeta}>
+                                    <span>{weekGroup.days.length} day{weekGroup.days.length === 1 ? "" : "s"}</span>
+                                    <strong>{weekGroup.totalMinutes}m</strong>
+                                    <span className={styles.historyDisclosure}>
+                                      {historyGroupsOpen[weekGroup.key] ? "-" : "+"}
+                                    </span>
+                                  </div>
+                                </button>
+                                {historyGroupsOpen[weekGroup.key] && (
+                                  <div className={styles.historyDayList}>
+                                    {weekGroup.days.map((dayGroup) => (
+                                      <section
+                                        key={dayGroup.key}
+                                        className={`${styles.sessionGroup} ${styles.historyDayGroup}`}
+                                      >
+                                        <button
+                                          type="button"
+                                          className={styles.groupHeader}
+                                          onClick={() =>
+                                            setHistoryGroupsOpen((current) => ({
+                                              ...current,
+                                              [dayGroup.key]: !current[dayGroup.key],
+                                            }))
+                                          }
+                                        >
+                                          <div className={styles.historyGroupCopy}>
+                                            <p className={styles.historyGroupLabel}>Day</p>
+                                            <h3>{dayGroup.label}</h3>
+                                          </div>
+                                          <div className={styles.historyGroupMeta}>
+                                            <span>{dayGroup.items.length} session{dayGroup.items.length === 1 ? "" : "s"}</span>
+                                            <strong>{dayGroup.totalMinutes}m</strong>
+                                            <span className={styles.historyDisclosure}>
+                                              {historyGroupsOpen[dayGroup.key] ? "-" : "+"}
+                                            </span>
+                                          </div>
+                                        </button>
+                                        {historyGroupsOpen[dayGroup.key] && (
+                                          <div className={styles.sessionList}>
+                                            {dayGroup.items.map((session, index) => (
+                                              <div key={`${session.completedAtISO}-${index}`} className={styles.sessionItem}>
+                                                <div>
+                                                  <div className={styles.sessionPrimary}>
+                                                    {new Date(session.completedAtISO).toLocaleTimeString([], {
+                                                      hour: "numeric",
+                                                      minute: "2-digit",
+                                                    })}{" "}
+                                                    {session.note?.trim()
+                                                      ? stripCompletedBlockPrefix(session.note.trim())
+                                                      : "Session"}
+                                                  </div>
+                                                </div>
+                                                <div className={styles.sessionMinutes}>{session.minutes}m</div>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </section>
+                                    ))}
+                                  </div>
+                                )}
+                              </section>
+                            ))}
+                          </div>
+                        )}
                       </section>
                     ))}
                   </div>
@@ -7367,6 +7585,7 @@ export default function HomePage() {
                         styles.streakMonthCell,
                         cell.dayNumber ? "" : styles.streakMonthCellEmpty,
                         cell.streakLength > 0 ? styles.streakMonthCellActive : "",
+                        cell.streakTierColor ? styles[`streakMonthCellTier${cell.streakTierColor.charAt(0).toUpperCase()}${cell.streakTierColor.slice(1)}`] : "",
                         cell.isSaved ? styles.streakMonthCellSaved : "",
                         cell.leftConnected ? styles.streakMonthCellConnectLeft : "",
                         cell.rightConnected ? styles.streakMonthCellConnectRight : "",
@@ -7861,7 +8080,10 @@ export default function HomePage() {
             onClick={(event) => event.stopPropagation()}
           >
             <div className={styles.dailyRitualCornerIcon}>
-              <DailyRitualWaveIcon className={styles.dailyRitualCornerIconImage} />
+              <DailyRitualWaveIcon
+                className={styles.dailyRitualCornerIconImage}
+                tierColor={streakBandanaTier?.color}
+              />
             </div>
             <div className={styles.feedbackHeader}>
               <div>
