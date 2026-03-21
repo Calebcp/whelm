@@ -2,6 +2,7 @@
 
 import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
+import type { WhelmEmoteId } from "@/lib/whelm-emotes";
 import styles from "./Timer.module.css";
 import WhelmEmote from "./WhelmEmote";
 
@@ -89,6 +90,13 @@ const FOCUS_IDENTITIES: Record<
   },
 };
 
+const TIMER_RUNNING_WHELMS: WhelmEmoteId[] = [
+  "whelm.timer",
+  "whelm.ready",
+  "whelm.encourage",
+  "whelm.proud",
+];
+
 export default function Timer({
   minutes = 30,
   title,
@@ -138,11 +146,41 @@ export default function Timer({
   const [note, setNote] = useState("");
   const [focusIdentity, setFocusIdentity] = useState<FocusIdentity>("timer");
   const [entryModeLabel, setEntryModeLabel] = useState<string | null>(null);
+  const [isOnline, setIsOnline] = useState(true);
+  const [isVisible, setIsVisible] = useState(true);
+  const [pauseNotice, setPauseNotice] = useState<string | null>(null);
+  const [activeWhelmIndex, setActiveWhelmIndex] = useState(0);
   const intervalRef = useRef<number | null>(null);
   const entryTimeoutRef = useRef<number | null>(null);
   const sessionContextRef = useRef<TimerSessionContext | null>(null);
 
   const identityTheme = FOCUS_IDENTITIES[focusIdentity];
+
+  useEffect(() => {
+    setIsOnline(typeof navigator === "undefined" ? true : navigator.onLine);
+    setIsVisible(typeof document === "undefined" ? true : document.visibilityState === "visible");
+
+    function handleOnline() {
+      setIsOnline(true);
+    }
+
+    function handleOffline() {
+      setIsOnline(false);
+    }
+
+    function handleVisibilityChange() {
+      setIsVisible(document.visibilityState === "visible");
+    }
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
 
   useEffect(() => {
     if (mode === "countdown") {
@@ -188,6 +226,24 @@ export default function Timer({
   }, [mode, running]);
 
   useEffect(() => {
+    if (!running) return;
+    if (isOnline && isVisible) return;
+
+    setRunning(false);
+    setPauseNotice(
+      !isOnline
+        ? "Timer paused because the app went offline."
+        : "Timer paused because the app left the foreground.",
+    );
+    if (sessionContextRef.current) {
+      sessionContextRef.current = {
+        ...sessionContextRef.current,
+        interruptionCount: sessionContextRef.current.interruptionCount + 1,
+      };
+    }
+  }, [isOnline, isVisible, running]);
+
+  useEffect(() => {
     return () => {
       if (entryTimeoutRef.current) {
         window.clearTimeout(entryTimeoutRef.current);
@@ -202,6 +258,19 @@ export default function Timer({
       }
     };
   }, [onSessionAbandon, secondsElapsed, secondsLeft]);
+
+  useEffect(() => {
+    if (!running) {
+      setActiveWhelmIndex(0);
+      return;
+    }
+
+    const rotationId = window.setInterval(() => {
+      setActiveWhelmIndex((current) => (current + 1) % TIMER_RUNNING_WHELMS.length);
+    }, 5000);
+
+    return () => window.clearInterval(rotationId);
+  }, [running]);
 
   const displaySeconds = mode === "countdown" ? secondsLeft : secondsElapsed;
   const mm = Math.floor(displaySeconds / 60);
@@ -235,6 +304,7 @@ export default function Timer({
     setShowNotebookMenu(false);
     setShowTimerSettings(false);
     setNote("");
+    setPauseNotice(null);
     sessionContextRef.current = null;
   }
 
@@ -269,6 +339,14 @@ export default function Timer({
   }
 
   function startSession() {
+    if (!isOnline) {
+      setPauseNotice("Timer works only while you are online.");
+      return;
+    }
+    if (!isVisible) {
+      setPauseNotice("Bring the app back into view to run the timer.");
+      return;
+    }
     if (entryTimeoutRef.current) {
       window.clearTimeout(entryTimeoutRef.current);
     }
@@ -290,6 +368,7 @@ export default function Timer({
 
     sessionContextRef.current = sessionContext;
     setEntryModeLabel(identityTheme.entryLabel);
+    setPauseNotice(null);
     setRunning(true);
     if (!existingSession || done) {
       void onSessionStart?.(sessionContext);
@@ -303,6 +382,10 @@ export default function Timer({
   const timerFaceLabel = mode === "countdown" ? "Countdown" : "Stopwatch";
   const statusLabel = done
     ? `Exit ${identityTheme.entryLabel} mode and lock it in.`
+    : !isOnline
+      ? "Timer works only while you are online. Reconnect to continue."
+      : pauseNotice
+        ? pauseNotice
     : running
       ? mode === "countdown"
         ? `${identityTheme.label} mode is active. Stay with it.`
@@ -449,7 +532,11 @@ export default function Timer({
             {String(mm).padStart(2, "0")}:{String(ss).padStart(2, "0")}
           </div>
           <div className={styles.faceWhelm}>
-            <WhelmEmote emoteId="whelm.timer" size="card" className={styles.faceWhelmFigure} />
+            <WhelmEmote
+              emoteId={running ? TIMER_RUNNING_WHELMS[activeWhelmIndex] : "whelm.timer"}
+              size="card"
+              className={styles.faceWhelmFigure}
+            />
           </div>
           <div className={styles.status}>{statusLabel}</div>
         </div>

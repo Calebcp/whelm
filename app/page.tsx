@@ -42,6 +42,7 @@ import {
 import {
   getProState,
   restoreFreeTier,
+  startProPreview,
 } from "@/lib/subscription";
 import {
   getScreenTimeCapability,
@@ -165,6 +166,17 @@ const NOTE_HIGHLIGHTS = [
   { label: "Sky", value: "#bae6fd" },
   { label: "Lavender", value: "#ddd6fe" },
   { label: "Rose", value: "#fecdd3" },
+] as const;
+
+const MIN_PLANNED_BLOCK_MINUTES = 15;
+const MAX_PLANNED_BLOCK_MINUTES = 240;
+const MIN_PLANNED_BLOCK_GAP_MINUTES = 15;
+const STREAK_SAVE_ACCOUNTABILITY_QUESTIONS = [
+  "What specific symptoms or condition made yesterday unrealistic?",
+  "What would have made you push through anyway if this had been non-negotiable?",
+  "What evidence tells you this was a real sick day instead of drift or avoidance?",
+  "What are you doing today to make sure the streak returns to normal behavior?",
+  "What is the exact first block you will complete today to justify protecting the run?",
 ] as const;
 
 type FeedbackCategory = "bug" | "feature" | "other";
@@ -507,6 +519,59 @@ function parseTimeToMinutes(raw: string) {
   const [hh, mm] = raw.split(":").map((part) => Number(part));
   if (!Number.isFinite(hh) || !Number.isFinite(mm)) return 9 * 60;
   return Math.min(24 * 60 - 1, Math.max(0, hh * 60 + mm));
+}
+
+function getPlannedBlockDurationError(minutes: number) {
+  if (!Number.isFinite(minutes)) {
+    return "Enter a real duration in minutes.";
+  }
+  if (minutes < MIN_PLANNED_BLOCK_MINUTES) {
+    return `Blocks must be at least ${MIN_PLANNED_BLOCK_MINUTES} minutes.`;
+  }
+  if (minutes > MAX_PLANNED_BLOCK_MINUTES) {
+    return `Keep blocks at ${MAX_PLANNED_BLOCK_MINUTES} minutes or less.`;
+  }
+  return null;
+}
+
+function buildBlockSpacingMessage(conflicts: PlannedBlock[]) {
+  if (conflicts.length === 0) return "";
+  if (conflicts.length === 1) {
+    const block = conflicts[0];
+    return `Blocks need at least ${MIN_PLANNED_BLOCK_GAP_MINUTES} minutes between them. This is too close to "${block?.title}" at ${normalizeTimeLabel(block?.timeOfDay || "09:00")}.`;
+  }
+  return `Blocks need at least ${MIN_PLANNED_BLOCK_GAP_MINUTES} minutes between them. This placement is too close to ${conflicts.length} existing blocks.`;
+}
+
+function findPlanSpacingConflicts(
+  items: PlannedBlock[],
+  candidate: {
+    dateKey: string;
+    timeOfDay: string;
+    durationMinutes: number;
+    excludeId?: string;
+  },
+) {
+  const nextStartMinute = parseTimeToMinutes(candidate.timeOfDay || "09:00");
+  const nextEndMinute = Math.min(
+    24 * 60,
+    nextStartMinute + Math.max(MIN_PLANNED_BLOCK_MINUTES, candidate.durationMinutes),
+  );
+
+  return items.filter((item) => {
+    if (item.id === candidate.excludeId) return false;
+    if (item.dateKey !== candidate.dateKey) return false;
+    if (item.status !== "active") return false;
+    const startMinute = parseTimeToMinutes(item.timeOfDay || "09:00");
+    const endMinute = Math.min(
+      24 * 60,
+      startMinute + Math.max(MIN_PLANNED_BLOCK_MINUTES, item.durationMinutes),
+    );
+    return (
+      nextStartMinute < endMinute + MIN_PLANNED_BLOCK_GAP_MINUTES &&
+      nextEndMinute + MIN_PLANNED_BLOCK_GAP_MINUTES > startMinute
+    );
+  });
 }
 
 function isDateKeyBeforeToday(dateKey: string) {
@@ -1000,9 +1065,11 @@ function getProfileTierTheme(tier: string | null | undefined): ProfileTierTheme 
 function WhelmProfileAvatar({
   tierColor,
   size,
+  isPro = false,
 }: {
   tierColor: string | null | undefined;
   size: ProfileAvatarSize;
+  isPro?: boolean;
 }) {
   const theme = getProfileTierTheme(tierColor);
 
@@ -1014,6 +1081,11 @@ function WhelmProfileAvatar({
       aria-hidden="true"
     >
       <img src={theme.imagePath} alt="" className={styles.profileAvatarImage} />
+      {isPro ? (
+        <div className={styles.profilePremiumBadge}>
+          <span className={styles.profilePremiumBandana} />
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -1104,7 +1176,10 @@ function loadPlannedBlocks(uid: string): PlannedBlock[] {
         dateKey: item.dateKey,
         title: String(item.title).slice(0, 80),
         note: String((item as Partial<PlannedBlock>).note || "").slice(0, 280),
-        durationMinutes: Math.min(240, Math.max(5, Number(item.durationMinutes) || 25)),
+        durationMinutes: Math.min(
+          MAX_PLANNED_BLOCK_MINUTES,
+          Math.max(MIN_PLANNED_BLOCK_MINUTES, Number(item.durationMinutes) || 25),
+        ),
         timeOfDay: String(item.timeOfDay || "09:00").slice(0, 5),
         sortOrder: Number((item as Partial<PlannedBlock>).sortOrder) || 0,
         createdAtISO: item.createdAtISO || new Date().toISOString(),
@@ -1459,6 +1534,12 @@ export default function HomePage() {
   const [sickDaySaves, setSickDaySaves] = useState<SickDaySave[]>([]);
   const [sickDaySaveDismissals, setSickDaySaveDismissals] = useState<string[]>([]);
   const [sickDaySavePromptOpen, setSickDaySavePromptOpen] = useState(false);
+  const [sickDaySavePromptPreview, setSickDaySavePromptPreview] = useState(false);
+  const [streakSaveQuestionnaireOpen, setStreakSaveQuestionnaireOpen] = useState(false);
+  const [streakSaveQuestionnairePreview, setStreakSaveQuestionnairePreview] = useState(false);
+  const [streakSaveAnswers, setStreakSaveAnswers] = useState<Record<string, string>>({});
+  const [streakSaveStatus, setStreakSaveStatus] = useState("");
+  const [dailyPlanningPreviewOpen, setDailyPlanningPreviewOpen] = useState(false);
   const [mobileNotesRecentOpen, setMobileNotesRecentOpen] = useState(false);
   const [mobileNotesEditorOpen, setMobileNotesEditorOpen] = useState(false);
   const [mobileNotesToolsOpen, setMobileNotesToolsOpen] = useState<
@@ -2783,6 +2864,12 @@ export default function HomePage() {
     setProSource(next.source);
   }
 
+  async function handleStartProPreview() {
+    const next = await startProPreview();
+    setIsPro(next.isPro);
+    setProSource(next.source);
+  }
+
   async function handleRequestScreenTimeAuth() {
     try {
       setScreenTimeBusy(true);
@@ -3039,11 +3126,13 @@ export default function HomePage() {
 
   function openSickDaySaveReview() {
     setSickDaySavePromptOpen(false);
+    setSickDaySavePromptPreview(false);
     setActiveTab("streaks");
   }
 
   function dismissSickDaySavePrompt() {
     setSickDaySavePromptOpen(false);
+    setSickDaySavePromptPreview(false);
   }
 
   function declineSickDaySave() {
@@ -3054,8 +3143,56 @@ export default function HomePage() {
     setSickDaySavePromptOpen(false);
   }
 
+  function openStreakSaveQuestionnaire() {
+    setStreakSaveAnswers({});
+    setStreakSaveStatus("");
+    setStreakSaveQuestionnairePreview(false);
+    setStreakSaveQuestionnaireOpen(true);
+  }
+
+  function openStreakSaveQuestionnairePreview() {
+    setStreakSaveAnswers({});
+    setStreakSaveStatus("");
+    setStreakSaveQuestionnairePreview(true);
+    setStreakSaveQuestionnaireOpen(true);
+  }
+
+  function openSickDaySavePromptPreview() {
+    setSickDaySavePromptPreview(true);
+    setSickDaySavePromptOpen(true);
+  }
+
+  function closeStreakSaveQuestionnaire() {
+    setStreakSaveQuestionnaireOpen(false);
+    setStreakSaveQuestionnairePreview(false);
+    setStreakSaveStatus("");
+  }
+
+  function openDailyPlanningPreview() {
+    setDailyPlanningStatus("");
+    setDailyPlanningPreviewOpen(true);
+    setDailyPlanningOpen(true);
+  }
+
+  function closeDailyPlanningPreview() {
+    setDailyPlanningPreviewOpen(false);
+    setDailyPlanningOpen(false);
+    setDailyPlanningStatus("");
+  }
+
   function claimSickDaySave() {
+    if (streakSaveQuestionnairePreview) {
+      closeStreakSaveQuestionnaire();
+      return;
+    }
     if (!user || !sickDaySaveEligible) return;
+    const incompleteQuestion = STREAK_SAVE_ACCOUNTABILITY_QUESTIONS.find(
+      (question) => !streakSaveAnswers[question]?.trim(),
+    );
+    if (incompleteQuestion) {
+      setStreakSaveStatus("Answer all 5 accountability questions before using a streak save.");
+      return;
+    }
 
     const previousStreak = computeStreak(sessions, protectedStreakDateKeys);
     const nextSave: SickDaySave = {
@@ -3077,6 +3214,8 @@ export default function HomePage() {
       yesterdayKey,
     );
     setSickDaySavePromptOpen(false);
+    setStreakSaveQuestionnaireOpen(false);
+    setStreakSaveStatus("");
     setActiveTab("streaks");
   }
 
@@ -3282,6 +3421,9 @@ export default function HomePage() {
       active: sameDate.filter((item) => item.status === "active" && !isDateKeyBeforeToday(item.dateKey)),
       completed: sameDate.filter((item) => item.status === "completed"),
       incomplete: sameDate.filter((item) => item.status === "active" && isDateKeyBeforeToday(item.dateKey)),
+      visible: sameDate.filter(
+        (item) => item.status === "completed" || !isDateKeyBeforeToday(item.dateKey),
+      ),
     };
   }, [plannedBlocks, selectedDateKey]);
   const selectedDatePlans = selectedDatePlanGroups.active;
@@ -3680,7 +3822,7 @@ export default function HomePage() {
     [reportMetrics],
   );
 
-  function addPlannedBlock(forceOverlap = false) {
+  function addPlannedBlock() {
     if (!user) return false;
     const title = planTitle.trim();
     const note = planNote.trim();
@@ -3689,22 +3831,23 @@ export default function HomePage() {
       return false;
     }
 
-    const nextDuration = Math.min(240, Math.max(5, planDuration));
+    const durationError = getPlannedBlockDurationError(planDuration);
+    if (durationError) {
+      setPlanStatus(durationError);
+      return false;
+    }
+
+    const nextDuration = planDuration;
     const nextTime = planTime || "09:00";
-    const nextStartMinute = parseTimeToMinutes(nextTime);
-    const nextEndMinute = Math.min(24 * 60, nextStartMinute + Math.max(10, nextDuration));
-    const conflicts = selectedDatePlans.filter((item) => {
-      const startMinute = parseTimeToMinutes(item.timeOfDay || "09:00");
-      const endMinute = Math.min(24 * 60, startMinute + Math.max(10, item.durationMinutes));
-      return nextStartMinute < endMinute && nextEndMinute > startMinute;
+    const conflicts = findPlanSpacingConflicts(selectedDatePlans, {
+      dateKey: selectedDateKey,
+      timeOfDay: nextTime,
+      durationMinutes: nextDuration,
     });
-    if (!forceOverlap && conflicts.length > 0) {
+    if (conflicts.length > 0) {
       setPlanConflictWarning({
         conflictIds: conflicts.map((item) => item.id),
-        message:
-          conflicts.length === 1
-            ? `This overlaps with "${conflicts[0]?.title}" at ${normalizeTimeLabel(conflicts[0]?.timeOfDay || "09:00")}.`
-            : `This overlaps with ${conflicts.length} existing blocks on this day.`,
+        message: buildBlockSpacingMessage(conflicts),
       });
       setPlanStatus("");
       return false;
@@ -3783,11 +3926,24 @@ export default function HomePage() {
 
   function updatePlannedBlockTime(id: string, timeOfDay: string) {
     if (!user) return;
+    const block = plannedBlocks.find((item) => item.id === id);
+    if (!block) return;
+    const conflicts = findPlanSpacingConflicts(plannedBlocks, {
+      dateKey: block.dateKey,
+      timeOfDay,
+      durationMinutes: block.durationMinutes,
+      excludeId: id,
+    });
+    if (conflicts.length > 0) {
+      setPlanStatus(buildBlockSpacingMessage(conflicts));
+      return;
+    }
     const updated = plannedBlocks.map((item) =>
       item.id === id ? { ...item, timeOfDay } : item,
     );
     setPlannedBlocks(updated);
     savePlannedBlocks(user.uid, updated);
+    setPlanStatus("");
   }
 
   function reorderPlannedBlocks(sourceId: string, targetId: string) {
@@ -3953,15 +4109,25 @@ export default function HomePage() {
   }
 
   function submitDailyRitual() {
+    if (dailyPlanningPreviewOpen) {
+      closeDailyPlanningPreview();
+      return;
+    }
     if (!user) return;
     const todayKey = dayKeyLocal(new Date());
     const invalidDraft = dailyRitualDrafts.find((draft) => {
       if (draft.existingBlockId) return false;
-      return !draft.title.trim() || !draft.timeOfDay || draft.durationMinutes < 15;
+      return (
+        !draft.title.trim() ||
+        !draft.timeOfDay ||
+        getPlannedBlockDurationError(draft.durationMinutes) !== null
+      );
     });
 
     if (invalidDraft) {
-      setDailyPlanningStatus("Place 3 real blocks for today. Each one needs a title, time, and at least 15 minutes.");
+      setDailyPlanningStatus(
+        "Place 3 real blocks for today. Each one needs a title, time, and a reasonable duration.",
+      );
       return;
     }
 
@@ -3972,12 +4138,34 @@ export default function HomePage() {
         dateKey: todayKey,
         title: draft.title.trim(),
         note: draft.note.trim(),
-        durationMinutes: Math.min(240, Math.max(15, draft.durationMinutes)),
+        durationMinutes: draft.durationMinutes,
         timeOfDay: draft.timeOfDay,
         sortOrder: claimedBlocksToday.length + index,
         createdAtISO: new Date().toISOString(),
         status: "active" as const,
       }));
+
+    const spacingConflicts: PlannedBlock[] = [];
+    const candidatePool = plannedBlocks.filter(
+      (item) => item.dateKey === todayKey && item.status === "active",
+    );
+    for (const block of newBlocks) {
+      const conflicts = findPlanSpacingConflicts([...candidatePool, ...newBlocks], {
+        dateKey: block.dateKey,
+        timeOfDay: block.timeOfDay,
+        durationMinutes: block.durationMinutes,
+        excludeId: block.id,
+      });
+      if (conflicts.length > 0) {
+        spacingConflicts.push(...conflicts);
+        break;
+      }
+    }
+
+    if (spacingConflicts.length > 0) {
+      setDailyPlanningStatus(buildBlockSpacingMessage(spacingConflicts));
+      return;
+    }
 
     if (claimedBlocksToday.length + newBlocks.length < 3) {
       setDailyPlanningStatus("Three blocks are required before Whelm unlocks.");
@@ -4214,7 +4402,7 @@ export default function HomePage() {
                 }`}
                 onClick={() => setProfileOpen(true)}
               >
-                <WhelmProfileAvatar tierColor={streakBandanaTier?.color} size="compact" />
+                <WhelmProfileAvatar tierColor={streakBandanaTier?.color} size="compact" isPro={isPro} />
                 <span className={styles.profileDockCopy}>
                   {!isMobileViewport ? <small>Profile</small> : null}
                   <strong>{profileDisplayName}</strong>
@@ -4833,17 +5021,10 @@ export default function HomePage() {
                                   <div className={styles.planConflictActions}>
                                     <button
                                       type="button"
-                                      className={styles.planAddButton}
-                                      onClick={() => void addPlannedBlock(true)}
-                                    >
-                                      Add anyway
-                                    </button>
-                                    <button
-                                      type="button"
                                       className={styles.secondaryPlanButton}
                                       onClick={() => setPlanConflictWarning(null)}
                                     >
-                                      Cancel
+                                      Close
                                     </button>
                                   </div>
                                 </div>
@@ -4862,8 +5043,8 @@ export default function HomePage() {
                                   Minutes
                                   <input
                                     type="number"
-                                    min={5}
-                                    max={240}
+                                    min={MIN_PLANNED_BLOCK_MINUTES}
+                                    max={MAX_PLANNED_BLOCK_MINUTES}
                                     value={planDuration}
                                     onChange={(event) => {
                                       const next = Number(event.target.value);
@@ -5537,95 +5718,82 @@ export default function HomePage() {
                         setPlannerSectionsOpen((current) => ({ ...current, active: !current.active }))
                       }
                     >
-                      <span>Active Blocks</span>
-                      <span>{selectedDatePlanGroups.active.length}</span>
+                      <span>Planned Blocks</span>
+                      <span>{selectedDatePlanGroups.visible.length}</span>
                     </button>
                     {plannerSectionsOpen.active && (
                       <div className={styles.planList}>
-                        {selectedDatePlanGroups.active.length === 0 ? (
-                          <p className={styles.emptyText}>No active planned blocks for this day.</p>
+                        {selectedDatePlanGroups.visible.length === 0 ? (
+                          <p className={styles.emptyText}>No planned blocks for this day.</p>
                         ) : (
-                          selectedDatePlanGroups.active.map((item) => (
-                            <div
-                              key={item.id}
-                              className={styles.planItem}
-                              draggable
-                              onDragStart={() => setDraggedPlanId(item.id)}
-                              onDragEnd={() => setDraggedPlanId(null)}
-                              onDragOver={(event) => event.preventDefault()}
-                              onDrop={() => {
-                                if (!draggedPlanId) return;
-                                reorderPlannedBlocks(draggedPlanId, item.id);
-                                setDraggedPlanId(null);
-                              }}
-                            >
+                          selectedDatePlanGroups.visible.map((item) => {
+                            const completed = item.status === "completed";
+                            return (
+                              <div
+                                key={item.id}
+                                className={`${completed ? styles.planItemStatic : styles.planItem} ${
+                                  completed ? styles.planItemCompleted : ""
+                                }`}
+                                draggable={!completed}
+                                onDragStart={() => {
+                                  if (completed) return;
+                                  setDraggedPlanId(item.id);
+                                }}
+                                onDragEnd={() => setDraggedPlanId(null)}
+                                onDragOver={(event) => {
+                                  if (completed) return;
+                                  event.preventDefault();
+                                }}
+                                onDrop={() => {
+                                  if (completed || !draggedPlanId) return;
+                                  reorderPlannedBlocks(draggedPlanId, item.id);
+                                  setDraggedPlanId(null);
+                                }}
+                              >
                               <div>
                                 <strong>{item.title}</strong>
                                 <div className={styles.planMetaRow}>
-                                  <input
-                                    type="time"
-                                    value={item.timeOfDay}
-                                    className={styles.planItemTime}
-                                    onChange={(event) =>
-                                      updatePlannedBlockTime(item.id, event.target.value)
-                                    }
-                                  />
+                                  {completed ? (
+                                    <span>{normalizeTimeLabel(item.timeOfDay)}</span>
+                                  ) : (
+                                    <input
+                                      type="time"
+                                      value={item.timeOfDay}
+                                      className={styles.planItemTime}
+                                      onChange={(event) =>
+                                        updatePlannedBlockTime(item.id, event.target.value)
+                                      }
+                                    />
+                                  )}
                                   <span>{item.durationMinutes}m</span>
                                 </div>
                                 {item.note.trim() && <p className={styles.planItemNote}>{item.note}</p>}
                               </div>
                               <div className={styles.planActions}>
-                                <button
-                                  type="button"
-                                  className={styles.planCompleteButton}
-                                  onClick={() => void completePlannedBlock(item)}
-                                >
-                                  Complete
-                                </button>
-                                <button
-                                  type="button"
-                                  className={styles.planDeleteButton}
-                                  onClick={() => deletePlannedBlock(item.id)}
-                                >
-                                  Remove
-                                </button>
+                                {completed ? (
+                                  <div className={styles.planStatusPill}>Completed</div>
+                                ) : (
+                                  <>
+                                    <button
+                                      type="button"
+                                      className={styles.planCompleteButton}
+                                      onClick={() => void completePlannedBlock(item)}
+                                    >
+                                      Complete
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className={styles.planDeleteButton}
+                                      onClick={() => deletePlannedBlock(item.id)}
+                                    >
+                                      Remove
+                                    </button>
+                                  </>
+                                )}
                               </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    )}
-                  </section>
-
-                  <section className={styles.planSection}>
-                    <button
-                      type="button"
-                      className={styles.planSectionHeader}
-                      onClick={() =>
-                        setPlannerSectionsOpen((current) => ({ ...current, completed: !current.completed }))
-                      }
-                    >
-                      <span>Completed Blocks</span>
-                      <span>{selectedDatePlanGroups.completed.length}</span>
-                    </button>
-                    {plannerSectionsOpen.completed && (
-                      <div className={styles.planList}>
-                        {selectedDatePlanGroups.completed.length === 0 ? (
-                          <p className={styles.emptyText}>No completed blocks saved for this day.</p>
-                        ) : (
-                          selectedDatePlanGroups.completed.map((item) => (
-                            <div key={item.id} className={styles.planItemStatic}>
-                              <div>
-                                <strong>{item.title}</strong>
-                                <div className={styles.planMetaRow}>
-                                  <span>{normalizeTimeLabel(item.timeOfDay)}</span>
-                                  <span>{item.durationMinutes}m</span>
-                                </div>
-                                {item.note.trim() && <p className={styles.planItemNote}>{item.note}</p>}
                               </div>
-                              <div className={styles.planStatusPill}>Completed</div>
-                            </div>
-                          ))
+                            );
+                          })
                         )}
                       </div>
                     )}
@@ -5732,22 +5900,10 @@ export default function HomePage() {
                           <div className={styles.planConflictActions}>
                             <button
                               type="button"
-                              className={styles.planAddButton}
-                              onClick={() => {
-                                const added = addPlannedBlock(true);
-                                if (added) {
-                                  setMobileBlockSheetOpen(false);
-                                }
-                              }}
-                            >
-                              Add anyway
-                            </button>
-                            <button
-                              type="button"
                               className={styles.secondaryPlanButton}
                               onClick={() => setPlanConflictWarning(null)}
                             >
-                              Cancel
+                              Close
                             </button>
                           </div>
                         </div>
@@ -5766,8 +5922,8 @@ export default function HomePage() {
                           Minutes
                           <input
                             type="number"
-                            min={5}
-                            max={240}
+                            min={MIN_PLANNED_BLOCK_MINUTES}
+                            max={MAX_PLANNED_BLOCK_MINUTES}
                             value={planDuration}
                             onChange={(event) => {
                               const next = Number(event.target.value);
@@ -5794,15 +5950,21 @@ export default function HomePage() {
                       {planStatus && <p className={styles.accountMeta}>{planStatus}</p>}
                     </div>
                     <div className={styles.mobileBlockList}>
-                      {selectedDatePlans.slice(0, 4).map((item) => (
-                        <div key={item.id} className={styles.mobileBlockItem}>
+                      {selectedDatePlanGroups.visible.slice(0, 4).map((item) => (
+                        <div
+                          key={item.id}
+                          className={`${styles.mobileBlockItem} ${
+                            item.status === "completed" ? styles.mobileBlockItemCompleted : ""
+                          }`}
+                        >
                           <strong>{item.title}</strong>
                           <span>
                             {item.timeOfDay} • {item.durationMinutes}m
+                            {item.status === "completed" ? " • completed" : ""}
                           </span>
                         </div>
                       ))}
-                      {selectedDatePlans.length === 0 && (
+                      {selectedDatePlanGroups.visible.length === 0 && (
                         <p className={styles.emptyText}>No blocks yet for this day.</p>
                       )}
                     </div>
@@ -7139,7 +7301,7 @@ export default function HomePage() {
                         <button
                           type="button"
                           className={styles.reportButton}
-                          onClick={claimSickDaySave}
+                          onClick={openStreakSaveQuestionnaire}
                         >
                           Use sick day save
                         </button>
@@ -7298,7 +7460,7 @@ export default function HomePage() {
               <CompanionPulse {...companionState.pulses.settings} />
               <article className={`${styles.card} ${styles.settingsHeroCard}`}>
                 <div className={styles.settingsHeroHeader}>
-                  <WhelmProfileAvatar tierColor={streakBandanaTier?.color} size="compact" />
+                  <WhelmProfileAvatar tierColor={streakBandanaTier?.color} size="compact" isPro={isPro} />
                   <div>
                     <p className={styles.sectionLabel}>Account</p>
                     <h2 className={styles.cardTitle}>{user.displayName || "WHELM user"}</h2>
@@ -7309,12 +7471,19 @@ export default function HomePage() {
                   <span className={styles.settingsPill}>
                     Plan: {isPro ? "Pro" : "Free"}
                   </span>
+                  <span className={styles.settingsPill}>
+                    Mode: {proSource === "preview" ? "Preview" : isPro ? "Store" : "Standard"}
+                  </span>
                   <span className={styles.settingsPill}>Streak: {streak}d</span>
                 </div>
                 {!isPro ? (
                   <div className={styles.noteFooterActions}>
-                    <button type="button" className={styles.inlineUpgrade} onClick={openUpgradeFlow}>
-                      Whelm Pro coming soon
+                    <button
+                      type="button"
+                      className={styles.inlineUpgrade}
+                      onClick={() => void handleStartProPreview()}
+                    >
+                      Enter premium preview
                     </button>
                     <button
                       type="button"
@@ -7361,6 +7530,37 @@ export default function HomePage() {
                     <strong>{isPro ? "Full" : "Growing"}</strong>
                   </li>
                 </ul>
+              </article>
+
+              <article className={styles.card}>
+                <p className={styles.sectionLabel}>Testing</p>
+                <h2 className={styles.cardTitle}>Internal preview controls</h2>
+                <p className={styles.accountMeta}>
+                  Open gated flows from Settings without waiting for the real trigger conditions.
+                </p>
+                <div className={styles.settingsActionGrid}>
+                  <button
+                    type="button"
+                    className={styles.reportButton}
+                    onClick={openStreakSaveQuestionnairePreview}
+                  >
+                    Preview sick survey
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.secondaryPlanButton}
+                    onClick={openDailyPlanningPreview}
+                  >
+                    Preview 3-block ritual
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.secondaryPlanButton}
+                    onClick={openSickDaySavePromptPreview}
+                  >
+                    Preview streak warning
+                  </button>
+                </div>
               </article>
 
               <article className={styles.card}>
@@ -7534,7 +7734,7 @@ export default function HomePage() {
             </div>
 
             <article className={styles.profileHero}>
-              <WhelmProfileAvatar tierColor={streakBandanaTier?.color} size="hero" />
+              <WhelmProfileAvatar tierColor={streakBandanaTier?.color} size="hero" isPro={isPro} />
               <div className={styles.profileHeroCopy}>
                 <p className={styles.sectionLabel}>Whelm Identity</p>
                 <h3 className={styles.profileHeroTitle}>{profileDisplayName}</h3>
@@ -7654,7 +7854,7 @@ export default function HomePage() {
         </div>
       )}
 
-      {dailyPlanningOpen && dailyPlanningLocked && (
+      {dailyPlanningOpen && (dailyPlanningLocked || dailyPlanningPreviewOpen) && (
         <div className={styles.feedbackOverlay}>
           <div
             className={`${styles.feedbackModal} ${styles.dailyRitualModal}`}
@@ -7671,7 +7871,9 @@ export default function HomePage() {
             </div>
             <p className={styles.feedbackMeta}>
               <strong className={styles.dailyRitualCallout}>3 foundational blocks to enter.</strong>{" "}
-              Place them before Whelm unlocks. Each one must be at least 15 minutes.
+              {dailyPlanningPreviewOpen
+                ? "Preview mode only. Inspect the flow without changing today."
+                : "Place them before Whelm unlocks. Each one must be at least 15 minutes."}
             </p>
             <div className={styles.dailyRitualList}>
               {dailyRitualDrafts.map((draft, index) => {
@@ -7728,7 +7930,7 @@ export default function HomePage() {
                               value={draft.durationMinutes}
                               onChange={(event) =>
                                 updateDailyRitualDraft(draft.id, {
-                                  durationMinutes: Math.max(15, Number(event.target.value) || 15),
+                                  durationMinutes: Number(event.target.value) || 0,
                                 })
                               }
                               className={styles.planControl}
@@ -7756,7 +7958,9 @@ export default function HomePage() {
               <button
                 type="button"
                 className={`${styles.feedbackClose} ${styles.dailyRitualFooterClose}`}
-                onClick={() => setDailyPlanningOpen(false)}
+                onClick={() =>
+                  dailyPlanningPreviewOpen ? closeDailyPlanningPreview() : setDailyPlanningOpen(false)
+                }
               >
                 Close
               </button>
@@ -7766,7 +7970,9 @@ export default function HomePage() {
                 onClick={submitDailyRitual}
               >
                 <span className={styles.dailyRitualSubmitLabelWrap}>
-                  <span className={styles.dailyRitualSubmitLabel}>Submit</span>
+                  <span className={styles.dailyRitualSubmitLabel}>
+                    {dailyPlanningPreviewOpen ? "Close preview" : "Submit"}
+                  </span>
                 </span>
                 <span className={styles.dailyRitualSubmitBandanaPanel} aria-hidden="true">
                   <DailyRitualSubmitBandana className={styles.dailyRitualSubmitBandana} />
@@ -7817,7 +8023,64 @@ export default function HomePage() {
         </div>
       )}
 
-      {sickDaySavePromptOpen && sickDaySaveEligible && (
+      {streakSaveQuestionnaireOpen && (sickDaySaveEligible || streakSaveQuestionnairePreview) && (
+        <div className={styles.feedbackOverlay} onClick={closeStreakSaveQuestionnaire}>
+          <div className={styles.feedbackModal} onClick={(event) => event.stopPropagation()}>
+            <div className={styles.feedbackHeader}>
+              <h2 className={styles.feedbackTitle}>Sick day accountability</h2>
+              <button
+                type="button"
+                className={styles.feedbackClose}
+                onClick={closeStreakSaveQuestionnaire}
+              >
+                Close
+              </button>
+            </div>
+            <p className={styles.feedbackMeta}>
+              {streakSaveQuestionnairePreview
+                ? "Preview mode only. Fill it out and close it without changing the streak."
+                : "A streak save now requires 5 direct answers. If yesterday was a real sick day, write it plainly and commit to today."}
+            </p>
+            <div className={styles.feedbackFormStack}>
+              {STREAK_SAVE_ACCOUNTABILITY_QUESTIONS.map((question, index) => (
+                <label key={question} className={styles.planLabel}>
+                  {index + 1}. {question}
+                  <textarea
+                    value={streakSaveAnswers[question] ?? ""}
+                    onChange={(event) =>
+                      setStreakSaveAnswers((current) => ({
+                        ...current,
+                        [question]: event.target.value.slice(0, 280),
+                      }))
+                    }
+                    className={styles.feedbackTextarea}
+                    rows={3}
+                  />
+                </label>
+              ))}
+            </div>
+            {streakSaveStatus && <p className={styles.feedbackStatus}>{streakSaveStatus}</p>}
+            <div className={styles.noteFooterActions}>
+              <button
+                type="button"
+                className={styles.feedbackSubmit}
+                onClick={claimSickDaySave}
+              >
+                {streakSaveQuestionnairePreview ? "Close preview" : "Use sick day save"}
+              </button>
+              <button
+                type="button"
+                className={styles.secondaryPlanButton}
+                onClick={closeStreakSaveQuestionnaire}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {sickDaySavePromptOpen && (sickDaySaveEligible || sickDaySavePromptPreview) && (
         <div className={styles.feedbackOverlay} onClick={dismissSickDaySavePrompt}>
           <div className={styles.feedbackModal} onClick={(event) => event.stopPropagation()}>
             <div className={styles.feedbackHeader}>
