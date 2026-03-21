@@ -55,6 +55,7 @@ import {
 } from "@/lib/sensei-companion";
 import { evaluateSessionQuality } from "@/lib/session-quality";
 import { getStreakBandanaTier, STREAK_BANDANA_TIERS } from "@/lib/streak-bandanas";
+import { buildPerformanceNotificationPlan } from "@/lib/performance-notifications";
 import type { WhelmEmoteId } from "@/lib/whelm-emotes";
 import styles from "./page.module.css";
 
@@ -189,6 +190,82 @@ type AppTab =
 type NoteCategory = "personal" | "school" | "work";
 type InsightMetric = "focus" | "notes" | "planned" | "reminders";
 type SenseiTone = "steady" | "nudge" | "momentum" | "milestone";
+type AnalyticsInsightTone = "positive" | "neutral" | "warning";
+
+type AnalyticsInsight = {
+  type: string;
+  tone: AnalyticsInsightTone;
+  title: string;
+  body: string;
+};
+
+type AnalyticsWeeklySummary = {
+  daysCaptured: number;
+  activeDays: number;
+  totals: {
+    focusMinutes: number;
+    sessionsStarted: number;
+    sessionsCompleted: number;
+    sessionsAbandoned: number;
+    tasksCompleted: number;
+  };
+  averages: {
+    dailyPerformanceScore: number;
+    completionRate: number;
+    completedSessionLength: number;
+    sessionQualityScore: number | null;
+  };
+  performanceBands: {
+    high: number;
+    steady: number;
+    recovery: number;
+  };
+  streak: {
+    active: boolean;
+    longestAtEndOfDay: number;
+  };
+  subjectBreakdown: Record<
+    "language" | "school" | "work" | "general",
+    { focusMinutes: number; sessionsCompleted: number; tasksCompleted: number }
+  >;
+  days: Array<{
+    dateLocal: string;
+    dailyPerformanceScore: number;
+    dailyPerformanceBand: "high" | "steady" | "recovery";
+    focusMinutes: number;
+    sessionCompletionRate: number;
+  }>;
+};
+
+type AnalyticsDailySummary = {
+  dateLocal: string;
+  dailyPerformanceScore: number;
+  dailyPerformanceBand: "high" | "steady" | "recovery";
+  sessionCompletionRate: number;
+  focusMinutes: number;
+  sessionsAbandoned: number;
+  taskCompletedCount: number;
+  averageSessionQualityScore: number | null;
+};
+
+type BestFocusHour = {
+  hour: number;
+  focusMinutes: number;
+  completedSessions: number;
+  sharePercent: number;
+  averageSessionLength: number;
+};
+
+type BestFocusHoursSummary = {
+  bestWindow: {
+    startHour: number;
+    endHour: number;
+    label: string;
+    focusMinutes: number;
+    sharePercent: number;
+  } | null;
+  hours: BestFocusHour[];
+};
 
 type CalendarDay = {
   label: string;
@@ -362,6 +439,36 @@ function dayKeyLocal(dateInput: string | Date) {
 function startOfDayLocal(dateInput: string | Date) {
   const value = typeof dateInput === "string" ? new Date(dateInput) : new Date(dateInput);
   return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+}
+
+function addDaysLocal(dateInput: string | Date, days: number) {
+  const value = startOfDayLocal(dateInput);
+  value.setDate(value.getDate() + days);
+  return value;
+}
+
+function weekStartKeyLocal(dateInput: string | Date) {
+  const value = startOfDayLocal(dateInput);
+  const day = value.getDay();
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  value.setDate(value.getDate() + mondayOffset);
+  return dayKeyLocal(value);
+}
+
+function formatAnalyticsWindowLabel(startHour: number, endHour: number) {
+  const formatHour = (hour: number) => {
+    const normalized = hour === 24 ? 12 : hour % 12 === 0 ? 12 : hour % 12;
+    const suffix = hour >= 12 && hour < 24 ? "PM" : "AM";
+    return `${normalized} ${suffix}`;
+  };
+
+  return `${formatHour(startHour)} to ${formatHour(endHour)}`;
+}
+
+function formatHourLabel(hour: number) {
+  const normalized = hour % 12 === 0 ? 12 : hour % 12;
+  const suffix = hour >= 12 ? "PM" : "AM";
+  return `${normalized}${suffix}`;
 }
 
 function monthInputFromDate(date: Date) {
@@ -1261,6 +1368,21 @@ export default function HomePage() {
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [reportCopyStatus, setReportCopyStatus] = useState("");
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [analyticsError, setAnalyticsError] = useState("");
+  const [analyticsWeeklySummary, setAnalyticsWeeklySummary] = useState<AnalyticsWeeklySummary | null>(null);
+  const [analyticsDailySummary, setAnalyticsDailySummary] = useState<AnalyticsDailySummary | null>(null);
+  const [analyticsInsights, setAnalyticsInsights] = useState<AnalyticsInsight[]>([]);
+  const [analyticsBestHours, setAnalyticsBestHours] = useState<BestFocusHoursSummary | null>(null);
+  const [analyticsScoreHistory, setAnalyticsScoreHistory] = useState<
+    Array<{
+      date: string;
+      score: number;
+      band: "high" | "steady" | "recovery";
+      focusMinutes: number;
+      completionRate: number;
+    }>
+  >([]);
   const [paywallOpen, setPaywallOpen] = useState(false);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const [senseiReaction, setSenseiReaction] = useState("");
@@ -1343,6 +1465,7 @@ export default function HomePage() {
     "format" | "type" | "color" | null
   >(null);
   const [mobileBlockSheetOpen, setMobileBlockSheetOpen] = useState(false);
+  const reportsInsightToastRef = useRef<string | null>(null);
   const [mobileCalendarControlsOpen, setMobileCalendarControlsOpen] = useState(false);
   const [mobileAgendaEntriesOpen, setMobileAgendaEntriesOpen] = useState(false);
 
@@ -1604,6 +1727,123 @@ export default function HomePage() {
       notesWithReminders,
     };
   }, [focusMetrics.weekMinutes, notes, sessions, trendPoints]);
+
+  const analyticsDateRange = useMemo(() => {
+    const endDate = dayKeyLocal(new Date());
+    const startDate = dayKeyLocal(addDaysLocal(new Date(), -(insightRange - 1)));
+    return { startDate, endDate };
+  }, [insightRange]);
+
+  const analyticsNotificationPlan = useMemo(() => {
+    if (!analyticsDailySummary) return null;
+    return buildPerformanceNotificationPlan({
+      dailyPerformanceScore: analyticsDailySummary.dailyPerformanceScore,
+      dailyPerformanceBand: analyticsDailySummary.dailyPerformanceBand,
+      sessionCompletionRate: analyticsDailySummary.sessionCompletionRate,
+      sessionsAbandoned: analyticsDailySummary.sessionsAbandoned,
+      taskCompletedCount: analyticsDailySummary.taskCompletedCount,
+      focusMinutes: analyticsDailySummary.focusMinutes,
+      averageSessionQualityScore: analyticsDailySummary.averageSessionQualityScore,
+    });
+  }, [analyticsDailySummary]);
+
+  useEffect(() => {
+    if (!user || activeTab !== "reports") return;
+
+    let cancelled = false;
+    const currentUser = user;
+
+    async function fetchAnalyticsJson<T>(path: string) {
+      const token = await currentUser.getIdToken();
+      const response = await fetch(path, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const body = (await response.json().catch(() => null)) as T | { error?: string } | null;
+      if (!response.ok) {
+        throw new Error((body as { error?: string } | null)?.error || "Failed to load analytics.");
+      }
+
+      return body as T;
+    }
+
+    async function loadAnalytics() {
+      setAnalyticsLoading(true);
+      setAnalyticsError("");
+
+      try {
+        const todayKey = dayKeyLocal(new Date());
+        const weekStart = weekStartKeyLocal(new Date());
+
+        const [weeklyPayload, dailyPayload, insightsPayload, bestHoursPayload, scoreHistoryPayload] =
+          await Promise.all([
+            fetchAnalyticsJson<{ summary: AnalyticsWeeklySummary }>(
+              `/api/analytics/weekly-summary?uid=${encodeURIComponent(currentUser.uid)}&weekStart=${encodeURIComponent(weekStart)}`,
+            ),
+            fetchAnalyticsJson<{ summary: AnalyticsDailySummary | null }>(
+              `/api/analytics/daily-summary?uid=${encodeURIComponent(currentUser.uid)}&date=${encodeURIComponent(todayKey)}`,
+            ),
+            fetchAnalyticsJson<{ insights: AnalyticsInsight[] }>(
+              `/api/analytics/insights?uid=${encodeURIComponent(currentUser.uid)}&startDate=${encodeURIComponent(
+                analyticsDateRange.startDate,
+              )}&endDate=${encodeURIComponent(analyticsDateRange.endDate)}&limit=6`,
+            ),
+            fetchAnalyticsJson<BestFocusHoursSummary>(
+              `/api/analytics/best-focus-hours?uid=${encodeURIComponent(currentUser.uid)}&startDate=${encodeURIComponent(
+                analyticsDateRange.startDate,
+              )}&endDate=${encodeURIComponent(analyticsDateRange.endDate)}`,
+            ),
+            fetchAnalyticsJson<{
+              history: Array<{
+                date: string;
+                score: number;
+                band: "high" | "steady" | "recovery";
+                focusMinutes: number;
+                completionRate: number;
+              }>;
+            }>(
+              `/api/analytics/performance-score-history?uid=${encodeURIComponent(
+                currentUser.uid,
+              )}&startDate=${encodeURIComponent(analyticsDateRange.startDate)}&endDate=${encodeURIComponent(
+                analyticsDateRange.endDate,
+              )}`,
+            ),
+          ]);
+
+        if (cancelled) return;
+
+        setAnalyticsWeeklySummary(weeklyPayload.summary);
+        setAnalyticsDailySummary(dailyPayload.summary);
+        setAnalyticsInsights(insightsPayload.insights);
+        setAnalyticsBestHours(bestHoursPayload);
+        setAnalyticsScoreHistory(scoreHistoryPayload.history);
+      } catch (error: unknown) {
+        if (cancelled) return;
+        setAnalyticsError(error instanceof Error ? error.message : "Failed to load reports.");
+      } finally {
+        if (!cancelled) {
+          setAnalyticsLoading(false);
+        }
+      }
+    }
+
+    void loadAnalytics();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, analyticsDateRange.endDate, analyticsDateRange.startDate, user]);
+
+  useEffect(() => {
+    if (activeTab !== "reports") return;
+    const topInsight = analyticsInsights[0];
+    if (!topInsight) return;
+    if (reportsInsightToastRef.current === topInsight.title) return;
+    reportsInsightToastRef.current = topInsight.title;
+    setSenseiReaction(topInsight.body);
+  }, [activeTab, analyticsInsights]);
 
   const todayPlannedBlocks = useMemo(
     () => plannedBlocks.filter((item) => item.dateKey === dayKeyLocal(new Date())),
@@ -3866,10 +4106,33 @@ export default function HomePage() {
       return `${x},${y}`;
     })
     .join(" ");
-  const activeInsight =
-    insightsChart.segments.find((segment) => segment.key === selectedInsightCategory) ??
-    insightsChart.ranked[0] ??
-    insightsChart.segments[0];
+  const maxAnalyticsScore = Math.max(100, ...analyticsScoreHistory.map((entry) => entry.score));
+  const analyticsScorePath = analyticsScoreHistory
+    .map((entry, index) => {
+      const x = (index / Math.max(1, analyticsScoreHistory.length - 1)) * 100;
+      const y = 100 - (entry.score / maxAnalyticsScore) * 100;
+      return `${x},${y}`;
+    })
+    .join(" ");
+  const analyticsTopHours = analyticsBestHours?.hours.slice(0, 4) ?? [];
+  const analyticsTopSubjects = analyticsWeeklySummary
+    ? (Object.entries(analyticsWeeklySummary.subjectBreakdown) as Array<
+        [
+          "language" | "school" | "work" | "general",
+          { focusMinutes: number; sessionsCompleted: number; tasksCompleted: number },
+        ]
+      >)
+        .map(([key, value]) => ({
+          key,
+          label:
+            key === "general"
+              ? "General"
+              : key.charAt(0).toUpperCase() + key.slice(1),
+          ...value,
+        }))
+        .sort((a, b) => b.focusMinutes - a.focusMinutes)
+    : [];
+  const analyticsTopSubjectMinutes = Math.max(1, ...analyticsTopSubjects.map((subject) => subject.focusMinutes));
   const streakHeroEmoteId: WhelmEmoteId =
     streak >= 100 ? "whelm.proud" : streak >= 50 ? "whelm.ready" : "whelm.encourage";
   const streakMilestoneTitle = nextBandanaMilestone
@@ -6549,18 +6812,19 @@ export default function HomePage() {
           {activeTab === "reports" && (
             <section className={styles.reportsGrid}>
               <CompanionPulse {...companionState.pulses.reports} />
-              <article className={`${styles.card} ${styles.insightsHeroCard}`}>
+              <article className={`${styles.card} ${styles.analyticsHeroCard}`}>
                 <div className={styles.cardHeader}>
                   <div>
-                    <p className={styles.sectionLabel}>Reports</p>
-                    <h2 className={styles.cardTitle}>Flow breakdown</h2>
+                    <p className={styles.sectionLabel}>Advanced Reports</p>
+                    <h2 className={styles.cardTitle}>Performance command center</h2>
                     <p className={styles.accountMeta}>
-                      Visual breakdown by category for your most important productivity signals.
+                      Rich analytics from your tracked sessions, completion behavior, quality score, and timing patterns.
                     </p>
                   </div>
+                  <WhelmEmote emoteId="whelm.score" size="inline" className={styles.analyticsHeroEmote} />
                 </div>
 
-                <div className={styles.insightControls}>
+                <div className={styles.analyticsToolbar}>
                   <div className={styles.rangeTabs}>
                     <button
                       type="button"
@@ -6584,226 +6848,219 @@ export default function HomePage() {
                       90d
                     </button>
                   </div>
-                  <div className={styles.rangeTabs}>
-                    <button
-                      type="button"
-                      className={`${styles.rangeTab} ${insightMetric === "focus" ? styles.rangeTabActive : ""}`}
-                      onClick={() => setInsightMetric("focus")}
-                    >
-                      Focus
-                    </button>
-                    <button
-                      type="button"
-                      className={`${styles.rangeTab} ${insightMetric === "planned" ? styles.rangeTabActive : ""}`}
-                      onClick={() => setInsightMetric("planned")}
-                    >
-                      Planned
-                    </button>
-                    <button
-                      type="button"
-                      className={`${styles.rangeTab} ${insightMetric === "reminders" ? styles.rangeTabActive : ""}`}
-                      onClick={() => setInsightMetric("reminders")}
-                    >
-                      Reminders
-                    </button>
-                  </div>
+                  <p className={styles.accountMeta}>
+                    Window: {analyticsDateRange.startDate} to {analyticsDateRange.endDate}
+                  </p>
                 </div>
 
-                <div className={styles.insightBody}>
-                  <div className={styles.insightDonutWrap}>
-                    <button
-                      type="button"
-                      className={styles.insightDonut}
-                      style={{ backgroundImage: insightsChart.donutGradient }}
-                      onClick={() =>
-                        setSelectedInsightCategory(
-                          insightsChart.topCategory?.key ?? selectedInsightCategory ?? "personal",
-                        )
-                      }
-                    >
-                      <span className={styles.insightDonutCenter}>
-                        <strong>
-                          {insightsChart.total}
-                          {insightsChart.unitSuffix}
-                        </strong>
-                        <small>{insightsChart.metricLabel}</small>
-                      </span>
-                    </button>
-                    <p className={styles.accountMeta}>{insightsChart.windowLabel}</p>
-                  </div>
-
-                  <div className={styles.insightLegend}>
-                    {insightsChart.ranked.map((segment) => {
-                      const share =
-                        insightsChart.total === 0
-                          ? 0
-                          : Math.round((segment.value / insightsChart.total) * 100);
-                      const isSelected = activeInsight?.key === segment.key;
-
-                      return (
-                        <button
-                          type="button"
-                          key={segment.key}
-                          className={`${styles.insightLegendItem} ${
-                            isSelected ? styles.insightLegendItemActive : ""
-                          }`}
-                          onClick={() => setSelectedInsightCategory(segment.key)}
-                        >
-                          <span
-                            className={styles.insightLegendSwatch}
-                            style={{ backgroundColor: segment.color }}
-                          />
-                          <span className={styles.insightLegendLabel}>{segment.label}</span>
-                          <strong className={styles.insightLegendValue}>
-                            {segment.value}
-                            {insightsChart.unitSuffix}
-                          </strong>
-                          <small className={styles.insightLegendShare}>{share}%</small>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </article>
-
-              {activeInsight && (
-                <article className={styles.card}>
-                  <p className={styles.sectionLabel}>Flow Leader</p>
-                  <h2 className={styles.cardTitle}>{activeInsight.label}</h2>
-                  <p className={styles.accountMeta}>{activeInsight.description}</p>
-                  <ul className={styles.commandList}>
-                    <li>
+                {analyticsError ? (
+                  <p className={styles.analyticsEmptyState}>{analyticsError}</p>
+                ) : analyticsLoading && !analyticsWeeklySummary ? (
+                  <p className={styles.analyticsEmptyState}>Loading advanced reports...</p>
+                ) : analyticsWeeklySummary ? (
+                  <div className={styles.analyticsHeroGrid}>
+                    <div className={styles.analyticsHeroMetric}>
+                      <span>Avg Performance</span>
+                      <strong>{analyticsWeeklySummary.averages.dailyPerformanceScore}</strong>
+                      <small>score this week</small>
+                    </div>
+                    <div className={styles.analyticsHeroMetric}>
+                      <span>Completion Rate</span>
+                      <strong>{analyticsWeeklySummary.averages.completionRate}%</strong>
+                      <small>{analyticsWeeklySummary.totals.sessionsCompleted} sessions finished</small>
+                    </div>
+                    <div className={styles.analyticsHeroMetric}>
+                      <span>Session Quality</span>
                       <strong>
-                        {activeInsight.value}
-                        {insightsChart.unitSuffix}
-                      </strong>{" "}
-                      in the current window
-                    </li>
-                    <li>
-                      <strong>{insightsChart.topCategory?.label ?? "None yet"}</strong> is currently leading
-                    </li>
-                  </ul>
-                </article>
-              )}
-
-              <article className={styles.card}>
-                <p className={styles.sectionLabel}>Progress</p>
-                <h2 className={styles.cardTitle}>Flow rhythm</h2>
-                <div className={styles.kpiGrid}>
-                  <div className={styles.kpiItemStatic}>
-                    <span>Total Focus</span>
-                    <strong>{reportMetrics.totalMinutes}m</strong>
+                        {analyticsWeeklySummary.averages.sessionQualityScore === null
+                          ? "N/A"
+                          : analyticsWeeklySummary.averages.sessionQualityScore}
+                      </strong>
+                      <small>quality average</small>
+                    </div>
+                    <div className={styles.analyticsHeroMetric}>
+                      <span>Active Days</span>
+                      <strong>{analyticsWeeklySummary.activeDays}</strong>
+                      <small>captured this week</small>
+                    </div>
                   </div>
-                  <div className={styles.kpiItemStatic}>
-                    <span>Total Sessions</span>
-                    <strong>{reportMetrics.sessionCount}</strong>
-                  </div>
-                  <div className={styles.kpiItemStatic}>
-                    <span>Current Streak</span>
-                    <strong>{streak}d</strong>
-                  </div>
-                  <div className={styles.kpiItemStatic}>
-                    <span>Focus Week</span>
-                    <strong>{focusMetrics.weekMinutes}m</strong>
-                  </div>
-                </div>
-                <div className={styles.progressTrack}>
-                  <div
-                    className={styles.progressFill}
-                    style={{ width: `${reportMetrics.weeklyProgress}%` }}
-                  />
-                </div>
-                <p className={styles.accountMeta}>
-                  Weekly target progress: {reportMetrics.weeklyProgress}% of 420m
-                </p>
+                ) : (
+                  <p className={styles.analyticsEmptyState}>Finish a few tracked sessions to unlock richer reports.</p>
+                )}
               </article>
 
               <article className={styles.card}>
                 <div className={styles.cardHeader}>
                   <div>
-                    <p className={styles.sectionLabel}>Focus History</p>
-                    <h2 className={styles.cardTitle}>Recent momentum</h2>
-                  </div>
-                  <div className={styles.rangeTabs}>
-                    <button
-                      type="button"
-                      className={`${styles.rangeTab} ${trendRange === 7 ? styles.rangeTabActive : ""}`}
-                      onClick={() => setTrendRange(7)}
-                    >
-                      7d
-                    </button>
-                    <button
-                      type="button"
-                      className={`${styles.rangeTab} ${trendRange === 30 ? styles.rangeTabActive : ""}`}
-                      onClick={() => setTrendRange(30)}
-                    >
-                      30d
-                    </button>
-                    <button
-                      type="button"
-                      className={`${styles.rangeTab} ${trendRange === 90 ? styles.rangeTabActive : ""}`}
-                      onClick={() => setTrendRange(90)}
-                    >
-                      90d
-                    </button>
+                    <p className={styles.sectionLabel}>Score History</p>
+                    <h2 className={styles.cardTitle}>Performance score trend</h2>
                   </div>
                 </div>
-
-                <div className={styles.chartFrame}>
-                  <svg viewBox="0 0 100 100" className={styles.trendChart} preserveAspectRatio="none">
-                    <polyline points={trendPath} className={styles.trendLine} />
-                  </svg>
-                  <div className={styles.chartAxis}>
-                    {trendPoints
-                      .map((point, index) => (
-                        <span key={`${point.label}-${index}`}>{point.label}</span>
-                      ))
-                      .filter((_, index) =>
-                        trendRange === 7
-                          ? true
-                          : trendRange === 30
-                            ? index % 5 === 0 || index === trendPoints.length - 1
-                            : index % 15 === 0 || index === trendPoints.length - 1,
-                      )}
-                  </div>
-                </div>
+                {analyticsScoreHistory.length > 0 ? (
+                  <>
+                    <div className={styles.analyticsChartFrame}>
+                      <svg viewBox="0 0 100 100" className={styles.trendChart} preserveAspectRatio="none">
+                        <polyline points={analyticsScorePath} className={styles.analyticsTrendLine} />
+                      </svg>
+                    </div>
+                    <div className={styles.analyticsChartLabels}>
+                      {analyticsScoreHistory
+                        .map((entry, index) => (
+                          <span key={`${entry.date}-${index}`}>
+                            {new Date(`${entry.date}T00:00:00`).toLocaleDateString(undefined, {
+                              month: "short",
+                              day: "numeric",
+                            })}
+                          </span>
+                        ))
+                        .filter((_, index) =>
+                          insightRange === 7
+                            ? true
+                            : insightRange === 30
+                              ? index % 5 === 0 || index === analyticsScoreHistory.length - 1
+                              : index % 15 === 0 || index === analyticsScoreHistory.length - 1,
+                        )}
+                    </div>
+                    <div className={styles.analyticsBandSummary}>
+                      <span>High: {analyticsWeeklySummary?.performanceBands.high ?? 0}</span>
+                      <span>Steady: {analyticsWeeklySummary?.performanceBands.steady ?? 0}</span>
+                      <span>Recovery: {analyticsWeeklySummary?.performanceBands.recovery ?? 0}</span>
+                    </div>
+                  </>
+                ) : (
+                  <p className={styles.analyticsEmptyState}>Performance score history will appear once analytics days are aggregated.</p>
+                )}
               </article>
 
               <article className={styles.card}>
-                <p className={styles.sectionLabel}>Today</p>
-                <h2 className={styles.cardTitle}>Keep it simple</h2>
-                <ul className={styles.commandList}>
-                  <li>Protect the streak with one focused session.</li>
-                  <li>Use the schedule to place your next real block.</li>
-                  <li>Use reports only to notice patterns, not to judge yourself.</li>
-                </ul>
+                <div className={styles.cardHeader}>
+                  <div>
+                    <p className={styles.sectionLabel}>Insight Feed</p>
+                    <h2 className={styles.cardTitle}>What the system is seeing</h2>
+                  </div>
+                </div>
+                {analyticsInsights.length > 0 ? (
+                  <div className={styles.analyticsInsightList}>
+                    {analyticsInsights.map((insight) => (
+                      <article
+                        key={insight.type}
+                        className={`${styles.analyticsInsightCard} ${
+                          insight.tone === "warning"
+                            ? styles.analyticsInsightWarning
+                            : insight.tone === "positive"
+                              ? styles.analyticsInsightPositive
+                              : styles.analyticsInsightNeutral
+                        }`}
+                      >
+                        <p className={styles.analyticsInsightTitle}>{insight.title}</p>
+                        <p className={styles.accountMeta}>{insight.body}</p>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <p className={styles.analyticsEmptyState}>No standout insights yet. More tracked sessions will make this feed sharper.</p>
+                )}
               </article>
 
               <article className={styles.card}>
-                <p className={styles.sectionLabel}>Apple Screen Time</p>
-                <h2 className={styles.cardTitle}>System usage integration</h2>
-                <p className={styles.accountMeta}>
-                  {screenTimeStatus === "approved"
-                    ? "Permission granted. Next: attach Device Activity report extension in Xcode."
-                    : "Grant permission to connect Apple Screen Time data into Whelm."}
-                </p>
-                <div className={styles.noteFooterActions}>
-                  <button
-                    type="button"
-                    className={styles.reportButton}
-                    onClick={() => void handleRequestScreenTimeAuth()}
-                    disabled={!screenTimeSupported || screenTimeBusy}
-                  >
-                    {screenTimeBusy ? "Working..." : "Enable Screen Time"}
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.secondaryPlanButton}
-                    onClick={() => setActiveTab("settings")}
-                  >
-                    Open setup panel
-                  </button>
+                <div className={styles.cardHeader}>
+                  <div>
+                    <p className={styles.sectionLabel}>Timing</p>
+                    <h2 className={styles.cardTitle}>Best focus window</h2>
+                  </div>
                 </div>
+                {analyticsBestHours?.bestWindow ? (
+                  <>
+                    <div className={styles.analyticsFocusWindow}>
+                      <strong>
+                        {formatAnalyticsWindowLabel(
+                          analyticsBestHours.bestWindow.startHour,
+                          analyticsBestHours.bestWindow.endHour,
+                        )}
+                      </strong>
+                      <span>{analyticsBestHours.bestWindow.focusMinutes} focus minutes captured in this window.</span>
+                      <small>{analyticsBestHours.bestWindow.sharePercent}% of your tracked completed-session focus lives here.</small>
+                    </div>
+                    <div className={styles.analyticsHourList}>
+                      {analyticsTopHours.map((hour) => (
+                        <div key={hour.hour} className={styles.analyticsHourRow}>
+                          <div>
+                            <strong>{formatHourLabel(hour.hour)}</strong>
+                            <p className={styles.accountMeta}>{hour.completedSessions} sessions</p>
+                          </div>
+                          <div className={styles.analyticsBarTrack}>
+                            <div
+                              className={styles.analyticsBarFill}
+                              style={{ width: `${Math.max(8, hour.sharePercent)}%` }}
+                            />
+                          </div>
+                          <span>{hour.focusMinutes}m</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <p className={styles.analyticsEmptyState}>Best focus hours appear after enough completed sessions are tracked.</p>
+                )}
+              </article>
+
+              <article className={styles.card}>
+                <div className={styles.cardHeader}>
+                  <div>
+                    <p className={styles.sectionLabel}>Subject Breakdown</p>
+                    <h2 className={styles.cardTitle}>Where the work is landing</h2>
+                  </div>
+                </div>
+                {analyticsTopSubjects.some((subject) => subject.focusMinutes > 0) ? (
+                  <div className={styles.analyticsSubjectList}>
+                    {analyticsTopSubjects.map((subject) => (
+                      <div key={subject.key} className={styles.analyticsSubjectRow}>
+                        <div className={styles.analyticsSubjectHeader}>
+                          <strong>{subject.label}</strong>
+                          <span>{subject.focusMinutes}m</span>
+                        </div>
+                        <div className={styles.analyticsBarTrack}>
+                          <div
+                            className={styles.analyticsBarFill}
+                            style={{ width: `${(subject.focusMinutes / analyticsTopSubjectMinutes) * 100}%` }}
+                          />
+                        </div>
+                        <p className={styles.accountMeta}>
+                          {subject.sessionsCompleted} completed sessions, {subject.tasksCompleted} tasks finished
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className={styles.analyticsEmptyState}>Subject-level analytics will fill in as tracked sessions accumulate.</p>
+                )}
+              </article>
+
+              <article className={styles.card}>
+                <div className={styles.cardHeader}>
+                  <div>
+                    <p className={styles.sectionLabel}>Popups & Notifications</p>
+                    <h2 className={styles.cardTitle}>Recommended nudges</h2>
+                    <p className={styles.accountMeta}>
+                      These are generated from the latest analytics snapshot and can power in-app prompts and scheduled notifications.
+                    </p>
+                  </div>
+                </div>
+                {analyticsNotificationPlan ? (
+                  <div className={styles.analyticsNotificationList}>
+                    {analyticsNotificationPlan.notifications.map((notification) => (
+                      <article key={notification.kind} className={styles.analyticsNotificationCard}>
+                        <div className={styles.analyticsNotificationHeader}>
+                          <strong>{notification.title}</strong>
+                          <span>{notification.deliverAtLocalTime}</span>
+                        </div>
+                        <p className={styles.accountMeta}>{notification.body}</p>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <p className={styles.analyticsEmptyState}>Once today has analytics data, Whelm can propose targeted nudges here.</p>
+                )}
               </article>
             </section>
           )}
