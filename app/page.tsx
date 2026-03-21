@@ -1637,19 +1637,14 @@ function DailyRitualWaveIcon({
 
 function DailyRitualSubmitBandana({
   className,
-  tierColor,
+  streakDays,
 }: {
   className?: string;
-  tierColor: string | null | undefined;
+  streakDays: number;
 }) {
-  const { RiveComponent } = useRive({
-    src: getStreakBandanaAssetPath(tierColor),
-    autoplay: true,
-  });
-
   return (
     <div className={[styles.dailyRitualSubmitBandanaWrap, className].filter(Boolean).join(" ")} aria-hidden="true">
-      <RiveComponent className={styles.dailyRitualSubmitBandanaCanvas} />
+      <StreakBandana streakDays={streakDays} className={styles.dailyRitualSubmitBandanaCanvas} />
     </div>
   );
 }
@@ -8222,7 +8217,7 @@ export default function HomePage() {
                     className={styles.secondaryPlanButton}
                     onClick={openDailyPlanningPreview}
                   >
-                    Preview 3-block ritual
+                    Preview daily entry commitment
                   </button>
                   <button
                     type="button"
@@ -8509,7 +8504,7 @@ export default function HomePage() {
       {dailyPlanningLocked && !dailyPlanningOpen && (
         <div className={styles.dailyLockOverlay} onClick={() => setDailyPlanningOpen(true)}>
           <div className={styles.dailyLockCard} onClick={(event) => event.stopPropagation()}>
-            <p className={styles.sectionLabel}>Daily Entry Ritual</p>
+            <p className={styles.sectionLabel}>Daily Entry Commitment</p>
             <h2 className={styles.cardTitle}>Today is not claimed yet.</h2>
             <p className={styles.accountMeta}>
               Whelm stays locked until you place 3 blocks for today. Minimum 15 minutes each.
@@ -8539,7 +8534,7 @@ export default function HomePage() {
             </div>
             <div className={styles.feedbackHeader}>
               <div>
-                <p className={styles.sectionLabel}>Daily Entry Ritual</p>
+                <p className={styles.sectionLabel}>Daily Entry Commitment</p>
                 <h2 className={styles.feedbackTitle}>Claim today before it claims you.</h2>
               </div>
             </div>
@@ -8651,7 +8646,7 @@ export default function HomePage() {
                 <span className={styles.dailyRitualSubmitBandanaPanel} aria-hidden="true">
                   <DailyRitualSubmitBandana
                     className={styles.dailyRitualSubmitBandana}
-                    tierColor={streakBandanaTier?.color}
+                    streakDays={displayStreak}
                   />
                 </span>
               </button>

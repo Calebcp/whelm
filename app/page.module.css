@@ -5883,6 +5883,7 @@
   gap: 0;
   position: relative;
   overflow: hidden;
+  padding-bottom: max(18px, env(safe-area-inset-bottom));
 }
 
 .dailyRitualCornerIcon {
@@ -5925,6 +5926,7 @@
 .dailyRitualFooter {
   margin-top: 10px;
   padding-top: 10px;
+  padding-bottom: max(4px, env(safe-area-inset-bottom));
   border-top: 1px solid rgba(123, 138, 184, 0.14);
   position: sticky;
   bottom: 0;
@@ -5975,18 +5977,22 @@
 .dailyRitualSubmitBandanaWrap {
   width: 100%;
   height: 100%;
+  display: grid;
+  place-items: center;
 }
 
 .dailyRitualSubmitBandanaCanvas {
   width: 100%;
   height: 100%;
+  display: grid;
+  place-items: center;
 }
 
 .dailyRitualSubmitBandana {
   position: relative;
   width: 168px;
   height: 72px;
-  margin-right: -18px;
+  margin-right: -10px;
 }
 
 .dailyLockOverlay {
@@ -6273,7 +6279,7 @@
 
   .dailyRitualModal {
     width: min(100%, 560px);
-    max-height: calc(100vh - 24px);
+    max-height: calc(100dvh - 16px);
     padding: 16px;
     border-radius: 22px;
   }
@@ -6324,6 +6330,7 @@
   .dailyRitualFooter {
     grid-template-columns: minmax(110px, 0.34fr) minmax(0, 1fr);
     gap: 10px;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom));
   }
 
   .dailyRitualFooterClose,
@@ -6348,7 +6355,7 @@
   .dailyRitualSubmitBandana {
     width: 150px;
     height: 64px;
-    margin-right: -18px;
+    margin-right: -8px;
   }
 
   .mobileJumpRow {
