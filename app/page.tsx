@@ -1638,9 +1638,10 @@ function getPageShellBackgroundStyle(
         0.94,
         skin.dim + 0.12,
       )})), ${preset.background}`,
-      backgroundAttachment: "fixed",
+      backgroundAttachment: "scroll",
       backgroundSize: "cover",
-      backgroundPosition: "center",
+      backgroundPosition: "center top",
+      backgroundRepeat: "repeat-y",
       backgroundColor: themeMode === "light" ? "#ece8de" : "#0d1121",
     };
   }
@@ -1648,12 +1649,13 @@ function getPageShellBackgroundStyle(
   if (!setting.value) return undefined;
   const uploadOverlayStart = skin.mode === "glass" ? skin.dim : 0.68;
   const uploadOverlayEnd = skin.mode === "glass" ? Math.min(0.98, skin.dim + 0.16) : 0.86;
+  const uploadFitMode = skin.imageFit === "fit";
   return {
     backgroundImage: `linear-gradient(180deg, rgba(7, 9, 18, ${uploadOverlayStart}), rgba(14, 18, 34, ${uploadOverlayEnd})), url("${setting.value}")`,
-    backgroundSize: skin.imageFit === "fit" ? "contain" : "cover",
-    backgroundPosition: skin.imageFit === "fit" ? "center top" : "center",
-    backgroundRepeat: "no-repeat",
-    backgroundAttachment: "fixed",
+    backgroundSize: uploadFitMode ? "100% auto" : "cover",
+    backgroundPosition: uploadFitMode ? "center top" : "center top",
+    backgroundRepeat: uploadFitMode ? "repeat-y" : "no-repeat",
+    backgroundAttachment: "scroll",
     backgroundColor: themeMode === "light" ? "#f6f2eb" : "#0d1121",
   };
 }
