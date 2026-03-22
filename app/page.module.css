@@ -1139,6 +1139,7 @@
 }
 
 .monthDayCell {
+  --calendar-tone-accent: rgba(142, 197, 255, 0.65);
   border: 1px solid rgba(123, 138, 184, 0.16);
   width: 100%;
   min-height: 108px;
@@ -1149,18 +1150,33 @@
   flex-direction: column;
   gap: 6px;
   background: rgba(15, 19, 35, 0.88);
+  overflow: hidden;
+  position: relative;
 }
 
 .calendarToneSurfaceDay {
+  border-color: color-mix(in srgb, var(--calendar-tone-accent) 56%, rgba(123, 138, 184, 0.24));
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 0 0 1px rgba(255, 255, 255, 0.04),
-    0 12px 26px rgba(10, 18, 35, 0.18);
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 0 0 1px color-mix(in srgb, var(--calendar-tone-accent) 36%, rgba(255, 255, 255, 0.12)),
+    0 0 0 1px color-mix(in srgb, var(--calendar-tone-accent) 28%, rgba(255, 255, 255, 0.06)),
+    0 0 26px color-mix(in srgb, var(--calendar-tone-accent) 30%, transparent),
+    0 14px 30px rgba(10, 18, 35, 0.26);
 }
 
 .monthDayCellSelected {
   outline: 2px solid #aeb6ff;
   outline-offset: 1px;
+}
+
+.monthDayCellToneSelected {
+  border-color: color-mix(in srgb, var(--calendar-tone-accent) 72%, white 10%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.24),
+    inset 0 0 0 1px color-mix(in srgb, var(--calendar-tone-accent) 28%, rgba(255, 255, 255, 0.16)),
+    0 0 0 2px color-mix(in srgb, var(--calendar-tone-accent) 34%, transparent),
+    0 0 34px color-mix(in srgb, var(--calendar-tone-accent) 30%, transparent),
+    0 16px 34px rgba(10, 18, 35, 0.28);
 }
 
 .monthDayHead {
@@ -1199,10 +1215,13 @@
 }
 
 .monthEntryChip {
-  border: 0;
+  border: 1px solid rgba(255, 255, 255, 0.32);
   width: 100%;
   text-align: left;
   cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 0 0 1px rgba(14, 22, 42, 0.04);
 }
 
 .monthEntryChip:hover {
@@ -1223,16 +1242,19 @@
 .monthEntryBlue {
   background: rgba(64, 99, 187, 0.34);
   color: #dbe6ff;
+  border-color: rgba(166, 196, 255, 0.5);
 }
 
 .monthEntryMint {
   background: rgba(31, 121, 98, 0.36);
   color: #d6fff0;
+  border-color: rgba(154, 247, 219, 0.48);
 }
 
 .monthEntryViolet {
   background: rgba(95, 73, 191, 0.38);
   color: #efe5ff;
+  border-color: rgba(213, 194, 255, 0.5);
 }
 
 .monthMoreChip {
@@ -1287,9 +1309,19 @@
   margin: -6px;
 }
 
+.calendarToneSurfaceDayCard {
+  border-color: color-mix(in srgb, var(--calendar-tone-accent) 50%, rgba(123, 138, 184, 0.2));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 0 0 1px color-mix(in srgb, var(--calendar-tone-accent) 22%, transparent),
+    0 0 34px color-mix(in srgb, var(--calendar-tone-accent) 18%, transparent),
+    0 18px 48px rgba(3, 6, 18, 0.36);
+}
+
 .dayPortalBody {
   display: grid;
   gap: 14px;
+  border-radius: inherit;
 }
 
 .dayPortalCopy {
@@ -1629,50 +1661,51 @@
 .monthEntryClear {
   background: rgba(58, 121, 201, 0.86);
   color: #eef8ff;
-  border-color: rgba(175, 225, 255, 0.24);
+  border-color: rgba(175, 225, 255, 0.62);
 }
 
 .dayViewEventPush,
 .monthEntryPush {
   background: rgba(171, 88, 45, 0.88);
   color: #fff2ea;
-  border-color: rgba(255, 205, 182, 0.22);
+  border-color: rgba(255, 205, 182, 0.62);
 }
 
 .dayViewEventSteady,
 .monthEntrySteady {
   background: rgba(29, 121, 71, 0.88);
   color: #ecfff4;
-  border-color: rgba(182, 255, 212, 0.22);
+  border-color: rgba(182, 255, 212, 0.62);
 }
 
 .dayViewEventSharp,
 .monthEntrySharp {
   background: rgba(171, 132, 25, 0.88);
   color: #fffbea;
-  border-color: rgba(255, 239, 169, 0.24);
+  border-color: rgba(255, 239, 169, 0.62);
 }
 
 .dayViewEventRecover,
 .monthEntryRecover {
   background: rgba(169, 63, 97, 0.88);
   color: #fff0f4;
-  border-color: rgba(255, 198, 215, 0.24);
+  border-color: rgba(255, 198, 215, 0.62);
 }
 
 .dayViewEventDeep,
 .monthEntryDeep {
   background: rgba(92, 74, 171, 0.88);
   color: #f4efff;
-  border-color: rgba(218, 202, 255, 0.24);
+  border-color: rgba(218, 202, 255, 0.62);
 }
 
 .calendarToneSurfaceBlock {
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    inset 0 0 0 1px color-mix(in srgb, var(--calendar-tone-accent) 28%, rgba(255, 255, 255, 0.12)),
     0 0 0 1px rgba(255, 255, 255, 0.06),
-    0 0 20px rgba(120, 176, 255, 0.18),
-    0 14px 28px rgba(9, 16, 31, 0.24);
+    0 0 24px color-mix(in srgb, var(--calendar-tone-accent) 34%, transparent),
+    0 14px 28px rgba(9, 16, 31, 0.28);
 }
 
 .dayViewEventActivated {
@@ -1719,27 +1752,153 @@
   gap: 10px;
 }
 
-.calendarToneRow {
+.calendarTonePanelOpen {
+  gap: 12px;
+}
+
+.calendarToneDisclosureButton {
+  --calendar-tone-accent: #8ec5ff;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid rgba(139, 176, 255, 0.3);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(20, 24, 43, 0.94), rgba(13, 18, 33, 0.94)),
+    linear-gradient(135deg, rgba(96, 159, 255, 0.16), rgba(255, 255, 255, 0.04));
+  color: #eef3ff;
+  padding: 11px 13px;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 700;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 0 0 1px rgba(255, 255, 255, 0.03),
+    0 0 22px rgba(83, 183, 255, 0.14);
+}
+
+.calendarToneDisclosureButtonActive {
+  border-color: color-mix(in srgb, var(--calendar-tone-accent) 72%, white 12%);
+  background:
+    radial-gradient(circle at 16% 20%, rgba(255, 255, 255, 0.16), transparent 32%),
+    radial-gradient(circle at 84% 80%, color-mix(in srgb, var(--calendar-tone-accent) 22%, white 8%), transparent 36%),
+    linear-gradient(180deg, color-mix(in srgb, var(--calendar-tone-accent) 26%, rgba(20, 24, 43, 0.96)), rgba(13, 18, 33, 0.94)),
+    linear-gradient(135deg, color-mix(in srgb, var(--calendar-tone-accent) 20%, rgba(255, 255, 255, 0.04)), rgba(255, 255, 255, 0.04));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 0 0 1px color-mix(in srgb, var(--calendar-tone-accent) 20%, transparent),
+    0 0 22px color-mix(in srgb, var(--calendar-tone-accent) 26%, transparent);
+}
+
+.calendarToneDisclosureLabel {
+  display: inline-flex;
+  align-items: center;
+}
+
+.calendarToneDisclosureMeta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.calendarToneDisclosureSwatch {
+  --calendar-tone-accent: #8ec5ff;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--calendar-tone-accent) 88%, white 12%);
+  background:
+    radial-gradient(circle at 30% 24%, rgba(255, 255, 255, 0.92), transparent 36%),
+    linear-gradient(135deg, color-mix(in srgb, var(--calendar-tone-accent) 92%, white 8%), color-mix(in srgb, var(--calendar-tone-accent) 68%, black 32%));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.38),
+    0 0 0 1px color-mix(in srgb, var(--calendar-tone-accent) 34%, transparent),
+    0 0 14px color-mix(in srgb, var(--calendar-tone-accent) 40%, transparent);
+  display: grid;
+  place-items: center;
+}
+
+.calendarToneDisclosureSwatchOff {
+  background:
+    linear-gradient(180deg, rgba(31, 36, 58, 0.98), rgba(18, 22, 39, 0.96)),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(83, 183, 255, 0.08));
+  border-color: rgba(139, 176, 255, 0.34);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 0 0 1px rgba(255, 255, 255, 0.03);
+}
+
+.calendarToneDisclosureSwatchFill {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.78);
+}
+
+.calendarToneSwatchRow {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 10px;
 }
 
-.calendarToneButton {
+.calendarToneSwatch {
   --calendar-tone-accent: #8ec5ff;
-  border: 1px solid color-mix(in srgb, var(--calendar-tone-accent) 34%, rgba(123, 138, 184, 0.2));
-  border-radius: 999px;
-  background: rgba(20, 24, 43, 0.9);
-  color: #eef3ff;
-  padding: 9px 12px;
-  font: inherit;
-  font-size: 0.82rem;
-  font-weight: 700;
+  width: 44px;
+  height: 44px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--calendar-tone-accent) 88%, white 12%);
+  background:
+    radial-gradient(circle at 30% 24%, rgba(255, 255, 255, 0.88), transparent 34%),
+    radial-gradient(circle at 70% 82%, color-mix(in srgb, var(--calendar-tone-accent) 56%, white 44%), transparent 48%),
+    linear-gradient(135deg, color-mix(in srgb, var(--calendar-tone-accent) 92%, white 8%), color-mix(in srgb, var(--calendar-tone-accent) 68%, black 32%));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.34),
+    0 0 0 1px color-mix(in srgb, var(--calendar-tone-accent) 48%, transparent),
+    0 0 18px color-mix(in srgb, var(--calendar-tone-accent) 46%, transparent),
+    0 10px 24px rgba(8, 12, 24, 0.28);
+  display: grid;
+  place-items: center;
+  padding: 0;
 }
 
-.calendarToneButtonActive {
-  background: color-mix(in srgb, var(--calendar-tone-accent) 22%, rgba(20, 24, 43, 0.96));
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--calendar-tone-accent) 34%, transparent);
+.calendarToneSwatchFill {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow:
+    0 0 16px rgba(255, 255, 255, 0.88),
+    0 0 28px color-mix(in srgb, var(--calendar-tone-accent) 54%, transparent);
+}
+
+.calendarToneSwatchReset {
+  width: auto;
+  min-width: 64px;
+  padding: 0 14px;
+  background:
+    linear-gradient(180deg, rgba(23, 29, 50, 0.98), rgba(15, 20, 35, 0.96)),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(83, 183, 255, 0.08));
+}
+
+.calendarToneSwatchReset span {
+  color: #edf4ff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.calendarToneSwatchActive {
+  transform: translateY(-1px) scale(1.02);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.46),
+    0 0 0 1px rgba(255, 255, 255, 0.14),
+    0 0 0 3px color-mix(in srgb, var(--calendar-tone-accent) 30%, transparent),
+    0 0 28px color-mix(in srgb, var(--calendar-tone-accent) 74%, transparent),
+    0 14px 32px rgba(8, 12, 24, 0.34);
 }
 
 .blockDetailNote {
@@ -1765,44 +1924,50 @@
 
 .calendarToneSurfaceClear {
   background:
-    radial-gradient(circle at top left, rgba(179, 230, 255, 0.22), transparent 34%),
-    linear-gradient(180deg, rgba(28, 70, 128, 0.92), rgba(18, 47, 93, 0.94));
-  border-color: rgba(150, 215, 255, 0.3);
+    radial-gradient(circle at 16% 14%, rgba(255, 255, 255, 0.22), transparent 30%),
+    radial-gradient(circle at 84% 82%, rgba(83, 183, 255, 0.2), transparent 34%),
+    linear-gradient(180deg, rgba(42, 117, 214, 0.9), rgba(18, 60, 122, 0.94));
+  border-color: rgba(177, 230, 255, 0.6);
 }
 
 .calendarToneSurfacePush {
   background:
-    radial-gradient(circle at top left, rgba(255, 205, 178, 0.2), transparent 34%),
-    linear-gradient(180deg, rgba(132, 64, 24, 0.92), rgba(102, 46, 17, 0.94));
-  border-color: rgba(255, 189, 150, 0.28);
+    radial-gradient(circle at 16% 14%, rgba(255, 255, 255, 0.2), transparent 30%),
+    radial-gradient(circle at 84% 82%, rgba(255, 155, 84, 0.22), transparent 34%),
+    linear-gradient(180deg, rgba(210, 104, 44, 0.9), rgba(122, 49, 19, 0.94));
+  border-color: rgba(255, 204, 171, 0.56);
 }
 
 .calendarToneSurfaceSteady {
   background:
-    radial-gradient(circle at top left, rgba(191, 255, 214, 0.2), transparent 34%),
-    linear-gradient(180deg, rgba(25, 109, 66, 0.92), rgba(18, 78, 48, 0.94));
-  border-color: rgba(154, 255, 192, 0.28);
+    radial-gradient(circle at 16% 14%, rgba(255, 255, 255, 0.18), transparent 30%),
+    radial-gradient(circle at 84% 82%, rgba(71, 245, 154, 0.2), transparent 34%),
+    linear-gradient(180deg, rgba(24, 154, 88, 0.9), rgba(14, 92, 53, 0.94));
+  border-color: rgba(170, 255, 213, 0.56);
 }
 
 .calendarToneSurfaceSharp {
   background:
-    radial-gradient(circle at top left, rgba(255, 243, 181, 0.2), transparent 34%),
-    linear-gradient(180deg, rgba(145, 112, 17, 0.92), rgba(109, 84, 12, 0.94));
-  border-color: rgba(255, 230, 139, 0.28);
+    radial-gradient(circle at 16% 14%, rgba(255, 255, 255, 0.2), transparent 30%),
+    radial-gradient(circle at 84% 82%, rgba(255, 225, 77, 0.2), transparent 34%),
+    linear-gradient(180deg, rgba(188, 151, 18, 0.9), rgba(126, 96, 11, 0.94));
+  border-color: rgba(255, 237, 161, 0.56);
 }
 
 .calendarToneSurfaceRecover {
   background:
-    radial-gradient(circle at top left, rgba(255, 209, 220, 0.2), transparent 34%),
-    linear-gradient(180deg, rgba(138, 43, 76, 0.92), rgba(104, 29, 58, 0.94));
-  border-color: rgba(255, 183, 205, 0.28);
+    radial-gradient(circle at 16% 14%, rgba(255, 255, 255, 0.2), transparent 30%),
+    radial-gradient(circle at 84% 82%, rgba(255, 111, 159, 0.22), transparent 34%),
+    linear-gradient(180deg, rgba(201, 56, 111, 0.9), rgba(121, 26, 65, 0.94));
+  border-color: rgba(255, 190, 215, 0.56);
 }
 
 .calendarToneSurfaceDeep {
   background:
-    radial-gradient(circle at top left, rgba(224, 208, 255, 0.2), transparent 34%),
-    linear-gradient(180deg, rgba(76, 60, 145, 0.92), rgba(55, 42, 108, 0.94));
-  border-color: rgba(202, 181, 255, 0.28);
+    radial-gradient(circle at 16% 14%, rgba(255, 255, 255, 0.2), transparent 30%),
+    radial-gradient(circle at 84% 82%, rgba(124, 124, 255, 0.22), transparent 34%),
+    linear-gradient(180deg, rgba(96, 74, 214, 0.9), rgba(55, 39, 134, 0.94));
+  border-color: rgba(208, 195, 255, 0.58);
 }
 
 .calendarEntryPopoverPinned {
@@ -3157,26 +3322,37 @@
 }
 
 .noteColorPickerTrigger {
+  --note-tone-color: #e7e5e4;
   border: 1px solid rgba(15, 23, 42, 0.12);
-  border-radius: 999px;
-  padding: 8px 12px;
+  border-radius: 18px;
+  padding: 10px 12px;
   background: #ffffff;
   color: #334155;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 220px;
 }
 
 .noteToneButton {
-  border-color: rgba(91, 122, 220, 0.3);
+  border-color: color-mix(in srgb, var(--note-tone-color) 52%, rgba(91, 122, 220, 0.3));
   background:
-    linear-gradient(135deg, rgba(28, 34, 58, 0.96), rgba(45, 54, 92, 0.94)),
+    radial-gradient(circle at 16% 20%, rgba(255, 255, 255, 0.18), transparent 32%),
+    radial-gradient(circle at 84% 80%, color-mix(in srgb, var(--note-tone-color) 26%, white 12%), transparent 36%),
+    linear-gradient(135deg, color-mix(in srgb, var(--note-tone-color) 28%, rgba(28, 34, 58, 0.96)), rgba(45, 54, 92, 0.94)),
     #162033;
   color: #eef3ff;
   box-shadow:
-    0 0 0 1px rgba(139, 176, 255, 0.1),
+    0 0 0 1px color-mix(in srgb, var(--note-tone-color) 24%, rgba(139, 176, 255, 0.1)),
+    0 0 22px color-mix(in srgb, var(--note-tone-color) 28%, transparent),
     0 10px 22px rgba(22, 40, 88, 0.18);
   font-weight: 700;
+}
+
+.noteToneButtonLabel {
+  display: inline-flex;
+  align-items: center;
 }
 
 .noteDoneButton {
@@ -3209,10 +3385,27 @@
 }
 
 .noteColorPickerPreview {
-  width: 16px;
-  height: 16px;
+  width: 24px;
+  height: 24px;
   border-radius: 999px;
-  border: 1px solid rgba(15, 23, 42, 0.16);
+  border: 1px solid color-mix(in srgb, var(--note-tone-color) 78%, white 12%);
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 30% 24%, rgba(255, 255, 255, 0.92), transparent 36%),
+    linear-gradient(135deg, color-mix(in srgb, var(--note-tone-color) 92%, white 8%), color-mix(in srgb, var(--note-tone-color) 72%, black 28%));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.38),
+    0 0 0 1px color-mix(in srgb, var(--note-tone-color) 34%, transparent),
+    0 0 14px color-mix(in srgb, var(--note-tone-color) 34%, transparent);
+}
+
+.noteColorPickerPreviewFill {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.82);
 }
 
 .noteColorPickerPopover {
@@ -3222,25 +3415,35 @@
   z-index: 8;
   width: min(420px, 90vw);
   border: 1px solid rgba(15, 23, 42, 0.12);
-  border-radius: 14px;
-  background: #ffffff;
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(245, 240, 234, 0.96)),
+    linear-gradient(135deg, rgba(83, 183, 255, 0.06), rgba(255, 255, 255, 0.04));
   box-shadow: 0 14px 40px rgba(16, 32, 51, 0.18);
-  padding: 10px;
+  padding: 12px;
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 8px;
+  gap: 10px;
 }
 
 .noteColorSwatch {
-  width: 28px;
-  height: 28px;
-  border-radius: 999px;
-  border: 2px solid rgba(15, 23, 42, 0.14);
+  width: 44px;
+  height: 44px;
+  border-radius: 16px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.34),
+    0 0 0 1px rgba(15, 23, 42, 0.04),
+    0 10px 20px rgba(16, 32, 51, 0.14);
 }
 
 .noteColorSwatchActive {
-  border-color: #0f172a;
-  box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.18);
+  border-color: rgba(255, 255, 255, 0.72);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.46),
+    0 0 0 2px rgba(255, 255, 255, 0.38),
+    0 0 24px rgba(91, 122, 220, 0.22),
+    0 12px 24px rgba(16, 32, 51, 0.18);
 }
 
 .noteEditorToolbar {
@@ -4097,6 +4300,12 @@
   gap: 10px;
 }
 
+.dayAgendaItemTinted {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 10px 22px rgba(9, 16, 31, 0.14);
+}
+
 .dayAgendaItemCompleted {
   background:
     linear-gradient(135deg, rgba(236, 253, 245, 0.96), rgba(248, 255, 251, 0.94)),
@@ -4112,16 +4321,30 @@
   color: #6d7c8f;
 }
 
+.dayAgendaItemTinted .dayAgendaTime {
+  color: inherit;
+  opacity: 0.9;
+}
+
 .dayAgendaTitle {
   display: block;
   margin-top: 4px;
   color: #102033;
 }
 
+.dayAgendaItemTinted .dayAgendaTitle {
+  color: inherit;
+}
+
 .dayAgendaMeta {
   margin: 4px 0 0;
   color: #607185;
   font-size: 0.82rem;
+}
+
+.dayAgendaItemTinted .dayAgendaMeta {
+  color: inherit;
+  opacity: 0.86;
 }
 
 .dayAgendaActions {
@@ -5565,13 +5788,15 @@
 }
 
 .themeLight .noteToneButton {
-  border-color: rgba(95, 112, 188, 0.26);
+  border-color: color-mix(in srgb, var(--note-tone-color) 52%, rgba(95, 112, 188, 0.26));
   background:
-    linear-gradient(135deg, rgba(92, 105, 183, 0.96), rgba(112, 119, 205, 0.94)),
-    #6776c5;
+    radial-gradient(circle at 16% 20%, rgba(255, 255, 255, 0.72), transparent 32%),
+    radial-gradient(circle at 84% 80%, color-mix(in srgb, var(--note-tone-color) 22%, white 28%), transparent 36%),
+    linear-gradient(135deg, color-mix(in srgb, var(--note-tone-color) 18%, rgba(255, 255, 255, 0.98)), rgba(244, 239, 232, 0.96)),
+    linear-gradient(135deg, rgba(92, 105, 183, 0.04), rgba(255, 255, 255, 0.04));
   color: #fbfcff;
   box-shadow:
-    0 0 0 1px rgba(101, 120, 200, 0.1),
+    0 0 0 1px color-mix(in srgb, var(--note-tone-color) 20%, rgba(101, 120, 200, 0.1)),
     0 10px 20px rgba(106, 118, 190, 0.16);
 }
 
@@ -5847,6 +6072,16 @@
   outline-color: #6d74d9;
 }
 
+.themeLight .monthDayCellToneSelected {
+  border-color: color-mix(in srgb, var(--calendar-tone-accent) 84%, white 10%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.46),
+    inset 0 0 0 1px color-mix(in srgb, var(--calendar-tone-accent) 36%, rgba(255, 255, 255, 0.2)),
+    0 0 0 2px color-mix(in srgb, var(--calendar-tone-accent) 28%, transparent),
+    0 0 26px color-mix(in srgb, var(--calendar-tone-accent) 24%, transparent),
+    0 14px 30px rgba(104, 114, 145, 0.12);
+}
+
 .themeLight .monthDayNumber,
 .themeLight .calendarMonthLabel,
 .themeLight .dayPortalTitle,
@@ -5938,9 +6173,27 @@
   box-shadow: 0 14px 30px rgba(104, 114, 145, 0.08);
 }
 
-.themeLight .calendarToneButton {
-  background: rgba(252, 249, 245, 0.96);
+.themeLight .calendarToneDisclosureButton {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(245, 240, 234, 0.96)),
+    linear-gradient(135deg, rgba(83, 183, 255, 0.08), rgba(255, 255, 255, 0.04));
   color: #1d2a40;
+  border-color: rgba(109, 166, 209, 0.22);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.82),
+    0 0 18px rgba(109, 166, 209, 0.12);
+}
+
+.themeLight .calendarToneDisclosureButtonActive {
+  background:
+    radial-gradient(circle at 16% 20%, rgba(255, 255, 255, 0.72), transparent 32%),
+    radial-gradient(circle at 84% 80%, color-mix(in srgb, var(--calendar-tone-accent) 20%, white 30%), transparent 36%),
+    linear-gradient(180deg, color-mix(in srgb, var(--calendar-tone-accent) 18%, rgba(255, 255, 255, 0.98)), rgba(245, 240, 234, 0.96)),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.04));
+}
+
+.themeLight .calendarToneSwatchReset span {
+  color: #16253c;
 }
 
 .themeLight .blockDetailNote {
@@ -5958,44 +6211,50 @@
 
 .themeLight .calendarToneSurfaceClear {
   background:
-    radial-gradient(circle at top left, rgba(221, 240, 252, 0.86), transparent 34%),
-    linear-gradient(180deg, rgba(231, 241, 250, 0.98), rgba(216, 232, 245, 0.96));
-  border-color: rgba(129, 178, 214, 0.2);
+    radial-gradient(circle at 14% 14%, rgba(255, 255, 255, 0.5), transparent 28%),
+    radial-gradient(circle at 82% 84%, rgba(83, 183, 255, 0.16), transparent 34%),
+    linear-gradient(180deg, rgba(146, 205, 255, 0.9), rgba(122, 181, 246, 0.88));
+  border-color: rgba(109, 166, 209, 0.5);
 }
 
 .themeLight .calendarToneSurfacePush {
   background:
-    radial-gradient(circle at top left, rgba(252, 231, 218, 0.86), transparent 34%),
-    linear-gradient(180deg, rgba(248, 236, 227, 0.98), rgba(241, 223, 210, 0.96));
-  border-color: rgba(196, 139, 103, 0.2);
+    radial-gradient(circle at 14% 14%, rgba(255, 255, 255, 0.48), transparent 28%),
+    radial-gradient(circle at 82% 84%, rgba(255, 155, 84, 0.14), transparent 34%),
+    linear-gradient(180deg, rgba(255, 188, 142, 0.9), rgba(244, 157, 111, 0.88));
+  border-color: rgba(196, 139, 103, 0.5);
 }
 
 .themeLight .calendarToneSurfaceSteady {
   background:
-    radial-gradient(circle at top left, rgba(227, 247, 232, 0.86), transparent 34%),
-    linear-gradient(180deg, rgba(234, 246, 236, 0.98), rgba(220, 239, 225, 0.96));
-  border-color: rgba(110, 165, 131, 0.2);
+    radial-gradient(circle at 14% 14%, rgba(255, 255, 255, 0.48), transparent 28%),
+    radial-gradient(circle at 82% 84%, rgba(71, 245, 154, 0.14), transparent 34%),
+    linear-gradient(180deg, rgba(163, 244, 196, 0.9), rgba(120, 225, 165, 0.88));
+  border-color: rgba(110, 165, 131, 0.5);
 }
 
 .themeLight .calendarToneSurfaceSharp {
   background:
-    radial-gradient(circle at top left, rgba(252, 244, 215, 0.86), transparent 34%),
-    linear-gradient(180deg, rgba(248, 243, 225, 0.98), rgba(242, 232, 202, 0.96));
-  border-color: rgba(189, 169, 89, 0.2);
+    radial-gradient(circle at 14% 14%, rgba(255, 255, 255, 0.48), transparent 28%),
+    radial-gradient(circle at 82% 84%, rgba(255, 225, 77, 0.14), transparent 34%),
+    linear-gradient(180deg, rgba(255, 231, 133, 0.9), rgba(241, 206, 92, 0.88));
+  border-color: rgba(189, 169, 89, 0.5);
 }
 
 .themeLight .calendarToneSurfaceRecover {
   background:
-    radial-gradient(circle at top left, rgba(252, 230, 237, 0.86), transparent 34%),
-    linear-gradient(180deg, rgba(248, 236, 240, 0.98), rgba(241, 220, 228, 0.96));
-  border-color: rgba(196, 126, 149, 0.2);
+    radial-gradient(circle at 14% 14%, rgba(255, 255, 255, 0.48), transparent 28%),
+    radial-gradient(circle at 82% 84%, rgba(255, 111, 159, 0.16), transparent 34%),
+    linear-gradient(180deg, rgba(255, 164, 197, 0.9), rgba(238, 117, 164, 0.9));
+  border-color: rgba(196, 126, 149, 0.56);
 }
 
 .themeLight .calendarToneSurfaceDeep {
   background:
-    radial-gradient(circle at top left, rgba(236, 229, 252, 0.86), transparent 34%),
-    linear-gradient(180deg, rgba(238, 233, 248, 0.98), rgba(226, 220, 244, 0.96));
-  border-color: rgba(141, 126, 197, 0.2);
+    radial-gradient(circle at 14% 14%, rgba(255, 255, 255, 0.48), transparent 28%),
+    radial-gradient(circle at 82% 84%, rgba(124, 124, 255, 0.14), transparent 34%),
+    linear-gradient(180deg, rgba(175, 169, 255, 0.9), rgba(139, 131, 241, 0.88));
+  border-color: rgba(141, 126, 197, 0.5);
 }
 
 .themeLight .profileStatCard,
@@ -6327,6 +6586,69 @@
   background: rgba(252, 249, 245, 0.96);
   color: #1d2a40;
   border-color: rgba(125, 135, 160, 0.14);
+}
+
+.themeLight .dayAgendaItemTinted.dayViewEventBlue {
+  background: linear-gradient(135deg, rgba(216, 224, 251, 0.96), rgba(206, 217, 250, 0.96));
+  color: #4258b0;
+  border-color: rgba(95, 111, 178, 0.18);
+  box-shadow: 0 8px 18px rgba(113, 129, 186, 0.12);
+}
+
+.themeLight .dayAgendaItemTinted.dayViewEventMint {
+  background: linear-gradient(135deg, rgba(221, 239, 230, 0.96), rgba(211, 235, 224, 0.96));
+  color: #225646;
+  border-color: rgba(79, 130, 108, 0.16);
+  box-shadow: 0 8px 18px rgba(96, 145, 123, 0.11);
+}
+
+.themeLight .dayAgendaItemTinted.dayViewEventViolet {
+  background: linear-gradient(135deg, rgba(233, 222, 252, 0.98), rgba(226, 214, 250, 0.98));
+  color: #6b59c6;
+  border-color: rgba(113, 90, 192, 0.18);
+  box-shadow: 0 8px 18px rgba(128, 109, 190, 0.12);
+}
+
+.themeLight .dayAgendaItemTinted.dayViewEventClear {
+  background: linear-gradient(135deg, rgba(217, 238, 252, 0.98), rgba(206, 230, 248, 0.98));
+  color: #33688e;
+  border-color: rgba(109, 166, 209, 0.18);
+  box-shadow: 0 8px 18px rgba(106, 148, 182, 0.12);
+}
+
+.themeLight .dayAgendaItemTinted.dayViewEventPush {
+  background: linear-gradient(135deg, rgba(249, 228, 216, 0.98), rgba(244, 218, 204, 0.98));
+  color: #8a4f26;
+  border-color: rgba(194, 129, 86, 0.18);
+  box-shadow: 0 8px 18px rgba(180, 129, 96, 0.12);
+}
+
+.themeLight .dayAgendaItemTinted.dayViewEventSteady {
+  background: linear-gradient(135deg, rgba(222, 242, 227, 0.98), rgba(212, 236, 218, 0.98));
+  color: #246245;
+  border-color: rgba(89, 145, 112, 0.18);
+  box-shadow: 0 8px 18px rgba(101, 151, 124, 0.12);
+}
+
+.themeLight .dayAgendaItemTinted.dayViewEventSharp {
+  background: linear-gradient(135deg, rgba(249, 240, 209, 0.98), rgba(243, 232, 194, 0.98));
+  color: #8a6c18;
+  border-color: rgba(190, 164, 75, 0.18);
+  box-shadow: 0 8px 18px rgba(177, 152, 88, 0.12);
+}
+
+.themeLight .dayAgendaItemTinted.dayViewEventRecover {
+  background: linear-gradient(135deg, rgba(251, 226, 234, 0.98), rgba(246, 216, 226, 0.98));
+  color: #8c4560;
+  border-color: rgba(195, 118, 144, 0.18);
+  box-shadow: 0 8px 18px rgba(180, 120, 142, 0.12);
+}
+
+.themeLight .dayAgendaItemTinted.dayViewEventDeep {
+  background: linear-gradient(135deg, rgba(231, 224, 250, 0.98), rgba(223, 216, 245, 0.98));
+  color: #604ca8;
+  border-color: rgba(129, 109, 194, 0.18);
+  box-shadow: 0 8px 18px rgba(128, 111, 182, 0.12);
 }
 
 .themeLight .sessionGroup,

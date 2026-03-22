@@ -220,12 +220,12 @@ const WHELM_PRO_POSITIONING =
 const STREAK_MIRROR_MIN_WORDS = 33;
 const STREAK_SAVE_MONTHLY_LIMIT = 5;
 const CALENDAR_TONES = [
-  { value: "Clear", blockLabel: "Clear", dayLabel: "Reset Day", accent: "#8ec5ff" },
-  { value: "Push", blockLabel: "Push", dayLabel: "Pressure Day", accent: "#f59e6b" },
-  { value: "Deep", blockLabel: "Deep", dayLabel: "Deep Work Day", accent: "#7c93ff" },
-  { value: "Sharp", blockLabel: "Sharp", dayLabel: "Study Day", accent: "#facc15" },
-  { value: "Steady", blockLabel: "Steady", dayLabel: "Admin Day", accent: "#4ade80" },
-  { value: "Recover", blockLabel: "Recover", dayLabel: "Recovery Day", accent: "#fb7185" },
+  { value: "Clear", ariaLabel: "Electric blue", accent: "#53b7ff" },
+  { value: "Push", ariaLabel: "Solar orange", accent: "#ff9b54" },
+  { value: "Deep", ariaLabel: "Voltage violet", accent: "#7c7cff" },
+  { value: "Sharp", ariaLabel: "Laser yellow", accent: "#ffe14d" },
+  { value: "Steady", ariaLabel: "Neon green", accent: "#47f59a" },
+  { value: "Recover", ariaLabel: "Hot pink", accent: "#ff6f9f" },
 ] as const;
 const STREAK_SAVE_ACCOUNTABILITY_QUESTIONS = [
   "What honestly pulled you off track yesterday?",
@@ -473,6 +473,90 @@ function getStreakMirrorTagMeta(tag: StreakMirrorTag) {
 
 function getCalendarToneMeta(tone: CalendarTone | null | undefined) {
   return CALENDAR_TONES.find((item) => item.value === tone) ?? null;
+}
+
+function getCalendarToneStyle(tone: CalendarTone | null | undefined): CSSProperties | undefined {
+  const meta = getCalendarToneMeta(tone);
+  return meta ? ({ ["--calendar-tone-accent" as const]: meta.accent } as CSSProperties) : undefined;
+}
+
+function CalendarTonePicker({
+  label,
+  selectedTone,
+  onSelectTone,
+  isPro,
+  onUpgrade,
+}: {
+  label: "Day tone" | "Block tone";
+  selectedTone: CalendarTone | null;
+  onSelectTone: (tone: CalendarTone | null) => void;
+  isPro: boolean;
+  onUpgrade: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const selectedToneStyle = getCalendarToneStyle(selectedTone);
+
+  return (
+    <div className={`${styles.calendarTonePanel} ${open ? styles.calendarTonePanelOpen : ""}`}>
+      <button
+        type="button"
+        className={`${styles.calendarToneDisclosureButton} ${
+          selectedTone ? styles.calendarToneDisclosureButtonActive : ""
+        }`}
+        style={selectedToneStyle}
+        onClick={() => setOpen((current) => !current)}
+        aria-expanded={open}
+      >
+        <span className={styles.calendarToneDisclosureLabel}>{label}</span>
+        <span className={styles.calendarToneDisclosureMeta}>
+          <span
+            className={`${styles.calendarToneDisclosureSwatch} ${
+              !selectedTone ? styles.calendarToneDisclosureSwatchOff : ""
+            }`}
+            style={selectedToneStyle}
+            aria-hidden="true"
+          >
+            <span className={styles.calendarToneDisclosureSwatchFill} />
+          </span>
+        </span>
+      </button>
+      {open &&
+        (isPro ? (
+          <div className={styles.calendarToneSwatchRow}>
+            <button
+              type="button"
+              className={`${styles.calendarToneSwatch} ${styles.calendarToneSwatchReset} ${
+                !selectedTone ? styles.calendarToneSwatchActive : ""
+              }`}
+              onClick={() => onSelectTone(null)}
+              aria-label={`Reset ${label.toLowerCase()}`}
+              title={`Reset ${label.toLowerCase()}`}
+            >
+              <span>Off</span>
+            </button>
+            {CALENDAR_TONES.map((tone) => (
+              <button
+                key={tone.value}
+                type="button"
+                className={`${styles.calendarToneSwatch} ${
+                  selectedTone === tone.value ? styles.calendarToneSwatchActive : ""
+                }`}
+                style={getCalendarToneStyle(tone.value)}
+                onClick={() => onSelectTone(tone.value)}
+                aria-label={tone.ariaLabel}
+                title={tone.ariaLabel}
+              >
+                <span className={styles.calendarToneSwatchFill} />
+              </button>
+            ))}
+          </div>
+        ) : (
+          <button type="button" className={styles.inlineUpgrade} onClick={onUpgrade}>
+            Upgrade to Whelm Pro
+          </button>
+        ))}
+    </div>
+  );
 }
 
 function monthKeyLocal(input: Date | string) {
@@ -1831,18 +1915,17 @@ function createDailyRitualDrafts(existing: PlannedBlock[]): DailyRitualBlockDraf
 const DESKTOP_PRIMARY_TABS: Array<{ key: AppTab; label: string }> = [
   { key: "calendar", label: "Schedule" },
   { key: "today", label: "Today" },
-  { key: "mirror", label: "Mirror" },
   { key: "notes", label: "Notes" },
 ];
 
 const MOBILE_PRIMARY_TABS: Array<{ key: AppTab | "more"; label: string }> = [
   { key: "calendar", label: "Schedule" },
   { key: "today", label: "Today" },
-  { key: "mirror", label: "Mirror" },
+  { key: "notes", label: "Notes" },
   { key: "more", label: "More" },
 ];
 
-const MOBILE_MORE_TABS: AppTab[] = ["notes", "streaks", "history", "reports", "settings"];
+const MOBILE_MORE_TABS: AppTab[] = ["mirror", "streaks", "history", "reports", "settings"];
 
 const INTRO_SPLASH_MIN_MS = 1500;
 const INTRO_SPLASH_MAX_MS = 2200;
@@ -4301,7 +4384,7 @@ export default function HomePage() {
         minutes,
         level: focusLevel(minutes),
         isCurrentMonth: true,
-        tone: dayTones[dateKey],
+        tone: isPro ? dayTones[dateKey] : undefined,
       });
     }
 
@@ -4428,7 +4511,8 @@ export default function HomePage() {
     };
   }, [isPro, plannedBlocks, selectedDateKey]);
   const selectedDatePlans = selectedDatePlanGroups.active;
-  const selectedDateDayTone = dayTones[selectedDateKey] ?? null;
+  const selectedDateDayTone = isPro ? (dayTones[selectedDateKey] ?? null) : null;
+  const visiblePlanTone = (tone: CalendarTone | null | undefined) => (isPro ? (tone ?? null) : null);
   const plannedBlockById = useMemo(
     () => new Map(plannedBlocks.map((item) => [item.id, item])),
     [plannedBlocks],
@@ -4497,7 +4581,7 @@ export default function HomePage() {
             : `Planned block: ${item.title} (${item.durationMinutes} minutes) at ${normalizeTimeLabel(
                 item.timeOfDay,
               )}.`,
-        tone: item.tone ?? "Blue",
+        tone: visiblePlanTone(item.tone) ?? "Blue",
         startMinute,
         endMinute,
         isCompleted: item.status === "completed",
@@ -5633,6 +5717,7 @@ export default function HomePage() {
                     actionLabel={FOCUS_TIMER.actionLabel}
                     theme={FOCUS_TIMER.theme}
                     appearance={themeMode}
+                    isPro={isPro}
                     sessionNoteCount={todaySessionNoteCount}
                     onOpenSessionNotes={() => setActiveTab("history")}
                     streakMinimumMinutes={30}
@@ -5752,6 +5837,7 @@ export default function HomePage() {
                     actionLabel={FOCUS_TIMER.actionLabel}
                     theme={FOCUS_TIMER.theme}
                     appearance={themeMode}
+                    isPro={isPro}
                     sessionNoteCount={todaySessionNoteCount}
                     onOpenSessionNotes={() => setActiveTab("history")}
                     streakMinimumMinutes={30}
@@ -5876,7 +5962,10 @@ export default function HomePage() {
           {activeTab === "calendar" && (
             <section className={styles.calendarGrid}>
               <article
-                className={`${styles.card} ${calendarView === "month" ? styles.calendarPrimaryExpanded : ""}`}
+                className={`${styles.card} ${calendarView === "month" ? styles.calendarPrimaryExpanded : ""} ${
+                  calendarView === "day" && selectedDateDayTone ? styles[`calendarToneSurface${selectedDateDayTone}`] : ""
+                } ${calendarView === "day" && selectedDateDayTone ? styles.calendarToneSurfaceDayCard : ""}`}
+                style={calendarView === "day" ? getCalendarToneStyle(selectedDateDayTone) : undefined}
                 ref={calendarMonthRef}
               >
                 <div className={styles.calendarPrimaryHeader}>
@@ -6029,15 +6118,28 @@ export default function HomePage() {
                       <span>Sat</span>
                     </div>
                     <div className={styles.monthGrid}>
-                      {dynamicMonthCalendar.map((day) => (
+                      {dynamicMonthCalendar.map((day) => {
+                        const effectiveDayTone =
+                          day.dayNumber && day.key === selectedDateKey
+                            ? selectedDateDayTone ?? day.tone
+                            : day.tone;
+
+                        return (
                         <button
                           type="button"
                           key={day.key}
-                          className={`${styles.monthDayCell} ${styles[`streakLevel${day.level}`]} ${
+                          className={`${styles.monthDayCell} ${
+                            effectiveDayTone ? "" : styles[`streakLevel${day.level}`]
+                          } ${
                             day.dayNumber && day.key === selectedDateKey ? styles.monthDayCellSelected : ""
-                          } ${day.tone ? styles[`calendarToneSurface${day.tone}`] : ""} ${
-                            day.tone ? styles.calendarToneSurfaceDay : ""
+                          } ${effectiveDayTone ? styles[`calendarToneSurface${effectiveDayTone}`] : ""} ${
+                            effectiveDayTone ? styles.calendarToneSurfaceDay : ""
+                          } ${
+                            day.dayNumber && day.key === selectedDateKey && effectiveDayTone
+                              ? styles.monthDayCellToneSelected
+                              : ""
                           }`}
+                          style={getCalendarToneStyle(effectiveDayTone)}
                           disabled={!day.dayNumber}
                           title={
                             day.dayNumber
@@ -6098,7 +6200,7 @@ export default function HomePage() {
                             </>
                           )}
                         </button>
-                      ))}
+                      )})}
                     </div>
                   </>
                 ) : (
@@ -6108,6 +6210,7 @@ export default function HomePage() {
                         className={`${styles.dayPortalBody} ${
                           selectedDateDayTone ? styles[`calendarToneSurface${selectedDateDayTone}`] : ""
                         } ${selectedDateDayTone ? styles.calendarToneSurfaceDayPortal : ""}`}
+                        style={getCalendarToneStyle(selectedDateDayTone)}
                       >
                         <div className={styles.dayPortalCopy}>
                           <div className={styles.dayPortalHeader}>
@@ -6159,50 +6262,13 @@ export default function HomePage() {
                               </span>
                             </div>
                           )}
-                          <div className={styles.calendarTonePanel}>
-                            <div>
-                              <p className={styles.sectionLabel}>Day tone</p>
-                              <p className={styles.accountMeta}>
-                                {isPro
-                                  ? "Choose a day tone for more personalization."
-                                  : "Whelm Pro lets you tone days for more personalization."}
-                              </p>
-                            </div>
-                            {isPro ? (
-                              <div className={styles.calendarToneRow}>
-                                <button
-                                  type="button"
-                                  className={`${styles.calendarToneButton} ${
-                                    !selectedDateDayTone ? styles.calendarToneButtonActive : ""
-                                  }`}
-                                  onClick={() => applyDayTone(selectedDateKey, null)}
-                                >
-                                  Standard
-                                </button>
-                                {CALENDAR_TONES.map((tone) => (
-                                  <button
-                                    key={tone.value}
-                                    type="button"
-                                    className={`${styles.calendarToneButton} ${
-                                      selectedDateDayTone === tone.value ? styles.calendarToneButtonActive : ""
-                                    }`}
-                                    style={{ ["--calendar-tone-accent" as const]: tone.accent } as CSSProperties}
-                                    onClick={() => applyDayTone(selectedDateKey, tone.value)}
-                                  >
-                                    {tone.dayLabel}
-                                  </button>
-                                ))}
-                              </div>
-                            ) : (
-                              <button
-                                type="button"
-                                className={styles.inlineUpgrade}
-                                onClick={openUpgradeFlow}
-                              >
-                                Upgrade to Whelm Pro
-                              </button>
-                            )}
-                          </div>
+                          <CalendarTonePicker
+                            label="Day tone"
+                            selectedTone={selectedDateDayTone}
+                            onSelectTone={(tone) => applyDayTone(selectedDateKey, tone)}
+                            isPro={isPro}
+                            onUpgrade={openUpgradeFlow}
+                          />
                           {!isMobileViewport && dayPortalComposerOpen && (
                             <div id="calendar-planner" className={styles.dayPortalComposer}>
                               <div className={styles.dayPortalComposerHeader}>
@@ -6245,50 +6311,13 @@ export default function HomePage() {
                                   disabled={!selectedDateCanAddBlocks}
                                 />
                               )}
-                              <div className={styles.calendarTonePanel}>
-                                <div>
-                                  <p className={styles.sectionLabel}>Block tone</p>
-                                  <p className={styles.accountMeta}>
-                                    {isPro
-                                      ? "Choose a block tone for more personalization."
-                                      : "Whelm Pro lets you tone blocks for more personalization."}
-                                  </p>
-                                </div>
-                                {isPro ? (
-                                  <div className={styles.calendarToneRow}>
-                                    <button
-                                      type="button"
-                                      className={`${styles.calendarToneButton} ${
-                                        !planTone ? styles.calendarToneButtonActive : ""
-                                      }`}
-                                      onClick={() => setPlanTone(null)}
-                                    >
-                                      Standard
-                                    </button>
-                                    {CALENDAR_TONES.map((tone) => (
-                                      <button
-                                        key={tone.value}
-                                        type="button"
-                                        className={`${styles.calendarToneButton} ${
-                                          planTone === tone.value ? styles.calendarToneButtonActive : ""
-                                        }`}
-                                        style={{ ["--calendar-tone-accent" as const]: tone.accent } as CSSProperties}
-                                        onClick={() => setPlanTone(tone.value)}
-                                      >
-                                        {tone.blockLabel}
-                                      </button>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    className={styles.inlineUpgrade}
-                                    onClick={openUpgradeFlow}
-                                  >
-                                    Upgrade to Whelm Pro
-                                  </button>
-                                )}
-                              </div>
+                              <CalendarTonePicker
+                                label="Block tone"
+                                selectedTone={planTone}
+                                onSelectTone={setPlanTone}
+                                isPro={isPro}
+                                onUpgrade={openUpgradeFlow}
+                              />
                               {planConflictWarning && (
                                 <div className={styles.planConflictBanner}>
                                   <p className={styles.planConflictText}>{planConflictWarning.message}</p>
@@ -6434,6 +6463,9 @@ export default function HomePage() {
                               style={{
                                 top: `${entry.topPct}%`,
                                 height: `${entry.heightPct}%`,
+                                ...getCalendarToneStyle(
+                                  entry.source === "plan" ? (entry.tone as CalendarTone) : null,
+                                ),
                               }}
                               onMouseEnter={() => showCalendarHoverPreview(entry.id)}
                               onMouseLeave={() => scheduleCalendarHoverPreviewClear(entry.id)}
@@ -6787,7 +6819,13 @@ export default function HomePage() {
               </article>
 
               {!isMobileViewport && (
-              <article className={`${styles.card} ${styles.calendarAuxCard}`} ref={calendarPlannerRef}>
+              <article
+                className={`${styles.card} ${styles.calendarAuxCard} ${
+                  calendarView === "day" && selectedDateDayTone ? styles[`calendarToneSurface${selectedDateDayTone}`] : ""
+                } ${calendarView === "day" && selectedDateDayTone ? styles.calendarToneSurfaceDayCard : ""}`}
+                style={calendarView === "day" ? getCalendarToneStyle(selectedDateDayTone) : undefined}
+                ref={calendarPlannerRef}
+              >
                 <div className={styles.calendarAuxTabs}>
                   <button
                     type="button"
@@ -6926,10 +6964,19 @@ export default function HomePage() {
                                   <div
                                     key={entry.id}
                                     className={`${styles.dayAgendaItem} ${
+                                      entry.source === "plan" ? styles.dayAgendaItemTinted : ""
+                                    } ${
+                                      entry.source === "plan" ? styles[`dayViewEvent${entry.tone}`] : ""
+                                    } ${
                                       entry.source === "plan" && getCalendarToneMeta(entry.tone as CalendarTone)
                                         ? styles.calendarToneSurfaceBlock
                                         : ""
                                     } ${entry.isCompleted ? styles.dayAgendaItemCompleted : ""}`}
+                                    style={
+                                      entry.source === "plan"
+                                        ? getCalendarToneStyle(entry.tone as CalendarTone)
+                                        : undefined
+                                    }
                                   >
                                     <div>
                                       <p className={styles.dayAgendaTime}>{entry.timeLabel}</p>
@@ -7000,10 +7047,19 @@ export default function HomePage() {
                             <div
                               key={entry.id}
                               className={`${styles.dayAgendaItem} ${
+                                entry.source === "plan" ? styles.dayAgendaItemTinted : ""
+                              } ${
+                                entry.source === "plan" ? styles[`dayViewEvent${entry.tone}`] : ""
+                              } ${
                                 entry.source === "plan" && getCalendarToneMeta(entry.tone as CalendarTone)
                                   ? styles.calendarToneSurfaceBlock
                                   : ""
                               } ${entry.isCompleted ? styles.dayAgendaItemCompleted : ""}`}
+                              style={
+                                entry.source === "plan"
+                                  ? getCalendarToneStyle(entry.tone as CalendarTone)
+                                  : undefined
+                              }
                             >
                               <div>
                                 <p className={styles.dayAgendaTime}>{entry.timeLabel}</p>
@@ -7088,9 +7144,10 @@ export default function HomePage() {
                                 key={item.id}
                                 className={`${completed ? styles.planItemStatic : styles.planItem} ${
                                   completed ? styles.planItemCompleted : ""
-                                } ${item.tone ? styles[`calendarToneSurface${item.tone}`] : ""} ${
-                                  item.tone ? styles.calendarToneSurfaceBlock : ""
+                                } ${visiblePlanTone(item.tone) ? styles[`calendarToneSurface${visiblePlanTone(item.tone)}`] : ""} ${
+                                  visiblePlanTone(item.tone) ? styles.calendarToneSurfaceBlock : ""
                                 }`}
+                                style={getCalendarToneStyle(visiblePlanTone(item.tone))}
                                 onClick={() => openPlannedBlockDetail(item.id)}
                                 draggable={!completed}
                                 onDragStart={() => {
@@ -7182,9 +7239,11 @@ export default function HomePage() {
                           selectedDatePlanGroups.incomplete.map((item) => (
                             <div
                               key={item.id}
-                              className={`${styles.planItemStatic} ${item.tone ? styles[`calendarToneSurface${item.tone}`] : ""} ${
-                                item.tone ? styles.calendarToneSurfaceBlock : ""
+                              className={`${styles.planItemStatic} ${
+                                visiblePlanTone(item.tone) ? styles[`calendarToneSurface${visiblePlanTone(item.tone)}`] : ""
+                              } ${visiblePlanTone(item.tone) ? styles.calendarToneSurfaceBlock : ""
                               }`}
+                              style={getCalendarToneStyle(visiblePlanTone(item.tone))}
                               onClick={() => openPlannedBlockDetail(item.id)}
                             >
                               <div>
@@ -7266,50 +7325,13 @@ export default function HomePage() {
                           disabled={!selectedDateCanAddBlocks}
                         />
                       )}
-                      <div className={styles.calendarTonePanel}>
-                        <div>
-                          <p className={styles.sectionLabel}>Block tone</p>
-                          <p className={styles.accountMeta}>
-                            {isPro
-                              ? "Choose a block tone for more personalization."
-                              : "Whelm Pro lets you tone blocks for more personalization."}
-                          </p>
-                        </div>
-                        {isPro ? (
-                          <div className={styles.calendarToneRow}>
-                            <button
-                              type="button"
-                              className={`${styles.calendarToneButton} ${
-                                !planTone ? styles.calendarToneButtonActive : ""
-                              }`}
-                              onClick={() => setPlanTone(null)}
-                            >
-                              Standard
-                            </button>
-                            {CALENDAR_TONES.map((tone) => (
-                              <button
-                                key={tone.value}
-                                type="button"
-                                className={`${styles.calendarToneButton} ${
-                                  planTone === tone.value ? styles.calendarToneButtonActive : ""
-                                }`}
-                                style={{ ["--calendar-tone-accent" as const]: tone.accent } as CSSProperties}
-                                onClick={() => setPlanTone(tone.value)}
-                              >
-                                {tone.blockLabel}
-                              </button>
-                            ))}
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            className={styles.inlineUpgrade}
-                            onClick={openUpgradeFlow}
-                          >
-                            Upgrade to Whelm Pro
-                          </button>
-                        )}
-                      </div>
+                      <CalendarTonePicker
+                        label="Block tone"
+                        selectedTone={planTone}
+                        onSelectTone={setPlanTone}
+                        isPro={isPro}
+                        onUpgrade={openUpgradeFlow}
+                      />
                       {planConflictWarning && (
                         <div className={styles.planConflictBanner}>
                           <p className={styles.planConflictText}>{planConflictWarning.message}</p>
@@ -7648,17 +7670,22 @@ export default function HomePage() {
                           <button
                             type="button"
                             className={`${styles.noteColorPickerTrigger} ${styles.noteToneButton}`}
+                            style={
+                              { ["--note-tone-color" as const]: selectedNote.color || "#e7e5e4" } as CSSProperties
+                            }
                             onClick={() => {
                               setColorPickerOpen((open) => !open);
                               setTextColorPickerOpen(false);
                               setHighlightPickerOpen(false);
                             }}
                           >
-                            <span
-                              className={styles.noteColorPickerPreview}
-                              style={{ backgroundColor: selectedNote.color || "#e7e5e4" }}
-                            />
-                            Page tone
+                            <span className={styles.noteToneButtonLabel}>Page tone</span>
+                            <span className={styles.noteColorPickerPreview}>
+                              <span
+                                className={styles.noteColorPickerPreviewFill}
+                                style={{ backgroundColor: selectedNote.color || "#e7e5e4" }}
+                              />
+                            </span>
                           </button>
                         ) : null}
                         <button
@@ -8033,18 +8060,23 @@ export default function HomePage() {
                           <>
                             <button
                               type="button"
-                              className={styles.noteColorPickerTrigger}
+                              className={`${styles.noteColorPickerTrigger} ${styles.noteToneButton}`}
+                              style={
+                                { ["--note-tone-color" as const]: selectedNote.color || "#e7e5e4" } as CSSProperties
+                              }
                               onClick={() => {
                                 setColorPickerOpen((open) => !open);
                                 setTextColorPickerOpen(false);
                                 setHighlightPickerOpen(false);
                               }}
                             >
-                              <span
-                                className={styles.noteColorPickerPreview}
-                                style={{ backgroundColor: selectedNote.color || "#e7e5e4" }}
-                              />
-                              Page tone
+                              <span className={styles.noteToneButtonLabel}>Page tone</span>
+                              <span className={styles.noteColorPickerPreview}>
+                                <span
+                                  className={styles.noteColorPickerPreviewFill}
+                                  style={{ backgroundColor: selectedNote.color || "#e7e5e4" }}
+                                />
+                              </span>
                             </button>
 
                             {colorPickerOpen && (
@@ -9810,44 +9842,13 @@ export default function HomePage() {
               <p className={styles.accountMeta}>No block note was added yet.</p>
             )}
             <div className={styles.calendarTonePanel}>
-              <div>
-                <p className={styles.sectionLabel}>Block tone</p>
-                <p className={styles.accountMeta}>
-                  {isPro
-                    ? "Choose a block tone for more personalization."
-                    : "Whelm Pro lets you tone blocks for more personalization."}
-                </p>
-              </div>
-              {isPro ? (
-                <div className={styles.calendarToneRow}>
-                  <button
-                    type="button"
-                    className={`${styles.calendarToneButton} ${
-                      !selectedPlanDetail.tone ? styles.calendarToneButtonActive : ""
-                    }`}
-                    onClick={() => updatePlannedBlockTone(selectedPlanDetail.id, null)}
-                  >
-                    Standard
-                  </button>
-                  {CALENDAR_TONES.map((tone) => (
-                    <button
-                      key={tone.value}
-                      type="button"
-                      className={`${styles.calendarToneButton} ${
-                        selectedPlanDetail.tone === tone.value ? styles.calendarToneButtonActive : ""
-                      }`}
-                      style={{ ["--calendar-tone-accent" as const]: tone.accent } as CSSProperties}
-                      onClick={() => updatePlannedBlockTone(selectedPlanDetail.id, tone.value)}
-                    >
-                      {tone.blockLabel}
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <button type="button" className={styles.inlineUpgrade} onClick={openUpgradeFlow}>
-                  Upgrade to Whelm Pro
-                </button>
-              )}
+              <CalendarTonePicker
+                label="Block tone"
+                selectedTone={visiblePlanTone(selectedPlanDetail.tone)}
+                onSelectTone={(tone) => updatePlannedBlockTone(selectedPlanDetail.id, tone)}
+                isPro={isPro}
+                onUpgrade={openUpgradeFlow}
+              />
             </div>
             <div className={styles.noteFooterActions}>
               {selectedPlanDetail.status !== "completed" ? (

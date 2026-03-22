@@ -2,9 +2,7 @@
 
 import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
-import type { WhelmEmoteId } from "@/lib/whelm-emotes";
 import styles from "./Timer.module.css";
-import WhelmEmote from "./WhelmEmote";
 
 type TimerTheme = {
   accent: string;
@@ -90,12 +88,28 @@ const FOCUS_IDENTITIES: Record<
   },
 };
 
-const TIMER_RUNNING_WHELMS: WhelmEmoteId[] = [
-  "whelm.timer",
-  "whelm.ready",
-  "whelm.encourage",
-  "whelm.proud",
-];
+const TIMER_WHELM_ROTATION = [
+  {
+    src: "/timer-whelms/yellow_whelm_leaning_watch-removebg-preview.png",
+    alt: "Whelm leaning with a stopwatch",
+  },
+  {
+    src: "/timer-whelms/yellow_whelm_looking_at_watch-removebg-preview.png",
+    alt: "Whelm looking at a stopwatch",
+  },
+  {
+    src: "/timer-whelms/yellow_whelm_lifting_watch-removebg-preview.png",
+    alt: "Whelm lifting a stopwatch",
+  },
+  {
+    src: "/timer-whelms/yellow_whelm_running_watch-removebg-preview.png",
+    alt: "Whelm running with a stopwatch",
+  },
+  {
+    src: "/timer-whelms/yellow_whelm_flying_watch-removebg-preview.png",
+    alt: "Whelm flying with a stopwatch",
+  },
+] as const;
 
 export default function Timer({
   minutes = 30,
@@ -110,6 +124,7 @@ export default function Timer({
   sessionNoteCount = 0,
   onOpenSessionNotes,
   streakMinimumMinutes = 30,
+  isPro = false,
 }: {
   minutes?: number;
   title: string;
@@ -132,6 +147,7 @@ export default function Timer({
   sessionNoteCount?: number;
   onOpenSessionNotes?: () => void;
   streakMinimumMinutes?: number;
+  isPro?: boolean;
 }) {
   const [mode, setMode] = useState<"countdown" | "stopwatch">("countdown");
   const [configuredMinutes, setConfiguredMinutes] = useState(minutes);
@@ -260,17 +276,17 @@ export default function Timer({
   }, [onSessionAbandon, secondsElapsed, secondsLeft]);
 
   useEffect(() => {
-    if (!running) {
+    if (!running || !isPro) {
       setActiveWhelmIndex(0);
       return;
     }
 
     const rotationId = window.setInterval(() => {
-      setActiveWhelmIndex((current) => (current + 1) % TIMER_RUNNING_WHELMS.length);
-    }, 5000);
+      setActiveWhelmIndex((current) => (current + 1) % TIMER_WHELM_ROTATION.length);
+    }, 300000);
 
     return () => window.clearInterval(rotationId);
-  }, [running]);
+  }, [isPro, running]);
 
   const displaySeconds = mode === "countdown" ? secondsLeft : secondsElapsed;
   const mm = Math.floor(displaySeconds / 60);
@@ -380,17 +396,7 @@ export default function Timer({
   }
 
   const timerFaceLabel = mode === "countdown" ? "Countdown" : "Stopwatch";
-  const statusLabel = done
-    ? `Exit ${identityTheme.entryLabel} mode and lock it in.`
-    : !isOnline
-      ? "Timer works only while you are online. Reconnect to continue."
-      : pauseNotice
-        ? pauseNotice
-    : running
-      ? mode === "countdown"
-        ? `${identityTheme.label} mode is active. Stay with it.`
-        : `${identityTheme.label} mode is tracking live focus.`
-      : `Enter ${identityTheme.entryLabel} mode when ready.`;
+  const timerFigure = isPro ? TIMER_WHELM_ROTATION[activeWhelmIndex] : TIMER_WHELM_ROTATION[0];
 
   const themeVars = {
     "--timer-accent": identityTheme.accent ?? theme.accent,
@@ -532,13 +538,19 @@ export default function Timer({
             {String(mm).padStart(2, "0")}:{String(ss).padStart(2, "0")}
           </div>
           <div className={styles.faceWhelm}>
-            <WhelmEmote
-              emoteId={running ? TIMER_RUNNING_WHELMS[activeWhelmIndex] : "whelm.timer"}
-              size="card"
-              className={styles.faceWhelmFigure}
-            />
+            {isPro ? (
+              <div className={`${styles.faceWhelmFigure} ${running ? styles.faceWhelmFigurePulse : ""}`}>
+                <img src={timerFigure.src} alt={timerFigure.alt} className={styles.faceWhelmImage} />
+              </div>
+            ) : (
+              <div className={styles.faceWhelmFigure}>
+                <img src={timerFigure.src} alt={timerFigure.alt} className={styles.faceWhelmImage} />
+              </div>
+            )}
           </div>
-          <div className={styles.status}>{statusLabel}</div>
+          {!running && isPro ? (
+            <p className={styles.whelmRotationHint}>Every five minutes: a new Whelm stays with you.</p>
+          ) : null}
         </div>
         <div className={styles.faceDock}>
           {!running && !done ? (
