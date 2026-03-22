@@ -96,8 +96,9 @@ export default function LoginPage() {
               <p className={styles.kicker}>WHELM</p>
               <h1 className={styles.title}>Build a calmer operating system for your focus.</h1>
               <p className={styles.subtitle}>
-                Notes, sessions, rhythm, and accountability stay attached to your account so
-                Whelm can feel consistent every time you return.
+                Whelm is where productivity becomes a standard, not a mood. Notes, sessions,
+                rhythm, and accountability stay attached to your account so the system stays
+                consistent every time you return.
               </p>
             </div>
 
@@ -123,7 +124,7 @@ export default function LoginPage() {
               </article>
               <article className={styles.storyCard}>
                 <p className={styles.storyLabel}>Grow into Pro</p>
-                <p className={styles.storyBody}>Advanced analytics and deeper guidance are already on the roadmap.</p>
+                <p className={styles.storyBody}>Whelm Pro expands the system with deeper reports, longer memory, and stronger personalization.</p>
               </article>
             </div>
           </div>

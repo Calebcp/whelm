@@ -227,6 +227,14 @@
   filter: drop-shadow(0 3px 6px rgba(30, 134, 255, 0.18));
 }
 
+.navIconImage {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 8px rgba(82, 190, 255, 0.28));
+}
+
 .screen {
   display: grid;
   gap: 16px;
@@ -1143,6 +1151,13 @@
   background: rgba(15, 19, 35, 0.88);
 }
 
+.calendarToneSurfaceDay {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 12px 26px rgba(10, 18, 35, 0.18);
+}
+
 .monthDayCellSelected {
   outline: 2px solid #aeb6ff;
   outline-offset: 1px;
@@ -1192,6 +1207,12 @@
 
 .monthEntryChip:hover {
   filter: brightness(0.97);
+}
+
+.monthEntryCompleted {
+  opacity: 0.82;
+  filter: saturate(0.72) brightness(0.98);
+  box-shadow: inset 0 0 0 1px rgba(236, 253, 245, 0.34);
 }
 
 .monthEntryChip:focus-visible {
@@ -1258,6 +1279,12 @@
     radial-gradient(circle at top right, rgba(89, 108, 255, 0.16), transparent 34%),
     linear-gradient(135deg, rgba(20, 24, 43, 0.98), rgba(13, 17, 31, 0.94));
   box-shadow: 0 18px 42px rgba(3, 6, 18, 0.24);
+}
+
+.calendarToneSurfaceDayPortal {
+  border-radius: 18px;
+  padding: 12px;
+  margin: -6px;
 }
 
 .dayPortalBody {
@@ -1598,12 +1625,74 @@
   border-color: rgba(215, 191, 255, 0.18);
 }
 
+.dayViewEventClear,
+.monthEntryClear {
+  background: rgba(58, 121, 201, 0.86);
+  color: #eef8ff;
+  border-color: rgba(175, 225, 255, 0.24);
+}
+
+.dayViewEventPush,
+.monthEntryPush {
+  background: rgba(171, 88, 45, 0.88);
+  color: #fff2ea;
+  border-color: rgba(255, 205, 182, 0.22);
+}
+
+.dayViewEventSteady,
+.monthEntrySteady {
+  background: rgba(29, 121, 71, 0.88);
+  color: #ecfff4;
+  border-color: rgba(182, 255, 212, 0.22);
+}
+
+.dayViewEventSharp,
+.monthEntrySharp {
+  background: rgba(171, 132, 25, 0.88);
+  color: #fffbea;
+  border-color: rgba(255, 239, 169, 0.24);
+}
+
+.dayViewEventRecover,
+.monthEntryRecover {
+  background: rgba(169, 63, 97, 0.88);
+  color: #fff0f4;
+  border-color: rgba(255, 198, 215, 0.24);
+}
+
+.dayViewEventDeep,
+.monthEntryDeep {
+  background: rgba(92, 74, 171, 0.88);
+  color: #f4efff;
+  border-color: rgba(218, 202, 255, 0.24);
+}
+
+.calendarToneSurfaceBlock {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 0 20px rgba(120, 176, 255, 0.18),
+    0 14px 28px rgba(9, 16, 31, 0.24);
+}
+
 .dayViewEventActivated {
   animation: calendarEntryActivate 1500ms cubic-bezier(0.2, 0.9, 0.24, 1);
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.14),
     0 0 0 10px rgba(125, 211, 252, 0.12),
     0 14px 34px rgba(56, 189, 248, 0.24);
+}
+
+.dayViewEventCompleted {
+  opacity: 0.84;
+  filter: saturate(0.72);
+}
+
+.dayViewEventResolved {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 0 0 1px rgba(220, 252, 231, 0.18),
+    0 10px 22px rgba(9, 16, 31, 0.18);
 }
 
 .calendarEntryPopover {
@@ -1623,6 +1712,97 @@
   display: grid;
   gap: 10px;
   animation: calendarEntryPopoverIn 180ms ease-out;
+}
+
+.calendarTonePanel {
+  display: grid;
+  gap: 10px;
+}
+
+.calendarToneRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.calendarToneButton {
+  --calendar-tone-accent: #8ec5ff;
+  border: 1px solid color-mix(in srgb, var(--calendar-tone-accent) 34%, rgba(123, 138, 184, 0.2));
+  border-radius: 999px;
+  background: rgba(20, 24, 43, 0.9);
+  color: #eef3ff;
+  padding: 9px 12px;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.calendarToneButtonActive {
+  background: color-mix(in srgb, var(--calendar-tone-accent) 22%, rgba(20, 24, 43, 0.96));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--calendar-tone-accent) 34%, transparent);
+}
+
+.blockDetailNote {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(123, 138, 184, 0.18);
+  background: rgba(18, 22, 40, 0.9);
+}
+
+.blockDetailNote strong {
+  color: #f3f6ff;
+}
+
+.blockDetailNote p {
+  margin: 0;
+  color: #c8d4ec;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.calendarToneSurfaceClear {
+  background:
+    radial-gradient(circle at top left, rgba(179, 230, 255, 0.22), transparent 34%),
+    linear-gradient(180deg, rgba(28, 70, 128, 0.92), rgba(18, 47, 93, 0.94));
+  border-color: rgba(150, 215, 255, 0.3);
+}
+
+.calendarToneSurfacePush {
+  background:
+    radial-gradient(circle at top left, rgba(255, 205, 178, 0.2), transparent 34%),
+    linear-gradient(180deg, rgba(132, 64, 24, 0.92), rgba(102, 46, 17, 0.94));
+  border-color: rgba(255, 189, 150, 0.28);
+}
+
+.calendarToneSurfaceSteady {
+  background:
+    radial-gradient(circle at top left, rgba(191, 255, 214, 0.2), transparent 34%),
+    linear-gradient(180deg, rgba(25, 109, 66, 0.92), rgba(18, 78, 48, 0.94));
+  border-color: rgba(154, 255, 192, 0.28);
+}
+
+.calendarToneSurfaceSharp {
+  background:
+    radial-gradient(circle at top left, rgba(255, 243, 181, 0.2), transparent 34%),
+    linear-gradient(180deg, rgba(145, 112, 17, 0.92), rgba(109, 84, 12, 0.94));
+  border-color: rgba(255, 230, 139, 0.28);
+}
+
+.calendarToneSurfaceRecover {
+  background:
+    radial-gradient(circle at top left, rgba(255, 209, 220, 0.2), transparent 34%),
+    linear-gradient(180deg, rgba(138, 43, 76, 0.92), rgba(104, 29, 58, 0.94));
+  border-color: rgba(255, 183, 205, 0.28);
+}
+
+.calendarToneSurfaceDeep {
+  background:
+    radial-gradient(circle at top left, rgba(224, 208, 255, 0.2), transparent 34%),
+    linear-gradient(180deg, rgba(76, 60, 145, 0.92), rgba(55, 42, 108, 0.94));
+  border-color: rgba(202, 181, 255, 0.28);
 }
 
 .calendarEntryPopoverPinned {
@@ -1806,6 +1986,203 @@
 .streaksShell {
   display: grid;
   gap: 14px;
+}
+
+.mirrorShell {
+  display: grid;
+  gap: 14px;
+}
+
+.mirrorHeroCard {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(220px, 0.6fr);
+  gap: 18px;
+  align-items: center;
+  background:
+    radial-gradient(circle at top left, rgba(165, 230, 255, 0.28), transparent 30%),
+    radial-gradient(circle at top right, rgba(145, 174, 255, 0.18), transparent 26%),
+    linear-gradient(180deg, rgba(15, 28, 54, 0.98), rgba(14, 24, 45, 0.96));
+}
+
+.mirrorHeroCopy {
+  display: grid;
+  gap: 10px;
+}
+
+.mirrorLead,
+.mirrorSaying {
+  margin: 0;
+  line-height: 1.55;
+}
+
+.mirrorLead {
+  color: #e2ecff;
+  max-width: 52ch;
+}
+
+.mirrorSaying {
+  color: #9fc0ec;
+}
+
+.mirrorHeroMeta {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.mirrorCounterCard {
+  display: grid;
+  gap: 6px;
+  min-width: 180px;
+  padding: 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(174, 202, 255, 0.18);
+  background:
+    linear-gradient(180deg, rgba(228, 245, 255, 0.14), rgba(180, 220, 255, 0.08)),
+    rgba(10, 18, 35, 0.56);
+  text-align: center;
+}
+
+.mirrorCounterCard span,
+.mirrorCounterCard small {
+  color: #a9bcdf;
+}
+
+.mirrorCounterCard strong {
+  font-size: clamp(1.6rem, 4vw, 2.4rem);
+  color: #f7fbff;
+}
+
+.mirrorGridCard,
+.mirrorDetailCard {
+  display: grid;
+  gap: 14px;
+  background:
+    radial-gradient(circle at top right, rgba(194, 233, 255, 0.12), transparent 22%),
+    linear-gradient(180deg, rgba(16, 26, 48, 0.98), rgba(12, 21, 41, 0.96));
+}
+
+.mirrorEntryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.mirrorEntryCard {
+  --mirror-accent: #8ec5ff;
+  position: relative;
+  border: 1px solid color-mix(in srgb, var(--mirror-accent) 36%, rgba(151, 168, 199, 0.18));
+  border-radius: 22px;
+  background:
+    linear-gradient(180deg, rgba(237, 246, 255, 0.12), rgba(164, 198, 255, 0.06)),
+    rgba(10, 18, 34, 0.72);
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+  text-align: left;
+  color: #eef4ff;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 16px 30px rgba(5, 11, 24, 0.24);
+}
+
+.mirrorEntryCard::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.16), transparent 42%);
+  pointer-events: none;
+}
+
+.mirrorEntryCardActive {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 0 0 1px color-mix(in srgb, var(--mirror-accent) 50%, white),
+    0 18px 34px rgba(10, 20, 43, 0.32);
+  transform: translateY(-1px);
+}
+
+.mirrorEntryCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.mirrorEntryIcon {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+}
+
+.mirrorEntryTag {
+  width: fit-content;
+  border-radius: 999px;
+  border: 1px solid rgba(157, 184, 230, 0.24);
+  background: rgba(223, 239, 255, 0.1);
+  padding: 6px 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.mirrorEntryDate {
+  font-size: 1rem;
+}
+
+.mirrorEntryPreview {
+  margin: 0;
+  color: #b7c8e5;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.mirrorDetailBody,
+.mirrorAnswerList {
+  display: grid;
+  gap: 12px;
+}
+
+.mirrorDetailMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.mirrorDetailDate {
+  color: #b7c8e5;
+}
+
+.mirrorAnswerCard {
+  display: grid;
+  gap: 8px;
+  border-radius: 18px;
+  border: 1px solid rgba(157, 184, 230, 0.16);
+  background: rgba(10, 18, 34, 0.6);
+  padding: 14px;
+}
+
+.mirrorQuestionLabel {
+  margin: 0;
+  color: #8fa9d5;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.72rem;
+}
+
+.mirrorQuestionText {
+  color: #edf4ff;
+}
+
+.mirrorAnswerText {
+  margin: 0;
+  color: #cfdbf1;
+  line-height: 1.65;
+  white-space: pre-wrap;
 }
 
 @keyframes streakPulse {
@@ -2087,6 +2464,12 @@
   background:
     radial-gradient(circle at top left, rgba(108, 160, 255, 0.12), transparent 26%),
     linear-gradient(180deg, rgba(16, 29, 58, 0.96), rgba(12, 22, 45, 0.96));
+}
+
+.streakSaveCounter {
+  margin: 10px 0 0;
+  color: #d9e7ff;
+  font-weight: 700;
 }
 
 .streakCalendarCard {
@@ -3712,6 +4095,13 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: 10px;
+}
+
+.dayAgendaItemCompleted {
+  background:
+    linear-gradient(135deg, rgba(236, 253, 245, 0.96), rgba(248, 255, 251, 0.94)),
+    #f5fff9;
+  border-color: rgba(34, 197, 94, 0.18);
 }
 
 .dayAgendaTime {
@@ -5487,6 +5877,36 @@
   color: #6f60c4;
 }
 
+.themeLight .monthEntryClear {
+  background: #dbeefb;
+  color: #3d678d;
+}
+
+.themeLight .monthEntryPush {
+  background: #f7dfd0;
+  color: #8b532b;
+}
+
+.themeLight .monthEntrySteady {
+  background: #dceee0;
+  color: #2c6848;
+}
+
+.themeLight .monthEntrySharp {
+  background: #f5eac2;
+  color: #8a6f1c;
+}
+
+.themeLight .monthEntryRecover {
+  background: #f8dde7;
+  color: #914562;
+}
+
+.themeLight .monthEntryDeep {
+  background: #e5def8;
+  color: #6652af;
+}
+
 .themeLight .monthMoreChip {
   background:
     linear-gradient(135deg, rgba(77, 214, 129, 0.96), rgba(30, 176, 91, 0.94)),
@@ -5516,6 +5936,66 @@
     radial-gradient(circle at top right, rgba(220, 224, 247, 0.54), transparent 36%),
     linear-gradient(180deg, rgba(250, 247, 242, 0.98), rgba(243, 238, 231, 0.96));
   box-shadow: 0 14px 30px rgba(104, 114, 145, 0.08);
+}
+
+.themeLight .calendarToneButton {
+  background: rgba(252, 249, 245, 0.96);
+  color: #1d2a40;
+}
+
+.themeLight .blockDetailNote {
+  background: rgba(252, 249, 245, 0.96);
+  border-color: rgba(125, 135, 160, 0.16);
+}
+
+.themeLight .blockDetailNote strong {
+  color: #1d2a40;
+}
+
+.themeLight .blockDetailNote p {
+  color: #607089;
+}
+
+.themeLight .calendarToneSurfaceClear {
+  background:
+    radial-gradient(circle at top left, rgba(221, 240, 252, 0.86), transparent 34%),
+    linear-gradient(180deg, rgba(231, 241, 250, 0.98), rgba(216, 232, 245, 0.96));
+  border-color: rgba(129, 178, 214, 0.2);
+}
+
+.themeLight .calendarToneSurfacePush {
+  background:
+    radial-gradient(circle at top left, rgba(252, 231, 218, 0.86), transparent 34%),
+    linear-gradient(180deg, rgba(248, 236, 227, 0.98), rgba(241, 223, 210, 0.96));
+  border-color: rgba(196, 139, 103, 0.2);
+}
+
+.themeLight .calendarToneSurfaceSteady {
+  background:
+    radial-gradient(circle at top left, rgba(227, 247, 232, 0.86), transparent 34%),
+    linear-gradient(180deg, rgba(234, 246, 236, 0.98), rgba(220, 239, 225, 0.96));
+  border-color: rgba(110, 165, 131, 0.2);
+}
+
+.themeLight .calendarToneSurfaceSharp {
+  background:
+    radial-gradient(circle at top left, rgba(252, 244, 215, 0.86), transparent 34%),
+    linear-gradient(180deg, rgba(248, 243, 225, 0.98), rgba(242, 232, 202, 0.96));
+  border-color: rgba(189, 169, 89, 0.2);
+}
+
+.themeLight .calendarToneSurfaceRecover {
+  background:
+    radial-gradient(circle at top left, rgba(252, 230, 237, 0.86), transparent 34%),
+    linear-gradient(180deg, rgba(248, 236, 240, 0.98), rgba(241, 220, 228, 0.96));
+  border-color: rgba(196, 126, 149, 0.2);
+}
+
+.themeLight .calendarToneSurfaceDeep {
+  background:
+    radial-gradient(circle at top left, rgba(236, 229, 252, 0.86), transparent 34%),
+    linear-gradient(180deg, rgba(238, 233, 248, 0.98), rgba(226, 220, 244, 0.96));
+  border-color: rgba(141, 126, 197, 0.2);
 }
 
 .themeLight .profileStatCard,
@@ -5662,6 +6142,48 @@
   color: #6b59c6;
   border-color: rgba(113, 90, 192, 0.18);
   box-shadow: 0 8px 18px rgba(128, 109, 190, 0.12);
+}
+
+.themeLight .dayViewEventClear {
+  background: linear-gradient(135deg, rgba(217, 238, 252, 0.98), rgba(206, 230, 248, 0.98));
+  color: #33688e;
+  border-color: rgba(109, 166, 209, 0.18);
+  box-shadow: 0 8px 18px rgba(106, 148, 182, 0.12);
+}
+
+.themeLight .dayViewEventPush {
+  background: linear-gradient(135deg, rgba(249, 228, 216, 0.98), rgba(244, 218, 204, 0.98));
+  color: #8a4f26;
+  border-color: rgba(194, 129, 86, 0.18);
+  box-shadow: 0 8px 18px rgba(180, 129, 96, 0.12);
+}
+
+.themeLight .dayViewEventSteady {
+  background: linear-gradient(135deg, rgba(222, 242, 227, 0.98), rgba(212, 236, 218, 0.98));
+  color: #246245;
+  border-color: rgba(89, 145, 112, 0.18);
+  box-shadow: 0 8px 18px rgba(101, 151, 124, 0.12);
+}
+
+.themeLight .dayViewEventSharp {
+  background: linear-gradient(135deg, rgba(249, 240, 209, 0.98), rgba(243, 232, 194, 0.98));
+  color: #8a6c18;
+  border-color: rgba(190, 164, 75, 0.18);
+  box-shadow: 0 8px 18px rgba(177, 152, 88, 0.12);
+}
+
+.themeLight .dayViewEventRecover {
+  background: linear-gradient(135deg, rgba(251, 226, 234, 0.98), rgba(246, 216, 226, 0.98));
+  color: #8c4560;
+  border-color: rgba(195, 118, 144, 0.18);
+  box-shadow: 0 8px 18px rgba(180, 120, 142, 0.12);
+}
+
+.themeLight .dayViewEventDeep {
+  background: linear-gradient(135deg, rgba(231, 224, 250, 0.98), rgba(223, 216, 245, 0.98));
+  color: #604ca8;
+  border-color: rgba(129, 109, 194, 0.18);
+  box-shadow: 0 8px 18px rgba(128, 111, 182, 0.12);
 }
 
 .themeLight .calendarEntryPopover {
@@ -5845,6 +6367,65 @@
     linear-gradient(180deg, rgba(250, 247, 242, 0.98), rgba(243, 238, 231, 0.96));
 }
 
+.themeLight .mirrorHeroCard,
+.themeLight .mirrorGridCard,
+.themeLight .mirrorDetailCard {
+  background:
+    radial-gradient(circle at top right, rgba(216, 233, 252, 0.5), transparent 28%),
+    linear-gradient(180deg, rgba(251, 248, 243, 0.98), rgba(243, 238, 231, 0.96));
+}
+
+.themeLight .mirrorLead,
+.themeLight .mirrorQuestionText,
+.themeLight .mirrorCounterCard strong,
+.themeLight .mirrorEntryDate {
+  color: #16253c;
+}
+
+.themeLight .mirrorSaying,
+.themeLight .mirrorDetailDate,
+.themeLight .mirrorAnswerText,
+.themeLight .mirrorEntryPreview,
+.themeLight .mirrorCounterCard span,
+.themeLight .mirrorCounterCard small,
+.themeLight .mirrorQuestionLabel,
+.themeLight .streakSaveCounter {
+  color: #607089;
+}
+
+.themeLight .mirrorCounterCard,
+.themeLight .mirrorEntryCard,
+.themeLight .mirrorAnswerCard,
+.themeLight .mirrorModalBanner {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(245, 240, 234, 0.92));
+  border-color: rgba(125, 135, 160, 0.16);
+  box-shadow: 0 12px 24px rgba(104, 114, 145, 0.08);
+}
+
+.themeLight .mirrorEntryCard {
+  color: #16253c;
+}
+
+.themeLight .mirrorEntryTag {
+  background: rgba(227, 234, 248, 0.88);
+  border-color: rgba(125, 135, 160, 0.16);
+  color: #425067;
+}
+
+.themeLight .mirrorTagButton {
+  background: rgba(252, 249, 245, 0.96);
+  color: #1d2a40;
+}
+
+.themeLight .mirrorWordCount {
+  color: #607089;
+}
+
+.themeLight .mirrorWordCountMet {
+  color: #1f7a4d;
+}
+
 .themeLight .streakRulesToggle {
   color: #13243a;
 }
@@ -6020,6 +6601,65 @@
   display: grid;
   gap: 12px;
   margin-top: 14px;
+}
+
+.mirrorModalBanner {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 14px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(157, 184, 230, 0.18);
+  background:
+    linear-gradient(180deg, rgba(220, 243, 255, 0.08), rgba(164, 203, 255, 0.05)),
+    rgba(10, 18, 34, 0.58);
+}
+
+.mirrorModalBanner strong {
+  color: #eef5ff;
+}
+
+.mirrorModalBanner span {
+  color: #a9bcdf;
+  line-height: 1.5;
+}
+
+.mirrorWordCount {
+  margin-top: 8px;
+  color: #8fa9d5;
+  font-size: 0.82rem;
+}
+
+.mirrorWordCountMet {
+  color: #8df0bc;
+}
+
+.mirrorTagSection {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.mirrorTagRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.mirrorTagButton {
+  --mirror-accent: #8ec5ff;
+  border: 1px solid color-mix(in srgb, var(--mirror-accent) 34%, rgba(123, 138, 184, 0.18));
+  border-radius: 999px;
+  background: rgba(18, 22, 40, 0.92);
+  color: #eef3ff;
+  padding: 10px 14px;
+  font: inherit;
+  font-weight: 700;
+}
+
+.mirrorTagButtonActive {
+  background: color-mix(in srgb, var(--mirror-accent) 22%, rgba(18, 22, 40, 0.96));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--mirror-accent) 38%, transparent);
 }
 
 .feedbackFooter {
@@ -6349,6 +6989,14 @@
 
   .streakHeroCard,
   .streakCalendarCard {
+    grid-column: 1 / -1;
+  }
+
+  .mirrorShell {
+    grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+  }
+
+  .mirrorHeroCard {
     grid-column: 1 / -1;
   }
 

@@ -168,7 +168,7 @@ const NOTE_HIGHLIGHTS = [
   { label: "Rose", value: "#fecdd3" },
 ] as const;
 
-const PRO_HISTORY_FREE_DAYS = 5;
+const PRO_HISTORY_FREE_DAYS = 14;
 
 const PRO_BACKGROUND_PRESETS = [
   {
@@ -214,12 +214,37 @@ const XP_WRITING_ENTRY_BONUS = 10;
 const XP_WRITING_BONUS_THRESHOLD = 100;
 const XP_WRITING_BONUS_XP = 10;
 const XP_WRITING_DAILY_CAP = 20;
+const WHELM_BRAND_THESIS = "Whelm is where productivity becomes a standard, not a mood.";
+const WHELM_PRO_POSITIONING =
+  "Whelm Pro is the full version of the system: deeper reports, longer memory, stronger personalization, a cleaner command center, and of course more animated PRO WHELMS!";
+const STREAK_MIRROR_MIN_WORDS = 33;
+const STREAK_SAVE_MONTHLY_LIMIT = 5;
+const CALENDAR_TONES = [
+  { value: "Clear", blockLabel: "Clear", dayLabel: "Reset Day", accent: "#8ec5ff" },
+  { value: "Push", blockLabel: "Push", dayLabel: "Pressure Day", accent: "#f59e6b" },
+  { value: "Deep", blockLabel: "Deep", dayLabel: "Deep Work Day", accent: "#7c93ff" },
+  { value: "Sharp", blockLabel: "Sharp", dayLabel: "Study Day", accent: "#facc15" },
+  { value: "Steady", blockLabel: "Steady", dayLabel: "Admin Day", accent: "#4ade80" },
+  { value: "Recover", blockLabel: "Recover", dayLabel: "Recovery Day", accent: "#fb7185" },
+] as const;
 const STREAK_SAVE_ACCOUNTABILITY_QUESTIONS = [
-  "What specific symptoms or condition made yesterday unrealistic?",
-  "What would have made you push through anyway if this had been non-negotiable?",
-  "What evidence tells you this was a real sick day instead of drift or avoidance?",
-  "What are you doing today to make sure the streak returns to normal behavior?",
-  "What is the exact first block you will complete today to justify protecting the run?",
+  "What honestly pulled you off track yesterday?",
+  "What part of it was outside your control, and what part was yours?",
+  "What is the first concrete action you will complete today to get back in line?",
+] as const;
+const STREAK_MIRROR_TAGS = [
+  { value: "forgot", label: "Forgot", accent: "#8ec5ff" },
+  { value: "lazy", label: "Lazy", accent: "#f4a261" },
+  { value: "too_busy", label: "Too busy", accent: "#ff8fab" },
+  { value: "low_energy", label: "Low energy", accent: "#7dd3c7" },
+  { value: "disorganized", label: "Disorganized", accent: "#c4b5fd" },
+  { value: "other", label: "Other", accent: "#facc15" },
+] as const;
+const STREAK_MIRROR_SAYINGS = [
+  "Honest reflection protects stronger returns. What you face clearly, you can change clearly.",
+  "Looking back without hiding is part of keeping the streak real.",
+  "This space is private. Use it to be honest, reset clearly, and move forward.",
+  "The win here is accuracy, not perfection.",
 ] as const;
 
 type FeedbackCategory = "bug" | "feature" | "other";
@@ -237,6 +262,7 @@ type DailyRitualBlockDraft = {
 type AppTab =
   | "today"
   | "calendar"
+  | "mirror"
   | "notes"
   | "streaks"
   | "history"
@@ -329,12 +355,15 @@ type CalendarDay = {
   level: 0 | 1 | 2 | 3;
 };
 
+type CalendarTone = (typeof CALENDAR_TONES)[number]["value"];
+
 type MonthCell = {
   key: string;
   dayNumber: number | null;
   minutes: number;
   level: 0 | 1 | 2 | 3;
   isCurrentMonth: boolean;
+  tone?: CalendarTone;
 };
 
 type StreakMonthCell = {
@@ -362,9 +391,10 @@ type CalendarEntry = {
   title: string;
   subtitle: string;
   preview: string;
-  tone: "Blue" | "Mint" | "Violet";
+  tone: "Blue" | "Mint" | "Violet" | CalendarTone;
   startMinute: number;
   endMinute: number;
+  isCompleted?: boolean;
   noteId?: string;
   planId?: string;
 };
@@ -400,6 +430,7 @@ type PlannedBlock = {
   dateKey: string;
   title: string;
   note: string;
+  tone?: CalendarTone;
   durationMinutes: number;
   timeOfDay: string;
   sortOrder: number;
@@ -407,6 +438,8 @@ type PlannedBlock = {
   status: "active" | "completed";
   completedAtISO?: string;
 };
+
+type DayToneMap = Record<string, CalendarTone>;
 
 type KpiDetailKey =
   | "totalFocus"
@@ -421,6 +454,31 @@ type SickDaySave = {
   claimedAtISO: string;
   reason: "sick";
 };
+
+type StreakMirrorTag = (typeof STREAK_MIRROR_TAGS)[number]["value"];
+
+type StreakMirrorEntry = {
+  id: string;
+  dateKey: string;
+  createdAtISO: string;
+  updatedAtISO: string;
+  tag: StreakMirrorTag;
+  answers: Record<string, string>;
+  source: "streak_save";
+};
+
+function getStreakMirrorTagMeta(tag: StreakMirrorTag) {
+  return STREAK_MIRROR_TAGS.find((item) => item.value === tag) ?? STREAK_MIRROR_TAGS[0];
+}
+
+function getCalendarToneMeta(tone: CalendarTone | null | undefined) {
+  return CALENDAR_TONES.find((item) => item.value === tone) ?? null;
+}
+
+function monthKeyLocal(input: Date | string) {
+  const value = typeof input === "string" ? new Date(input) : input;
+  return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}`;
+}
 
 const INSIGHT_CATEGORY_META: Record<
   NoteCategory,
@@ -651,6 +709,15 @@ function findPlanSpacingConflicts(
 
 function isDateKeyBeforeToday(dateKey: string) {
   return dateKey < dayKeyLocal(new Date());
+}
+
+function isDateKeyWithinRecentWindow(dateKey: string, days: number) {
+  const cutoff = dayKeyLocal(addDaysLocal(new Date(), -(Math.max(1, days) - 1)));
+  return dateKey >= cutoff;
+}
+
+function normalizePlannableDateKey(dateKey: string) {
+  return isDateKeyBeforeToday(dateKey) ? dayKeyLocal(new Date()) : dateKey;
 }
 
 function buildNextBandanaMilestone(streak: number, countsTodayIfEarnedNow = false) {
@@ -1197,6 +1264,8 @@ function WhelmNavIcon({ icon }: { icon: NavIconKey }) {
   };
 
   switch (icon) {
+    case "mirror":
+      return <img src="/mirror-icon-tab.png" alt="" className={styles.navIconImage} />;
     case "today":
       return (
         <svg {...svgProps}>
@@ -1425,6 +1494,8 @@ function tabTitle(tab: AppTab) {
       return "Today";
     case "calendar":
       return "Schedule";
+    case "mirror":
+      return "Streak Mirror";
     case "notes":
       return "Notes";
     case "streaks":
@@ -1474,6 +1545,14 @@ function themeModeStorageKey(uid: string) {
   return `whelm:theme-mode:${uid}`;
 }
 
+function dayToneStorageKey(uid: string) {
+  return `whelm:day-tones:${uid}`;
+}
+
+function streakMirrorStorageKey(uid: string) {
+  return `whelm:streak-mirror:${uid}`;
+}
+
 function sickDaySaveStorageKey(uid: string) {
   return `whelm:sick-day-saves:${uid}`;
 }
@@ -1486,7 +1565,9 @@ function clearLocalAccountData(uid: string) {
   window.localStorage.removeItem(`whelm:notes:${uid}`);
   window.localStorage.removeItem(`whelm:sessions:${uid}`);
   window.localStorage.removeItem(plannedBlocksStorageKey(uid));
+  window.localStorage.removeItem(dayToneStorageKey(uid));
   window.localStorage.removeItem(senseiStyleStorageKey(uid));
+  window.localStorage.removeItem(streakMirrorStorageKey(uid));
   window.localStorage.removeItem(sickDaySaveStorageKey(uid));
   window.localStorage.removeItem(sickDaySaveDismissalsStorageKey(uid));
   window.localStorage.removeItem("whelm-pro-state-v1");
@@ -1505,6 +1586,7 @@ function loadPlannedBlocks(uid: string): PlannedBlock[] {
         dateKey: item.dateKey,
         title: String(item.title).slice(0, 80),
         note: String((item as Partial<PlannedBlock>).note || "").slice(0, 280),
+        tone: getCalendarToneMeta((item as Partial<PlannedBlock>).tone as CalendarTone | undefined)?.value,
         durationMinutes: Math.min(
           MAX_PLANNED_BLOCK_MINUTES,
           Math.max(MIN_PLANNED_BLOCK_MINUTES, Number(item.durationMinutes) || 25),
@@ -1532,6 +1614,66 @@ function loadPlannedBlocks(uid: string): PlannedBlock[] {
 
 function savePlannedBlocks(uid: string, items: PlannedBlock[]) {
   window.localStorage.setItem(plannedBlocksStorageKey(uid), JSON.stringify(items));
+}
+
+function loadDayTones(uid: string): DayToneMap {
+  try {
+    const raw = window.localStorage.getItem(dayToneStorageKey(uid));
+    const parsed = raw ? (JSON.parse(raw) as Record<string, string>) : {};
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    return Object.fromEntries(
+      Object.entries(parsed)
+        .filter(
+          ([dateKey, tone]) =>
+            /^\d{4}-\d{2}-\d{2}$/.test(dateKey) && Boolean(getCalendarToneMeta(tone as CalendarTone)),
+        )
+        .map(([dateKey, tone]) => [dateKey, tone as CalendarTone]),
+    );
+  } catch {
+    return {};
+  }
+}
+
+function saveDayTones(uid: string, tones: DayToneMap) {
+  window.localStorage.setItem(dayToneStorageKey(uid), JSON.stringify(tones));
+}
+
+function loadStreakMirrorEntries(uid: string): StreakMirrorEntry[] {
+  try {
+    const raw = window.localStorage.getItem(streakMirrorStorageKey(uid));
+    const parsed = raw ? (JSON.parse(raw) as StreakMirrorEntry[]) : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter(
+        (item) =>
+          item &&
+          typeof item.id === "string" &&
+          typeof item.dateKey === "string" &&
+          typeof item.createdAtISO === "string" &&
+          typeof item.updatedAtISO === "string" &&
+          typeof item.tag === "string" &&
+          item.answers &&
+          typeof item.answers === "object",
+      )
+      .map((item) => ({
+        ...item,
+        tag: getStreakMirrorTagMeta(item.tag as StreakMirrorTag).value,
+        source: "streak_save" as const,
+        answers: Object.fromEntries(
+          STREAK_SAVE_ACCOUNTABILITY_QUESTIONS.map((question) => [
+            question,
+            String(item.answers[question] ?? "").slice(0, 2500),
+          ]),
+        ),
+      }))
+      .sort((a, b) => (a.updatedAtISO < b.updatedAtISO ? 1 : -1));
+  } catch {
+    return [];
+  }
+}
+
+function saveStreakMirrorEntries(uid: string, entries: StreakMirrorEntry[]) {
+  window.localStorage.setItem(streakMirrorStorageKey(uid), JSON.stringify(entries));
 }
 
 function loadSickDaySaves(uid: string): SickDaySave[] {
@@ -1689,17 +1831,18 @@ function createDailyRitualDrafts(existing: PlannedBlock[]): DailyRitualBlockDraf
 const DESKTOP_PRIMARY_TABS: Array<{ key: AppTab; label: string }> = [
   { key: "calendar", label: "Schedule" },
   { key: "today", label: "Today" },
+  { key: "mirror", label: "Mirror" },
   { key: "notes", label: "Notes" },
 ];
 
 const MOBILE_PRIMARY_TABS: Array<{ key: AppTab | "more"; label: string }> = [
   { key: "calendar", label: "Schedule" },
   { key: "today", label: "Today" },
-  { key: "notes", label: "Notes" },
+  { key: "mirror", label: "Mirror" },
   { key: "more", label: "More" },
 ];
 
-const MOBILE_MORE_TABS: AppTab[] = ["streaks", "history", "reports", "settings"];
+const MOBILE_MORE_TABS: AppTab[] = ["notes", "streaks", "history", "reports", "settings"];
 
 const INTRO_SPLASH_MIN_MS = 1500;
 const INTRO_SPLASH_MAX_MS = 2200;
@@ -1888,7 +2031,7 @@ function ProUnlockCard({
           <p className={styles.accountMeta}>{body}</p>
           <div className={styles.noteFooterActions}>
             <button type="button" className={styles.inlineUpgrade} onClick={onPreview}>
-              Enter premium preview
+              Enter Whelm Pro Preview
             </button>
           </div>
         </div>
@@ -1959,9 +2102,11 @@ export default function HomePage() {
   const [backgroundSkin, setBackgroundSkin] = useState<BackgroundSkinSetting>(DEFAULT_BACKGROUND_SKIN);
   const [proPanelsOpen, setProPanelsOpen] = useState({
     notes: false,
+    calendar: false,
     history: false,
     reports: false,
     background: false,
+    mirror: false,
   });
   const [trendRange, setTrendRange] = useState<TrendRange>(7);
   const [activeTab, setActiveTab] = useState<AppTab>("calendar");
@@ -1974,6 +2119,7 @@ export default function HomePage() {
   const [notesSearch, setNotesSearch] = useState("");
   const [notesCategoryFilter, setNotesCategoryFilter] = useState<"all" | NoteCategory>("all");
   const [plannedBlocks, setPlannedBlocks] = useState<PlannedBlock[]>([]);
+  const [dayTones, setDayTones] = useState<DayToneMap>({});
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
   const [calendarCursor, setCalendarCursor] = useState<Date>(() => {
     const now = new Date();
@@ -1989,6 +2135,7 @@ export default function HomePage() {
   const [planTitle, setPlanTitle] = useState("");
   const [planNote, setPlanNote] = useState("");
   const [planNoteExpanded, setPlanNoteExpanded] = useState(false);
+  const [planTone, setPlanTone] = useState<CalendarTone | null>(null);
   const [planDuration, setPlanDuration] = useState(25);
   const [planTime, setPlanTime] = useState("09:00");
   const [planStatus, setPlanStatus] = useState("");
@@ -2003,6 +2150,7 @@ export default function HomePage() {
   const [activatedCalendarEntryId, setActivatedCalendarEntryId] = useState<string | null>(null);
   const [overlapPickerEntryId, setOverlapPickerEntryId] = useState<string | null>(null);
   const [dayPortalComposerOpen, setDayPortalComposerOpen] = useState(false);
+  const [selectedPlanDetailId, setSelectedPlanDetailId] = useState<string | null>(null);
   const [plannerSectionsOpen, setPlannerSectionsOpen] = useState({
     active: false,
     completed: false,
@@ -2030,6 +2178,9 @@ export default function HomePage() {
   const [streakSaveQuestionnaireOpen, setStreakSaveQuestionnaireOpen] = useState(false);
   const [streakSaveQuestionnairePreview, setStreakSaveQuestionnairePreview] = useState(false);
   const [streakRulesOpen, setStreakRulesOpen] = useState(false);
+  const [streakMirrorEntries, setStreakMirrorEntries] = useState<StreakMirrorEntry[]>([]);
+  const [selectedStreakMirrorId, setSelectedStreakMirrorId] = useState<string | null>(null);
+  const [streakMirrorTag, setStreakMirrorTag] = useState<StreakMirrorTag | null>(null);
   const [streakSaveAnswers, setStreakSaveAnswers] = useState<Record<string, string>>({});
   const [streakSaveStatus, setStreakSaveStatus] = useState("");
   const [dailyPlanningPreviewOpen, setDailyPlanningPreviewOpen] = useState(false);
@@ -2276,10 +2427,27 @@ export default function HomePage() {
       }),
     [notes],
   );
+  const visibleNotes = useMemo(
+    () =>
+      isPro
+        ? orderedNotes
+        : orderedNotes.filter((note) =>
+            isDateKeyWithinRecentWindow(dayKeyLocal(note.updatedAtISO), PRO_HISTORY_FREE_DAYS),
+          ),
+    [isPro, orderedNotes],
+  );
+  const hasLockedNotesHistory = useMemo(
+    () =>
+      !isPro &&
+      orderedNotes.some(
+        (note) => !isDateKeyWithinRecentWindow(dayKeyLocal(note.updatedAtISO), PRO_HISTORY_FREE_DAYS),
+      ),
+    [isPro, orderedNotes],
+  );
 
   const filteredNotes = useMemo(() => {
     const query = notesSearch.trim().toLowerCase();
-    return orderedNotes.filter((note) => {
+    return visibleNotes.filter((note) => {
       const categoryMatch =
         notesCategoryFilter === "all" || (note.category || "personal") === notesCategoryFilter;
       const textMatch =
@@ -2288,15 +2456,20 @@ export default function HomePage() {
         note.body.toLowerCase().includes(query);
       return categoryMatch && textMatch;
     });
-  }, [notesCategoryFilter, notesSearch, orderedNotes]);
+  }, [notesCategoryFilter, notesSearch, visibleNotes]);
 
   const dueReminderNotes = useMemo(() => {
     const todayKey = dayKeyLocal(new Date());
-    return orderedNotes.filter((note) => {
+    return visibleNotes.filter((note) => {
       if (!note.reminderAtISO) return false;
       return dayKeyLocal(note.reminderAtISO) === todayKey;
     });
-  }, [orderedNotes]);
+  }, [visibleNotes]);
+  useEffect(() => {
+    if (selectedNoteId && !visibleNotes.some((note) => note.id === selectedNoteId)) {
+      setSelectedNoteId(visibleNotes[0]?.id ?? null);
+    }
+  }, [selectedNoteId, visibleNotes]);
 
   const sessionHistoryGroups = useMemo<SessionHistoryMonthGroup[]>(() => {
     const grouped = new Map<
@@ -2383,17 +2556,13 @@ export default function HomePage() {
       });
   }, [sessions]);
   const freeSessionHistoryGroups = useMemo<SessionHistoryMonthGroup[]>(() => {
-    let remainingDays = PRO_HISTORY_FREE_DAYS;
-
     return sessionHistoryGroups
       .map((monthGroup) => {
         const weeks = monthGroup.weeks
           .map((weekGroup) => {
-            const days = weekGroup.days.filter(() => {
-              if (remainingDays <= 0) return false;
-              remainingDays -= 1;
-              return true;
-            });
+            const days = weekGroup.days.filter((dayGroup) =>
+              isDateKeyWithinRecentWindow(dayGroup.key.replace(/^day-/, ""), PRO_HISTORY_FREE_DAYS),
+            );
 
             if (days.length === 0) return null;
             return {
@@ -2416,10 +2585,19 @@ export default function HomePage() {
   const hasLockedHistoryDays = useMemo(() => {
     const totalDays = sessionHistoryGroups.reduce(
       (sum, monthGroup) =>
-        sum + monthGroup.weeks.reduce((weekSum, weekGroup) => weekSum + weekGroup.days.length, 0),
+        sum +
+        monthGroup.weeks.reduce(
+          (weekSum, weekGroup) =>
+            weekSum +
+            weekGroup.days.filter(
+              (dayGroup) =>
+                !isDateKeyWithinRecentWindow(dayGroup.key.replace(/^day-/, ""), PRO_HISTORY_FREE_DAYS),
+            ).length,
+          0,
+        ),
       0,
     );
-    return totalDays > PRO_HISTORY_FREE_DAYS;
+    return totalDays > 0;
   }, [sessionHistoryGroups]);
 
   const reportMetrics = useMemo(() => {
@@ -2623,7 +2801,8 @@ export default function HomePage() {
   );
 
   const nextSenseiMilestone = useMemo(() => milestoneForStreak(streak), [streak]);
-  const senseiActiveTab = activeTab === "streaks" ? "reports" : activeTab;
+  const senseiActiveTab =
+    activeTab === "streaks" ? "reports" : activeTab === "mirror" ? "notes" : activeTab;
 
   const companionState = useMemo(
     () =>
@@ -2967,6 +3146,11 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!user) return;
+    setDayTones(loadDayTones(user.uid));
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
     setAppBackgroundSetting(loadBackgroundSetting(user.uid));
   }, [user]);
 
@@ -2987,9 +3171,27 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!user) return;
+    const loaded = loadStreakMirrorEntries(user.uid);
+    setStreakMirrorEntries(loaded);
+    setSelectedStreakMirrorId(loaded[0]?.id ?? null);
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
     setSickDaySaves(loadSickDaySaves(user.uid));
     setSickDaySaveDismissals(loadSickDaySaveDismissals(user.uid));
   }, [user]);
+
+  useEffect(() => {
+    const visible = isPro ? streakMirrorEntries : streakMirrorEntries.slice(0, 2);
+    if (visible.length === 0) {
+      setSelectedStreakMirrorId(null);
+      return;
+    }
+    if (!selectedStreakMirrorId || !visible.some((entry) => entry.id === selectedStreakMirrorId)) {
+      setSelectedStreakMirrorId(visible[0].id);
+    }
+  }, [isPro, selectedStreakMirrorId, streakMirrorEntries]);
 
   useEffect(() => {
     if (!user) return;
@@ -3063,11 +3265,20 @@ export default function HomePage() {
       dayBeforeYesterdayDateKey,
       protectedDateKeys,
     );
-    const latestClaim = sickDaySaves.length > 0 ? new Date(sickDaySaves[0].claimedAtISO) : null;
-    const onCooldown = latestClaim !== null && latestClaim >= addDays(today, -30);
+    const currentMonthKey = monthKeyLocal(today);
+    const monthlySaveCount = sickDaySaves.filter(
+      (save) => monthKeyLocal(save.claimedAtISO) === currentMonthKey,
+    ).length;
+    const monthlyLimitReached = monthlySaveCount >= STREAK_SAVE_MONTHLY_LIMIT;
     const dismissed = sickDaySaveDismissals.includes(yesterdayDateKey);
 
-    if (yesterdayMissed && !yesterdayAlreadyProtected && priorRun > 0 && !onCooldown && !dismissed) {
+    if (
+      yesterdayMissed &&
+      !yesterdayAlreadyProtected &&
+      priorRun > 0 &&
+      !monthlyLimitReached &&
+      !dismissed
+    ) {
       setSickDaySavePromptOpen(true);
     }
   }, [sessions, sickDaySaveDismissals, sickDaySaves, user]);
@@ -3765,13 +3976,18 @@ export default function HomePage() {
     timeOfDay: string;
     durationMinutes: number;
   }) {
-    setSelectedCalendarDate(options.dateKey);
+    const nextDateKey = normalizePlannableDateKey(options.dateKey);
+    setSelectedCalendarDate(nextDateKey);
     setPlanTitle(options.title);
     setPlanNote(options.note);
     setPlanNoteExpanded(Boolean(options.note));
     setPlanTime(options.timeOfDay);
     setPlanDuration(options.durationMinutes);
-    setPlanStatus("");
+    setPlanStatus(
+      nextDateKey !== options.dateKey
+        ? "Past dates stay read-only. This block was moved to today."
+        : "",
+    );
     setPlanConflictWarning(null);
     setActiveTab("calendar");
     setCalendarView("day");
@@ -3783,11 +3999,17 @@ export default function HomePage() {
   }
 
   function openTimeBlockFlow(dateKey: string) {
-    setSelectedCalendarDate(dateKey);
+    const nextDateKey = normalizePlannableDateKey(dateKey);
+    setSelectedCalendarDate(nextDateKey);
     setActiveTab("calendar");
     setCalendarView("day");
     setMobileBlockSheetOpen(true);
-    setPlanStatus("");
+    setDayPortalComposerOpen(true);
+    setPlanStatus(
+      nextDateKey !== dateKey
+        ? "Past dates stay read-only. Add the block to today or a future day."
+        : "",
+    );
     setPlanConflictWarning(null);
   }
 
@@ -3812,6 +4034,7 @@ export default function HomePage() {
 
   function openStreakSaveQuestionnaire() {
     setStreakSaveAnswers({});
+    setStreakMirrorTag(null);
     setStreakSaveStatus("");
     setStreakSaveQuestionnairePreview(false);
     setStreakSaveQuestionnaireOpen(true);
@@ -3819,6 +4042,7 @@ export default function HomePage() {
 
   function openStreakSaveQuestionnairePreview() {
     setStreakSaveAnswers({});
+    setStreakMirrorTag(null);
     setStreakSaveStatus("");
     setStreakSaveQuestionnairePreview(true);
     setStreakSaveQuestionnaireOpen(true);
@@ -3832,6 +4056,7 @@ export default function HomePage() {
   function closeStreakSaveQuestionnaire() {
     setStreakSaveQuestionnaireOpen(false);
     setStreakSaveQuestionnairePreview(false);
+    setStreakMirrorTag(null);
     setStreakSaveStatus("");
   }
 
@@ -3853,26 +4078,58 @@ export default function HomePage() {
       return;
     }
     if (!user || !sickDaySaveEligible) return;
-    const incompleteQuestion = STREAK_SAVE_ACCOUNTABILITY_QUESTIONS.find(
-      (question) => !streakSaveAnswers[question]?.trim(),
-    );
+    const incompleteQuestion = STREAK_SAVE_ACCOUNTABILITY_QUESTIONS.find((question) => {
+      const answer = streakSaveAnswers[question]?.trim() ?? "";
+      return countWords(answer) < STREAK_MIRROR_MIN_WORDS;
+    });
     if (incompleteQuestion) {
-      setStreakSaveStatus("Answer all 5 accountability questions before using a streak save.");
+      setStreakSaveStatus(`Each reflection needs at least ${STREAK_MIRROR_MIN_WORDS} words.`);
+      return;
+    }
+    if (!streakMirrorTag) {
+      setStreakSaveStatus("Choose the pattern tag that best describes the miss.");
+      return;
+    }
+    if (monthlyStreakSaveCount >= STREAK_SAVE_MONTHLY_LIMIT) {
+      setStreakSaveStatus("This month has already used all 5 streak saves.");
       return;
     }
 
+    const normalizedAnswers = Object.fromEntries(
+      STREAK_SAVE_ACCOUNTABILITY_QUESTIONS.map((question) => [
+        question,
+        (streakSaveAnswers[question] ?? "").trim(),
+      ]),
+    );
+
     const previousStreak = computeStreak(sessions, protectedStreakDateKeys);
+    const nowIso = new Date().toISOString();
     const nextSave: SickDaySave = {
       id: typeof crypto !== "undefined" ? crypto.randomUUID() : `${Date.now()}`,
       dateKey: yesterdayKey,
-      claimedAtISO: new Date().toISOString(),
+      claimedAtISO: nowIso,
       reason: "sick",
     };
     const nextSaves = [nextSave, ...sickDaySaves.filter((save) => save.dateKey !== yesterdayKey)].sort((a, b) =>
       a.claimedAtISO < b.claimedAtISO ? 1 : -1,
     );
+    const nextMirrorEntry: StreakMirrorEntry = {
+      id: typeof crypto !== "undefined" ? crypto.randomUUID() : `${Date.now()}-mirror`,
+      dateKey: yesterdayKey,
+      createdAtISO: nowIso,
+      updatedAtISO: nowIso,
+      tag: streakMirrorTag,
+      answers: normalizedAnswers,
+      source: "streak_save",
+    };
+    const nextMirrorEntries = [nextMirrorEntry, ...streakMirrorEntries].sort((a, b) =>
+      a.updatedAtISO < b.updatedAtISO ? 1 : -1,
+    );
     setSickDaySaves(nextSaves);
+    setStreakMirrorEntries(nextMirrorEntries);
+    setSelectedStreakMirrorId(nextMirrorEntry.id);
     saveSickDaySaves(user.uid, nextSaves);
+    saveStreakMirrorEntries(user.uid, nextMirrorEntries);
     trackStreakChange(
       previousStreak,
       computeStreak(sessions, nextSaves.map((save) => save.dateKey)),
@@ -3882,8 +4139,9 @@ export default function HomePage() {
     );
     setSickDaySavePromptOpen(false);
     setStreakSaveQuestionnaireOpen(false);
+    setStreakMirrorTag(null);
     setStreakSaveStatus("");
-    setActiveTab("streaks");
+    setActiveTab("mirror");
   }
 
   function handleTodayPrimaryAction() {
@@ -3912,7 +4170,8 @@ export default function HomePage() {
 
   function convertNoteToPlannedBlock(note: WorkspaceNote) {
     const reminderDate = note.reminderAtISO ? new Date(note.reminderAtISO) : null;
-    const dateKey = reminderDate ? dayKeyLocal(reminderDate) : selectedDateKey;
+    const rawDateKey = reminderDate ? dayKeyLocal(reminderDate) : selectedDateKey;
+    const dateKey = normalizePlannableDateKey(rawDateKey);
     const timeOfDay = reminderDate
       ? `${String(reminderDate.getHours()).padStart(2, "0")}:${String(
           reminderDate.getMinutes(),
@@ -3929,6 +4188,7 @@ export default function HomePage() {
   }
 
   const selectedDateKey = selectedCalendarDate || dayKeyLocal(new Date());
+  const selectedDateCanAddBlocks = !isDateKeyBeforeToday(selectedDateKey);
   const calendarMonthLabel = calendarCursor.toLocaleDateString(undefined, {
     month: "long",
     year: "numeric",
@@ -4041,6 +4301,7 @@ export default function HomePage() {
         minutes,
         level: focusLevel(minutes),
         isCurrentMonth: true,
+        tone: dayTones[dateKey],
       });
     }
 
@@ -4055,7 +4316,7 @@ export default function HomePage() {
     }
 
     return cells;
-  }, [calendarCursor, sessionMinutesByDay]);
+  }, [calendarCursor, dayTones, sessionMinutesByDay]);
   const streakMonthLabel = streakCalendarCursor.toLocaleDateString(undefined, {
     month: "long",
     year: "numeric",
@@ -4151,7 +4412,11 @@ export default function HomePage() {
   }, [historicalStreaksByDay, sessionMinutesByDay, streakCalendarCursor]);
   const selectedDatePlanGroups = useMemo(() => {
     const sameDate = plannedBlocks
-      .filter((item) => item.dateKey === selectedDateKey)
+      .filter(
+        (item) =>
+          item.dateKey === selectedDateKey &&
+          (isPro || isDateKeyWithinRecentWindow(item.dateKey, PRO_HISTORY_FREE_DAYS)),
+      )
       .sort((a, b) => a.sortOrder - b.sortOrder || a.timeOfDay.localeCompare(b.timeOfDay));
     return {
       active: sameDate.filter((item) => item.status === "active" && !isDateKeyBeforeToday(item.dateKey)),
@@ -4161,22 +4426,41 @@ export default function HomePage() {
         (item) => item.status === "completed" || !isDateKeyBeforeToday(item.dateKey),
       ),
     };
-  }, [plannedBlocks, selectedDateKey]);
+  }, [isPro, plannedBlocks, selectedDateKey]);
   const selectedDatePlans = selectedDatePlanGroups.active;
+  const selectedDateDayTone = dayTones[selectedDateKey] ?? null;
   const plannedBlockById = useMemo(
     () => new Map(plannedBlocks.map((item) => [item.id, item])),
     [plannedBlocks],
   );
+  const selectedPlanDetail = selectedPlanDetailId
+    ? plannedBlockById.get(selectedPlanDetailId) ?? null
+    : null;
+  useEffect(() => {
+    if (selectedPlanDetailId && !plannedBlockById.has(selectedPlanDetailId)) {
+      setSelectedPlanDetailId(null);
+    }
+  }, [plannedBlockById, selectedPlanDetailId]);
   const plannedBlockHistory = useMemo(() => {
-    const sorted = [...plannedBlocks].sort((a, b) => {
-      if (a.dateKey !== b.dateKey) return b.dateKey.localeCompare(a.dateKey);
-      return a.timeOfDay.localeCompare(b.timeOfDay);
-    });
+    const sorted = [...plannedBlocks]
+      .filter((item) => isPro || isDateKeyWithinRecentWindow(item.dateKey, PRO_HISTORY_FREE_DAYS))
+      .sort((a, b) => {
+        if (a.dateKey !== b.dateKey) return b.dateKey.localeCompare(a.dateKey);
+        return a.timeOfDay.localeCompare(b.timeOfDay);
+      });
     return {
       completed: sorted.filter((item) => item.status === "completed"),
       incomplete: sorted.filter((item) => item.status === "active" && isDateKeyBeforeToday(item.dateKey)),
     };
-  }, [plannedBlocks]);
+  }, [isPro, plannedBlocks]);
+  const hasLockedBlockHistory = useMemo(
+    () =>
+      !isPro &&
+      plannedBlocks.some(
+        (item) => !isDateKeyWithinRecentWindow(item.dateKey, PRO_HISTORY_FREE_DAYS),
+      ),
+    [isPro, plannedBlocks],
+  );
   const calendarEntriesByDate = useMemo(() => {
     const entries = new Map<string, CalendarEntry[]>();
 
@@ -4187,7 +4471,8 @@ export default function HomePage() {
     }
 
     plannedBlocks.forEach((item) => {
-      if (item.status !== "active" || isDateKeyBeforeToday(item.dateKey)) return;
+      if (!isPro && !isDateKeyWithinRecentWindow(item.dateKey, PRO_HISTORY_FREE_DAYS)) return;
+      if (item.status === "active" && isDateKeyBeforeToday(item.dateKey)) return;
       const startMinute = parseTimeToMinutes(item.timeOfDay || "09:00");
       const endMinute = Math.min(24 * 60, startMinute + Math.max(10, item.durationMinutes));
       pushEntry(item.dateKey, {
@@ -4197,17 +4482,25 @@ export default function HomePage() {
         timeLabel: normalizeTimeLabel(item.timeOfDay),
         sortTime: item.timeOfDay || "23:59",
         title: item.title,
-        subtitle: item.note.trim()
-          ? `${item.durationMinutes}m focus block • note added`
-          : `${item.durationMinutes}m focus block`,
+        subtitle:
+          item.status === "completed"
+            ? `${item.durationMinutes}m focus block • completed`
+            : item.note.trim()
+              ? `${item.durationMinutes}m focus block • note added`
+              : `${item.durationMinutes}m focus block`,
         preview: item.note.trim()
           ? item.note.trim()
-          : `Planned block: ${item.title} (${item.durationMinutes} minutes) at ${normalizeTimeLabel(
-              item.timeOfDay,
-            )}.`,
-        tone: "Blue",
+          : item.status === "completed"
+            ? `Completed block: ${item.title} (${item.durationMinutes} minutes) at ${normalizeTimeLabel(
+                item.timeOfDay,
+              )}.`
+            : `Planned block: ${item.title} (${item.durationMinutes} minutes) at ${normalizeTimeLabel(
+                item.timeOfDay,
+              )}.`,
+        tone: item.tone ?? "Blue",
         startMinute,
         endMinute,
+        isCompleted: item.status === "completed",
         planId: item.id,
       });
     });
@@ -4241,6 +4534,7 @@ export default function HomePage() {
       const completed = new Date(session.completedAtISO);
       if (Number.isNaN(completed.getTime())) return;
       const dateKey = dayKeyLocal(completed);
+      if (!isPro && !isDateKeyWithinRecentWindow(dateKey, PRO_HISTORY_FREE_DAYS)) return;
       const sessionLabel =
         session.category === "software"
           ? "Software"
@@ -4282,7 +4576,7 @@ export default function HomePage() {
     });
 
     return entries;
-  }, [notes, plannedBlocks, sessions]);
+  }, [isPro, notes, plannedBlocks, sessions]);
   const selectedDateEntries = (calendarEntriesByDate.get(selectedDateKey) ?? []).filter(
     (entry) => entry.source !== "session",
   );
@@ -4560,6 +4854,10 @@ export default function HomePage() {
 
   function addPlannedBlock() {
     if (!user) return false;
+    if (!selectedDateCanAddBlocks) {
+      setPlanStatus("Past dates stay read-only. Blocks can only be added to today or a future day.");
+      return false;
+    }
     const title = planTitle.trim();
     const note = planNote.trim();
     if (!title) {
@@ -4594,6 +4892,7 @@ export default function HomePage() {
       dateKey: selectedDateKey,
       title,
       note,
+      tone: isPro ? planTone ?? undefined : undefined,
       durationMinutes: nextDuration,
       timeOfDay: nextTime,
       sortOrder:
@@ -4618,6 +4917,7 @@ export default function HomePage() {
     setPlanTitle("");
     setPlanNote("");
     setPlanNoteExpanded(false);
+    setPlanTone(null);
     setPlanConflictWarning(null);
     setPlanStatus("Planned block added.");
     window.setTimeout(() => setPlanStatus(""), 1200);
@@ -4664,6 +4964,10 @@ export default function HomePage() {
     if (!user) return;
     const block = plannedBlocks.find((item) => item.id === id);
     if (!block) return;
+    if (isDateKeyBeforeToday(block.dateKey)) {
+      setPlanStatus("Past dates stay read-only. This block can no longer be rescheduled there.");
+      return;
+    }
     const conflicts = findPlanSpacingConflicts(plannedBlocks, {
       dateKey: block.dateKey,
       timeOfDay,
@@ -4811,6 +5115,10 @@ export default function HomePage() {
     setOverlapPickerEntryId(null);
   }
 
+  useEffect(() => {
+    setPlanTone(null);
+  }, [selectedDateKey]);
+
   function jumpToToday() {
     const today = new Date();
     const key = dayKeyLocal(today);
@@ -4837,6 +5145,35 @@ export default function HomePage() {
 
   function applyBackgroundSetting(nextSetting: AppBackgroundSetting) {
     setAppBackgroundSetting(nextSetting);
+  }
+
+  function openPlannedBlockDetail(blockId: string) {
+    setSelectedPlanDetailId(blockId);
+  }
+
+  function closePlannedBlockDetail() {
+    setSelectedPlanDetailId(null);
+  }
+
+  function applyDayTone(dateKey: string, tone: CalendarTone | null) {
+    if (!user || !isPro) return;
+    const next = { ...dayTones };
+    if (tone) {
+      next[dateKey] = tone;
+    } else {
+      delete next[dateKey];
+    }
+    setDayTones(next);
+    saveDayTones(user.uid, next);
+  }
+
+  function updatePlannedBlockTone(id: string, tone: CalendarTone | null) {
+    if (!user || !isPro) return;
+    const updated = plannedBlocks.map((item) =>
+      item.id === id ? { ...item, tone: tone ?? undefined } : item,
+    );
+    setPlannedBlocks(updated);
+    savePlannedBlocks(user.uid, updated);
   }
 
   function handleBackgroundUpload(event: ChangeEvent<HTMLInputElement>) {
@@ -4999,6 +5336,11 @@ export default function HomePage() {
   const todayCompletedBlocksCount = completedBlocksByDay.get(todayKey) ?? 0;
   const todayFocusMinutes = sessionMinutesByDay.get(todayKey) ?? 0;
   const todayNoteWords = noteWordsByDay.get(todayKey) ?? 0;
+  const currentMonthKey = monthKeyLocal(new Date());
+  const monthlyStreakSaveCount = sickDaySaves.filter(
+    (save) => monthKeyLocal(save.claimedAtISO) === currentMonthKey,
+  ).length;
+  const streakSaveSlotsLeft = Math.max(0, STREAK_SAVE_MONTHLY_LIMIT - monthlyStreakSaveCount);
   const todayMinutesProgress = Math.min(30, todayFocusMinutes);
   const todayWordsProgress = Math.min(33, todayNoteWords);
   const hasEarnedToday = streakQualifiedDateKeys.includes(todayKey);
@@ -5009,20 +5351,13 @@ export default function HomePage() {
     dayBeforeYesterdayKey,
     streakQualifiedDateKeys,
   );
-  const latestSickSaveClaim =
-    sickDaySaves.length > 0 ? new Date(sickDaySaves[0].claimedAtISO) : null;
-  const recentSickSaveUsed =
-    latestSickSaveClaim !== null &&
-    latestSickSaveClaim >= addDays(startOfDayLocal(new Date()), -30);
+  const monthlySaveLimitReached = monthlyStreakSaveCount >= STREAK_SAVE_MONTHLY_LIMIT;
   const sickDaySaveEligible =
     rawYesterdayMissed &&
     priorRunBeforeYesterday > 0 &&
     !yesterdaySave &&
-    !recentSickSaveUsed &&
+    !monthlySaveLimitReached &&
     !sickDaySaveDismissals.includes(yesterdayKey);
-  const sickDaySaveCooldownUntil = recentSickSaveUsed
-    ? addDays(latestSickSaveClaim as Date, 30)
-    : null;
   const carriedRunThroughYesterday = computeStreakEndingAtDateKey(
     [],
     yesterdayKey,
@@ -5081,6 +5416,15 @@ export default function HomePage() {
   const streakRuleSummaryLine = streakRuleV2ActiveToday
     ? "A streak day needs 1 completed block and either 30 focus minutes or 33 note words."
     : "Your previous streak days stay unchanged. The new stricter rule starts on March 22.";
+  const streakMirrorVisibleEntries = isPro
+    ? streakMirrorEntries
+    : streakMirrorEntries.slice(0, 2);
+  const selectedStreakMirrorEntry =
+    streakMirrorVisibleEntries.find((entry) => entry.id === selectedStreakMirrorId) ??
+    streakMirrorVisibleEntries[0] ??
+    null;
+  const streakMirrorSaying =
+    STREAK_MIRROR_SAYINGS[landingWisdomMinute % STREAK_MIRROR_SAYINGS.length];
   const maxTrendMinutes = Math.max(30, ...trendPoints.map((point) => point.minutes));
   const trendPath = trendPoints
     .map((point, index) => {
@@ -5155,7 +5499,7 @@ export default function HomePage() {
             <p className={styles.kicker}>WHELM</p>
             <h1 className={styles.title}>Enter Whelm Flow.</h1>
             <p className={styles.subtitle}>
-              Plan the line, protect the streak, and keep the day under command.
+              {WHELM_BRAND_THESIS} Plan the line, protect the streak, and keep the day under command.
             </p>
           </div>
           <div className={styles.headerActions}>
@@ -5329,10 +5673,10 @@ export default function HomePage() {
                 <section className={styles.adStrip}>
                   <p className={styles.adBadge}>Whelm Pro</p>
                   <p className={styles.adCopy}>
-                    Advanced analytics and premium discipline tools are coming soon.
+                    {WHELM_PRO_POSITIONING}
                   </p>
                   <button type="button" className={styles.inlineUpgrade} onClick={openUpgradeFlow}>
-                    See what&apos;s coming
+                    Upgrade to Whelm Pro
                   </button>
                 </section>
               )}
@@ -5422,10 +5766,10 @@ export default function HomePage() {
                     <div className={styles.cardHeader}>
                       <div>
                         <p className={styles.sectionLabel}>Command Center</p>
-                        <h2 className={styles.cardTitle}>Whelm Flow board</h2>
+                        <h2 className={styles.cardTitle}>Today under command</h2>
                       </div>
                       <button type="button" className={styles.reportButton} onClick={() => void copyWeeklyReport()}>
-                        {reportCopyStatus || "Copy weekly report"}
+                        {reportCopyStatus || "Copy Whelm report"}
                       </button>
                     </div>
                     <ul className={styles.commandList}>
@@ -5455,8 +5799,8 @@ export default function HomePage() {
 
                 <aside className={styles.rightColumn}>
                   <article className={styles.card}>
-                    <p className={styles.sectionLabel}>Quick Notes</p>
-                    <h2 className={styles.cardTitle}>Capture fast</h2>
+                    <p className={styles.sectionLabel}>Quick Capture</p>
+                    <h2 className={styles.cardTitle}>Keep the thought</h2>
                     <div className={styles.quickNoteList}>
                       {orderedNotes.slice(0, 4).map((note) => (
                         <button
@@ -5478,13 +5822,13 @@ export default function HomePage() {
                       )}
                     </div>
                     <button type="button" className={styles.newNoteButton} onClick={createWorkspaceNote}>
-                      + Add Note
+                      + New note
                     </button>
                   </article>
 
                   <article className={styles.card}>
                     <p className={styles.sectionLabel}>Due Today</p>
-                    <h2 className={styles.cardTitle}>Note reminders</h2>
+                    <h2 className={styles.cardTitle}>Return points</h2>
                     {dueReminderNotes.length === 0 ? (
                       <p className={styles.emptyText}>No note reminders due today.</p>
                     ) : (
@@ -5513,14 +5857,14 @@ export default function HomePage() {
                   </article>
 
                   <article className={styles.card}>
-                    <p className={styles.sectionLabel}>Plan</p>
+                    <p className={styles.sectionLabel}>Access</p>
                     <p className={styles.accountMeta}>
                       {isPro ? "Whelm Pro" : "Whelm Free"}
                     </p>
                     <p className={styles.accountMeta}>{user.email}</p>
                     {!isPro && (
                       <button type="button" className={styles.inlineUpgrade} onClick={openUpgradeFlow}>
-                        Whelm Pro coming soon
+                        Upgrade to Whelm Pro
                       </button>
                     )}
                   </article>
@@ -5691,6 +6035,8 @@ export default function HomePage() {
                           key={day.key}
                           className={`${styles.monthDayCell} ${styles[`streakLevel${day.level}`]} ${
                             day.dayNumber && day.key === selectedDateKey ? styles.monthDayCellSelected : ""
+                          } ${day.tone ? styles[`calendarToneSurface${day.tone}`] : ""} ${
+                            day.tone ? styles.calendarToneSurfaceDay : ""
                           }`}
                           disabled={!day.dayNumber}
                           title={
@@ -5718,7 +6064,7 @@ export default function HomePage() {
                                     type="button"
                                     className={`${styles.monthEntryChip} ${
                                       styles[`monthEntry${entry.tone}`]
-                                    }`}
+                                    } ${entry.isCompleted ? styles.monthEntryCompleted : ""}`}
                                     onMouseEnter={() => setCalendarHoverEntryId(entry.id)}
                                     onMouseLeave={() => setCalendarHoverEntryId((current) =>
                                       current === entry.id ? null : current,
@@ -5731,6 +6077,10 @@ export default function HomePage() {
                                       event.preventDefault();
                                       event.stopPropagation();
                                       selectCalendarDate(day.key);
+                                      if (entry.source === "plan" && entry.planId) {
+                                        openPlannedBlockDetail(entry.planId);
+                                        return;
+                                      }
                                       setCalendarPinnedEntryId((current) =>
                                         current === entry.id ? null : entry.id,
                                       );
@@ -5754,7 +6104,11 @@ export default function HomePage() {
                 ) : (
                     <div className={styles.dayViewShell}>
                     <div id="calendar-day-chamber" className={styles.dayPortalCard}>
-                      <div className={styles.dayPortalBody}>
+                      <div
+                        className={`${styles.dayPortalBody} ${
+                          selectedDateDayTone ? styles[`calendarToneSurface${selectedDateDayTone}`] : ""
+                        } ${selectedDateDayTone ? styles.calendarToneSurfaceDayPortal : ""}`}
+                      >
                         <div className={styles.dayPortalCopy}>
                           <div className={styles.dayPortalHeader}>
                             <div>
@@ -5805,6 +6159,50 @@ export default function HomePage() {
                               </span>
                             </div>
                           )}
+                          <div className={styles.calendarTonePanel}>
+                            <div>
+                              <p className={styles.sectionLabel}>Day tone</p>
+                              <p className={styles.accountMeta}>
+                                {isPro
+                                  ? "Choose a day tone for more personalization."
+                                  : "Whelm Pro lets you tone days for more personalization."}
+                              </p>
+                            </div>
+                            {isPro ? (
+                              <div className={styles.calendarToneRow}>
+                                <button
+                                  type="button"
+                                  className={`${styles.calendarToneButton} ${
+                                    !selectedDateDayTone ? styles.calendarToneButtonActive : ""
+                                  }`}
+                                  onClick={() => applyDayTone(selectedDateKey, null)}
+                                >
+                                  Standard
+                                </button>
+                                {CALENDAR_TONES.map((tone) => (
+                                  <button
+                                    key={tone.value}
+                                    type="button"
+                                    className={`${styles.calendarToneButton} ${
+                                      selectedDateDayTone === tone.value ? styles.calendarToneButtonActive : ""
+                                    }`}
+                                    style={{ ["--calendar-tone-accent" as const]: tone.accent } as CSSProperties}
+                                    onClick={() => applyDayTone(selectedDateKey, tone.value)}
+                                  >
+                                    {tone.dayLabel}
+                                  </button>
+                                ))}
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                className={styles.inlineUpgrade}
+                                onClick={openUpgradeFlow}
+                              >
+                                Upgrade to Whelm Pro
+                              </button>
+                            )}
+                          </div>
                           {!isMobileViewport && dayPortalComposerOpen && (
                             <div id="calendar-planner" className={styles.dayPortalComposer}>
                               <div className={styles.dayPortalComposerHeader}>
@@ -5827,6 +6225,7 @@ export default function HomePage() {
                                 onChange={(event) => setPlanTitle(event.target.value)}
                                 placeholder="Task title (e.g. Deep work sprint)"
                                 className={styles.planInput}
+                                disabled={!selectedDateCanAddBlocks}
                               />
                               <div className={styles.planNoteRow}>
                                 <button
@@ -5843,8 +6242,53 @@ export default function HomePage() {
                                   onChange={(event) => setPlanNote(event.target.value.slice(0, 280))}
                                   placeholder="Optional note, intention, or instruction for this block"
                                   className={styles.planNoteInput}
+                                  disabled={!selectedDateCanAddBlocks}
                                 />
                               )}
+                              <div className={styles.calendarTonePanel}>
+                                <div>
+                                  <p className={styles.sectionLabel}>Block tone</p>
+                                  <p className={styles.accountMeta}>
+                                    {isPro
+                                      ? "Choose a block tone for more personalization."
+                                      : "Whelm Pro lets you tone blocks for more personalization."}
+                                  </p>
+                                </div>
+                                {isPro ? (
+                                  <div className={styles.calendarToneRow}>
+                                    <button
+                                      type="button"
+                                      className={`${styles.calendarToneButton} ${
+                                        !planTone ? styles.calendarToneButtonActive : ""
+                                      }`}
+                                      onClick={() => setPlanTone(null)}
+                                    >
+                                      Standard
+                                    </button>
+                                    {CALENDAR_TONES.map((tone) => (
+                                      <button
+                                        key={tone.value}
+                                        type="button"
+                                        className={`${styles.calendarToneButton} ${
+                                          planTone === tone.value ? styles.calendarToneButtonActive : ""
+                                        }`}
+                                        style={{ ["--calendar-tone-accent" as const]: tone.accent } as CSSProperties}
+                                        onClick={() => setPlanTone(tone.value)}
+                                      >
+                                        {tone.blockLabel}
+                                      </button>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    className={styles.inlineUpgrade}
+                                    onClick={openUpgradeFlow}
+                                  >
+                                    Upgrade to Whelm Pro
+                                  </button>
+                                )}
+                              </div>
                               {planConflictWarning && (
                                 <div className={styles.planConflictBanner}>
                                   <p className={styles.planConflictText}>{planConflictWarning.message}</p>
@@ -5867,6 +6311,7 @@ export default function HomePage() {
                                     value={planTime}
                                     onChange={(event) => setPlanTime(event.target.value)}
                                     className={styles.planControl}
+                                    disabled={!selectedDateCanAddBlocks}
                                   />
                                 </label>
                                 <label className={styles.planLabel}>
@@ -5883,11 +6328,13 @@ export default function HomePage() {
                                       }
                                     }}
                                     className={styles.planControl}
+                                    disabled={!selectedDateCanAddBlocks}
                                   />
                                 </label>
                                 <button
                                   type="button"
                                   className={`${styles.planAddButton} ${styles.blockActionButton}`}
+                                  disabled={!selectedDateCanAddBlocks}
                                   onClick={() => {
                                     const added = addPlannedBlock();
                                     if (added) {
@@ -5898,6 +6345,11 @@ export default function HomePage() {
                                   Add Block
                                 </button>
                               </div>
+                              {!selectedDateCanAddBlocks ? (
+                                <p className={styles.accountMeta}>
+                                  Past days stay read-only. Blocks can only be added to today or a future day.
+                                </p>
+                              ) : null}
                               {planStatus && <p className={styles.accountMeta}>{planStatus}</p>}
                             </div>
                           )}
@@ -5974,7 +6426,11 @@ export default function HomePage() {
                                 isMobileViewport ? styles.dayViewEventMobile : ""
                               } ${entry.durationMinutes < 40 ? styles.dayViewEventCompact : ""} ${
                                 activatedCalendarEntryId === entry.id ? styles.dayViewEventActivated : ""
-                              }`}
+                              } ${entry.isCompleted ? styles.dayViewEventCompleted : ""} ${
+                                entry.isCompleted ? styles.dayViewEventResolved : ""
+                              } ${entry.source === "plan" && getCalendarToneMeta(entry.tone as CalendarTone)
+                                ? styles.calendarToneSurfaceBlock
+                                : ""}`}
                               style={{
                                 top: `${entry.topPct}%`,
                                 height: `${entry.heightPct}%`,
@@ -5986,6 +6442,10 @@ export default function HomePage() {
                               onClick={(event) => {
                                 event.stopPropagation();
                                 clearCalendarHoverPreviewDelay();
+                                if (entry.source === "plan" && entry.planId) {
+                                  openPlannedBlockDetail(entry.planId);
+                                  return;
+                                }
                                 setCalendarPinnedEntryId((current) => (current === entry.id ? null : entry.id))
                               }}
                             >
@@ -6140,6 +6600,15 @@ export default function HomePage() {
                               {activeCalendarPreview.source === "plan" && activeCalendarPreview.planId && (
                                 <button
                                   type="button"
+                                  className={styles.secondaryPlanButton}
+                                  onClick={() => openPlannedBlockDetail(activeCalendarPreview.planId ?? "")}
+                                >
+                                  Open block
+                                </button>
+                              )}
+                              {activeCalendarPreview.source === "plan" && activeCalendarPreview.planId && (
+                                <button
+                                  type="button"
                                   className={styles.planCompleteButton}
                                   onClick={() => {
                                     const plan = plannedBlockById.get(activeCalendarPreview.planId ?? "");
@@ -6204,6 +6673,15 @@ export default function HomePage() {
                           {activeCalendarPreview.source === "plan" && activeCalendarPreview.planId && (
                             <button
                               type="button"
+                              className={styles.secondaryPlanButton}
+                              onClick={() => openPlannedBlockDetail(activeCalendarPreview.planId ?? "")}
+                            >
+                              Open block
+                            </button>
+                          )}
+                          {activeCalendarPreview.source === "plan" && activeCalendarPreview.planId && (
+                            <button
+                              type="button"
                               className={styles.planCompleteButton}
                               onClick={() => {
                                 const plan = plannedBlockById.get(activeCalendarPreview.planId ?? "");
@@ -6263,6 +6741,15 @@ export default function HomePage() {
                           }}
                         >
                           Open note
+                        </button>
+                      )}
+                      {activeCalendarPreview.source === "plan" && activeCalendarPreview.planId && (
+                        <button
+                          type="button"
+                          className={styles.secondaryPlanButton}
+                          onClick={() => openPlannedBlockDetail(activeCalendarPreview.planId ?? "")}
+                        >
+                          Open block
                         </button>
                       )}
                       {activeCalendarPreview.source === "plan" && activeCalendarPreview.planId && (
@@ -6436,7 +6923,14 @@ export default function HomePage() {
                                 <p className={styles.emptyText}>No events for this date yet.</p>
                               ) : (
                                 selectedDateEntries.slice(0, 6).map((entry) => (
-                                  <div key={entry.id} className={styles.dayAgendaItem}>
+                                  <div
+                                    key={entry.id}
+                                    className={`${styles.dayAgendaItem} ${
+                                      entry.source === "plan" && getCalendarToneMeta(entry.tone as CalendarTone)
+                                        ? styles.calendarToneSurfaceBlock
+                                        : ""
+                                    } ${entry.isCompleted ? styles.dayAgendaItemCompleted : ""}`}
+                                  >
                                     <div>
                                       <p className={styles.dayAgendaTime}>{entry.timeLabel}</p>
                                       <strong className={styles.dayAgendaTitle}>{entry.title}</strong>
@@ -6456,6 +6950,18 @@ export default function HomePage() {
                                         </button>
                                       )}
                                       {entry.source === "plan" && entry.planId && plannedBlockById.get(entry.planId) && (
+                                        <button
+                                          type="button"
+                                          className={styles.secondaryPlanButton}
+                                          onClick={() => openPlannedBlockDetail(entry.planId ?? "")}
+                                        >
+                                          Open block
+                                        </button>
+                                      )}
+                                      {entry.source === "plan" &&
+                                        entry.planId &&
+                                        plannedBlockById.get(entry.planId) &&
+                                        !entry.isCompleted && (
                                         <button
                                           type="button"
                                           className={styles.planCompleteButton}
@@ -6491,7 +6997,14 @@ export default function HomePage() {
                           <p className={styles.emptyText}>No events for this date yet.</p>
                         ) : (
                           selectedDateEntries.slice(0, 8).map((entry) => (
-                            <div key={entry.id} className={styles.dayAgendaItem}>
+                            <div
+                              key={entry.id}
+                              className={`${styles.dayAgendaItem} ${
+                                entry.source === "plan" && getCalendarToneMeta(entry.tone as CalendarTone)
+                                  ? styles.calendarToneSurfaceBlock
+                                  : ""
+                              } ${entry.isCompleted ? styles.dayAgendaItemCompleted : ""}`}
+                            >
                               <div>
                                 <p className={styles.dayAgendaTime}>{entry.timeLabel}</p>
                                 <strong className={styles.dayAgendaTitle}>{entry.title}</strong>
@@ -6511,6 +7024,18 @@ export default function HomePage() {
                                   </button>
                                 )}
                                 {entry.source === "plan" && entry.planId && plannedBlockById.get(entry.planId) && (
+                                  <button
+                                    type="button"
+                                    className={styles.secondaryPlanButton}
+                                    onClick={() => openPlannedBlockDetail(entry.planId ?? "")}
+                                  >
+                                    Open block
+                                  </button>
+                                )}
+                                {entry.source === "plan" &&
+                                  entry.planId &&
+                                  plannedBlockById.get(entry.planId) &&
+                                  !entry.isCompleted && (
                                   <button
                                     type="button"
                                     className={styles.planCompleteButton}
@@ -6563,7 +7088,10 @@ export default function HomePage() {
                                 key={item.id}
                                 className={`${completed ? styles.planItemStatic : styles.planItem} ${
                                   completed ? styles.planItemCompleted : ""
+                                } ${item.tone ? styles[`calendarToneSurface${item.tone}`] : ""} ${
+                                  item.tone ? styles.calendarToneSurfaceBlock : ""
                                 }`}
+                                onClick={() => openPlannedBlockDetail(item.id)}
                                 draggable={!completed}
                                 onDragStart={() => {
                                   if (completed) return;
@@ -6607,14 +7135,20 @@ export default function HomePage() {
                                     <button
                                       type="button"
                                       className={styles.planCompleteButton}
-                                      onClick={() => void completePlannedBlock(item)}
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        void completePlannedBlock(item);
+                                      }}
                                     >
                                       Complete
                                     </button>
                                     <button
                                       type="button"
                                       className={styles.planDeleteButton}
-                                      onClick={() => deletePlannedBlock(item.id)}
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        deletePlannedBlock(item.id);
+                                      }}
                                     >
                                       Remove
                                     </button>
@@ -6646,7 +7180,13 @@ export default function HomePage() {
                           <p className={styles.emptyText}>No incomplete blocks for this day.</p>
                         ) : (
                           selectedDatePlanGroups.incomplete.map((item) => (
-                            <div key={item.id} className={styles.planItemStatic}>
+                            <div
+                              key={item.id}
+                              className={`${styles.planItemStatic} ${item.tone ? styles[`calendarToneSurface${item.tone}`] : ""} ${
+                                item.tone ? styles.calendarToneSurfaceBlock : ""
+                              }`}
+                              onClick={() => openPlannedBlockDetail(item.id)}
+                            >
                               <div>
                                 <strong>{item.title}</strong>
                                 <div className={styles.planMetaRow}>
@@ -6706,6 +7246,7 @@ export default function HomePage() {
                         onChange={(event) => setPlanTitle(event.target.value)}
                         placeholder="Task title"
                         className={styles.planInput}
+                        disabled={!selectedDateCanAddBlocks}
                       />
                       <div className={styles.planNoteRow}>
                         <button
@@ -6722,8 +7263,53 @@ export default function HomePage() {
                           onChange={(event) => setPlanNote(event.target.value.slice(0, 280))}
                           placeholder="Optional note, intention, or instruction for this block"
                           className={styles.planNoteInput}
+                          disabled={!selectedDateCanAddBlocks}
                         />
                       )}
+                      <div className={styles.calendarTonePanel}>
+                        <div>
+                          <p className={styles.sectionLabel}>Block tone</p>
+                          <p className={styles.accountMeta}>
+                            {isPro
+                              ? "Choose a block tone for more personalization."
+                              : "Whelm Pro lets you tone blocks for more personalization."}
+                          </p>
+                        </div>
+                        {isPro ? (
+                          <div className={styles.calendarToneRow}>
+                            <button
+                              type="button"
+                              className={`${styles.calendarToneButton} ${
+                                !planTone ? styles.calendarToneButtonActive : ""
+                              }`}
+                              onClick={() => setPlanTone(null)}
+                            >
+                              Standard
+                            </button>
+                            {CALENDAR_TONES.map((tone) => (
+                              <button
+                                key={tone.value}
+                                type="button"
+                                className={`${styles.calendarToneButton} ${
+                                  planTone === tone.value ? styles.calendarToneButtonActive : ""
+                                }`}
+                                style={{ ["--calendar-tone-accent" as const]: tone.accent } as CSSProperties}
+                                onClick={() => setPlanTone(tone.value)}
+                              >
+                                {tone.blockLabel}
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            className={styles.inlineUpgrade}
+                            onClick={openUpgradeFlow}
+                          >
+                            Upgrade to Whelm Pro
+                          </button>
+                        )}
+                      </div>
                       {planConflictWarning && (
                         <div className={styles.planConflictBanner}>
                           <p className={styles.planConflictText}>{planConflictWarning.message}</p>
@@ -6746,6 +7332,7 @@ export default function HomePage() {
                             value={planTime}
                             onChange={(event) => setPlanTime(event.target.value)}
                             className={styles.planControl}
+                            disabled={!selectedDateCanAddBlocks}
                           />
                         </label>
                         <label className={styles.planLabel}>
@@ -6762,11 +7349,13 @@ export default function HomePage() {
                               }
                             }}
                             className={styles.planControl}
+                            disabled={!selectedDateCanAddBlocks}
                           />
                         </label>
                         <button
                           type="button"
                           className={`${styles.planAddButton} ${styles.blockActionButton}`}
+                          disabled={!selectedDateCanAddBlocks}
                           onClick={() => {
                             const added = addPlannedBlock();
                             if (added) {
@@ -6777,6 +7366,11 @@ export default function HomePage() {
                           Add block
                         </button>
                       </div>
+                      {!selectedDateCanAddBlocks ? (
+                        <p className={styles.accountMeta}>
+                          Past days stay read-only. Blocks can only be added to today or a future day.
+                        </p>
+                      ) : null}
                       {planStatus && <p className={styles.accountMeta}>{planStatus}</p>}
                     </div>
                     <div className={styles.mobileBlockList}>
@@ -6804,6 +7398,154 @@ export default function HomePage() {
             </section>
           )}
 
+          {activeTab === "mirror" && (
+            <section className={styles.mirrorShell}>
+              <article className={`${styles.card} ${styles.mirrorHeroCard}`}>
+                <div className={styles.mirrorHeroCopy}>
+                  <p className={styles.sectionLabel}>Private Reflection</p>
+                  <h2 className={styles.cardTitle}>Streak Mirror</h2>
+                  <p className={styles.mirrorLead}>
+                    Private to you. No one else sees your Streak Mirror entries. Whelm keeps them
+                    only to support honest reflection and accountability inside the app.
+                  </p>
+                  <p className={styles.mirrorSaying}>{streakMirrorSaying}</p>
+                </div>
+                <div className={styles.mirrorHeroMeta}>
+                  <div className={styles.mirrorCounterCard}>
+                    <span>This month</span>
+                    <strong>
+                      {monthlyStreakSaveCount}/{STREAK_SAVE_MONTHLY_LIMIT}
+                    </strong>
+                    <small>
+                      {streakSaveSlotsLeft > 0
+                        ? `${streakSaveSlotsLeft} streak save${streakSaveSlotsLeft === 1 ? "" : "s"} left`
+                        : "Monthly save limit reached"}
+                    </small>
+                  </div>
+                </div>
+              </article>
+
+              <article className={`${styles.card} ${styles.mirrorGridCard}`}>
+                <div className={styles.cardHeader}>
+                  <div>
+                    <p className={styles.sectionLabel}>Entries</p>
+                    <h3 className={styles.cardTitle}>
+                      {streakMirrorEntries.length === 0 ? "No reflections yet" : "Look back clearly"}
+                    </h3>
+                    <p className={styles.accountMeta}>
+                      {streakMirrorEntries.length === 0
+                        ? "When a streak save is used, the reflection is stored here as a private mirror entry."
+                        : isPro
+                          ? "Every saved mirror entry stays available here."
+                          : "Whelm Free keeps your 2 most recent mirror entries visible. Whelm Pro keeps the full archive available."}
+                    </p>
+                  </div>
+                </div>
+
+                {streakMirrorVisibleEntries.length > 0 ? (
+                  <div className={styles.mirrorEntryGrid}>
+                    {streakMirrorVisibleEntries.map((entry) => {
+                      const tagMeta = getStreakMirrorTagMeta(entry.tag);
+                      return (
+                        <button
+                          key={entry.id}
+                          type="button"
+                          className={`${styles.mirrorEntryCard} ${
+                            selectedStreakMirrorEntry?.id === entry.id ? styles.mirrorEntryCardActive : ""
+                          }`}
+                          style={{ ["--mirror-accent" as const]: tagMeta.accent } as CSSProperties}
+                          onClick={() => setSelectedStreakMirrorId(entry.id)}
+                        >
+                          <div className={styles.mirrorEntryCardHeader}>
+                            <img src="/mirror-icon-tab.png" alt="" className={styles.mirrorEntryIcon} />
+                            <span className={styles.mirrorEntryTag}>{tagMeta.label}</span>
+                          </div>
+                          <strong className={styles.mirrorEntryDate}>
+                            {new Date(`${entry.dateKey}T00:00:00`).toLocaleDateString(undefined, {
+                              month: "long",
+                              day: "numeric",
+                              year: "numeric",
+                            })}
+                          </strong>
+                          <p className={styles.mirrorEntryPreview}>
+                            {entry.answers[STREAK_SAVE_ACCOUNTABILITY_QUESTIONS[0]]}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className={styles.emptyText}>No mirror entries yet. Honest save reflections will appear here.</p>
+                )}
+
+                {!isPro && streakMirrorEntries.length > 2 ? (
+                  <ProUnlockCard
+                    title="Full Streak Mirror archive"
+                    body={`${WHELM_PRO_POSITIONING} Whelm Free keeps the 2 most recent mirror reflections visible. Whelm Pro keeps the full archive so patterns stay easy to trace.`}
+                    open={proPanelsOpen.mirror}
+                    onToggle={() => setProPanelsOpen((current) => ({ ...current, mirror: !current.mirror }))}
+                    onPreview={() => void handleStartProPreview()}
+                  />
+                ) : null}
+              </article>
+
+              <article className={`${styles.card} ${styles.mirrorDetailCard}`}>
+                <div className={styles.cardHeader}>
+                  <div>
+                    <p className={styles.sectionLabel}>Entry View</p>
+                    <h3 className={styles.cardTitle}>
+                      {selectedStreakMirrorEntry
+                        ? "Private accountability reflection"
+                        : "Select a mirror card"}
+                    </h3>
+                  </div>
+                </div>
+                {selectedStreakMirrorEntry ? (
+                  <div className={styles.mirrorDetailBody}>
+                    <div className={styles.mirrorDetailMeta}>
+                      <span className={styles.mirrorDetailDate}>
+                        {new Date(`${selectedStreakMirrorEntry.dateKey}T00:00:00`).toLocaleDateString(
+                          undefined,
+                          {
+                            weekday: "long",
+                            month: "long",
+                            day: "numeric",
+                            year: "numeric",
+                          },
+                        )}
+                      </span>
+                      <span
+                        className={styles.mirrorEntryTag}
+                        style={{
+                          backgroundColor: `${getStreakMirrorTagMeta(selectedStreakMirrorEntry.tag).accent}22`,
+                          borderColor: `${getStreakMirrorTagMeta(selectedStreakMirrorEntry.tag).accent}66`,
+                          color: getStreakMirrorTagMeta(selectedStreakMirrorEntry.tag).accent,
+                        }}
+                      >
+                        {getStreakMirrorTagMeta(selectedStreakMirrorEntry.tag).label}
+                      </span>
+                    </div>
+                    <div className={styles.mirrorAnswerList}>
+                      {STREAK_SAVE_ACCOUNTABILITY_QUESTIONS.map((question, index) => (
+                        <article key={question} className={styles.mirrorAnswerCard}>
+                          <p className={styles.mirrorQuestionLabel}>Prompt {index + 1}</p>
+                          <strong className={styles.mirrorQuestionText}>{question}</strong>
+                          <p className={styles.mirrorAnswerText}>
+                            {selectedStreakMirrorEntry.answers[question]}
+                          </p>
+                        </article>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <p className={styles.accountMeta}>
+                    Choose one of your mirror cards to open the full reflection.
+                  </p>
+                )}
+              </article>
+            </section>
+          )}
+
           {activeTab === "notes" && (
             <section className={styles.notesWorkspace}>
               {isMobileViewport && <div className={styles.mobileNotesPanel}>
@@ -6811,8 +7553,8 @@ export default function HomePage() {
                   <div className={styles.mobileNotesStartHeaderCompact}>
                     <div>
                       <p className={styles.sectionLabel}>Writing Studio</p>
-                      <h2 className={styles.cardTitle}>Write fast</h2>
-                      <p className={styles.accountMeta}>Start a note or reopen one. Nothing else should get in the way.</p>
+                      <h2 className={styles.cardTitle}>Write clean</h2>
+                      <p className={styles.accountMeta}>Start a note or reopen one. Keep the page clear and the thought alive.</p>
                     </div>
                     <button
                       type="button"
@@ -6829,7 +7571,7 @@ export default function HomePage() {
                         className={styles.secondaryPlanButton}
                         onClick={handleOpenCurrentMobileNote}
                       >
-                        Open current note
+                        Return to current note
                       </button>
                     )}
                     <button
@@ -6854,7 +7596,7 @@ export default function HomePage() {
                   >
                     <div>
                       <p className={styles.sectionLabel}>Recent Notes</p>
-                      <strong className={styles.mobileSectionToggleTitle}>Tap to reopen fast</strong>
+                      <strong className={styles.mobileSectionToggleTitle}>Reopen the latest writing fast</strong>
                     </div>
                     <span>{mobileNotesRecentOpen ? "Hide" : "Open"}</span>
                   </button>
@@ -7121,7 +7863,7 @@ export default function HomePage() {
                     {!isPro ? (
                       <ProUnlockCard
                         title="Note colors and fonts"
-                        body="Custom page tones, font families, text colors, highlights, and visual note styling are part of Whelm Pro."
+                        body={`${WHELM_PRO_POSITIONING} Custom page tones, font families, text colors, highlights, and visual note styling live inside Whelm Pro.`}
                         open={proPanelsOpen.notes}
                         onToggle={() => setProPanelsOpen((current) => ({ ...current, notes: !current.notes }))}
                         onPreview={() => void handleStartProPreview()}
@@ -7168,14 +7910,14 @@ export default function HomePage() {
                         className={`${styles.reportButton} ${styles.blockActionButton}`}
                         onClick={() => convertNoteToPlannedBlock(selectedNote)}
                       >
-                        Convert to Block
+                        Turn into block
                       </button>
                       <button
                         type="button"
                         className={styles.deleteNoteButton}
                         onClick={() => void deleteNote(selectedNote.id)}
                       >
-                        Delete note
+                        Remove note
                       </button>
                     </div>
                   </article>
@@ -7189,7 +7931,7 @@ export default function HomePage() {
                   style={notesShellBackground(themeMode, selectedNoteSurfaceColor)}
                 >
                 <button type="button" className={styles.newNoteButton} onClick={createWorkspaceNote}>
-                  + Add Note
+                  + New note
                 </button>
                 <input
                   value={notesSearch}
@@ -7213,7 +7955,7 @@ export default function HomePage() {
                   </select>
                   {!isPro && (
                     <button type="button" className={styles.inlineUpgrade} onClick={openUpgradeFlow}>
-                      Pro Filter
+                      Upgrade to Whelm Pro
                     </button>
                   )}
                 </div>
@@ -7250,6 +7992,12 @@ export default function HomePage() {
                     <p className={styles.emptyText}>No notes match your filters.</p>
                   )}
                 </div>
+                {!isPro && hasLockedNotesHistory ? (
+                  <p className={styles.accountMeta}>
+                    Whelm Free keeps the last 14 days of notes visible. Whelm Pro keeps the older archive ready
+                    whenever you want it back.
+                  </p>
+                ) : null}
               </aside>
               )}
 
@@ -7322,7 +8070,7 @@ export default function HomePage() {
                         ) : (
                           <ProUnlockCard
                             title="Note colors and fonts"
-                            body="Custom page tones, type styling, text colors, and highlights unlock in Whelm Pro."
+                            body={`${WHELM_PRO_POSITIONING} Custom page tones, type styling, text colors, and highlights live inside Whelm Pro.`}
                             open={proPanelsOpen.notes}
                             onToggle={() =>
                               setProPanelsOpen((current) => ({ ...current, notes: !current.notes }))
@@ -7674,15 +8422,15 @@ export default function HomePage() {
                         className={`${styles.reportButton} ${styles.blockActionButton}`}
                         onClick={() => convertNoteToPlannedBlock(selectedNote)}
                       >
-                        Convert to Block
+                        Turn into block
                       </button>
                         {notesSyncStatus !== "synced" && (
                           <button type="button" className={styles.retrySyncButton} onClick={() => void handleRetrySync()}>
-                            Retry sync
+                            Retry notes sync
                           </button>
                         )}
                         <button type="button" className={styles.deleteNoteButton} onClick={() => void deleteNote(selectedNote.id)}>
-                          Delete note
+                          Remove note
                         </button>
                       </div>
                     </div>
@@ -7788,6 +8536,15 @@ export default function HomePage() {
                     )}
                   </section>
                 </div>
+                {!isPro && hasLockedBlockHistory ? (
+                  <ProUnlockCard
+                    title="Older block history"
+                    body={`${WHELM_PRO_POSITIONING} Whelm Free keeps the last 14 days of block history visible. Whelm Pro keeps the older archive ready whenever you want it back.`}
+                    open={proPanelsOpen.calendar}
+                    onToggle={() => setProPanelsOpen((current) => ({ ...current, calendar: !current.calendar }))}
+                    onPreview={() => void handleStartProPreview()}
+                  />
+                ) : null}
               </article>
               <article className={styles.card}>
                 <p className={styles.sectionLabel}>History</p>
@@ -7923,7 +8680,7 @@ export default function HomePage() {
                 {!isPro && hasLockedHistoryDays ? (
                   <ProUnlockCard
                     title="Older history"
-                    body="Free mode shows the latest five days. Whelm Pro unlocks the full month, week, and day archive beyond that."
+                    body={`${WHELM_PRO_POSITIONING} Whelm Free keeps the last 14 days visible. Whelm Pro keeps the older month, week, and day archive ready whenever you want it back.`}
                     open={proPanelsOpen.history}
                     onToggle={() => setProPanelsOpen((current) => ({ ...current, history: !current.history }))}
                     onPreview={() => void handleStartProPreview()}
@@ -7941,10 +8698,10 @@ export default function HomePage() {
                   <article className={`${styles.card} ${styles.analyticsHeroCard}`}>
                     <div className={styles.cardHeader}>
                       <div>
-                        <p className={styles.sectionLabel}>Focus Minutes</p>
-                        <h2 className={styles.cardTitle}>Basic focus readout</h2>
+                        <p className={styles.sectionLabel}>Focus Readout</p>
+                        <h2 className={styles.cardTitle}>Core focus picture</h2>
                         <p className={styles.accountMeta}>
-                          Free mode keeps this simple. Deeper analytics stay inside Whelm Pro.
+                          Whelm Free keeps this simple. Whelm Pro opens the deeper command readout.
                         </p>
                       </div>
                     </div>
@@ -7973,10 +8730,10 @@ export default function HomePage() {
                   </article>
                   <article className={styles.card}>
                     <p className={styles.sectionLabel}>Whelm Pro</p>
-                    <h2 className={styles.cardTitle}>Advanced reports are premium</h2>
+                    <h2 className={styles.cardTitle}>Advanced reports belong to Whelm Pro</h2>
                     <ProUnlockCard
                       title="Unlock score history, insight feed, best hours, and subject analysis"
-                      body="Whelm Pro opens the full reports suite: performance score history, quality and completion analytics, focus windows, insights, and deeper breakdowns."
+                      body={`${WHELM_PRO_POSITIONING} Whelm Pro opens the full reports suite: performance score history, quality and completion analytics, focus windows, insights, and deeper breakdowns.`}
                       open={proPanelsOpen.reports}
                       onToggle={() => setProPanelsOpen((current) => ({ ...current, reports: !current.reports }))}
                       onPreview={() => void handleStartProPreview()}
@@ -8284,7 +9041,7 @@ export default function HomePage() {
               </article>
 
               {(rawYesterdayMissed || yesterdaySave) &&
-                (sickDaySaveEligible || recentSickSaveUsed || Boolean(yesterdaySave)) && (
+                (sickDaySaveEligible || monthlySaveLimitReached || Boolean(yesterdaySave)) && (
                 <article className={`${styles.card} ${styles.streakSaveCard}`}>
                   <div>
                     <p className={styles.sectionLabel}>Streak Saver</p>
@@ -8298,13 +9055,13 @@ export default function HomePage() {
                               { weekday: "long" },
                             )} because you were sick, you can protect that one day now.`
                           : `No sick day save is available right now.${
-                              sickDaySaveCooldownUntil
-                                ? ` Next save window opens ${sickDaySaveCooldownUntil.toLocaleDateString(undefined, {
-                                    month: "long",
-                                    day: "numeric",
-                                  })}.`
+                              monthlySaveLimitReached
+                                ? ` You have used ${monthlyStreakSaveCount}/${STREAK_SAVE_MONTHLY_LIMIT} saves this month.`
                                 : ""
                             }`}
+                    </p>
+                    <p className={styles.streakSaveCounter}>
+                      Streak saves this month: {monthlyStreakSaveCount}/{STREAK_SAVE_MONTHLY_LIMIT}
                     </p>
                   </div>
                   <div className={styles.noteFooterActions}>
@@ -8315,23 +9072,23 @@ export default function HomePage() {
                           className={styles.reportButton}
                           onClick={openStreakSaveQuestionnaire}
                         >
-                          Use sick day save
+                          Open Streak Mirror
                         </button>
                         <button
                           type="button"
                           className={styles.secondaryPlanButton}
                           onClick={declineSickDaySave}
                         >
-                          Let it reset
+                          Let the streak reset
                         </button>
                       </>
                     ) : (
                       <button
                         type="button"
                         className={styles.secondaryPlanButton}
-                        onClick={() => setActiveTab("today")}
+                        onClick={() => setActiveTab(monthlySaveLimitReached ? "mirror" : "today")}
                       >
-                        Earn today now
+                        {monthlySaveLimitReached ? "Open Streak Mirror" : "Return to Today"}
                       </button>
                     )}
                   </div>
@@ -8440,7 +9197,7 @@ export default function HomePage() {
                     className={styles.secondaryPlanButton}
                     onClick={() => setActiveTab("today")}
                   >
-                    Open today
+                    Return to Today
                   </button>
                 </div>
               </article>
@@ -8461,10 +9218,10 @@ export default function HomePage() {
                 </div>
                 <div className={styles.settingsPills}>
                   <span className={styles.settingsPill}>
-                    Plan: {isPro ? "Pro" : "Free"}
+                    Access: {isPro ? "Whelm Pro" : "Whelm Free"}
                   </span>
                   <span className={styles.settingsPill}>
-                    Mode: {proSource === "preview" ? "Preview" : isPro ? "Store" : "Standard"}
+                    Status: {proSource === "preview" ? "Whelm Pro Preview" : isPro ? "Whelm Pro Active" : "Standard Whelm"}
                   </span>
                   <span className={styles.settingsPill}>Streak: {streak}d</span>
                 </div>
@@ -8475,7 +9232,7 @@ export default function HomePage() {
                       className={styles.inlineUpgrade}
                       onClick={() => void handleStartProPreview()}
                     >
-                      Enter premium preview
+                      Enter Whelm Pro Preview
                     </button>
                     <button
                       type="button"
@@ -8492,7 +9249,7 @@ export default function HomePage() {
                       className={styles.secondaryPlanButton}
                       onClick={() => void handleRestoreFreeTier()}
                     >
-                      Restore free tier
+                      Return to Whelm Free
                     </button>
                     <button
                       type="button"
@@ -8506,29 +9263,29 @@ export default function HomePage() {
               </article>
 
               <article className={styles.card}>
-                <p className={styles.sectionLabel}>Account</p>
-                <h2 className={styles.cardTitle}>Whelm setup</h2>
+                <p className={styles.sectionLabel}>Whelm Identity</p>
+                <h2 className={styles.cardTitle}>How this system is running</h2>
                 <ul className={styles.settingsList}>
                   <li>
                     <span>Clean Focus Mode</span>
-                    <strong>{isPro ? "Enabled" : "Soon"}</strong>
+                    <strong>{isPro ? "Whelm Pro" : "Standard"}</strong>
                   </li>
                   <li>
                     <span>Weekly Report Cards</span>
                     <strong>On</strong>
                   </li>
                   <li>
-                    <span>Productivity Reports</span>
-                    <strong>{isPro ? "Full" : "Growing"}</strong>
+                    <span>Command Reports</span>
+                    <strong>{isPro ? "Full System" : "Core Readout"}</strong>
                   </li>
                 </ul>
               </article>
 
               <article className={styles.card}>
-                <p className={styles.sectionLabel}>Testing</p>
-                <h2 className={styles.cardTitle}>Internal preview controls</h2>
+                <p className={styles.sectionLabel}>Internal Tools</p>
+                <h2 className={styles.cardTitle}>Preview gated flows</h2>
                 <p className={styles.accountMeta}>
-                  Open gated flows from Settings without waiting for the real trigger conditions.
+                  Open gated flows from Settings without waiting for the live trigger conditions.
                 </p>
                 <div className={styles.settingsActionGrid}>
                   <button
@@ -8536,21 +9293,21 @@ export default function HomePage() {
                     className={styles.reportButton}
                     onClick={openStreakSaveQuestionnairePreview}
                   >
-                    Preview sick survey
+                    Preview Streak Mirror
                   </button>
                   <button
                     type="button"
                     className={styles.secondaryPlanButton}
                     onClick={openDailyPlanningPreview}
                   >
-                    Preview daily entry commitment
+                    Preview daily commitment
                   </button>
                   <button
                     type="button"
                     className={styles.secondaryPlanButton}
                     onClick={openSickDaySavePromptPreview}
                   >
-                    Preview streak warning
+                    Preview streak alert
                   </button>
                 </div>
               </article>
@@ -8579,9 +9336,9 @@ export default function HomePage() {
 
               <article className={styles.card}>
                 <p className={styles.sectionLabel}>Appearance</p>
-                <h2 className={styles.cardTitle}>Theme mode</h2>
+                <h2 className={styles.cardTitle}>Default theme</h2>
                 <p className={styles.accountMeta}>
-                  Choose the theme you want by default. You can change this any time.
+                  Choose the theme Whelm should open with by default. You can change it any time.
                 </p>
                 <div className={styles.companionStyleRow}>
                   {(["dark", "light"] as const).map((mode) => (
@@ -8603,7 +9360,7 @@ export default function HomePage() {
                 <p className={styles.sectionLabel}>Whelm Pro</p>
                 <h2 className={styles.cardTitle}>App background</h2>
                 <p className={styles.accountMeta}>
-                  Keep the standard Whelm shell, or switch premium backgrounds into an adaptive glass mode so presets and uploaded photos actually show through the app.
+                  {WHELM_PRO_POSITIONING} Keep the standard Whelm shell, or switch Pro backgrounds into adaptive glass so presets and uploaded photos can breathe through the app.
                 </p>
                 {isPro ? (
                   <>
@@ -8623,7 +9380,7 @@ export default function HomePage() {
                         onClick={() => applyBackgroundSetting({ kind: "default" })}
                       >
                         <span className={styles.backgroundPresetSwatch} />
-                        <strong>Default</strong>
+                        <strong>Standard shell</strong>
                       </button>
                       {PRO_BACKGROUND_PRESETS.map((preset) => (
                         <button
@@ -8650,7 +9407,7 @@ export default function HomePage() {
                         className={styles.reportButton}
                         onClick={() => backgroundUploadInputRef.current?.click()}
                       >
-                        Upload image
+                        Upload backdrop
                       </button>
                       {appBackgroundSetting.kind === "upload" ? (
                         <button
@@ -8658,7 +9415,7 @@ export default function HomePage() {
                           className={styles.secondaryPlanButton}
                           onClick={() => applyBackgroundSetting({ kind: "default" })}
                         >
-                          Clear upload
+                          Return to standard shell
                         </button>
                       ) : null}
                     </div>
@@ -8667,14 +9424,14 @@ export default function HomePage() {
                         <div>
                           <strong>Surface behavior</strong>
                           <p className={styles.accountMeta}>
-                            Default keeps the current solid Whelm look. Adaptive glass opens the shell so the premium background can breathe through.
+                            Default keeps the standard Whelm shell. Adaptive glass opens the shell so your Whelm Pro background can breathe through.
                           </p>
                         </div>
                       </div>
                       <div className={styles.companionStyleRow}>
                         {(
                           [
-                            { key: "solid", label: "Default solid" },
+                            { key: "solid", label: "Standard shell" },
                             { key: "glass", label: "Adaptive glass" },
                           ] as const
                         ).map((option) => (
@@ -8782,7 +9539,7 @@ export default function HomePage() {
                 ) : (
                   <ProUnlockCard
                     title="Custom backgrounds and uploads"
-                    body="Whelm Pro unlocks alternate full-app background designs plus your own uploaded wallpaper."
+                    body={`${WHELM_PRO_POSITIONING} Whelm Pro includes alternate full-app background designs plus your own uploaded wallpaper.`}
                     open={proPanelsOpen.background}
                     onToggle={() =>
                       setProPanelsOpen((current) => ({ ...current, background: !current.background }))
@@ -8794,7 +9551,7 @@ export default function HomePage() {
 
               <article className={styles.card}>
                 <p className={styles.sectionLabel}>Sync</p>
-                <h2 className={styles.cardTitle}>Notes sync status</h2>
+                <h2 className={styles.cardTitle}>Notes status</h2>
                 <p className={styles.accountMeta}>
                   {notesSyncStatus === "synced"
                     ? "Synced"
@@ -8805,14 +9562,14 @@ export default function HomePage() {
                 {notesSyncMessage && <p className={styles.accountMeta}>{notesSyncMessage}</p>}
                 {notesSyncStatus !== "synced" && (
                   <button type="button" className={styles.retrySyncButton} onClick={() => void handleRetrySync()}>
-                    Retry sync now
+                    Retry notes sync
                   </button>
                 )}
               </article>
 
               <article className={styles.card}>
                 <p className={styles.sectionLabel}>Screen Time</p>
-                <h2 className={styles.cardTitle}>Device usage permission</h2>
+                <h2 className={styles.cardTitle}>Device focus permission</h2>
                 <p className={styles.accountMeta}>
                   {screenTimeSupported
                     ? `Authorization status: ${screenTimeStatus}`
@@ -8827,7 +9584,7 @@ export default function HomePage() {
                       onClick={() => void handleRequestScreenTimeAuth()}
                       disabled={screenTimeBusy}
                     >
-                      {screenTimeBusy ? "Working..." : "Request Screen Time Access"}
+                      {screenTimeBusy ? "Working..." : "Enable Screen Time Access"}
                     </button>
                   )}
                   <button
@@ -8840,7 +9597,7 @@ export default function HomePage() {
                   </button>
                 </div>
                 <ul className={styles.commandList}>
-                  <li>This unlocks Screen Time APIs through Apple permission flow.</li>
+                  <li>This enables Screen Time APIs through Apple&apos;s permission flow.</li>
                   <li>Detailed per-app charts require the Device Activity report extension.</li>
                 </ul>
               </article>
@@ -8973,7 +9730,7 @@ export default function HomePage() {
                   setActiveTab("streaks");
                 }}
               >
-                Open streaks
+                Open Streaks
               </button>
               <button
                 type="button"
@@ -8983,7 +9740,7 @@ export default function HomePage() {
                   setMobileMoreOpen(true);
                 }}
               >
-                More
+                More tabs
               </button>
             </div>
           </div>
@@ -9015,6 +9772,117 @@ export default function HomePage() {
                   <span>{tabTitle(tab)}</span>
                 </button>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedPlanDetail && (
+        <div className={styles.feedbackOverlay} onClick={closePlannedBlockDetail}>
+          <div className={styles.feedbackModal} onClick={(event) => event.stopPropagation()}>
+            <div className={styles.feedbackHeader}>
+              <div>
+                <p className={styles.sectionLabel}>Block Detail</p>
+                <h2 className={styles.feedbackTitle}>{selectedPlanDetail.title}</h2>
+              </div>
+              <button
+                type="button"
+                className={styles.feedbackClose}
+                onClick={closePlannedBlockDetail}
+              >
+                Close
+              </button>
+            </div>
+            <p className={styles.feedbackMeta}>
+              {new Date(`${selectedPlanDetail.dateKey}T00:00:00`).toLocaleDateString(undefined, {
+                weekday: "long",
+                month: "long",
+                day: "numeric",
+              })}{" "}
+              • {normalizeTimeLabel(selectedPlanDetail.timeOfDay)} • {selectedPlanDetail.durationMinutes}m
+            </p>
+            {selectedPlanDetail.note.trim() ? (
+              <div className={styles.blockDetailNote}>
+                <strong>Block note</strong>
+                <p>{selectedPlanDetail.note}</p>
+              </div>
+            ) : (
+              <p className={styles.accountMeta}>No block note was added yet.</p>
+            )}
+            <div className={styles.calendarTonePanel}>
+              <div>
+                <p className={styles.sectionLabel}>Block tone</p>
+                <p className={styles.accountMeta}>
+                  {isPro
+                    ? "Choose a block tone for more personalization."
+                    : "Whelm Pro lets you tone blocks for more personalization."}
+                </p>
+              </div>
+              {isPro ? (
+                <div className={styles.calendarToneRow}>
+                  <button
+                    type="button"
+                    className={`${styles.calendarToneButton} ${
+                      !selectedPlanDetail.tone ? styles.calendarToneButtonActive : ""
+                    }`}
+                    onClick={() => updatePlannedBlockTone(selectedPlanDetail.id, null)}
+                  >
+                    Standard
+                  </button>
+                  {CALENDAR_TONES.map((tone) => (
+                    <button
+                      key={tone.value}
+                      type="button"
+                      className={`${styles.calendarToneButton} ${
+                        selectedPlanDetail.tone === tone.value ? styles.calendarToneButtonActive : ""
+                      }`}
+                      style={{ ["--calendar-tone-accent" as const]: tone.accent } as CSSProperties}
+                      onClick={() => updatePlannedBlockTone(selectedPlanDetail.id, tone.value)}
+                    >
+                      {tone.blockLabel}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <button type="button" className={styles.inlineUpgrade} onClick={openUpgradeFlow}>
+                  Upgrade to Whelm Pro
+                </button>
+              )}
+            </div>
+            <div className={styles.noteFooterActions}>
+              {selectedPlanDetail.status !== "completed" ? (
+                <button
+                  type="button"
+                  className={styles.planCompleteButton}
+                  onClick={() => void completePlannedBlock(selectedPlanDetail)}
+                >
+                  Complete block
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className={styles.secondaryPlanButton}
+                onClick={() => {
+                  setSelectedCalendarDate(selectedPlanDetail.dateKey);
+                  setCalendarView("day");
+                  setActiveTab("calendar");
+                  closePlannedBlockDetail();
+                }}
+              >
+                Open in day view
+              </button>
+              {selectedPlanDetail.status !== "completed" ? (
+                <button
+                  type="button"
+                  className={styles.planDeleteButton}
+                  onClick={() => {
+                    deletePlannedBlock(selectedPlanDetail.id);
+                    closePlannedBlockDetail();
+                  }}
+                >
+                  Remove
+                </button>
+              ) : null}
             </div>
           </div>
         </div>
@@ -9218,7 +10086,7 @@ export default function HomePage() {
         <div className={styles.feedbackOverlay} onClick={closeStreakSaveQuestionnaire}>
           <div className={styles.feedbackModal} onClick={(event) => event.stopPropagation()}>
             <div className={styles.feedbackHeader}>
-              <h2 className={styles.feedbackTitle}>Sick day accountability</h2>
+              <h2 className={styles.feedbackTitle}>Streak Mirror check-in</h2>
               <button
                 type="button"
                 className={styles.feedbackClose}
@@ -9230,25 +10098,56 @@ export default function HomePage() {
             <p className={styles.feedbackMeta}>
               {streakSaveQuestionnairePreview
                 ? "Preview mode only. Fill it out and close it without changing the streak."
-                : "A streak save now requires 5 direct answers. If yesterday was a real sick day, write it plainly and commit to today."}
+                : "Private to you. No one else sees these reflections. Whelm keeps them only to support honest reflection and accountability inside the app."}
             </p>
+            <div className={styles.mirrorModalBanner}>
+              <strong>{monthlyStreakSaveCount}/{STREAK_SAVE_MONTHLY_LIMIT} used this month</strong>
+              <span>{streakMirrorSaying}</span>
+            </div>
             <div className={styles.feedbackFormStack}>
-              {STREAK_SAVE_ACCOUNTABILITY_QUESTIONS.map((question, index) => (
-                <label key={question} className={styles.planLabel}>
-                  {index + 1}. {question}
-                  <textarea
-                    value={streakSaveAnswers[question] ?? ""}
-                    onChange={(event) =>
-                      setStreakSaveAnswers((current) => ({
-                        ...current,
-                        [question]: event.target.value.slice(0, 280),
-                      }))
-                    }
-                    className={styles.feedbackTextarea}
-                    rows={3}
-                  />
-                </label>
-              ))}
+              {STREAK_SAVE_ACCOUNTABILITY_QUESTIONS.map((question, index) => {
+                const currentAnswer = streakSaveAnswers[question] ?? "";
+                const wordCount = countWords(currentAnswer);
+                const metMinimum = wordCount >= STREAK_MIRROR_MIN_WORDS;
+                return (
+                  <label key={question} className={styles.planLabel}>
+                    {index + 1}. {question}
+                    <textarea
+                      value={currentAnswer}
+                      onChange={(event) =>
+                        setStreakSaveAnswers((current) => ({
+                          ...current,
+                          [question]: event.target.value.slice(0, 2500),
+                        }))
+                      }
+                      className={styles.feedbackTextarea}
+                      rows={5}
+                    />
+                    <span className={`${styles.mirrorWordCount} ${metMinimum ? styles.mirrorWordCountMet : ""}`}>
+                      {wordCount} / {STREAK_MIRROR_MIN_WORDS} words
+                      {metMinimum ? " met" : ""}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+            <div className={styles.mirrorTagSection}>
+              <p className={styles.feedbackLabel}>What best describes the miss?</p>
+                    <div className={styles.mirrorTagRow}>
+                      {STREAK_MIRROR_TAGS.map((tag) => (
+                        <button
+                          key={tag.value}
+                          type="button"
+                          className={`${styles.mirrorTagButton} ${
+                            streakMirrorTag === tag.value ? styles.mirrorTagButtonActive : ""
+                          }`}
+                          style={{ ["--mirror-accent" as const]: tag.accent } as CSSProperties}
+                          onClick={() => setStreakMirrorTag(tag.value)}
+                        >
+                    {tag.label}
+                  </button>
+                ))}
+              </div>
             </div>
             {streakSaveStatus && <p className={styles.feedbackStatus}>{streakSaveStatus}</p>}
             <div className={styles.noteFooterActions}>
@@ -9256,8 +10155,16 @@ export default function HomePage() {
                 type="button"
                 className={styles.feedbackSubmit}
                 onClick={claimSickDaySave}
+                disabled={
+                  !streakSaveQuestionnairePreview &&
+                  (STREAK_SAVE_ACCOUNTABILITY_QUESTIONS.some(
+                    (question) =>
+                      countWords(streakSaveAnswers[question] ?? "") < STREAK_MIRROR_MIN_WORDS,
+                  ) ||
+                    !streakMirrorTag)
+                }
               >
-                {streakSaveQuestionnairePreview ? "Close preview" : "Use sick day save"}
+                {streakSaveQuestionnairePreview ? "Close preview" : "Save to Streak Mirror"}
               </button>
               <button
                 type="button"
@@ -9285,7 +10192,7 @@ export default function HomePage() {
               </button>
             </div>
             <p className={styles.feedbackMeta}>
-              If you genuinely missed yesterday because you were sick, you can review a one-day sick save in Streaks.
+              If you genuinely missed yesterday because you were sick, you can protect that day with a private Streak Mirror check-in.
             </p>
             <div className={styles.noteFooterActions}>
               <button
@@ -9331,29 +10238,29 @@ export default function HomePage() {
         <div className={styles.feedbackOverlay} onClick={() => setPaywallOpen(false)}>
           <div className={styles.paywallModal} onClick={(event) => event.stopPropagation()}>
             <div className={styles.feedbackHeader}>
-              <h2 className={styles.feedbackTitle}>Whelm Pro is forming</h2>
+              <h2 className={styles.feedbackTitle}>Upgrade to Whelm Pro</h2>
               <button type="button" className={styles.feedbackClose} onClick={() => setPaywallOpen(false)}>
                 Close
               </button>
             </div>
             <p className={styles.paywallCopy}>
-              Whelm Pro will add deeper analytics, expanded planning controls, and a cleaner focus experience.
+              {WHELM_PRO_POSITIONING}
             </p>
             <div className={styles.planGrid}>
               <article className={`${styles.planCard} ${styles.planCardFeatured}`}>
-                <p className={styles.planName}>Founding release</p>
+                <p className={styles.planName}>Whelm Pro Founding Release</p>
                 <p className={styles.planPrice}>Soon</p>
                 <p className={styles.planMeta}>early users will receive a strong launch offer</p>
               </article>
             </div>
             <ul className={styles.proList}>
-              <li>Advanced discipline reports and score history</li>
-              <li>Monthly streak intelligence and weekly reports</li>
-              <li>Premium focus workflows and a cleaner workspace</li>
+              <li>Deeper command reports and score history</li>
+              <li>Longer memory across streaks, history, and reflections</li>
+              <li>Stronger personalization, cleaner command surfaces, and more animated PRO WHELMS!</li>
             </ul>
             <div className={styles.paywallActions}>
               <button type="button" className={styles.feedbackSubmit} onClick={() => setPaywallOpen(false)}>
-                Continue with current version
+                Stay in Whelm Free
               </button>
             </div>
             <p className={styles.paywallHint}>
