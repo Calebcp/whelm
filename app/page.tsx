@@ -25,6 +25,7 @@ import {
   trackTaskCompleted,
   trackTaskCreated,
 } from "@/lib/analytics-tracker";
+import { resolveApiUrl } from "@/lib/api-base";
 import { auth } from "@/lib/firebase";
 import {
   loadNotes,
@@ -494,6 +495,8 @@ function CalendarTonePicker({
   isPro: boolean;
   onUpgrade: () => void;
 }) {
+  "use no memo";
+
   const [open, setOpen] = useState(false);
   const selectedToneStyle = getCalendarToneStyle(selectedTone);
 
@@ -1976,6 +1979,8 @@ function StreakBandana({
   streakDays: number;
   className?: string;
 }) {
+  "use no memo";
+
   const tier = getStreakBandanaTier(streakDays);
   const { RiveComponent } = useRive({
     src: tier ? `/streak/${tier.assetFile}` : "/streak/moveband.riv",
@@ -2034,6 +2039,8 @@ function XpBandanaLevelMark({
   tierColor: string | null | undefined;
   level: number;
 }) {
+  "use no memo";
+
   const { RiveComponent } = useRive({
     src: getStreakBandanaAssetPath(tierColor),
     autoplay: true,
@@ -2164,6 +2171,8 @@ function ProUnlockCard({
 }
 
 export default function HomePage() {
+  "use no memo";
+
   const router = useRouter();
 
   const [user, setUser] = useState<User | null>(null);
@@ -2806,7 +2815,7 @@ export default function HomePage() {
 
     async function fetchAnalyticsJson<T>(path: string) {
       const token = await currentUser.getIdToken();
-      const response = await fetch(path, {
+      const response = await fetch(resolveApiUrl(path), {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -3139,8 +3148,12 @@ export default function HomePage() {
     const media = window.matchMedia("(max-width: 760px)");
     const updateViewport = () => setIsMobileViewport(media.matches);
     updateViewport();
-    media.addEventListener("change", updateViewport);
-    return () => media.removeEventListener("change", updateViewport);
+    if (typeof media.addEventListener === "function") {
+      media.addEventListener("change", updateViewport);
+      return () => media.removeEventListener("change", updateViewport);
+    }
+    media.addListener(updateViewport);
+    return () => media.removeListener(updateViewport);
   }, []);
 
   useEffect(() => {
@@ -3808,7 +3821,7 @@ export default function HomePage() {
 
     try {
       const token = await user.getIdToken();
-      const response = await fetch("/api/feedback", {
+      const response = await fetch(resolveApiUrl("/api/feedback"), {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -3965,7 +3978,7 @@ export default function HomePage() {
         };
 
         const deleteNotesResponse = await fetch(
-          `/api/notes?uid=${encodeURIComponent(currentUser.uid)}`,
+          resolveApiUrl(`/api/notes?uid=${encodeURIComponent(currentUser.uid)}`),
           {
             method: "DELETE",
             headers,
@@ -3980,7 +3993,7 @@ export default function HomePage() {
         }
 
         const deleteSessionsResponse = await fetch(
-          `/api/sessions?uid=${encodeURIComponent(currentUser.uid)}`,
+          resolveApiUrl(`/api/sessions?uid=${encodeURIComponent(currentUser.uid)}`),
           {
             method: "DELETE",
             headers,
@@ -5565,10 +5578,6 @@ export default function HomePage() {
     streakMirrorVisibleEntries.find((entry) => entry.id === selectedStreakMirrorId) ??
     streakMirrorVisibleEntries[0] ??
     null;
-  useEffect(() => {
-    if (!selectedStreakMirrorEntry) return;
-    setMirrorSectionsOpen((current) => ({ ...current, detail: true }));
-  }, [selectedStreakMirrorEntry]);
   const streakMirrorSaying =
     STREAK_MIRROR_SAYINGS[landingWisdomMinute % STREAK_MIRROR_SAYINGS.length];
   const maxTrendMinutes = Math.max(30, ...trendPoints.map((point) => point.minutes));

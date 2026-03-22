@@ -1,5 +1,6 @@
 import type { User } from "firebase/auth";
 
+import { resolveApiUrl } from "@/lib/api-base";
 import type { SessionDoc } from "@/lib/streak";
 
 const storagePrefix = "whelm:sessions:";
@@ -82,7 +83,7 @@ async function authorizedRequest(
 }
 
 async function saveSessionToCloud(user: User, session: SessionDoc) {
-  await authorizedRequest(user, "/api/sessions", {
+  await authorizedRequest(user, resolveApiUrl("/api/sessions"), {
     method: "POST",
     body: JSON.stringify(session),
   });
@@ -94,7 +95,7 @@ export async function loadSessions(user: User) {
   try {
     const response = await authorizedRequest(
       user,
-      `/api/sessions?uid=${encodeURIComponent(user.uid)}`,
+      resolveApiUrl(`/api/sessions?uid=${encodeURIComponent(user.uid)}`),
       { method: "GET" },
     );
     const body = (await response.json()) as { sessions?: SessionDoc[] };

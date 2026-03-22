@@ -1,0 +1,34 @@
+"use client";
+
+const DEFAULT_API_BASE_URL = "https://whelmproductivity.com";
+
+function trimTrailingSlash(value: string) {
+  return value.replace(/\/+$/, "");
+}
+
+function isNativeWebViewProtocol(protocol: string) {
+  return protocol === "capacitor:" || protocol === "ionic:" || protocol === "file:";
+}
+
+export function getApiBaseUrl() {
+  const configured = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
+  if (configured) {
+    return trimTrailingSlash(configured);
+  }
+
+  if (typeof window !== "undefined" && isNativeWebViewProtocol(window.location.protocol)) {
+    return DEFAULT_API_BASE_URL;
+  }
+
+  return "";
+}
+
+export function resolveApiUrl(path: string) {
+  if (/^https?:\/\//i.test(path)) {
+    return path;
+  }
+
+  const normalized = path.startsWith("/") ? path : `/${path}`;
+  const baseUrl = getApiBaseUrl();
+  return baseUrl ? `${baseUrl}${normalized}` : normalized;
+}

@@ -3,6 +3,7 @@
 import { Capacitor } from "@capacitor/core";
 import type { User } from "firebase/auth";
 
+import { resolveApiUrl } from "@/lib/api-base";
 import {
   normalizeAnalyticsEvent,
   validateAnalyticsEventInput,
@@ -59,7 +60,7 @@ async function authorizedTrack(user: User, input: AnalyticsEventInput) {
   const validated = validateAnalyticsEventInput(buildEventInput(input));
   const token = await user.getIdToken();
 
-  const response = await fetch("/api/analytics/events", {
+  const response = await fetch(resolveApiUrl("/api/analytics/events"), {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,

@@ -1,5 +1,7 @@
 import type { User } from "firebase/auth";
 
+import { resolveApiUrl } from "@/lib/api-base";
+
 export type WorkspaceNote = {
   id: string;
   title: string;
@@ -126,7 +128,7 @@ async function authorizedRequest(
 }
 
 async function pushNotesToCloud(user: User, notes: WorkspaceNote[]) {
-  await authorizedRequest(user, "/api/notes", {
+  await authorizedRequest(user, resolveApiUrl("/api/notes"), {
     method: "POST",
     body: JSON.stringify({
       uid: user.uid,
@@ -141,7 +143,7 @@ export async function loadNotes(user: User) {
   try {
     const response = await authorizedRequest(
       user,
-      `/api/notes?uid=${encodeURIComponent(user.uid)}`,
+      resolveApiUrl(`/api/notes?uid=${encodeURIComponent(user.uid)}`),
       { method: "GET" },
     );
     const body = (await response.json()) as { notes?: WorkspaceNote[] };
