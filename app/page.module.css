@@ -2214,6 +2214,12 @@
   gap: 10px;
 }
 
+.mirrorPrivacyWrap {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+}
+
 .mirrorLead,
 .mirrorSaying {
   margin: 0;
@@ -2222,7 +2228,7 @@
 
 .mirrorLead {
   color: #e2ecff;
-  max-width: 52ch;
+  max-width: 38ch;
 }
 
 .mirrorSaying {

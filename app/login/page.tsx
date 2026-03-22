@@ -14,6 +14,8 @@ import WhelmRitualScene from "@/components/WhelmRitualScene";
 import { auth } from "@/lib/firebase";
 import styles from "./page.module.css";
 
+const AUTH_REQUEST_TIMEOUT_MS = 15000;
+
 export default function LoginPage() {
   const router = useRouter();
   const [mode, setMode] = useState<"login" | "signup">("login");
@@ -59,21 +61,42 @@ export default function LoginPage() {
     setSubmitting(true);
 
     try {
-      if (mode === "signup") {
-        const credentials = await createUserWithEmailAndPassword(
-          auth,
-          trimmedEmail,
-          password,
-        );
+      setStatus(mode === "signup" ? "Creating account..." : "Logging in...");
 
-        await updateProfile(credentials.user, {
-          displayName: trimmedUsername,
-        });
-      } else {
-        await signInWithEmailAndPassword(auth, trimmedEmail, password);
-      }
+      const authRequest =
+        mode === "signup"
+          ? (async () => {
+              const credentials = await createUserWithEmailAndPassword(
+                auth,
+                trimmedEmail,
+                password,
+              );
 
+              await updateProfile(credentials.user, {
+                displayName: trimmedUsername,
+              });
+            })()
+          : signInWithEmailAndPassword(auth, trimmedEmail, password);
+
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        window.setTimeout(() => {
+          reject(
+            new Error(
+              "Authentication timed out. Check connection and confirm the deployed site is live.",
+            ),
+          );
+        }, AUTH_REQUEST_TIMEOUT_MS);
+      });
+
+      await Promise.race([authRequest, timeoutPromise]);
+
+      setStatus("Opening your workspace...");
       router.replace("/");
+      window.setTimeout(() => {
+        if (window.location.pathname !== "/") {
+          window.location.assign("/");
+        }
+      }, 500);
     } catch (error: unknown) {
       const message =
         error instanceof Error ? error.message : "Authentication failed.";

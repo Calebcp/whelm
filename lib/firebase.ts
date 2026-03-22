@@ -1,5 +1,11 @@
 import { initializeApp, getApps } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import {
+  browserLocalPersistence,
+  browserSessionPersistence,
+  getAuth,
+  indexedDBLocalPersistence,
+  initializeAuth,
+} from "firebase/auth";
 import { initializeFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
@@ -13,7 +19,21 @@ const firebaseConfig = {
 
 const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
 
-export const auth = getAuth(app);
+function createAuth() {
+  try {
+    return initializeAuth(app, {
+      persistence: [
+        indexedDBLocalPersistence,
+        browserLocalPersistence,
+        browserSessionPersistence,
+      ],
+    });
+  } catch {
+    return getAuth(app);
+  }
+}
+
+export const auth = createAuth();
 export const db = initializeFirestore(app, {
   // VPNs, proxies, and some hosted/browser environments can break Firestore's
   // default transport stack. Forced long polling is slower, but substantially

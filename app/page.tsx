@@ -2311,10 +2311,11 @@ export default function HomePage() {
   const [streakSaveQuestionnairePreview, setStreakSaveQuestionnairePreview] = useState(false);
   const [streakRulesOpen, setStreakRulesOpen] = useState(false);
   const [mirrorSectionsOpen, setMirrorSectionsOpen] = useState({
-    summary: true,
+    summary: false,
     entries: false,
     detail: false,
   });
+  const [mirrorPrivacyOpen, setMirrorPrivacyOpen] = useState(false);
   const [streakMirrorEntries, setStreakMirrorEntries] = useState<StreakMirrorEntry[]>([]);
   const [selectedStreakMirrorId, setSelectedStreakMirrorId] = useState<string | null>(null);
   const [streakMirrorTag, setStreakMirrorTag] = useState<StreakMirrorTag | null>(null);
@@ -5450,6 +5451,20 @@ export default function HomePage() {
     });
   }, [dailyRitualDrafts]);
 
+  useEffect(() => {
+    if (!authChecked || user) return;
+
+    router.replace("/login");
+
+    const timeoutId = window.setTimeout(() => {
+      if (window.location.pathname !== "/login") {
+        window.location.assign("/login");
+      }
+    }, 300);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [authChecked, router, user]);
+
   if (showIntroSplash) {
     return <IntroSplash onComplete={() => setIntroFinished(true)} />;
   }
@@ -5471,7 +5486,22 @@ export default function HomePage() {
     );
   }
 
-  if (!user) return null;
+  if (!user) {
+    return (
+      <main className={styles.pageShell}>
+        <div className={styles.loadingCard}>
+          <p className={styles.loadingLabel}>Opening Whelm login...</p>
+          <button
+            type="button"
+            className={styles.secondaryPlanButton}
+            onClick={() => window.location.assign("/login")}
+          >
+            Go to login
+          </button>
+        </div>
+      </main>
+    );
+  }
 
   const lastSession = sessions[0];
   const latestNote = orderedNotes[0] ?? null;
@@ -7497,7 +7527,7 @@ export default function HomePage() {
                 className={styles.mirrorHeroCard}
                 label="Private Reflection"
                 title="Streak Mirror"
-                description="Private to you. No one else sees your Streak Mirror entries. Whelm keeps them only to support honest reflection and accountability inside the app."
+                description="Private reflection for sick-day saves and pattern review."
                 open={mirrorSectionsOpen.summary}
                 onToggle={() =>
                   setMirrorSectionsOpen((current) => ({ ...current, summary: !current.summary }))
@@ -7505,6 +7535,21 @@ export default function HomePage() {
               >
                 <div className={styles.mirrorHeroCopy}>
                   <p className={styles.mirrorSaying}>{streakMirrorSaying}</p>
+                  <div className={styles.mirrorPrivacyWrap}>
+                    <button
+                      type="button"
+                      className={styles.secondaryPlanButton}
+                      onClick={() => setMirrorPrivacyOpen((current) => !current)}
+                    >
+                      {mirrorPrivacyOpen ? "Hide privacy" : "Privacy"}
+                    </button>
+                    {mirrorPrivacyOpen ? (
+                      <p className={styles.mirrorLead}>
+                        Private to you. No one else sees your Streak Mirror entries. Whelm keeps
+                        them only to support honest reflection and accountability inside the app.
+                      </p>
+                    ) : null}
+                  </div>
                 </div>
                 <div className={styles.mirrorHeroMeta}>
                   <div className={styles.mirrorCounterCard}>
