@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ChangeEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useRive } from "@rive-app/react-canvas";
 import {
@@ -256,6 +256,7 @@ type DailyRitualBlockDraft = {
   existingBlockId?: string;
   title: string;
   note: string;
+  tone: CalendarTone | null;
   timeOfDay: string;
   durationMinutes: number;
 };
@@ -556,6 +557,43 @@ function CalendarTonePicker({
           </button>
         ))}
     </div>
+  );
+}
+
+function CollapsibleSectionCard({
+  className,
+  label,
+  title,
+  description,
+  open,
+  onToggle,
+  children,
+}: {
+  className?: string;
+  label: string;
+  title: string;
+  description?: string;
+  open: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <article className={[styles.card, className].filter(Boolean).join(" ")}>
+      <button
+        type="button"
+        className={styles.cardCollapseToggle}
+        onClick={onToggle}
+        aria-expanded={open}
+      >
+        <div className={styles.cardCollapseCopy}>
+          <p className={styles.sectionLabel}>{label}</p>
+          <h2 className={styles.cardTitle}>{title}</h2>
+          {description ? <p className={styles.accountMeta}>{description}</p> : null}
+        </div>
+        <span className={styles.cardCollapseState}>{open ? "Hide" : "Open"}</span>
+      </button>
+      {open ? <div className={styles.cardCollapseBody}>{children}</div> : null}
+    </article>
   );
 }
 
@@ -1894,6 +1932,7 @@ function createDailyRitualDrafts(existing: PlannedBlock[]): DailyRitualBlockDraf
       existingBlockId: item.id,
       title: item.title,
       note: item.note,
+      tone: item.tone ?? null,
       timeOfDay: item.timeOfDay,
       durationMinutes: item.durationMinutes,
     }));
@@ -1904,6 +1943,7 @@ function createDailyRitualDrafts(existing: PlannedBlock[]): DailyRitualBlockDraf
       id: `new-${nextIndex}`,
       title: "",
       note: "",
+      tone: null,
       timeOfDay: ["09:00", "13:00", "17:00"][nextIndex] || "09:00",
       durationMinutes: 30,
     });
@@ -2261,6 +2301,11 @@ export default function HomePage() {
   const [streakSaveQuestionnaireOpen, setStreakSaveQuestionnaireOpen] = useState(false);
   const [streakSaveQuestionnairePreview, setStreakSaveQuestionnairePreview] = useState(false);
   const [streakRulesOpen, setStreakRulesOpen] = useState(false);
+  const [mirrorSectionsOpen, setMirrorSectionsOpen] = useState({
+    summary: true,
+    entries: false,
+    detail: false,
+  });
   const [streakMirrorEntries, setStreakMirrorEntries] = useState<StreakMirrorEntry[]>([]);
   const [selectedStreakMirrorId, setSelectedStreakMirrorId] = useState<string | null>(null);
   const [streakMirrorTag, setStreakMirrorTag] = useState<StreakMirrorTag | null>(null);
@@ -2273,6 +2318,23 @@ export default function HomePage() {
     "format" | "type" | "color" | null
   >(null);
   const [mobileBlockSheetOpen, setMobileBlockSheetOpen] = useState(false);
+  const [settingsSectionsOpen, setSettingsSectionsOpen] = useState({
+    identity: false,
+    internalTools: false,
+    protocol: false,
+    appearance: false,
+    background: false,
+    sync: false,
+    screenTime: false,
+    danger: false,
+  });
+  const [reportsSectionsOpen, setReportsSectionsOpen] = useState({
+    score: false,
+    insights: false,
+    timing: false,
+    subjects: false,
+    notifications: false,
+  });
   const reportsInsightToastRef = useRef<string | null>(null);
   const backgroundUploadInputRef = useRef<HTMLInputElement | null>(null);
   const [mobileCalendarControlsOpen, setMobileCalendarControlsOpen] = useState(false);
@@ -3348,20 +3410,9 @@ export default function HomePage() {
       dayBeforeYesterdayDateKey,
       protectedDateKeys,
     );
-    const currentMonthKey = monthKeyLocal(today);
-    const monthlySaveCount = sickDaySaves.filter(
-      (save) => monthKeyLocal(save.claimedAtISO) === currentMonthKey,
-    ).length;
-    const monthlyLimitReached = monthlySaveCount >= STREAK_SAVE_MONTHLY_LIMIT;
     const dismissed = sickDaySaveDismissals.includes(yesterdayDateKey);
 
-    if (
-      yesterdayMissed &&
-      !yesterdayAlreadyProtected &&
-      priorRun > 0 &&
-      !monthlyLimitReached &&
-      !dismissed
-    ) {
+    if (yesterdayMissed && !yesterdayAlreadyProtected && priorRun > 0 && !dismissed) {
       setSickDaySavePromptOpen(true);
     }
   }, [sessions, sickDaySaveDismissals, sickDaySaves, user]);
@@ -4099,7 +4150,11 @@ export default function HomePage() {
   function openSickDaySaveReview() {
     setSickDaySavePromptOpen(false);
     setSickDaySavePromptPreview(false);
-    setActiveTab("streaks");
+    if (sickDaySaveEligible) {
+      openStreakSaveQuestionnaire();
+      return;
+    }
+    setActiveTab("mirror");
   }
 
   function dismissSickDaySavePrompt() {
@@ -5275,7 +5330,9 @@ export default function HomePage() {
 
   function updateDailyRitualDraft(
     draftId: string,
-    patch: Partial<Pick<DailyRitualBlockDraft, "title" | "note" | "timeOfDay" | "durationMinutes">>,
+    patch: Partial<
+      Pick<DailyRitualBlockDraft, "title" | "note" | "tone" | "timeOfDay" | "durationMinutes">
+    >,
   ) {
     setDailyRitualDrafts((current) =>
       current.map((draft) => (draft.id === draftId ? { ...draft, ...patch } : draft)),
@@ -5312,6 +5369,7 @@ export default function HomePage() {
         dateKey: todayKey,
         title: draft.title.trim(),
         note: draft.note.trim(),
+        tone: isPro ? draft.tone ?? undefined : undefined,
         durationMinutes: draft.durationMinutes,
         timeOfDay: draft.timeOfDay,
         sortOrder: claimedBlocksToday.length + index,
@@ -5507,6 +5565,10 @@ export default function HomePage() {
     streakMirrorVisibleEntries.find((entry) => entry.id === selectedStreakMirrorId) ??
     streakMirrorVisibleEntries[0] ??
     null;
+  useEffect(() => {
+    if (!selectedStreakMirrorEntry) return;
+    setMirrorSectionsOpen((current) => ({ ...current, detail: true }));
+  }, [selectedStreakMirrorEntry]);
   const streakMirrorSaying =
     STREAK_MIRROR_SAYINGS[landingWisdomMinute % STREAK_MIRROR_SAYINGS.length];
   const maxTrendMinutes = Math.max(30, ...trendPoints.map((point) => point.minutes));
@@ -7422,14 +7484,17 @@ export default function HomePage() {
 
           {activeTab === "mirror" && (
             <section className={styles.mirrorShell}>
-              <article className={`${styles.card} ${styles.mirrorHeroCard}`}>
+              <CollapsibleSectionCard
+                className={styles.mirrorHeroCard}
+                label="Private Reflection"
+                title="Streak Mirror"
+                description="Private to you. No one else sees your Streak Mirror entries. Whelm keeps them only to support honest reflection and accountability inside the app."
+                open={mirrorSectionsOpen.summary}
+                onToggle={() =>
+                  setMirrorSectionsOpen((current) => ({ ...current, summary: !current.summary }))
+                }
+              >
                 <div className={styles.mirrorHeroCopy}>
-                  <p className={styles.sectionLabel}>Private Reflection</p>
-                  <h2 className={styles.cardTitle}>Streak Mirror</h2>
-                  <p className={styles.mirrorLead}>
-                    Private to you. No one else sees your Streak Mirror entries. Whelm keeps them
-                    only to support honest reflection and accountability inside the app.
-                  </p>
                   <p className={styles.mirrorSaying}>{streakMirrorSaying}</p>
                 </div>
                 <div className={styles.mirrorHeroMeta}>
@@ -7445,25 +7510,24 @@ export default function HomePage() {
                     </small>
                   </div>
                 </div>
-              </article>
+              </CollapsibleSectionCard>
 
-              <article className={`${styles.card} ${styles.mirrorGridCard}`}>
-                <div className={styles.cardHeader}>
-                  <div>
-                    <p className={styles.sectionLabel}>Entries</p>
-                    <h3 className={styles.cardTitle}>
-                      {streakMirrorEntries.length === 0 ? "No reflections yet" : "Look back clearly"}
-                    </h3>
-                    <p className={styles.accountMeta}>
-                      {streakMirrorEntries.length === 0
-                        ? "When a streak save is used, the reflection is stored here as a private mirror entry."
-                        : isPro
-                          ? "Every saved mirror entry stays available here."
-                          : "Whelm Free keeps your 2 most recent mirror entries visible. Whelm Pro keeps the full archive available."}
-                    </p>
-                  </div>
-                </div>
-
+              <CollapsibleSectionCard
+                className={styles.mirrorGridCard}
+                label="Entries"
+                title={streakMirrorEntries.length === 0 ? "No reflections yet" : "Look back clearly"}
+                description={
+                  streakMirrorEntries.length === 0
+                    ? "When a streak save is used, the reflection is stored here as a private mirror entry."
+                    : isPro
+                      ? "Every saved mirror entry stays available here."
+                      : "Whelm Free keeps your 2 most recent mirror entries visible. Whelm Pro keeps the full archive available."
+                }
+                open={mirrorSectionsOpen.entries}
+                onToggle={() =>
+                  setMirrorSectionsOpen((current) => ({ ...current, entries: !current.entries }))
+                }
+              >
                 {streakMirrorVisibleEntries.length > 0 ? (
                   <div className={styles.mirrorEntryGrid}>
                     {streakMirrorVisibleEntries.map((entry) => {
@@ -7476,7 +7540,14 @@ export default function HomePage() {
                             selectedStreakMirrorEntry?.id === entry.id ? styles.mirrorEntryCardActive : ""
                           }`}
                           style={{ ["--mirror-accent" as const]: tagMeta.accent } as CSSProperties}
-                          onClick={() => setSelectedStreakMirrorId(entry.id)}
+                          onClick={() => {
+                            setSelectedStreakMirrorId(entry.id);
+                            setMirrorSectionsOpen((current) => ({
+                              ...current,
+                              entries: true,
+                              detail: true,
+                            }));
+                          }}
                         >
                           <div className={styles.mirrorEntryCardHeader}>
                             <img src="/mirror-icon-tab.png" alt="" className={styles.mirrorEntryIcon} />
@@ -7509,19 +7580,22 @@ export default function HomePage() {
                     onPreview={() => void handleStartProPreview()}
                   />
                 ) : null}
-              </article>
+              </CollapsibleSectionCard>
 
-              <article className={`${styles.card} ${styles.mirrorDetailCard}`}>
-                <div className={styles.cardHeader}>
-                  <div>
-                    <p className={styles.sectionLabel}>Entry View</p>
-                    <h3 className={styles.cardTitle}>
-                      {selectedStreakMirrorEntry
-                        ? "Private accountability reflection"
-                        : "Select a mirror card"}
-                    </h3>
-                  </div>
-                </div>
+              <CollapsibleSectionCard
+                className={styles.mirrorDetailCard}
+                label="Entry View"
+                title={selectedStreakMirrorEntry ? "Private accountability reflection" : "Select a mirror card"}
+                description={
+                  selectedStreakMirrorEntry
+                    ? "Open the full reflection only when you want the detail."
+                    : "Choose one of your mirror cards to open the full reflection."
+                }
+                open={mirrorSectionsOpen.detail}
+                onToggle={() =>
+                  setMirrorSectionsOpen((current) => ({ ...current, detail: !current.detail }))
+                }
+              >
                 {selectedStreakMirrorEntry ? (
                   <div className={styles.mirrorDetailBody}>
                     <div className={styles.mirrorDetailMeta}>
@@ -7559,12 +7633,8 @@ export default function HomePage() {
                       ))}
                     </div>
                   </div>
-                ) : (
-                  <p className={styles.accountMeta}>
-                    Choose one of your mirror cards to open the full reflection.
-                  </p>
-                )}
-              </article>
+                ) : null}
+              </CollapsibleSectionCard>
             </section>
           )}
 
@@ -8851,13 +8921,14 @@ export default function HomePage() {
                 )}
               </article>
 
-              <article className={styles.card}>
-                <div className={styles.cardHeader}>
-                  <div>
-                    <p className={styles.sectionLabel}>Score History</p>
-                    <h2 className={styles.cardTitle}>Performance score trend</h2>
-                  </div>
-                </div>
+              <CollapsibleSectionCard
+                label="Score History"
+                title="Performance score trend"
+                open={reportsSectionsOpen.score}
+                onToggle={() =>
+                  setReportsSectionsOpen((current) => ({ ...current, score: !current.score }))
+                }
+              >
                 {analyticsScoreHistory.length > 0 ? (
                   <>
                     <div className={styles.analyticsChartFrame}>
@@ -8892,15 +8963,16 @@ export default function HomePage() {
                 ) : (
                   <p className={styles.analyticsEmptyState}>Performance score history will appear once analytics days are aggregated.</p>
                 )}
-              </article>
+              </CollapsibleSectionCard>
 
-              <article className={styles.card}>
-                <div className={styles.cardHeader}>
-                  <div>
-                    <p className={styles.sectionLabel}>Insight Feed</p>
-                    <h2 className={styles.cardTitle}>What the system is seeing</h2>
-                  </div>
-                </div>
+              <CollapsibleSectionCard
+                label="Insight Feed"
+                title="What the system is seeing"
+                open={reportsSectionsOpen.insights}
+                onToggle={() =>
+                  setReportsSectionsOpen((current) => ({ ...current, insights: !current.insights }))
+                }
+              >
                 {analyticsInsights.length > 0 ? (
                   <div className={styles.analyticsInsightList}>
                     {analyticsInsights.map((insight) => (
@@ -8922,15 +8994,16 @@ export default function HomePage() {
                 ) : (
                   <p className={styles.analyticsEmptyState}>No standout insights yet. More tracked sessions will make this feed sharper.</p>
                 )}
-              </article>
+              </CollapsibleSectionCard>
 
-              <article className={styles.card}>
-                <div className={styles.cardHeader}>
-                  <div>
-                    <p className={styles.sectionLabel}>Timing</p>
-                    <h2 className={styles.cardTitle}>Best focus window</h2>
-                  </div>
-                </div>
+              <CollapsibleSectionCard
+                label="Timing"
+                title="Best focus window"
+                open={reportsSectionsOpen.timing}
+                onToggle={() =>
+                  setReportsSectionsOpen((current) => ({ ...current, timing: !current.timing }))
+                }
+              >
                 {analyticsBestHours?.bestWindow ? (
                   <>
                     <div className={styles.analyticsFocusWindow}>
@@ -8964,15 +9037,16 @@ export default function HomePage() {
                 ) : (
                   <p className={styles.analyticsEmptyState}>Best focus hours appear after enough completed sessions are tracked.</p>
                 )}
-              </article>
+              </CollapsibleSectionCard>
 
-              <article className={styles.card}>
-                <div className={styles.cardHeader}>
-                  <div>
-                    <p className={styles.sectionLabel}>Subject Breakdown</p>
-                    <h2 className={styles.cardTitle}>Where the work is landing</h2>
-                  </div>
-                </div>
+              <CollapsibleSectionCard
+                label="Subject Breakdown"
+                title="Where the work is landing"
+                open={reportsSectionsOpen.subjects}
+                onToggle={() =>
+                  setReportsSectionsOpen((current) => ({ ...current, subjects: !current.subjects }))
+                }
+              >
                 {analyticsTopSubjects.some((subject) => subject.focusMinutes > 0) ? (
                   <div className={styles.analyticsSubjectList}>
                     {analyticsTopSubjects.map((subject) => (
@@ -8996,18 +9070,20 @@ export default function HomePage() {
                 ) : (
                   <p className={styles.analyticsEmptyState}>Subject-level analytics will fill in as tracked sessions accumulate.</p>
                 )}
-              </article>
+              </CollapsibleSectionCard>
 
-              <article className={styles.card}>
-                <div className={styles.cardHeader}>
-                  <div>
-                    <p className={styles.sectionLabel}>Popups & Notifications</p>
-                    <h2 className={styles.cardTitle}>Recommended nudges</h2>
-                    <p className={styles.accountMeta}>
-                      These are generated from the latest analytics snapshot and can power in-app prompts and scheduled notifications.
-                    </p>
-                  </div>
-                </div>
+              <CollapsibleSectionCard
+                label="Popups & Notifications"
+                title="Recommended nudges"
+                description="These are generated from the latest analytics snapshot and can power in-app prompts and scheduled notifications."
+                open={reportsSectionsOpen.notifications}
+                onToggle={() =>
+                  setReportsSectionsOpen((current) => ({
+                    ...current,
+                    notifications: !current.notifications,
+                  }))
+                }
+              >
                 {analyticsNotificationPlan ? (
                   <div className={styles.analyticsNotificationList}>
                     {analyticsNotificationPlan.notifications.map((notification) => (
@@ -9023,7 +9099,7 @@ export default function HomePage() {
                 ) : (
                   <p className={styles.analyticsEmptyState}>Once today has analytics data, Whelm can propose targeted nudges here.</p>
                 )}
-              </article>
+              </CollapsibleSectionCard>
                 </>
               )}
             </section>
@@ -9257,6 +9333,18 @@ export default function HomePage() {
                   </span>
                   <span className={styles.settingsPill}>Streak: {streak}d</span>
                 </div>
+                <div className={styles.settingsActionGrid}>
+                  <button
+                    type="button"
+                    className={styles.reportButton}
+                    onClick={() => {
+                      setFeedbackOpen(true);
+                      setFeedbackStatus("");
+                    }}
+                  >
+                    Send Whelm feedback
+                  </button>
+                </div>
                 {!isPro ? (
                   <div className={styles.noteFooterActions}>
                     <button
@@ -9294,9 +9382,14 @@ export default function HomePage() {
                 )}
               </article>
 
-              <article className={styles.card}>
-                <p className={styles.sectionLabel}>Whelm Identity</p>
-                <h2 className={styles.cardTitle}>How this system is running</h2>
+              <CollapsibleSectionCard
+                label="Whelm Identity"
+                title="How this system is running"
+                open={settingsSectionsOpen.identity}
+                onToggle={() =>
+                  setSettingsSectionsOpen((current) => ({ ...current, identity: !current.identity }))
+                }
+              >
                 <ul className={styles.settingsList}>
                   <li>
                     <span>Clean Focus Mode</span>
@@ -9311,14 +9404,20 @@ export default function HomePage() {
                     <strong>{isPro ? "Full System" : "Core Readout"}</strong>
                   </li>
                 </ul>
-              </article>
+              </CollapsibleSectionCard>
 
-              <article className={styles.card}>
-                <p className={styles.sectionLabel}>Internal Tools</p>
-                <h2 className={styles.cardTitle}>Preview gated flows</h2>
-                <p className={styles.accountMeta}>
-                  Open gated flows from Settings without waiting for the live trigger conditions.
-                </p>
+              <CollapsibleSectionCard
+                label="Internal Tools"
+                title="Preview gated flows"
+                description="Open gated flows here without waiting for the live trigger."
+                open={settingsSectionsOpen.internalTools}
+                onToggle={() =>
+                  setSettingsSectionsOpen((current) => ({
+                    ...current,
+                    internalTools: !current.internalTools,
+                  }))
+                }
+              >
                 <div className={styles.settingsActionGrid}>
                   <button
                     type="button"
@@ -9342,14 +9441,17 @@ export default function HomePage() {
                     Preview streak alert
                   </button>
                 </div>
-              </article>
+              </CollapsibleSectionCard>
 
-              <article className={styles.card}>
-                <p className={styles.sectionLabel}>Protocol</p>
-                <h2 className={styles.cardTitle}>Whelm tone</h2>
-                <p className={styles.accountMeta}>
-                  Choose how direct Whelm should feel when keeping you accountable.
-                </p>
+              <CollapsibleSectionCard
+                label="Protocol"
+                title="Whelm tone"
+                description="Choose how direct Whelm should feel when keeping you accountable."
+                open={settingsSectionsOpen.protocol}
+                onToggle={() =>
+                  setSettingsSectionsOpen((current) => ({ ...current, protocol: !current.protocol }))
+                }
+              >
                 <div className={styles.companionStyleRow}>
                   {(["gentle", "balanced", "strict"] as const).map((style) => (
                     <button
@@ -9364,14 +9466,17 @@ export default function HomePage() {
                     </button>
                   ))}
                 </div>
-              </article>
+              </CollapsibleSectionCard>
 
-              <article className={styles.card}>
-                <p className={styles.sectionLabel}>Appearance</p>
-                <h2 className={styles.cardTitle}>Default theme</h2>
-                <p className={styles.accountMeta}>
-                  Choose the theme Whelm should open with by default. You can change it any time.
-                </p>
+              <CollapsibleSectionCard
+                label="Appearance"
+                title="Default theme"
+                description="Choose how Whelm opens."
+                open={settingsSectionsOpen.appearance}
+                onToggle={() =>
+                  setSettingsSectionsOpen((current) => ({ ...current, appearance: !current.appearance }))
+                }
+              >
                 <div className={styles.companionStyleRow}>
                   {(["dark", "light"] as const).map((mode) => (
                     <button
@@ -9386,14 +9491,17 @@ export default function HomePage() {
                     </button>
                   ))}
                 </div>
-              </article>
+              </CollapsibleSectionCard>
 
-              <article className={styles.card}>
-                <p className={styles.sectionLabel}>Whelm Pro</p>
-                <h2 className={styles.cardTitle}>App background</h2>
-                <p className={styles.accountMeta}>
-                  {WHELM_PRO_POSITIONING} Keep the standard Whelm shell, or switch Pro backgrounds into adaptive glass so presets and uploaded photos can breathe through the app.
-                </p>
+              <CollapsibleSectionCard
+                label="Whelm Pro"
+                title="App background"
+                description="Pick the shell background and how much it shows through."
+                open={settingsSectionsOpen.background}
+                onToggle={() =>
+                  setSettingsSectionsOpen((current) => ({ ...current, background: !current.background }))
+                }
+              >
                 {isPro ? (
                   <>
                     <input
@@ -9579,11 +9687,16 @@ export default function HomePage() {
                     onPreview={() => void handleStartProPreview()}
                   />
                 )}
-              </article>
+              </CollapsibleSectionCard>
 
-              <article className={styles.card}>
-                <p className={styles.sectionLabel}>Sync</p>
-                <h2 className={styles.cardTitle}>Notes status</h2>
+              <CollapsibleSectionCard
+                label="Sync"
+                title="Notes status"
+                open={settingsSectionsOpen.sync}
+                onToggle={() =>
+                  setSettingsSectionsOpen((current) => ({ ...current, sync: !current.sync }))
+                }
+              >
                 <p className={styles.accountMeta}>
                   {notesSyncStatus === "synced"
                     ? "Synced"
@@ -9597,11 +9710,19 @@ export default function HomePage() {
                     Retry notes sync
                   </button>
                 )}
-              </article>
+              </CollapsibleSectionCard>
 
-              <article className={styles.card}>
-                <p className={styles.sectionLabel}>Screen Time</p>
-                <h2 className={styles.cardTitle}>Device focus permission</h2>
+              <CollapsibleSectionCard
+                label="Screen Time"
+                title="Device focus permission"
+                open={settingsSectionsOpen.screenTime}
+                onToggle={() =>
+                  setSettingsSectionsOpen((current) => ({
+                    ...current,
+                    screenTime: !current.screenTime,
+                  }))
+                }
+              >
                 <p className={styles.accountMeta}>
                   {screenTimeSupported
                     ? `Authorization status: ${screenTimeStatus}`
@@ -9632,30 +9753,18 @@ export default function HomePage() {
                   <li>This enables Screen Time APIs through Apple&apos;s permission flow.</li>
                   <li>Detailed per-app charts require the Device Activity report extension.</li>
                 </ul>
-              </article>
+              </CollapsibleSectionCard>
 
-              <article className={styles.card}>
-                <p className={styles.sectionLabel}>Support</p>
-                <h2 className={styles.cardTitle}>Feedback</h2>
-                <button
-                  type="button"
-                  className={styles.reportButton}
-                  onClick={() => {
-                    setFeedbackOpen(true);
-                    setFeedbackStatus("");
-                  }}
-                >
-                  Send Whelm feedback
-                </button>
-                <p className={styles.accountMeta}>Report bugs, request features, or share ideas.</p>
-              </article>
-
-              <article className={`${styles.card} ${styles.accountDangerCard}`}>
-                <p className={styles.sectionLabel}>Account</p>
-                <h2 className={styles.cardTitle}>Delete account</h2>
-                <p className={styles.accountMeta}>
-                  Permanently delete your Whelm account, notes, sessions, and local app data.
-                </p>
+              <CollapsibleSectionCard
+                className={styles.accountDangerCard}
+                label="Account"
+                title="Delete account"
+                description="Permanently delete your Whelm account, notes, sessions, and local app data."
+                open={settingsSectionsOpen.danger}
+                onToggle={() =>
+                  setSettingsSectionsOpen((current) => ({ ...current, danger: !current.danger }))
+                }
+              >
                 <button
                   type="button"
                   className={styles.deleteAccountButton}
@@ -9667,7 +9776,7 @@ export default function HomePage() {
                 {accountDangerStatus ? (
                   <p className={styles.accountDangerStatus}>{accountDangerStatus}</p>
                 ) : null}
-              </article>
+              </CollapsibleSectionCard>
             </section>
           )}
         </section>
@@ -9995,6 +10104,13 @@ export default function HomePage() {
                             />
                           </label>
                         </div>
+                        <CalendarTonePicker
+                          label="Block tone"
+                          selectedTone={draft.tone}
+                          onSelectTone={(tone) => updateDailyRitualDraft(draft.id, { tone })}
+                          isPro={isPro}
+                          onUpgrade={openUpgradeFlow}
+                        />
                         <textarea
                           value={draft.note}
                           onChange={(event) =>
@@ -10034,7 +10150,7 @@ export default function HomePage() {
                 <span className={styles.dailyRitualSubmitBandanaPanel} aria-hidden="true">
                   <DailyRitualSubmitBandana
                     className={styles.dailyRitualSubmitBandana}
-                    streakDays={displayStreak}
+                    streakDays={hasEarnedToday ? displayStreak : displayStreak + 1}
                   />
                 </span>
               </button>
@@ -10085,7 +10201,10 @@ export default function HomePage() {
 
       {streakSaveQuestionnaireOpen && (sickDaySaveEligible || streakSaveQuestionnairePreview) && (
         <div className={styles.feedbackOverlay} onClick={closeStreakSaveQuestionnaire}>
-          <div className={styles.feedbackModal} onClick={(event) => event.stopPropagation()}>
+          <div
+            className={`${styles.feedbackModal} ${styles.feedbackModalScrollable}`}
+            onClick={(event) => event.stopPropagation()}
+          >
             <div className={styles.feedbackHeader}>
               <h2 className={styles.feedbackTitle}>Streak Mirror check-in</h2>
               <button
@@ -10179,11 +10298,13 @@ export default function HomePage() {
         </div>
       )}
 
-      {sickDaySavePromptOpen && (sickDaySaveEligible || sickDaySavePromptPreview) && (
+      {sickDaySavePromptOpen && ((rawYesterdayMissed && !yesterdaySave) || sickDaySavePromptPreview) && (
         <div className={styles.feedbackOverlay} onClick={dismissSickDaySavePrompt}>
           <div className={styles.feedbackModal} onClick={(event) => event.stopPropagation()}>
             <div className={styles.feedbackHeader}>
-              <h2 className={styles.feedbackTitle}>Yesterday broke your streak</h2>
+              <h2 className={styles.feedbackTitle}>
+                {sickDaySaveEligible ? "Your streak is at risk from yesterday" : "Your streak reset yesterday"}
+              </h2>
               <button
                 type="button"
                 className={styles.feedbackClose}
@@ -10193,7 +10314,11 @@ export default function HomePage() {
               </button>
             </div>
             <p className={styles.feedbackMeta}>
-              If you genuinely missed yesterday because you were sick, you can protect that day with a private Streak Mirror check-in.
+              {sickDaySaveEligible
+                ? "You missed yesterday, so the streak will reset unless you use a private Streak Mirror save. Open it now if the miss was genuinely caused by sickness."
+                : monthlySaveLimitReached
+                  ? "You missed yesterday and the streak reset. Your Streak Mirror is still there to review patterns, but this month has already used all available saves."
+                  : "You missed yesterday and the streak reset. Open Streak Mirror to review what happened and reset clearly."}
             </p>
             <div className={styles.noteFooterActions}>
               <button
@@ -10201,7 +10326,7 @@ export default function HomePage() {
                 className={styles.feedbackSubmit}
                 onClick={openSickDaySaveReview}
               >
-                Open Streaks
+                {sickDaySaveEligible ? "Open Streak Mirror save" : "Open Streak Mirror"}
               </button>
               <button
                 type="button"

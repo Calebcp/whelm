@@ -740,13 +740,24 @@
     padding: 20px;
   }
 
+  .title {
+    max-width: none;
+    font-size: clamp(1.15rem, 6.3vw, 1.7rem);
+    line-height: 1.08;
+  }
+
+  .streakHint {
+    font-size: 0.76rem;
+    line-height: 1.35;
+  }
+
   .header,
   .modeRow {
     align-items: stretch;
   }
 
   .timerFace {
-    min-height: 340px;
+    min-height: 360px;
     padding: 22px 12px 80px;
   }
 
@@ -787,21 +798,25 @@
   }
 
   .identityAnchor {
-    margin-bottom: 10px;
-    font-size: 0.8rem;
+    margin-bottom: 8px;
+    font-size: 0.72rem;
+    letter-spacing: 0.2em;
   }
 
   .time {
-    font-size: clamp(2.8rem, 14vw, 4rem);
+    font-size: clamp(2.6rem, 13vw, 3.9rem);
   }
 
   .faceWhelm {
-    width: min(48vw, 148px);
+    width: min(42vw, 136px);
   }
 
   .whelmRotationHint {
-    max-width: 22ch;
-    font-size: 0.7rem;
+    max-width: 24ch;
+    margin-top: 8px;
+    font-size: 0.62rem;
+    line-height: 1.25;
+    letter-spacing: 0.04em;
   }
 }
 
@@ -817,7 +832,7 @@
   }
 
   .timerFace {
-    min-height: 318px;
+    min-height: 336px;
     border-radius: 28px;
     padding: 18px 10px 76px;
   }
@@ -847,6 +862,28 @@
 
   .faceDock {
     grid-template-columns: 1fr;
+  }
+
+  .faceInner {
+    width: min(100%, 236px);
+    padding-top: 6px;
+  }
+
+  .faceLabel {
+    margin-bottom: 10px;
+    font-size: 0.68rem;
+  }
+
+  .time {
+    font-size: clamp(2.45rem, 12.8vw, 3.5rem);
+  }
+
+  .faceWhelm {
+    width: min(39vw, 120px);
+  }
+
+  .whelmRotationHint {
+    font-size: 0.58rem;
   }
 
   .faceDockMenu {

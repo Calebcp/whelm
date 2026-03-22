@@ -913,6 +913,46 @@
   gap: 10px;
 }
 
+.cardCollapseToggle {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  text-align: left;
+  color: inherit;
+}
+
+.cardCollapseCopy {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.cardCollapseCopy .cardTitle,
+.cardCollapseCopy .accountMeta,
+.cardCollapseCopy .sectionLabel {
+  margin: 0;
+}
+
+.cardCollapseState {
+  flex: 0 0 auto;
+  border: 1px solid rgba(123, 138, 184, 0.16);
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: rgba(22, 27, 48, 0.9);
+  color: #eef3ff;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.cardCollapseBody {
+  margin-top: 14px;
+}
+
 .cardTitle {
   margin: 0;
   font-size: 1.1rem;
@@ -5214,6 +5254,9 @@
   display: grid;
   place-items: center;
   padding: 16px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .feedbackModal,
@@ -5225,6 +5268,16 @@
   background: rgba(11, 15, 29, 0.98);
   padding: 18px;
   box-shadow: 0 22px 60px rgba(7, 18, 31, 0.34);
+}
+
+.feedbackModalScrollable {
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  padding-bottom: calc(18px + env(safe-area-inset-bottom));
 }
 
 .paywallCopy {
@@ -7398,12 +7451,16 @@
 
   .topAppBar {
     top: 12px;
-    padding: 14px 16px;
-    border-radius: 22px;
+    padding: 11px 13px;
+    border-radius: 20px;
+  }
+
+  .topAppBarLabel {
+    font-size: 0.62rem;
   }
 
   .topAppBarTitle {
-    font-size: 1.35rem;
+    font-size: 1.15rem;
     line-height: 1;
   }
 
@@ -7437,9 +7494,9 @@
   }
 
   .xpDockTrack {
-    min-width: 112px;
-    max-width: 128px;
-    padding: 6px 9px;
+    min-width: 102px;
+    max-width: 118px;
+    padding: 5px 8px;
   }
 
   .xpDockCopy strong {
@@ -7572,6 +7629,58 @@
   .mobileTodayStack {
     display: grid;
     gap: 12px;
+  }
+
+  .mirrorHeroCard {
+    gap: 12px;
+  }
+
+  .mirrorHeroCopy {
+    gap: 6px;
+  }
+
+  .mirrorCounterCard {
+    min-width: 0;
+    padding: 12px;
+    border-radius: 16px;
+  }
+
+  .mirrorCounterCard strong {
+    font-size: 1.55rem;
+  }
+
+  .settingsHeroHeader {
+    gap: 10px;
+    align-items: center;
+  }
+
+  .settingsPills {
+    margin: 10px 0 8px;
+    gap: 6px;
+  }
+
+  .settingsPill {
+    padding: 4px 8px;
+    font-size: 0.72rem;
+  }
+
+  .settingsActionGrid {
+    margin-top: 10px;
+    gap: 8px;
+  }
+
+  .cardCollapseState {
+    padding: 7px 10px;
+    font-size: 0.74rem;
+  }
+
+  .cardCollapseBody {
+    margin-top: 12px;
+  }
+
+  .accountMeta {
+    font-size: 0.8rem;
+    line-height: 1.38;
   }
 
   .statsGrid,
