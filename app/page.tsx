@@ -4554,6 +4554,7 @@ export default function HomePage() {
       note.id === currentSelectedNoteId ? { ...note, body: nextBody, updatedAtISO: now } : note,
     );
     notesRef.current = nextNotes;
+    setNotes(nextNotes);
     saveNotesLocally(user.uid, nextNotes);
   }
 
@@ -10173,11 +10174,24 @@ export default function HomePage() {
                         captureEditorDraft();
                         saveEditorSelection();
                       }}
+                      onKeyUp={() => {
+                        captureEditorDraft();
+                        saveEditorSelection();
+                      }}
+                      onPaste={() => {
+                        window.setTimeout(() => {
+                          captureEditorDraft();
+                          saveEditorSelection();
+                        }, 0);
+                      }}
+                      onCompositionEnd={() => {
+                        captureEditorDraft();
+                        saveEditorSelection();
+                      }}
                       onBlur={() => {
                         captureEditorDraft();
                       }}
                       onMouseUp={() => saveEditorSelection()}
-                      onKeyUp={() => saveEditorSelection()}
                       onFocus={() => saveEditorSelection()}
                     />
                     <div className={styles.noteEditorFooter}>
@@ -10812,11 +10826,24 @@ export default function HomePage() {
                         captureEditorDraft();
                         saveEditorSelection();
                       }}
+                      onKeyUp={() => {
+                        captureEditorDraft();
+                        saveEditorSelection();
+                      }}
+                      onPaste={() => {
+                        window.setTimeout(() => {
+                          captureEditorDraft();
+                          saveEditorSelection();
+                        }, 0);
+                      }}
+                      onCompositionEnd={() => {
+                        captureEditorDraft();
+                        saveEditorSelection();
+                      }}
                       onBlur={() => {
                         captureEditorDraft();
                       }}
                       onMouseUp={() => saveEditorSelection()}
-                      onKeyUp={() => saveEditorSelection()}
                       onFocus={() => saveEditorSelection()}
                     />
 
