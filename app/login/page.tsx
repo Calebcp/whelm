@@ -154,7 +154,23 @@ export default function LoginPage() {
         </section>
 
         <section className={styles.formPanel}>
-          <div className={styles.formShell}>
+          <div
+            className={`${styles.formShell} ${
+              mode === "signup" ? styles.signupMode : styles.loginMode
+            }`}
+          >
+            <div className={styles.mobileAppChrome}>
+              <div>
+                <p className={styles.mobileAppEyebrow}>Whelm</p>
+                <strong className={styles.mobileAppTitle}>
+                  {mode === "signup" ? "Create account" : "Log in"}
+                </strong>
+              </div>
+              <span className={styles.mobileAppBadge}>
+                {mode === "signup" ? "Productivity elevated" : "Welcome back"}
+              </span>
+            </div>
+
             <div className={styles.mobileWelcomeCard}>
               <div className={styles.mobileWelcomeFigure}>
                 <SenseiFigure
@@ -166,14 +182,21 @@ export default function LoginPage() {
               </div>
               <div className={styles.mobileWelcomeCopy}>
                 <p className={styles.kicker}>WHELM</p>
-                <h2 className={styles.mobileWelcomeTitle}>Welcome back.</h2>
+                <h2 className={styles.mobileWelcomeTitle}>
+                  {mode === "signup" ? "Start your Whelm journey." : "Welcome back."}
+                </h2>
                 <p className={styles.mobileWelcomeBody}>
-                  Keep the login close. Whelm is here, and your system is ready when you are.
+                  {mode === "signup"
+                    ? "Productivity on another level. Build your system with notes, streaks, XP, and identity that stay with you."
+                    : "Your notes, streaks, XP, and rhythm should be right where you left them."}
                 </p>
               </div>
             </div>
 
             <div className={styles.formHeader}>
+              <p className={styles.formEyebrow}>
+                {mode === "signup" ? "Start your Whelm journey" : "Log in"}
+              </p>
               <div className={styles.modeSwitch}>
                 <button
                   type="button"
@@ -202,16 +225,17 @@ export default function LoginPage() {
               </div>
 
               <h2 className={styles.formTitle}>
-                {mode === "signup" ? "Start your Whelm account" : "Re-enter your system"}
+                {mode === "signup" ? "Productivity on another level" : "Log in to Whelm"}
               </h2>
               <p className={styles.formCopy}>
                 {mode === "signup"
-                  ? "Use a username, email, and password so your Whelm data stays attached to you from the start."
-                  : "Use the same email and password you used before. Your saved work will load after login."}
+                  ? "Create your account and keep your progress, notes, streaks, and momentum attached from day one."
+                  : "Use the same email and password you used before. Whelm will restore your saved work after sign-in."}
               </p>
             </div>
 
-            <div className={styles.fieldBlock}>
+            <div className={styles.authCard}>
+              <div className={styles.fieldBlock}>
               {mode === "signup" && (
                 <>
                   <label className={styles.label} htmlFor="username">
@@ -276,6 +300,7 @@ export default function LoginPage() {
               </div>
 
               {status && <div className={styles.statusBox}>{status}</div>}
+              </div>
             </div>
           </div>
         </section>
