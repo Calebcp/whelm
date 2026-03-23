@@ -6157,6 +6157,11 @@
   flex: 0 0 26px;
 }
 
+.bottomTabIcon .navIconImage {
+  width: 22px;
+  height: 22px;
+}
+
 .mobileJumpRow {
   display: none;
 }
