@@ -9852,48 +9852,90 @@ export default function HomePage() {
                                 Airy
                               </button>
                             </div>
-                            <button
-                              type="button"
-                              className={`${styles.noteColorPickerTrigger} ${styles.noteToneButton}`}
-                              style={
-                                { ["--note-tone-color" as const]: selectedNote.color || "#e7e5e4" } as CSSProperties
-                              }
-                              onClick={() => {
-                                setColorPickerOpen((open) => !open);
-                                setShellColorPickerOpen(false);
-                                setTextColorPickerOpen(false);
-                                setHighlightPickerOpen(false);
-                              }}
-                            >
-                              <span className={styles.noteToneButtonLabel}>Page tone</span>
-                              <span className={styles.noteColorPickerPreview}>
-                                <span
-                                  className={styles.noteColorPickerPreviewFill}
-                                  style={{ backgroundColor: selectedNote.color || "#e7e5e4" }}
-                                />
-                              </span>
-                            </button>
-                            <button
-                              type="button"
-                              className={`${styles.noteColorPickerTrigger} ${styles.noteShellButton}`}
-                              style={
-                                { ["--note-tone-color" as const]: selectedNote.shellColor || "#fff7d6" } as CSSProperties
-                              }
-                              onClick={() => {
-                                setShellColorPickerOpen((open) => !open);
-                                setColorPickerOpen(false);
-                                setTextColorPickerOpen(false);
-                                setHighlightPickerOpen(false);
-                              }}
-                            >
-                              <span className={styles.noteToneButtonLabel}>Notebook color</span>
-                              <span className={styles.noteColorPickerPreview}>
-                                <span
-                                  className={styles.noteColorPickerPreviewFill}
-                                  style={{ backgroundColor: selectedNote.shellColor || "#fff7d6" }}
-                                />
-                              </span>
-                            </button>
+                            <div className={styles.noteTonePopoverAnchor}>
+                              <button
+                                type="button"
+                                className={`${styles.noteColorPickerTrigger} ${styles.noteToneButton}`}
+                                style={
+                                  { ["--note-tone-color" as const]: selectedNote.color || "#e7e5e4" } as CSSProperties
+                                }
+                                onClick={() => {
+                                  setColorPickerOpen((open) => !open);
+                                  setShellColorPickerOpen(false);
+                                  setTextColorPickerOpen(false);
+                                  setHighlightPickerOpen(false);
+                                }}
+                              >
+                                <span className={styles.noteToneButtonLabel}>Page tone</span>
+                                <span className={styles.noteColorPickerPreview}>
+                                  <span
+                                    className={styles.noteColorPickerPreviewFill}
+                                    style={{ backgroundColor: selectedNote.color || "#e7e5e4" }}
+                                  />
+                                </span>
+                              </button>
+                              {isPro && colorPickerOpen && (
+                                <div className={styles.noteColorPickerPopover}>
+                                  {NOTE_COLORS.map((color) => (
+                                    <button
+                                      type="button"
+                                      key={color.value}
+                                      className={`${styles.noteColorSwatch} ${
+                                        selectedNote.color === color.value ? styles.noteColorSwatchActive : ""
+                                      }`}
+                                      style={{ backgroundColor: color.value }}
+                                      title={color.label}
+                                      onClick={() => {
+                                        void updateSelectedNote({ color: color.value });
+                                        setColorPickerOpen(false);
+                                      }}
+                                    />
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            <div className={styles.noteTonePopoverAnchor}>
+                              <button
+                                type="button"
+                                className={`${styles.noteColorPickerTrigger} ${styles.noteShellButton}`}
+                                style={
+                                  { ["--note-tone-color" as const]: selectedNote.shellColor || "#fff7d6" } as CSSProperties
+                                }
+                                onClick={() => {
+                                  setShellColorPickerOpen((open) => !open);
+                                  setColorPickerOpen(false);
+                                  setTextColorPickerOpen(false);
+                                  setHighlightPickerOpen(false);
+                                }}
+                              >
+                                <span className={styles.noteToneButtonLabel}>Notebook color</span>
+                                <span className={styles.noteColorPickerPreview}>
+                                  <span
+                                    className={styles.noteColorPickerPreviewFill}
+                                    style={{ backgroundColor: selectedNote.shellColor || "#fff7d6" }}
+                                  />
+                                </span>
+                              </button>
+                              {isPro && shellColorPickerOpen && (
+                                <div className={styles.noteColorPickerPopover}>
+                                  {NOTE_COLORS.map((color) => (
+                                    <button
+                                      type="button"
+                                      key={color.value}
+                                      className={`${styles.noteColorSwatch} ${
+                                        selectedNote.shellColor === color.value ? styles.noteColorSwatchActive : ""
+                                      }`}
+                                      style={{ backgroundColor: color.value }}
+                                      title={color.label}
+                                      onClick={() => {
+                                        void updateSelectedNote({ shellColor: color.value });
+                                        setShellColorPickerOpen(false);
+                                      }}
+                                    />
+                                  ))}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         ) : null}
                         <button
@@ -9908,45 +9950,6 @@ export default function HomePage() {
                         </button>
                       </div>
                     </div>
-
-                    {isPro && colorPickerOpen && (
-                      <div className={styles.noteColorPickerPopover}>
-                        {NOTE_COLORS.map((color) => (
-                          <button
-                            type="button"
-                            key={color.value}
-                            className={`${styles.noteColorSwatch} ${
-                              selectedNote.color === color.value ? styles.noteColorSwatchActive : ""
-                            }`}
-                            style={{ backgroundColor: color.value }}
-                            title={color.label}
-                            onClick={() => {
-                              void updateSelectedNote({ color: color.value });
-                              setColorPickerOpen(false);
-                            }}
-                          />
-                        ))}
-                      </div>
-                    )}
-                    {isPro && shellColorPickerOpen && (
-                      <div className={styles.noteColorPickerPopover}>
-                        {NOTE_COLORS.map((color) => (
-                          <button
-                            type="button"
-                            key={color.value}
-                            className={`${styles.noteColorSwatch} ${
-                              selectedNote.shellColor === color.value ? styles.noteColorSwatchActive : ""
-                            }`}
-                            style={{ backgroundColor: color.value }}
-                            title={color.label}
-                            onClick={() => {
-                              void updateSelectedNote({ shellColor: color.value });
-                              setShellColorPickerOpen(false);
-                            }}
-                          />
-                        ))}
-                      </div>
-                    )}
 
                     <div className={styles.mobileNotesControls}>
                       <button
@@ -10421,88 +10424,91 @@ export default function HomePage() {
                                   Airy
                                 </button>
                               </div>
-                              <button
-                                type="button"
-                                className={`${styles.noteColorPickerTrigger} ${styles.noteToneButton}`}
-                                style={
-                                  { ["--note-tone-color" as const]: selectedNote.color || "#e7e5e4" } as CSSProperties
-                                }
-                                onClick={() => {
-                                  setColorPickerOpen((open) => !open);
-                                  setShellColorPickerOpen(false);
-                                  setTextColorPickerOpen(false);
-                                  setHighlightPickerOpen(false);
-                                }}
-                              >
-                                <span className={styles.noteToneButtonLabel}>Page tone</span>
-                                <span className={styles.noteColorPickerPreview}>
-                                  <span
-                                    className={styles.noteColorPickerPreviewFill}
-                                    style={{ backgroundColor: selectedNote.color || "#e7e5e4" }}
-                                  />
-                                </span>
-                              </button>
-                              <button
-                                type="button"
-                                className={`${styles.noteColorPickerTrigger} ${styles.noteShellButton}`}
-                                style={
-                                  { ["--note-tone-color" as const]: selectedNote.shellColor || "#fff7d6" } as CSSProperties
-                                }
-                                onClick={() => {
-                                  setShellColorPickerOpen((open) => !open);
-                                  setColorPickerOpen(false);
-                                  setTextColorPickerOpen(false);
-                                  setHighlightPickerOpen(false);
-                                }}
-                              >
-                                <span className={styles.noteToneButtonLabel}>Notebook color</span>
-                                <span className={styles.noteColorPickerPreview}>
-                                  <span
-                                    className={styles.noteColorPickerPreviewFill}
-                                    style={{ backgroundColor: selectedNote.shellColor || "#fff7d6" }}
-                                  />
-                                </span>
-                              </button>
+                              <div className={styles.noteTonePopoverAnchor}>
+                                <button
+                                  type="button"
+                                  className={`${styles.noteColorPickerTrigger} ${styles.noteToneButton}`}
+                                  style={
+                                    { ["--note-tone-color" as const]: selectedNote.color || "#e7e5e4" } as CSSProperties
+                                  }
+                                  onClick={() => {
+                                    setColorPickerOpen((open) => !open);
+                                    setShellColorPickerOpen(false);
+                                    setTextColorPickerOpen(false);
+                                    setHighlightPickerOpen(false);
+                                  }}
+                                >
+                                  <span className={styles.noteToneButtonLabel}>Page tone</span>
+                                  <span className={styles.noteColorPickerPreview}>
+                                    <span
+                                      className={styles.noteColorPickerPreviewFill}
+                                      style={{ backgroundColor: selectedNote.color || "#e7e5e4" }}
+                                    />
+                                  </span>
+                                </button>
+                                {colorPickerOpen && (
+                                  <div className={styles.noteColorPickerPopover}>
+                                    {NOTE_COLORS.map((color) => (
+                                      <button
+                                        type="button"
+                                        key={color.value}
+                                        className={`${styles.noteColorSwatch} ${
+                                          selectedNote.color === color.value ? styles.noteColorSwatchActive : ""
+                                        }`}
+                                        style={{ backgroundColor: color.value }}
+                                        title={color.label}
+                                        onClick={() => {
+                                          void updateSelectedNote({ color: color.value });
+                                          setColorPickerOpen(false);
+                                        }}
+                                      />
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                              <div className={styles.noteTonePopoverAnchor}>
+                                <button
+                                  type="button"
+                                  className={`${styles.noteColorPickerTrigger} ${styles.noteShellButton}`}
+                                  style={
+                                    { ["--note-tone-color" as const]: selectedNote.shellColor || "#fff7d6" } as CSSProperties
+                                  }
+                                  onClick={() => {
+                                    setShellColorPickerOpen((open) => !open);
+                                    setColorPickerOpen(false);
+                                    setTextColorPickerOpen(false);
+                                    setHighlightPickerOpen(false);
+                                  }}
+                                >
+                                  <span className={styles.noteToneButtonLabel}>Notebook color</span>
+                                  <span className={styles.noteColorPickerPreview}>
+                                    <span
+                                      className={styles.noteColorPickerPreviewFill}
+                                      style={{ backgroundColor: selectedNote.shellColor || "#fff7d6" }}
+                                    />
+                                  </span>
+                                </button>
+                                {shellColorPickerOpen && (
+                                  <div className={styles.noteColorPickerPopover}>
+                                    {NOTE_COLORS.map((color) => (
+                                      <button
+                                        type="button"
+                                        key={color.value}
+                                        className={`${styles.noteColorSwatch} ${
+                                          selectedNote.shellColor === color.value ? styles.noteColorSwatchActive : ""
+                                        }`}
+                                        style={{ backgroundColor: color.value }}
+                                        title={color.label}
+                                        onClick={() => {
+                                          void updateSelectedNote({ shellColor: color.value });
+                                          setShellColorPickerOpen(false);
+                                        }}
+                                      />
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
                             </div>
-
-                            {colorPickerOpen && (
-                              <div className={styles.noteColorPickerPopover}>
-                                {NOTE_COLORS.map((color) => (
-                                  <button
-                                    type="button"
-                                    key={color.value}
-                                    className={`${styles.noteColorSwatch} ${
-                                      selectedNote.color === color.value ? styles.noteColorSwatchActive : ""
-                                    }`}
-                                    style={{ backgroundColor: color.value }}
-                                    title={color.label}
-                                    onClick={() => {
-                                      void updateSelectedNote({ color: color.value });
-                                      setColorPickerOpen(false);
-                                    }}
-                                  />
-                                ))}
-                              </div>
-                            )}
-                            {shellColorPickerOpen && (
-                              <div className={styles.noteColorPickerPopover}>
-                                {NOTE_COLORS.map((color) => (
-                                  <button
-                                    type="button"
-                                    key={color.value}
-                                    className={`${styles.noteColorSwatch} ${
-                                      selectedNote.shellColor === color.value ? styles.noteColorSwatchActive : ""
-                                    }`}
-                                    style={{ backgroundColor: color.value }}
-                                    title={color.label}
-                                    onClick={() => {
-                                      void updateSelectedNote({ shellColor: color.value });
-                                      setShellColorPickerOpen(false);
-                                    }}
-                                  />
-                                ))}
-                              </div>
-                            )}
                           </>
                         ) : (
                           <ProUnlockCard
@@ -12460,7 +12466,6 @@ export default function HomePage() {
                 >
                   <span className={styles.bottomTabIcon}>{iconForTab(tab)}</span>
                   <strong>{tabTitle(tab)}</strong>
-                  <small>{mobileTabDescription(tab)}</small>
                 </button>
               ))}
             </div>
