@@ -4246,12 +4246,11 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!editorRef.current) return;
-    if (document.activeElement === editorRef.current) return;
 
     if (editorRef.current.innerHTML !== editorBodyDraft) {
       editorRef.current.innerHTML = editorBodyDraft;
     }
-  }, [editorBodyDraft, selectedNoteId]);
+  }, [editorBodyDraft, selectedNoteId, isMobileViewport, mobileNotesEditorOpen]);
 
   async function refreshSessions(uid: string) {
     const currentUser = auth.currentUser;
