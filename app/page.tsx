@@ -757,6 +757,40 @@ function createNote(): WorkspaceNote {
   };
 }
 
+type LocalNoteDraft = {
+  body: string;
+  updatedAtISO: string;
+};
+
+function noteDraftStorageKey(uid: string, noteId: string) {
+  return `whelm:note-draft:${uid}:${noteId}`;
+}
+
+function readLocalNoteDraft(uid: string, noteId: string) {
+  try {
+    const raw = window.localStorage.getItem(noteDraftStorageKey(uid, noteId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as LocalNoteDraft;
+    if (!parsed || typeof parsed.body !== "string" || typeof parsed.updatedAtISO !== "string") {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeLocalNoteDraft(uid: string, noteId: string, body: string, updatedAtISO: string) {
+  window.localStorage.setItem(
+    noteDraftStorageKey(uid, noteId),
+    JSON.stringify({ body, updatedAtISO } satisfies LocalNoteDraft),
+  );
+}
+
+function clearLocalNoteDraft(uid: string, noteId: string) {
+  window.localStorage.removeItem(noteDraftStorageKey(uid, noteId));
+}
+
 function decodeHtmlEntities(value: string) {
   const textarea = document.createElement("textarea");
   textarea.innerHTML = value;
@@ -4198,9 +4232,17 @@ export default function HomePage() {
   }, [selectedNoteId]);
 
   useEffect(() => {
-    const nextHtml = selectedNote ? normalizeBodyForEditor(selectedNote.body) : "";
+    let nextHtml = selectedNote ? normalizeBodyForEditor(selectedNote.body) : "";
+
+    if (user && selectedNote) {
+      const localDraft = readLocalNoteDraft(user.uid, selectedNote.id);
+      if (localDraft && localDraft.updatedAtISO >= selectedNote.updatedAtISO) {
+        nextHtml = normalizeBodyForEditor(localDraft.body);
+      }
+    }
+
     setEditorBodyDraft(nextHtml);
-  }, [selectedNote, selectedNoteId]);
+  }, [selectedNote, selectedNoteId, user]);
 
   useEffect(() => {
     if (!editorRef.current) return;
@@ -4492,6 +4534,7 @@ export default function HomePage() {
     );
     notesRef.current = nextNotes;
     setNotes(nextNotes);
+    writeLocalNoteDraft(user.uid, currentSelectedNoteId, nextBody, now);
     setNotesSyncStatus("syncing");
     setNotesSyncMessage("");
     const result = await saveNotes(user, nextNotes);
@@ -4555,6 +4598,7 @@ export default function HomePage() {
     );
     notesRef.current = nextNotes;
     setNotes(nextNotes);
+    writeLocalNoteDraft(user.uid, currentSelectedNoteId, nextBody, now);
     saveNotesLocally(user.uid, nextNotes);
   }
 
@@ -4616,6 +4660,7 @@ export default function HomePage() {
     notesRef.current = nextNotes;
     setNotes(nextNotes);
     setSelectedNoteId((current) => (current === noteId ? nextNotes[0]?.id ?? null : current));
+    clearLocalNoteDraft(user.uid, noteId);
     setNotesSyncStatus("syncing");
     setNotesSyncMessage("");
     const result = await saveNotes(user, nextNotes);
