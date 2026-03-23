@@ -7,6 +7,8 @@ export type WorkspaceNote = {
   title: string;
   body: string;
   color: string;
+  shellColor: string;
+  surfaceStyle: "solid" | "airy";
   isPinned: boolean;
   fontFamily: string;
   fontSizePx: number;
@@ -56,6 +58,12 @@ function normalizeNotes(notes: WorkspaceNote[]) {
           typeof note.color === "string" && note.color
             ? legacyColorMap[note.color] || note.color
             : "#e7e5e4",
+        shellColor:
+          typeof (note as WorkspaceNote).shellColor === "string" && (note as WorkspaceNote).shellColor
+            ? legacyColorMap[(note as WorkspaceNote).shellColor] || (note as WorkspaceNote).shellColor
+            : "#fff7d6",
+        surfaceStyle:
+          (note as WorkspaceNote).surfaceStyle === "airy" ? "airy" : "solid",
         isPinned: typeof note.isPinned === "boolean" ? note.isPinned : false,
         fontFamily:
           typeof note.fontFamily === "string" && note.fontFamily

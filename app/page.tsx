@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ChangeEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useRive } from "@rive-app/react-canvas";
+import { AnimatePresence, motion } from "motion/react";
 import {
   EmailAuthProvider,
   deleteUser,
@@ -14,6 +15,7 @@ import {
 
 import SenseiFigure, { type SenseiVariant } from "@/components/SenseiFigure";
 import Timer, { type TimerSessionContext } from "@/components/Timer";
+import MilestoneReveal from "@/components/MilestoneReveal";
 import WhelmEmote from "@/components/WhelmEmote";
 import WhelmRitualScene from "@/components/WhelmRitualScene";
 import {
@@ -60,7 +62,11 @@ import {
   type SenseiCompanionStyle,
 } from "@/lib/sensei-companion";
 import { evaluateSessionQuality } from "@/lib/session-quality";
-import { getStreakBandanaTier, STREAK_BANDANA_TIERS } from "@/lib/streak-bandanas";
+import {
+  getStreakBandanaTier,
+  STREAK_BANDANA_TIERS,
+  type StreakBandanaTier,
+} from "@/lib/streak-bandanas";
 import { buildPerformanceNotificationPlan } from "@/lib/performance-notifications";
 import type { LeaderboardPageResponse, LeaderboardSnapshotEntry } from "@/lib/leaderboard";
 import type { WhelmEmoteId } from "@/lib/whelm-emotes";
@@ -429,6 +435,8 @@ type CalendarEntry = {
   planId?: string;
 };
 
+type AgendaTimingState = "now" | "next" | "upcoming" | "overdue" | "completed" | "logged";
+
 type TrendPoint = {
   label: string;
   minutes: number;
@@ -645,7 +653,12 @@ function CollapsibleSectionCard({
   children: ReactNode;
 }) {
   return (
-    <article className={[styles.card, className].filter(Boolean).join(" ")}>
+    <motion.article
+      className={[styles.card, className].filter(Boolean).join(" ")}
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+    >
       <button
         type="button"
         className={styles.cardCollapseToggle}
@@ -659,8 +672,42 @@ function CollapsibleSectionCard({
         </div>
         <span className={styles.cardCollapseState}>{open ? "Hide" : "Open"}</span>
       </button>
-      {open ? <div className={styles.cardCollapseBody}>{children}</div> : null}
-    </article>
+      <AnimatePresence initial={false}>
+        {open ? (
+          <motion.div
+            className={styles.cardCollapseBody}
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
+          >
+            {children}
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </motion.article>
+  );
+}
+
+function AnimatedTabSection({
+  className,
+  children,
+  sectionRef,
+}: {
+  className?: string;
+  children: ReactNode;
+  sectionRef?: React.Ref<HTMLElement>;
+}) {
+  return (
+    <motion.section
+      className={className}
+      ref={sectionRef}
+      initial={{ opacity: 0, y: 18 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+    >
+      {children}
+    </motion.section>
   );
 }
 
@@ -697,6 +744,8 @@ function createNote(): WorkspaceNote {
     title: "Untitled note",
     body: "",
     color: "#e7e5e4",
+    shellColor: "#fff7d6",
+    surfaceStyle: "solid",
     isPinned: false,
     fontFamily: "Avenir Next",
     fontSizePx: 16,
@@ -1229,6 +1278,17 @@ type DayXpSummary = {
   totalXp: number;
 };
 
+type SessionRewardState = {
+  id: string;
+  minutesSpent: number;
+  xpGained: number;
+  todayXp: number;
+  streakAfter: number;
+  streakDelta: number;
+  leveledUp: boolean;
+  tierUnlocked: StreakBandanaTier | null;
+};
+
 type LifetimeXpSummary = {
   totalXp: number;
   todayXp: number;
@@ -1375,6 +1435,78 @@ function getXpWritingBonus(wordCount: number) {
   }
 
   return 0;
+}
+
+function doesDateQualifyForStreak({
+  dateKey,
+  focusMinutes,
+  completedBlocks,
+  noteWords,
+  todayKey,
+  protectedDateKeys,
+}: {
+  dateKey: string;
+  focusMinutes: number;
+  completedBlocks: number;
+  noteWords: number;
+  todayKey: string;
+  protectedDateKeys: string[];
+}) {
+  if (protectedDateKeys.includes(dateKey)) return true;
+  if (dateKey < STREAK_RULE_V2_START_DATE) return focusMinutes > 0;
+  if (dateKey > todayKey) return false;
+  return completedBlocks >= 1 && (focusMinutes >= 30 || noteWords >= 33);
+}
+
+function buildDayXpSummaryForDate({
+  dateKey,
+  sessionMinutesByDay,
+  completedBlocksByDay,
+  noteWordsByDay,
+  streakQualifiedDateKeys,
+}: {
+  dateKey: string;
+  sessionMinutesByDay: Map<string, number>;
+  completedBlocksByDay: Map<string, number>;
+  noteWordsByDay: Map<string, number>;
+  streakQualifiedDateKeys: string[];
+}) {
+  const focusMinutes = sessionMinutesByDay.get(dateKey) ?? 0;
+  const completedBlocks = completedBlocksByDay.get(dateKey) ?? 0;
+  const noteWords = noteWordsByDay.get(dateKey) ?? 0;
+  const streakLength = computeStreakEndingAtDateKey([], dateKey, streakQualifiedDateKeys);
+  const multiplier = getXpMultiplierForStreak(streakLength);
+  const completedBlocksXp = Math.min(XP_COMPLETED_BLOCK_DAILY_CAP, completedBlocks * XP_COMPLETED_BLOCK_XP);
+  const focusXp = Math.min(XP_FOCUS_DAILY_CAP, focusMinutes);
+  const writingXp = getXpWritingBonus(noteWords);
+  const baseActionXp = completedBlocksXp + focusXp + writingXp;
+  const multipliedBaseXp = Math.round(baseActionXp * multiplier);
+  const streakDailyXp = streakLength > 0 ? XP_STREAK_DAILY_BONUS : 0;
+  const streakMilestoneXp = streakLength > 0 ? getXpMilestoneBonus(streakLength) : 0;
+  const deepWorkXp = focusMinutes >= 90 ? XP_DEEP_WORK_BONUS : 0;
+  const comboXp =
+    completedBlocks >= 1 && (focusMinutes >= 30 || noteWords >= XP_WRITING_ENTRY_THRESHOLD)
+      ? XP_COMBO_BONUS
+      : 0;
+
+  return {
+    dateKey,
+    streakLength,
+    multiplier,
+    baseActionXp,
+    completedBlocksXp,
+    focusXp,
+    writingXp,
+    multipliedBaseXp,
+    streakDailyXp,
+    streakMilestoneXp,
+    deepWorkXp,
+    comboXp,
+    totalXp: Math.min(
+      XP_DAILY_CAP,
+      multipliedBaseXp + streakDailyXp + streakMilestoneXp + deepWorkXp + comboXp,
+    ),
+  } satisfies DayXpSummary;
 }
 
 function getXpMilestoneBonus(streakLength: number) {
@@ -1680,6 +1812,7 @@ function WhelmProfileAvatar({
             ? styles.profileAvatarCardCompact
             : styles.profileAvatarCardHero
       }`}
+      data-tier-color={tierColor ?? "yellow"}
       aria-hidden="true"
     >
       <img src={theme.imagePath} alt="" className={styles.profileAvatarImage} />
@@ -1699,7 +1832,7 @@ function tabTitle(tab: AppTab) {
     case "calendar":
       return "Schedule";
     case "leaderboard":
-      return "Leadership";
+      return "Whelmboard";
     case "mirror":
       return "Streak Mirror";
     case "notes":
@@ -1843,11 +1976,18 @@ function LeaderboardRow({
   } as CSSProperties;
 
   return (
-    <article
+    <motion.article
       className={`${styles.leaderboardRow} ${
         entry.isCurrentUser ? styles.leaderboardRowCurrentUser : ""
       }`}
       style={rowStyle}
+      initial={{ opacity: 0, y: 14, scale: 0.985 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{
+        duration: 0.34,
+        delay: Math.min((rank - 1) * 0.045, 0.24),
+        ease: [0.22, 1, 0.36, 1],
+      }}
     >
       <div className={styles.leaderboardRowTop}>
         <div className={styles.leaderboardIdentity}>
@@ -1891,8 +2031,106 @@ function LeaderboardRow({
           <strong>{entry.currentStreak}d</strong>
         </div>
       </div>
-    </article>
+    </motion.article>
   );
+}
+
+function LeaderboardPodiumCard({
+  row,
+  tab,
+}: {
+  row: { entry: LeaderboardEntry; rank: number; movement: LeaderboardMovement };
+  tab: LeaderboardMetricTab;
+}) {
+  const bandana = getLeaderboardBandanaMeta(row.entry.currentStreak);
+  const rowStyle = {
+    "--leaderboard-accent": bandana.theme.accent,
+    "--leaderboard-accent-strong": bandana.theme.accentStrong,
+    "--leaderboard-accent-deep": bandana.theme.accentDeep,
+    "--leaderboard-accent-glow": bandana.theme.accentGlow,
+    "--leaderboard-shell": bandana.theme.shell,
+    "--leaderboard-text-strong": bandana.theme.textStrong,
+    "--leaderboard-text-soft": bandana.theme.textSoft,
+  } as CSSProperties;
+
+  return (
+    <motion.article
+      className={`${styles.leaderboardPodiumCard} ${
+        row.entry.isCurrentUser ? styles.leaderboardPodiumCardCurrentUser : ""
+      } ${row.rank === 1 ? styles.leaderboardPodiumCardFirst : ""}`}
+      style={rowStyle}
+      initial={{ opacity: 0, y: 18, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.38, delay: Math.min((row.rank - 1) * 0.06, 0.18), ease: [0.22, 1, 0.36, 1] }}
+    >
+      <div className={styles.leaderboardPodiumTopline}>
+        <span className={styles.leaderboardPodiumPlace}>#{row.rank}</span>
+        <LeaderboardMovementIndicator movement={row.movement} tab={tab} />
+      </div>
+      <div className={styles.leaderboardPodiumAvatar}>
+        <WhelmProfileAvatar
+          tierColor={bandana.tier?.color}
+          size="row"
+          isPro={row.entry.isProStyle}
+          photoUrl={row.entry.avatarUrl}
+        />
+      </div>
+      <div className={styles.leaderboardPodiumIdentity}>
+        <strong>{row.entry.username}</strong>
+        <span>{bandana.shortLabel}</span>
+      </div>
+      <div className={styles.leaderboardPodiumStats}>
+        <div>
+          <span>{tab === "xp" ? "XP" : "Streak"}</span>
+          <strong>
+            {tab === "xp" ? formatLeaderboardXp(row.entry.totalXp) : `${row.entry.currentStreak}d`}
+          </strong>
+        </div>
+        <div>
+          <span>Level</span>
+          <strong>Lv {row.entry.level}</strong>
+        </div>
+      </div>
+      {row.entry.isCurrentUser ? <span className={styles.leaderboardYouBadge}>You</span> : null}
+    </motion.article>
+  );
+}
+
+function resolveAgendaTimingState(
+  dateKey: string,
+  startMinute: number,
+  endMinute: number,
+  completed?: boolean,
+): AgendaTimingState {
+  if (completed) return "completed";
+  const todayKey = dayKeyLocal(new Date());
+  if (dateKey < todayKey) return "overdue";
+  if (dateKey > todayKey) return "upcoming";
+  const currentMinute = new Date().getHours() * 60 + new Date().getMinutes();
+  if (currentMinute >= startMinute && currentMinute < endMinute) return "now";
+  if (currentMinute < startMinute) return "next";
+  return "overdue";
+}
+
+function mobileTabDescription(tab: AppTab) {
+  switch (tab) {
+    case "calendar":
+      return "Plan blocks and read the day clearly.";
+    case "leaderboard":
+      return "Check rank, prestige, and movement.";
+    case "reports":
+      return "Read patterns, timing, and performance.";
+    case "streaks":
+      return "Protect the run and track milestones.";
+    case "history":
+      return "Review the record without guesswork.";
+    case "mirror":
+      return "Private reset and accountability space.";
+    case "settings":
+      return "Tune system behavior and account state.";
+    default:
+      return "Open the next lane.";
+  }
 }
 
 const BANDANA_WORD_COLORS: Record<string, string> = {
@@ -2120,11 +2358,13 @@ function saveSickDaySaveDismissals(uid: string, dateKeys: string[]) {
   window.localStorage.setItem(sickDaySaveDismissalsStorageKey(uid), JSON.stringify(dateKeys));
 }
 
-function notesShellBackground(themeMode: ThemeMode, noteColor?: string) {
-  if (noteColor) return { background: noteColor };
-  return themeMode === "dark"
-    ? { background: "rgba(18, 22, 40, 0.94)" }
-    : { background: "#e7e5e4" };
+function notesShellBackground(themeMode: ThemeMode, shellColor?: string, pageColor?: string) {
+  return {
+    ["--note-surface-tint" as const]:
+      shellColor ?? (themeMode === "dark" ? "#182038" : "#fff7d6"),
+    ["--note-page-tone" as const]:
+      pageColor ?? (themeMode === "dark" ? "#182038" : "#fffaf0"),
+  } as CSSProperties;
 }
 
 function backgroundSettingStorageKey(uid: string) {
@@ -2247,14 +2487,14 @@ const DESKTOP_PRIMARY_TABS: Array<{ key: AppTab; label: string }> = [
   { key: "calendar", label: "Schedule" },
   { key: "today", label: "Today" },
   { key: "notes", label: "Notes" },
-  { key: "leaderboard", label: "Leadership" },
+  { key: "leaderboard", label: "Whelmboard" },
 ];
 
 const MOBILE_PRIMARY_TABS: Array<{ key: AppTab; label: string }> = [
   { key: "calendar", label: "Schedule" },
   { key: "today", label: "Today" },
   { key: "notes", label: "Notes" },
-  { key: "leaderboard", label: "Leadership" },
+  { key: "leaderboard", label: "Whelmboard" },
 ];
 
 const MOBILE_MORE_TABS: AppTab[] = [
@@ -2488,6 +2728,7 @@ function ProUnlockCard({
         <div>
           <p className={styles.sectionLabel}>Whelm Pro Available</p>
           <strong>{title}</strong>
+          <p className={styles.proUnlockMeta}>Premium surface, deeper system.</p>
         </div>
         <span>{open ? "Hide" : "Open"}</span>
       </button>
@@ -2495,6 +2736,11 @@ function ProUnlockCard({
         <div className={styles.proUnlockBody}>
           {preview ? <div className={styles.proUnlockPreview}>{preview}</div> : null}
           <p className={styles.accountMeta}>{body}</p>
+          <div className={styles.proUnlockValueRow}>
+            <span>Sharper visuals</span>
+            <span>Deeper memory</span>
+            <span>Full command reports</span>
+          </div>
           <div className={styles.noteFooterActions}>
             <button type="button" className={styles.inlineUpgrade} onClick={onPreview}>
               Enter Whelm Pro Preview
@@ -2503,6 +2749,65 @@ function ProUnlockCard({
         </div>
       ) : null}
     </div>
+  );
+}
+
+function SessionRewardToast({
+  reward,
+  onDismiss,
+}: {
+  reward: SessionRewardState;
+  onDismiss: () => void;
+}) {
+  const tierTheme = getStreakTierColorTheme(reward.tierUnlocked?.color);
+  const rewardStyle = {
+    "--reward-accent": tierTheme.accent,
+    "--reward-accent-strong": tierTheme.accentStrong,
+    "--reward-accent-glow": tierTheme.accentGlow,
+  } as CSSProperties;
+
+  return (
+    <motion.div
+      className={styles.sessionRewardToast}
+      style={rewardStyle}
+      initial={{ opacity: 0, y: 28, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 18, scale: 0.98 }}
+      transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
+    >
+      <button type="button" className={styles.sessionRewardClose} onClick={onDismiss} aria-label="Dismiss reward">
+        ×
+      </button>
+      <div className={styles.sessionRewardTop}>
+        <div>
+          <p className={styles.sectionLabel}>Session complete</p>
+          <h3 className={styles.sessionRewardTitle}>+{reward.xpGained} XP secured</h3>
+          <p className={styles.sessionRewardBody}>
+            {reward.minutesSpent} minutes banked. Today now holds {reward.todayXp} XP.
+          </p>
+        </div>
+        <div className={styles.sessionRewardBadge}>
+          <span>{reward.minutesSpent}m</span>
+        </div>
+      </div>
+      <div className={styles.sessionRewardStats}>
+        <div className={styles.sessionRewardStat}>
+          <span>Streak</span>
+          <strong>
+            {reward.streakAfter}d
+            {reward.streakDelta > 0 ? ` · +${reward.streakDelta}` : ""}
+          </strong>
+        </div>
+        <div className={styles.sessionRewardStat}>
+          <span>Level</span>
+          <strong>{reward.leveledUp ? "Level up" : "Progress"}</strong>
+        </div>
+        <div className={styles.sessionRewardStat}>
+          <span>Tier</span>
+          <strong>{reward.tierUnlocked?.label ?? "Holding line"}</strong>
+        </div>
+      </div>
+    </motion.div>
   );
 }
 
@@ -2516,6 +2821,7 @@ export default function HomePage() {
   const [notes, setNotes] = useState<WorkspaceNote[]>([]);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
+  const [shellColorPickerOpen, setShellColorPickerOpen] = useState(false);
   const [textColorPickerOpen, setTextColorPickerOpen] = useState(false);
   const [highlightPickerOpen, setHighlightPickerOpen] = useState(false);
   const [editorBodyDraft, setEditorBodyDraft] = useState("");
@@ -2668,6 +2974,8 @@ export default function HomePage() {
   const [streakMirrorTag, setStreakMirrorTag] = useState<StreakMirrorTag | null>(null);
   const [streakSaveAnswers, setStreakSaveAnswers] = useState<Record<string, string>>({});
   const [streakSaveStatus, setStreakSaveStatus] = useState("");
+  const [milestoneRevealTier, setMilestoneRevealTier] = useState<StreakBandanaTier | null>(null);
+  const [sessionReward, setSessionReward] = useState<SessionRewardState | null>(null);
   const [dailyPlanningPreviewOpen, setDailyPlanningPreviewOpen] = useState(false);
   const [mobileNotesRecentOpen, setMobileNotesRecentOpen] = useState(false);
   const [mobileNotesEditorOpen, setMobileNotesEditorOpen] = useState(false);
@@ -2700,6 +3008,8 @@ export default function HomePage() {
   const editorRef = useRef<HTMLDivElement | null>(null);
   const savedSelectionRef = useRef<Range | null>(null);
   const syncInFlightRef = useRef(false);
+  const notesRef = useRef<WorkspaceNote[]>([]);
+  const selectedNoteIdRef = useRef<string | null>(null);
   const todaySummaryRef = useRef<HTMLElement | null>(null);
   const todaySectionRef = useRef<HTMLElement | null>(null);
   const todayTimerRef = useRef<HTMLDivElement | null>(null);
@@ -2737,6 +3047,7 @@ export default function HomePage() {
   const authReadyRef = useRef(false);
   const activatedCalendarEntryTimeoutRef = useRef<number | null>(null);
   const calendarHoverPreviewTimeoutRef = useRef<number | null>(null);
+  const previousStreakTierRef = useRef<StreakBandanaTier | null | undefined>(undefined);
 
   const protectedStreakDateKeys = useMemo(
     () => sickDaySaves.map((save) => save.dateKey),
@@ -2932,7 +3243,16 @@ export default function HomePage() {
     () => notes.find((note) => note.id === selectedNoteId) ?? null,
     [notes, selectedNoteId],
   );
-  const selectedNoteSurfaceColor = isPro ? selectedNote?.color : undefined;
+  useEffect(() => {
+    notesRef.current = notes;
+  }, [notes]);
+
+  useEffect(() => {
+    selectedNoteIdRef.current = selectedNoteId;
+  }, [selectedNoteId]);
+
+  const selectedNoteSurfaceColor = isPro ? selectedNote?.shellColor : undefined;
+  const selectedNotePageColor = isPro ? selectedNote?.color : undefined;
   const selectedNoteWordCount = selectedNote
     ? countWords(editorBodyDraft || selectedNote.body)
     : 0;
@@ -3824,6 +4144,7 @@ export default function HomePage() {
   useEffect(() => {
     async function pullLatest() {
       if (!user || syncInFlightRef.current) return;
+      if (notesSyncStatus !== "synced") return;
       if (selectedNote && editorBodyDraft !== selectedNote.body) return;
 
       syncInFlightRef.current = true;
@@ -3856,7 +4177,7 @@ export default function HomePage() {
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-  }, [editorBodyDraft, selectedNote, user]);
+  }, [editorBodyDraft, notesSyncStatus, selectedNote, user]);
 
   useEffect(() => {
     setColorPickerOpen(false);
@@ -3978,7 +4299,19 @@ export default function HomePage() {
   ) {
     if (!user) return;
 
+    const todayKey = dayKeyLocal(new Date());
     const previousStreak = computeStreak(sessions, protectedStreakDateKeys);
+    const previousTodayXp =
+      xpByDay.find((day) => day.dateKey === todayKey)?.totalXp ??
+      buildDayXpSummaryForDate({
+        dateKey: todayKey,
+        sessionMinutesByDay,
+        completedBlocksByDay,
+        noteWordsByDay,
+        streakQualifiedDateKeys,
+      }).totalXp;
+    const previousTotalXp = lifetimeXpSummary.totalXp;
+    const previousLevel = lifetimeXpSummary.currentLevel;
     const now = new Date().toISOString();
     const session: SessionDoc = {
       uid: user.uid,
@@ -3991,6 +4324,38 @@ export default function HomePage() {
 
     const nextSessions = await saveSession(user, session);
     setSessions(nextSessions);
+    const nextSessionMinutesByDay = new Map(sessionMinutesByDay);
+    nextSessionMinutesByDay.set(todayKey, (nextSessionMinutesByDay.get(todayKey) ?? 0) + minutesSpent);
+    const todayFocusMinutesAfter = nextSessionMinutesByDay.get(todayKey) ?? 0;
+    const todayCompletedBlocksAfter = completedBlocksByDay.get(todayKey) ?? 0;
+    const todayNoteWordsAfter = noteWordsByDay.get(todayKey) ?? 0;
+    const qualifiesTodayAfter = doesDateQualifyForStreak({
+      dateKey: todayKey,
+      focusMinutes: todayFocusMinutesAfter,
+      completedBlocks: todayCompletedBlocksAfter,
+      noteWords: todayNoteWordsAfter,
+      todayKey,
+      protectedDateKeys: protectedStreakDateKeys,
+    });
+    const nextQualifiedDateKeys = qualifiesTodayAfter
+      ? [...new Set([...streakQualifiedDateKeys, todayKey])].sort()
+      : streakQualifiedDateKeys;
+    const nextTodaySummary = buildDayXpSummaryForDate({
+      dateKey: todayKey,
+      sessionMinutesByDay: nextSessionMinutesByDay,
+      completedBlocksByDay,
+      noteWordsByDay,
+      streakQualifiedDateKeys: nextQualifiedDateKeys,
+    });
+    const nextTodayXp = nextTodaySummary.totalXp;
+    const xpGained = Math.max(0, nextTodayXp - previousTodayXp);
+    const nextTotalXp = previousTotalXp + xpGained;
+    const nextLevel = getLifetimeXpSummary(nextTotalXp, nextTodayXp).currentLevel;
+    const nextStreak = computeStreak(nextSessions, protectedStreakDateKeys);
+    const previousTier = getStreakBandanaTier(previousStreak);
+    const nextTier = getStreakBandanaTier(nextStreak);
+    const tierUnlocked =
+      nextTier && (previousTier?.minDays ?? 0) < nextTier.minDays ? nextTier : null;
     if (sessionContext) {
       const quality = evaluateSessionQuality({
         plannedDurationMinutes: sessionContext.targetMinutes,
@@ -4021,7 +4386,7 @@ export default function HomePage() {
     }
     trackStreakChange(
       previousStreak,
-      computeStreak(nextSessions, protectedStreakDateKeys),
+      nextStreak,
       "session_completed",
       sessionContext?.sessionId ?? null,
     );
@@ -4029,20 +4394,33 @@ export default function HomePage() {
       buildSenseiReaction({
         source: "timer",
         minutesSpent,
-        todaySessions: countSessionsForDate(nextSessions, dayKeyLocal(new Date())),
-        streak: computeStreak(nextSessions, protectedStreakDateKeys),
+        todaySessions: countSessionsForDate(nextSessions, todayKey),
+        streak: nextStreak,
       }),
     );
+    setSessionReward({
+      id: `${Date.now()}`,
+      minutesSpent,
+      xpGained,
+      todayXp: nextTodayXp,
+      streakAfter: nextStreak,
+      streakDelta: Math.max(0, nextStreak - previousStreak),
+      leveledUp: nextLevel > previousLevel,
+      tierUnlocked,
+    });
   }
 
   async function createWorkspaceNote() {
     if (!user) return null;
 
     const nextNote = createNote();
-    const nextNotes = [nextNote, ...notes];
+    const nextNotes = [nextNote, ...notesRef.current];
+    notesRef.current = nextNotes;
     setNotes(nextNotes);
     setSelectedNoteId(nextNote.id);
     setActiveTab("notes");
+    setNotesSyncStatus("syncing");
+    setNotesSyncMessage("");
     const result = await saveNotes(user, nextNotes);
     setNotesSyncStatus(result.synced ? "synced" : "local-only");
     setNotesSyncMessage(result.message ?? "");
@@ -4056,6 +4434,8 @@ export default function HomePage() {
         | "title"
         | "body"
         | "color"
+        | "shellColor"
+        | "surfaceStyle"
         | "isPinned"
         | "fontFamily"
         | "fontSizePx"
@@ -4064,13 +4444,19 @@ export default function HomePage() {
       >
     >,
   ) {
-    if (!user || !selectedNote) return;
+    if (!user) return;
+
+    const currentSelectedNoteId = selectedNoteIdRef.current;
+    if (!currentSelectedNoteId) return;
 
     const now = new Date().toISOString();
-    const nextNotes = notes.map((note) =>
-      note.id === selectedNote.id ? { ...note, ...patch, updatedAtISO: now } : note,
+    const nextNotes = notesRef.current.map((note) =>
+      note.id === currentSelectedNoteId ? { ...note, ...patch, updatedAtISO: now } : note,
     );
+    notesRef.current = nextNotes;
     setNotes(nextNotes);
+    setNotesSyncStatus("syncing");
+    setNotesSyncMessage("");
     const result = await saveNotes(user, nextNotes);
     setNotesSyncStatus(result.synced ? "synced" : "local-only");
     setNotesSyncMessage(result.message ?? "");
@@ -4078,16 +4464,19 @@ export default function HomePage() {
 
   async function togglePinned(noteId: string) {
     if (!user) return;
-    const target = notes.find((note) => note.id === noteId);
+    const target = notesRef.current.find((note) => note.id === noteId);
     if (!target) return;
 
     const now = new Date().toISOString();
-    const nextNotes = notes.map((note) =>
+    const nextNotes = notesRef.current.map((note) =>
       note.id === noteId
         ? { ...note, isPinned: !note.isPinned, updatedAtISO: now }
         : note,
     );
+    notesRef.current = nextNotes;
     setNotes(nextNotes);
+    setNotesSyncStatus("syncing");
+    setNotesSyncMessage("");
     const result = await saveNotes(user, nextNotes);
     setNotesSyncStatus(result.synced ? "synced" : "local-only");
     setNotesSyncMessage(result.message ?? "");
@@ -4103,6 +4492,14 @@ export default function HomePage() {
 
     return () => window.clearTimeout(timeoutId);
   }, [editorBodyDraft, selectedNote]);
+
+  useEffect(() => {
+    if (!sessionReward) return;
+    const timeoutId = window.setTimeout(() => {
+      setSessionReward((current) => (current?.id === sessionReward.id ? null : current));
+    }, 4200);
+    return () => window.clearTimeout(timeoutId);
+  }, [sessionReward]);
 
   function captureEditorDraft() {
     if (!editorRef.current) return;
@@ -4162,10 +4559,13 @@ export default function HomePage() {
 
   async function deleteNote(noteId: string) {
     if (!user) return;
-    const deleted = notes.find((note) => note.id === noteId) || null;
-    const nextNotes = notes.filter((note) => note.id !== noteId);
+    const deleted = notesRef.current.find((note) => note.id === noteId) || null;
+    const nextNotes = notesRef.current.filter((note) => note.id !== noteId);
+    notesRef.current = nextNotes;
     setNotes(nextNotes);
     setSelectedNoteId((current) => (current === noteId ? nextNotes[0]?.id ?? null : current));
+    setNotesSyncStatus("syncing");
+    setNotesSyncMessage("");
     const result = await saveNotes(user, nextNotes);
     setNotesSyncStatus(result.synced ? "synced" : "local-only");
     setNotesSyncMessage(result.message ?? "");
@@ -4175,9 +4575,12 @@ export default function HomePage() {
 
   async function undoDeleteNote() {
     if (!user || !noteUndoItem) return;
-    const restored = [noteUndoItem, ...notes];
+    const restored = [noteUndoItem, ...notesRef.current];
+    notesRef.current = restored;
     setNotes(restored);
     setSelectedNoteId(noteUndoItem.id);
+    setNotesSyncStatus("syncing");
+    setNotesSyncMessage("");
     const result = await saveNotes(user, restored);
     setNotesSyncStatus(result.synced ? "synced" : "local-only");
     setNotesSyncMessage(result.message ?? "");
@@ -4187,7 +4590,7 @@ export default function HomePage() {
   async function handleRetrySync() {
     if (!user) return;
     setNotesSyncStatus("syncing");
-    const result = await retryNotesSync(user, notes);
+    const result = await retryNotesSync(user, notesRef.current);
 
     if (result.synced) {
       setNotesSyncStatus("synced");
@@ -4252,7 +4655,7 @@ export default function HomePage() {
   }
 
   async function copyWeeklyReport() {
-    const userLabel = user?.displayName || user?.email || "WHELM user";
+    const userLabel = user?.displayName || user?.email || "Whelm user";
     const report = [
       "Whelm Weekly Report",
       `Focus today: ${focusMetrics.todayMinutes}m`,
@@ -5075,52 +5478,19 @@ export default function HomePage() {
 
     return [...allDayKeys]
       .sort()
-      .map<DayXpSummary>((dateKey) => {
-        const focusMinutes = sessionMinutesByDay.get(dateKey) ?? 0;
-        const completedBlocks = completedBlocksByDay.get(dateKey) ?? 0;
-        const noteWords = noteWordsByDay.get(dateKey) ?? 0;
-        const streakLength = historicalStreaksByDay.get(dateKey) ?? 0;
-        const multiplier = getXpMultiplierForStreak(streakLength);
-        const completedBlocksXp = Math.min(
-          XP_COMPLETED_BLOCK_DAILY_CAP,
-          completedBlocks * XP_COMPLETED_BLOCK_XP,
-        );
-        const focusXp = Math.min(XP_FOCUS_DAILY_CAP, focusMinutes);
-        const writingXp = getXpWritingBonus(noteWords);
-        const baseActionXp = completedBlocksXp + focusXp + writingXp;
-        const multipliedBaseXp = Math.round(baseActionXp * multiplier);
-        const streakDailyXp = streakLength > 0 ? XP_STREAK_DAILY_BONUS : 0;
-        const streakMilestoneXp = streakLength > 0 ? getXpMilestoneBonus(streakLength) : 0;
-        const deepWorkXp = focusMinutes >= 90 ? XP_DEEP_WORK_BONUS : 0;
-        const comboXp =
-          completedBlocks >= 1 && (focusMinutes >= 30 || noteWords >= XP_WRITING_ENTRY_THRESHOLD)
-            ? XP_COMBO_BONUS
-            : 0;
-
-        return {
+      .map<DayXpSummary>((dateKey) =>
+        buildDayXpSummaryForDate({
           dateKey,
-          streakLength,
-          multiplier,
-          baseActionXp,
-          completedBlocksXp,
-          focusXp,
-          writingXp,
-          multipliedBaseXp,
-          streakDailyXp,
-          streakMilestoneXp,
-          deepWorkXp,
-          comboXp,
-          totalXp: Math.min(
-            XP_DAILY_CAP,
-            multipliedBaseXp + streakDailyXp + streakMilestoneXp + deepWorkXp + comboXp,
-          ),
-        };
-      });
+          sessionMinutesByDay,
+          completedBlocksByDay,
+          noteWordsByDay,
+          streakQualifiedDateKeys,
+        }),
+      );
   }, [
     completedBlocksByDay,
-    historicalStreaksByDay,
     noteWordsByDay,
-    protectedStreakDateKeys,
+    streakQualifiedDateKeys,
     sessionMinutesByDay,
   ]);
   const lifetimeXpSummary = useMemo(() => {
@@ -6308,6 +6678,25 @@ export default function HomePage() {
     user?.displayName?.trim() ||
     user?.email?.split("@")[0]?.trim() ||
     "Whelm user";
+  useEffect(() => {
+    if (!authChecked || !user) return;
+
+    const previousTier = previousStreakTierRef.current;
+    if (previousTier === undefined) {
+      previousStreakTierRef.current = streakBandanaTier;
+      return;
+    }
+
+    const previousThreshold = previousTier?.minDays ?? 0;
+    const nextThreshold = streakBandanaTier?.minDays ?? 0;
+
+    if (streakBandanaTier && nextThreshold > previousThreshold) {
+      setMilestoneRevealTier(streakBandanaTier);
+    }
+
+    previousStreakTierRef.current = streakBandanaTier;
+  }, [authChecked, streakBandanaTier, user]);
+
   const currentUserPhotoUrl = user?.photoURL ?? null;
   const currentUserId = user?.uid ?? "current-user";
   const currentUserCreatedAtISO =
@@ -6448,6 +6837,7 @@ export default function HomePage() {
   const leaderboardLeaderBandana = leaderboardLeader
     ? getLeaderboardBandanaMeta(leaderboardLeader.currentStreak)
     : null;
+  const leaderboardPodiumRows = leaderboardRows.slice(0, 3);
   const leaderboardBandanaHolders = useMemo<LeaderboardBandanaHolder[]>(() => {
     const sourceEntries =
       leaderboardSource === "snapshot" && leaderboardPageItems.length > 0
@@ -6477,6 +6867,26 @@ export default function HomePage() {
     });
   }, [currentUserId, currentUserPhotoUrl, isPro, leaderboardEntries, leaderboardPageItems, leaderboardSource]);
   const leaderboardHasEntries = leaderboardRows.length > 0;
+  const selectedDateAgendaStateSummary = useMemo(() => {
+    const plans = selectedDateEntries.filter((entry) => entry.source === "plan");
+    const activeNow = plans.find(
+      (entry) => resolveAgendaTimingState(selectedDateKey, entry.startMinute, entry.endMinute, entry.isCompleted) === "now",
+    );
+    const nextUp = plans.find(
+      (entry) => resolveAgendaTimingState(selectedDateKey, entry.startMinute, entry.endMinute, entry.isCompleted) === "next",
+    );
+    const overdueCount = plans.filter(
+      (entry) => resolveAgendaTimingState(selectedDateKey, entry.startMinute, entry.endMinute, entry.isCompleted) === "overdue",
+    ).length;
+
+    return {
+      activeNow,
+      nextUp,
+      overdueCount,
+      reminderCount: selectedDateEntries.filter((entry) => entry.source === "reminder").length,
+      focusMinutes: selectedDateFocusedMinutes,
+    };
+  }, [selectedDateEntries, selectedDateFocusedMinutes, selectedDateKey]);
 
   useEffect(() => {
     if (activeTab !== "leaderboard") return;
@@ -6725,6 +7135,9 @@ export default function HomePage() {
         .sort((a, b) => b.focusMinutes - a.focusMinutes)
     : [];
   const analyticsTopSubjectMinutes = Math.max(1, ...analyticsTopSubjects.map((subject) => subject.focusMinutes));
+  const analyticsLeadInsight = analyticsInsights[0] ?? null;
+  const analyticsLeadSubject = analyticsTopSubjects.find((subject) => subject.focusMinutes > 0) ?? null;
+  const analyticsLeadNotification = analyticsNotificationPlan?.notifications[0] ?? null;
   const streakHeroEmoteId: WhelmEmoteId =
     streak >= 100 ? "whelm.proud" : streak >= 50 ? "whelm.ready" : "whelm.encourage";
   const effectiveBackgroundSetting = isPro ? appBackgroundSetting : { kind: "default" as const };
@@ -6810,10 +7223,13 @@ export default function HomePage() {
                   day: "numeric",
                 })}
               </span>
-              <div
+              <motion.div
                 className={styles.xpDock}
                 style={xpDockStyle}
                 aria-label={`Level ${lifetimeXpSummary.currentLevel}. ${formattedLifetimeXp} XP total. ${formattedXpToNextLevel} XP to next level.`}
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
               >
                 <XpBandanaLevelMark
                   className={styles.xpDockBadge}
@@ -6821,16 +7237,18 @@ export default function HomePage() {
                   level={lifetimeXpSummary.currentLevel}
                 />
                 <div className={styles.xpDockTrack}>
-                  <div
+                  <motion.div
                     className={styles.xpDockFill}
-                    style={{ width: `${Math.max(8, lifetimeXpSummary.progressToNextLevel * 100)}%` }}
+                    initial={false}
+                    animate={{ width: `${Math.max(8, lifetimeXpSummary.progressToNextLevel * 100)}%` }}
+                    transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
                   />
                   <div className={styles.xpDockCopy}>
                     <strong>{formattedLifetimeXp} XP</strong>
                     <small>{formattedXpToNextLevel} to level {lifetimeXpSummary.currentLevel + 1}</small>
                   </div>
                 </div>
-              </div>
+              </motion.div>
               <button
                 type="button"
                 className={`${styles.profileDockButton} ${
@@ -6892,6 +7310,24 @@ export default function HomePage() {
                       <strong>{streak}d</strong>
                     </div>
                   </div>
+                  <div className={styles.mobileSummaryRail}>
+                    <article className={styles.mobileSummaryRailItem}>
+                      <span>Next block</span>
+                      <strong>{nextPlannedBlock?.title ?? "No block queued"}</strong>
+                      <small>
+                        {nextPlannedBlock
+                          ? `${normalizeTimeLabel(nextPlannedBlock.timeOfDay)} · ${nextPlannedBlock.durationMinutes}m`
+                          : "Place the next move before the day opens up."}
+                      </small>
+                    </article>
+                    <article className={styles.mobileSummaryRailItem}>
+                      <span>Return points</span>
+                      <strong>{dueReminderNotes.length} due today</strong>
+                      <small>
+                        {dueReminderNotes[0]?.title ?? "No reminders are pulling at you right now."}
+                      </small>
+                    </article>
+                  </div>
                 </article>
 
                 <div className={styles.mobileTimerWrap} ref={todayTimerRef}>
@@ -6937,6 +7373,54 @@ export default function HomePage() {
                   <strong className={styles.statValueSmall}>{focusMetrics.weekMinutes} minutes</strong>
                 </article>
               </section>
+
+              {!isMobileViewport && (
+                <section className={styles.todayCommandStrip}>
+                  <article className={styles.todayCommandTile}>
+                    <span>Next block</span>
+                    <strong>{nextPlannedBlock?.title ?? "No active block queued"}</strong>
+                    <small>
+                      {nextPlannedBlock
+                        ? `${normalizeTimeLabel(nextPlannedBlock.timeOfDay)} · ${nextPlannedBlock.durationMinutes}m`
+                        : "Use Schedule to place the next move before drift opens up."}
+                    </small>
+                  </article>
+                  <article className={styles.todayCommandTile}>
+                    <span>Last session</span>
+                    <strong>
+                      {lastSession
+                        ? new Date(lastSession.completedAtISO).toLocaleTimeString([], {
+                            hour: "numeric",
+                            minute: "2-digit",
+                          })
+                        : "No session saved"}
+                    </strong>
+                    <small>
+                      {lastSessionHoursAgo !== null
+                        ? `${Math.round(lastSessionHoursAgo)}h ago`
+                        : "Start the first clean block of the day."}
+                    </small>
+                  </article>
+                  <article className={styles.todayCommandTile}>
+                    <span>Return points</span>
+                    <strong>{dueReminderNotes.length} due today</strong>
+                    <small>
+                      {dueReminderNotes[0]?.title
+                        ? `First return point: ${dueReminderNotes[0].title}`
+                        : "No reminders are pulling on you right now."}
+                    </small>
+                  </article>
+                  <article className={styles.todayCommandTile}>
+                    <span>Latest note</span>
+                    <strong>{latestNote?.title || "No note captured yet"}</strong>
+                    <small>
+                      {latestNote
+                        ? new Date(latestNote.updatedAtISO).toLocaleDateString()
+                        : "Capture one thought worth returning to."}
+                    </small>
+                  </article>
+                </section>
+              )}
 
               {!isPro && (
                 <section className={styles.adStrip}>
@@ -7037,6 +7521,7 @@ export default function HomePage() {
                       <div>
                         <p className={styles.sectionLabel}>Command Center</p>
                         <h2 className={styles.cardTitle}>Today under command</h2>
+                        <p className={styles.accountMeta}>The minimum clear read on whether the day is tightening or drifting.</p>
                       </div>
                       <button type="button" className={styles.reportButton} onClick={() => void copyWeeklyReport()}>
                         {reportCopyStatus || "Copy Whelm report"}
@@ -7068,9 +7553,10 @@ export default function HomePage() {
                 </div>
 
                 <aside className={styles.rightColumn}>
-                  <article className={styles.card}>
+                  <article className={`${styles.card} ${styles.todayUtilityCard}`}>
                     <p className={styles.sectionLabel}>Quick Capture</p>
                     <h2 className={styles.cardTitle}>Keep the thought</h2>
+                    <p className={styles.accountMeta}>Recent notes should be one tap away, not buried under editing chrome.</p>
                     <div className={styles.quickNoteList}>
                       {orderedNotes.slice(0, 4).map((note) => (
                         <button
@@ -7096,9 +7582,10 @@ export default function HomePage() {
                     </button>
                   </article>
 
-                  <article className={styles.card}>
+                  <article className={`${styles.card} ${styles.todayUtilityCard}`}>
                     <p className={styles.sectionLabel}>Due Today</p>
                     <h2 className={styles.cardTitle}>Return points</h2>
+                    <p className={styles.accountMeta}>These are the things that should pull you back into the right lane.</p>
                     {dueReminderNotes.length === 0 ? (
                       <p className={styles.emptyText}>No note reminders due today.</p>
                     ) : (
@@ -7126,7 +7613,7 @@ export default function HomePage() {
                     )}
                   </article>
 
-                  <article className={styles.card}>
+                  <article className={`${styles.card} ${styles.todayAccessCard}`}>
                     <p className={styles.sectionLabel}>Access</p>
                     <p className={styles.accountMeta}>
                       {isPro ? "Whelm Pro" : "Whelm Free"}
@@ -7144,7 +7631,7 @@ export default function HomePage() {
           )}
 
           {activeTab === "calendar" && (
-            <section className={styles.calendarGrid} ref={calendarSectionRef}>
+            <AnimatedTabSection className={styles.calendarGrid} sectionRef={calendarSectionRef}>
               <article
                 className={`${styles.card} ${calendarView === "month" ? styles.calendarPrimaryExpanded : ""} ${
                   calendarView === "month" && selectedMonthTone ? styles[`calendarToneSurface${selectedMonthTone}`] : ""
@@ -7335,7 +7822,7 @@ export default function HomePage() {
                             : day.tone;
 
                         return (
-                        <button
+                        <motion.button
                           type="button"
                           key={day.key}
                           className={`${styles.monthDayCell} ${
@@ -7361,6 +7848,13 @@ export default function HomePage() {
                           onClick={() => {
                             if (!day.dayNumber) return;
                             selectCalendarDate(day.key);
+                          }}
+                          initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          transition={{
+                            duration: 0.24,
+                            delay: Math.min((day.dayNumber ?? 0) * 0.006, 0.18),
+                            ease: [0.22, 1, 0.36, 1],
                           }}
                         >
                           {day.dayNumber && (
@@ -7409,7 +7903,7 @@ export default function HomePage() {
                               </div>
                             </>
                           )}
-                        </button>
+                        </motion.button>
                       )})}
                     </div>
                   </>
@@ -7657,7 +8151,7 @@ export default function HomePage() {
                             </div>
                           )}
                           {dayViewTimeline.items.map((entry) => (
-                            <button
+                            <motion.button
                               type="button"
                               key={`timeline-${entry.id}`}
                               data-calendar-entry-id={entry.id}
@@ -7690,6 +8184,9 @@ export default function HomePage() {
                                 }
                                 setCalendarPinnedEntryId((current) => (current === entry.id ? null : entry.id))
                               }}
+                              initial={{ opacity: 0, x: -8, scale: 0.98 }}
+                              animate={{ opacity: 1, x: 0, scale: 1 }}
+                              transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
                             >
                               <span className={styles.dayViewEventTime}>{entry.timeLabel}</span>
                               <strong>{entry.title}</strong>
@@ -7721,7 +8218,7 @@ export default function HomePage() {
                                   })}
                                 </span>
                               )}
-                            </button>
+                            </motion.button>
                           ))}
                         </div>
                         {activeOverlapPickerItem && activeOverlapPickerItem.overlapIds.length > 0 && (
@@ -8136,6 +8633,37 @@ export default function HomePage() {
                       {selectedDateEntries.filter((entry) => entry.source === "reminder").length} reminders,{" "}
                       {selectedDateEntries.filter((entry) => entry.source === "session").length} completed sessions
                     </p>
+                    <div className={styles.agendaCommandGrid}>
+                      <article className={styles.agendaCommandCard}>
+                        <span>Now</span>
+                        <strong>{selectedDateAgendaStateSummary.activeNow?.title ?? "No active block"}</strong>
+                        <small>
+                          {selectedDateAgendaStateSummary.activeNow
+                            ? selectedDateAgendaStateSummary.activeNow.timeLabel
+                            : "The room is open for the next deliberate block."}
+                        </small>
+                      </article>
+                      <article className={styles.agendaCommandCard}>
+                        <span>Next</span>
+                        <strong>{selectedDateAgendaStateSummary.nextUp?.title ?? "No queued block"}</strong>
+                        <small>
+                          {selectedDateAgendaStateSummary.nextUp
+                            ? `${selectedDateAgendaStateSummary.nextUp.timeLabel} · set the next move early`
+                            : "Queue the next thing before drift decides it."}
+                        </small>
+                      </article>
+                      <article className={styles.agendaCommandCard}>
+                        <span>Pressure</span>
+                        <strong>
+                          {selectedDateAgendaStateSummary.overdueCount > 0
+                            ? `${selectedDateAgendaStateSummary.overdueCount} overdue`
+                            : "Board clear"}
+                        </strong>
+                        <small>
+                          {selectedDateAgendaStateSummary.focusMinutes}m focus · {selectedDateAgendaStateSummary.reminderCount} reminders
+                        </small>
+                      </article>
+                    </div>
 
                     {isMobileViewport ? (
                       <>
@@ -8170,7 +8698,17 @@ export default function HomePage() {
                               {selectedDateEntries.length === 0 ? (
                                 <p className={styles.emptyText}>No events for this date yet.</p>
                               ) : (
-                                selectedDateEntries.slice(0, 6).map((entry) => (
+                                selectedDateEntries.slice(0, 6).map((entry) => {
+                                  const agendaState =
+                                    entry.source === "session"
+                                      ? ("logged" as const)
+                                      : resolveAgendaTimingState(
+                                          selectedDateKey,
+                                          entry.startMinute,
+                                          entry.endMinute,
+                                          entry.isCompleted,
+                                        );
+                                  return (
                                   <div
                                     key={entry.id}
                                     className={`${styles.dayAgendaItem} ${
@@ -8189,7 +8727,12 @@ export default function HomePage() {
                                     }
                                   >
                                     <div>
-                                      <p className={styles.dayAgendaTime}>{entry.timeLabel}</p>
+                                      <div className={styles.dayAgendaHeadline}>
+                                        <p className={styles.dayAgendaTime}>{entry.timeLabel}</p>
+                                        <span className={`${styles.agendaStatePill} ${styles[`agendaStatePill${agendaState.charAt(0).toUpperCase()}${agendaState.slice(1)}`]}`}>
+                                          {agendaState === "logged" ? "Logged" : agendaState}
+                                        </span>
+                                      </div>
                                       <strong className={styles.dayAgendaTitle}>{entry.title}</strong>
                                       <p className={styles.dayAgendaMeta}>{entry.subtitle}</p>
                                     </div>
@@ -8242,7 +8785,8 @@ export default function HomePage() {
                                       )}
                                     </div>
                                   </div>
-                                ))
+                                  );
+                                })
                               )}
                             </div>
                           )}
@@ -8253,7 +8797,17 @@ export default function HomePage() {
                         {selectedDateEntries.length === 0 ? (
                           <p className={styles.emptyText}>No events for this date yet.</p>
                         ) : (
-                          selectedDateEntries.slice(0, 8).map((entry) => (
+                          selectedDateEntries.slice(0, 8).map((entry) => {
+                            const agendaState =
+                              entry.source === "session"
+                                ? ("logged" as const)
+                                : resolveAgendaTimingState(
+                                    selectedDateKey,
+                                    entry.startMinute,
+                                    entry.endMinute,
+                                    entry.isCompleted,
+                                  );
+                            return (
                             <div
                               key={entry.id}
                               className={`${styles.dayAgendaItem} ${
@@ -8272,7 +8826,12 @@ export default function HomePage() {
                               }
                             >
                               <div>
-                                <p className={styles.dayAgendaTime}>{entry.timeLabel}</p>
+                                <div className={styles.dayAgendaHeadline}>
+                                  <p className={styles.dayAgendaTime}>{entry.timeLabel}</p>
+                                  <span className={`${styles.agendaStatePill} ${styles[`agendaStatePill${agendaState.charAt(0).toUpperCase()}${agendaState.slice(1)}`]}`}>
+                                    {agendaState === "logged" ? "Logged" : agendaState}
+                                  </span>
+                                </div>
                                 <strong className={styles.dayAgendaTitle}>{entry.title}</strong>
                                 <p className={styles.dayAgendaMeta}>{entry.subtitle}</p>
                               </div>
@@ -8325,7 +8884,8 @@ export default function HomePage() {
                                 )}
                               </div>
                             </div>
-                          ))
+                            );
+                          })
                         )}
                       </div>
                     )}
@@ -8349,6 +8909,13 @@ export default function HomePage() {
                         ) : (
                           selectedDatePlanGroups.visible.map((item) => {
                             const completed = item.status === "completed";
+                            const planState = completed
+                              ? ("completed" as const)
+                              : resolveAgendaTimingState(
+                                  item.dateKey,
+                                  parseTimeToMinutes(item.timeOfDay),
+                                  parseTimeToMinutes(item.timeOfDay) + item.durationMinutes,
+                                );
                             return (
                               <div
                                 key={item.id}
@@ -8376,7 +8943,12 @@ export default function HomePage() {
                                 }}
                               >
                               <div>
-                                <strong>{item.title}</strong>
+                                <div className={styles.planItemHeadline}>
+                                  <strong>{item.title}</strong>
+                                  <span className={`${styles.agendaStatePill} ${styles[`agendaStatePill${planState.charAt(0).toUpperCase()}${planState.slice(1)}`]}`}>
+                                    {planState}
+                                  </span>
+                                </div>
                                 <div className={styles.planMetaRow}>
                                   {completed ? (
                                     <span>{normalizeTimeLabel(item.timeOfDay)}</span>
@@ -8446,7 +9018,13 @@ export default function HomePage() {
                         {selectedDatePlanGroups.incomplete.length === 0 ? (
                           <p className={styles.emptyText}>No incomplete blocks for this day.</p>
                         ) : (
-                          selectedDatePlanGroups.incomplete.map((item) => (
+                          selectedDatePlanGroups.incomplete.map((item) => {
+                            const planState = resolveAgendaTimingState(
+                              item.dateKey,
+                              parseTimeToMinutes(item.timeOfDay),
+                              parseTimeToMinutes(item.timeOfDay) + item.durationMinutes,
+                            );
+                            return (
                             <div
                               key={item.id}
                               className={`${styles.planItemStatic} ${
@@ -8457,7 +9035,12 @@ export default function HomePage() {
                               onClick={() => openPlannedBlockDetail(item.id)}
                             >
                               <div>
-                                <strong>{item.title}</strong>
+                                <div className={styles.planItemHeadline}>
+                                  <strong>{item.title}</strong>
+                                  <span className={`${styles.agendaStatePill} ${styles[`agendaStatePill${planState.charAt(0).toUpperCase()}${planState.slice(1)}`]}`}>
+                                    {planState}
+                                  </span>
+                                </div>
                                 <div className={styles.planMetaRow}>
                                   <span>{normalizeTimeLabel(item.timeOfDay)}</span>
                                   <span>{item.durationMinutes}m</span>
@@ -8466,7 +9049,8 @@ export default function HomePage() {
                               </div>
                               <div className={styles.planStatusPillMuted}>Incomplete</div>
                             </div>
-                          ))
+                            );
+                          })
                         )}
                       </div>
                     )}
@@ -8627,21 +9211,21 @@ export default function HomePage() {
                   </div>
                 </div>
               )}
-            </section>
+            </AnimatedTabSection>
           )}
 
           {activeTab === "leaderboard" && (
-            <section className={styles.leaderboardShell} ref={leaderboardSectionRef}>
+            <AnimatedTabSection className={styles.leaderboardShell} sectionRef={leaderboardSectionRef}>
               <article
                 className={`${styles.card} ${styles.leaderboardHeroCard}`}
                 ref={leaderboardPrimaryRef}
               >
                 <div className={styles.leaderboardHeroHeader}>
                   <div>
-                    <p className={styles.sectionLabel}>Leaderboard</p>
-                    <h2 className={styles.cardTitle}>Command rank</h2>
+                    <p className={styles.sectionLabel}>Whelmboard</p>
+                    <h2 className={styles.cardTitle}>Global command rank</h2>
                     <p className={styles.accountMeta}>
-                      Switch between XP and streak standings. Ranking updates use deterministic tie-breakers for a clean board.
+                      Switch between XP and streak standings. Whelmboard updates use deterministic tie-breakers for a clean board.
                     </p>
                   </div>
                   <div className={styles.leaderboardHeroBadge}>
@@ -8650,7 +9234,7 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                <div className={styles.leaderboardToggle} role="tablist" aria-label="Leaderboard views">
+                <div className={styles.leaderboardToggle} role="tablist" aria-label="Whelmboard views">
                   <button
                     type="button"
                     role="tab"
@@ -8702,15 +9286,15 @@ export default function HomePage() {
                   </article>
                   <article className={styles.leaderboardHeroStat}>
                     <span>Current leader</span>
-                    <strong>{leaderboardLeader?.username ?? "No data"}</strong>
+                    <strong>{leaderboardLeader?.username ?? "No leader yet"}</strong>
                     <small>
                       {leaderboardMetricTab === "xp"
                         ? leaderboardLeader
                           ? formatLeaderboardXp(leaderboardLeader.totalXp)
-                          : "Waiting"
+                          : "Loading"
                         : leaderboardLeader
                           ? `${leaderboardLeader.currentStreak}d streak`
-                          : "Waiting"}
+                          : "Loading"}
                     </small>
                   </article>
                   <article className={styles.leaderboardHeroStat}>
@@ -8725,13 +9309,36 @@ export default function HomePage() {
                 </div>
               </article>
 
+              {leaderboardPodiumRows.length > 0 ? (
+                <article className={`${styles.card} ${styles.leaderboardPodiumSection}`}>
+                  <div className={styles.cardHeader}>
+                    <div>
+                      <p className={styles.sectionLabel}>Podium</p>
+                      <h2 className={styles.cardTitle}>Top command holders</h2>
+                    </div>
+                    <span className={styles.leaderboardCountPill}>
+                      {leaderboardMetricTab === "xp" ? "Prestige by XP" : "Prestige by streak"}
+                    </span>
+                  </div>
+                  <div className={styles.leaderboardPodiumGrid}>
+                    {leaderboardPodiumRows.map((row) => (
+                      <LeaderboardPodiumCard
+                        key={`podium-${row.entry.id}`}
+                        row={row}
+                        tab={leaderboardMetricTab}
+                      />
+                    ))}
+                  </div>
+                </article>
+              ) : null}
+
               <article className={`${styles.card} ${styles.leaderboardSummaryCard}`}>
                 <div className={styles.cardHeader}>
                   <div>
                     <p className={styles.sectionLabel}>Bandana holders</p>
                     <h2 className={styles.cardTitle}>Top holders by bandana tier</h2>
                   </div>
-                  <span className={styles.leaderboardCountPill}>Global ladder</span>
+                  <span className={styles.leaderboardCountPill}>Global Whelmboard</span>
                 </div>
 
                 <div className={styles.leaderboardBandanaGrid}>
@@ -8797,9 +9404,9 @@ export default function HomePage() {
                   </div>
                 ) : !leaderboardHasEntries ? (
                   <div className={styles.leaderboardEmptyState}>
-                    <strong>No leaderboard data yet</strong>
+                    <strong>No Whelmboard data yet</strong>
                     <p className={styles.accountMeta}>
-                      Once competitive data is available, the global Whelm ladder will populate here.
+                      Once competitive data is available, the global Whelmboard will populate here.
                     </p>
                   </div>
                 ) : (
@@ -8834,7 +9441,7 @@ export default function HomePage() {
                   <div className={styles.cardHeader}>
                     <div>
                       <p className={styles.sectionLabel}>Around you</p>
-                      <h2 className={styles.cardTitle}>Your local slice of the global ladder</h2>
+                      <h2 className={styles.cardTitle}>Your local slice of the Whelmboard</h2>
                     </div>
                   </div>
                   <div className={styles.leaderboardBoardList}>
@@ -8850,11 +9457,11 @@ export default function HomePage() {
                   </div>
                 </article>
               ) : null}
-            </section>
+            </AnimatedTabSection>
           )}
 
           {activeTab === "mirror" && (
-            <section className={styles.mirrorShell} ref={mirrorSectionRef}>
+            <AnimatedTabSection className={styles.mirrorShell} sectionRef={mirrorSectionRef}>
               <CollapsibleSectionCard
                 className={styles.mirrorHeroCard}
                 label="Private Reflection"
@@ -9025,11 +9632,11 @@ export default function HomePage() {
                   </div>
                 ) : null}
               </CollapsibleSectionCard>
-            </section>
+            </AnimatedTabSection>
           )}
 
           {activeTab === "notes" && (
-            <section className={styles.notesWorkspace} ref={notesSectionRef}>
+            <AnimatedTabSection className={styles.notesWorkspace} sectionRef={notesSectionRef}>
               {isMobileViewport && <div className={styles.mobileNotesPanel}>
                 <article className={styles.mobileNotesStartCard} ref={notesStartRef}>
                   <div className={styles.mobileNotesStartHeaderCompact}>
@@ -9093,13 +9700,13 @@ export default function HomePage() {
                       />
                       <div className={styles.mobileRecentList}>
                         {recentNotes.map((note) => (
-                          <button
-                            key={note.id}
-                            type="button"
-                            className={styles.mobileRecentNote}
-                            style={{ backgroundColor: note.color || "#f8fafc" }}
-                            onClick={() => openMobileNoteEditor(note.id)}
-                          >
+                        <button
+                          key={note.id}
+                          type="button"
+                          className={styles.mobileRecentNote}
+                          style={{ backgroundColor: note.shellColor || "#fff7d6" }}
+                          onClick={() => openMobileNoteEditor(note.id)}
+                        >
                             <strong>{note.title || "Untitled note"}</strong>
                             <span>{new Date(note.updatedAtISO).toLocaleDateString()}</span>
                           </button>
@@ -9116,7 +9723,8 @@ export default function HomePage() {
                   <article
                     className={styles.mobileNotesEditorCard}
                     ref={notesEditorRef}
-                    style={notesShellBackground(themeMode, selectedNoteSurfaceColor)}
+                    style={notesShellBackground(themeMode, selectedNoteSurfaceColor, selectedNotePageColor)}
+                    data-note-fill={selectedNote.surfaceStyle}
                   >
                     <div className={styles.notesStudioHero}>
                       <div>
@@ -9127,26 +9735,70 @@ export default function HomePage() {
                       </div>
                       <div className={styles.noteFooterActions}>
                         {isPro ? (
-                          <button
-                            type="button"
-                            className={`${styles.noteColorPickerTrigger} ${styles.noteToneButton}`}
-                            style={
-                              { ["--note-tone-color" as const]: selectedNote.color || "#e7e5e4" } as CSSProperties
-                            }
-                            onClick={() => {
-                              setColorPickerOpen((open) => !open);
-                              setTextColorPickerOpen(false);
-                              setHighlightPickerOpen(false);
-                            }}
-                          >
-                            <span className={styles.noteToneButtonLabel}>Page tone</span>
-                            <span className={styles.noteColorPickerPreview}>
-                              <span
-                                className={styles.noteColorPickerPreviewFill}
-                                style={{ backgroundColor: selectedNote.color || "#e7e5e4" }}
-                              />
-                            </span>
-                          </button>
+                          <div className={styles.noteToneControlRow}>
+                            <div className={styles.noteFillModeSwitch}>
+                              <button
+                                type="button"
+                                className={`${styles.noteFillModeButton} ${
+                                  selectedNote.surfaceStyle === "solid" ? styles.noteFillModeButtonActive : ""
+                                }`}
+                                onClick={() => void updateSelectedNote({ surfaceStyle: "solid" })}
+                              >
+                                Solid
+                              </button>
+                              <button
+                                type="button"
+                                className={`${styles.noteFillModeButton} ${
+                                  selectedNote.surfaceStyle === "airy" ? styles.noteFillModeButtonActive : ""
+                                }`}
+                                onClick={() => void updateSelectedNote({ surfaceStyle: "airy" })}
+                              >
+                                Airy
+                              </button>
+                            </div>
+                            <button
+                              type="button"
+                              className={`${styles.noteColorPickerTrigger} ${styles.noteToneButton}`}
+                              style={
+                                { ["--note-tone-color" as const]: selectedNote.color || "#e7e5e4" } as CSSProperties
+                              }
+                              onClick={() => {
+                                setColorPickerOpen((open) => !open);
+                                setShellColorPickerOpen(false);
+                                setTextColorPickerOpen(false);
+                                setHighlightPickerOpen(false);
+                              }}
+                            >
+                              <span className={styles.noteToneButtonLabel}>Page tone</span>
+                              <span className={styles.noteColorPickerPreview}>
+                                <span
+                                  className={styles.noteColorPickerPreviewFill}
+                                  style={{ backgroundColor: selectedNote.color || "#e7e5e4" }}
+                                />
+                              </span>
+                            </button>
+                            <button
+                              type="button"
+                              className={`${styles.noteColorPickerTrigger} ${styles.noteShellButton}`}
+                              style={
+                                { ["--note-tone-color" as const]: selectedNote.shellColor || "#fff7d6" } as CSSProperties
+                              }
+                              onClick={() => {
+                                setShellColorPickerOpen((open) => !open);
+                                setColorPickerOpen(false);
+                                setTextColorPickerOpen(false);
+                                setHighlightPickerOpen(false);
+                              }}
+                            >
+                              <span className={styles.noteToneButtonLabel}>Notebook color</span>
+                              <span className={styles.noteColorPickerPreview}>
+                                <span
+                                  className={styles.noteColorPickerPreviewFill}
+                                  style={{ backgroundColor: selectedNote.shellColor || "#fff7d6" }}
+                                />
+                              </span>
+                            </button>
+                          </div>
                         ) : null}
                         <button
                           type="button"
@@ -9172,6 +9824,25 @@ export default function HomePage() {
                             onClick={() => {
                               void updateSelectedNote({ color: color.value });
                               setColorPickerOpen(false);
+                            }}
+                          />
+                        ))}
+                      </div>
+                    )}
+                    {isPro && shellColorPickerOpen && (
+                      <div className={styles.noteColorPickerPopover}>
+                        {NOTE_COLORS.map((color) => (
+                          <button
+                            type="button"
+                            key={color.value}
+                            className={`${styles.noteColorSwatch} ${
+                              selectedNote.shellColor === color.value ? styles.noteColorSwatchActive : ""
+                            }`}
+                            style={{ backgroundColor: color.value }}
+                            title={color.label}
+                            onClick={() => {
+                              void updateSelectedNote({ shellColor: color.value });
+                              setShellColorPickerOpen(false);
                             }}
                           />
                         ))}
@@ -9431,15 +10102,27 @@ export default function HomePage() {
                 ) : null}
               </div>}
 
-              {!isMobileViewport && <CompanionPulse {...companionState.pulses.notes} />}
               {!isMobileViewport && (
-                <aside
+                <motion.aside
                   className={styles.notesSidebar}
-                  style={notesShellBackground(themeMode, selectedNoteSurfaceColor)}
+                  style={notesShellBackground(themeMode, selectedNoteSurfaceColor, selectedNotePageColor)}
+                  data-note-fill={selectedNote?.surfaceStyle ?? "solid"}
+                  initial={{ opacity: 0, x: -16 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
                 >
-                <button type="button" className={styles.newNoteButton} onClick={createWorkspaceNote}>
-                  + New note
-                </button>
+                <div className={styles.notesSidebarHeader}>
+                  <div>
+                    <p className={styles.sectionLabel}>Notes</p>
+                    <h2 className={styles.notesSidebarTitle}>Writing studio</h2>
+                    <p className={styles.notesSidebarMeta}>
+                      {filteredNotes.length} visible note{filteredNotes.length === 1 ? "" : "s"}
+                    </p>
+                  </div>
+                  <button type="button" className={styles.newNoteButton} onClick={createWorkspaceNote}>
+                    + New
+                  </button>
+                </div>
                 <input
                   value={notesSearch}
                   onChange={(event) => setNotesSearch(event.target.value)}
@@ -9468,12 +10151,25 @@ export default function HomePage() {
                 </div>
                 <div className={styles.noteList}>
                   {filteredNotes.map((note) => (
-                    <div key={note.id} className={styles.noteListRow}>
-                      <button
+                    <motion.div
+                      key={note.id}
+                      className={styles.noteListRow}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{
+                        duration: 0.24,
+                        delay: Math.min(filteredNotes.findIndex((item) => item.id === note.id) * 0.03, 0.24),
+                        ease: [0.22, 1, 0.36, 1],
+                      }}
+                    >
+                      <motion.button
                         type="button"
                         className={`${styles.noteListItem} ${selectedNoteId === note.id ? styles.noteListItemActive : ""}`}
-                        style={{ backgroundColor: note.color || "#f8fafc" }}
+                        style={{ ["--note-item-tint" as const]: note.shellColor || "#fff7d6" } as CSSProperties}
+                        data-note-fill={note.surfaceStyle ?? "solid"}
                         onClick={() => setSelectedNoteId(note.id)}
+                        whileHover={{ y: -2, scale: 1.01 }}
+                        whileTap={{ scale: 0.99 }}
                       >
                         <span className={styles.noteListTitle}>
                           {note.isPinned ? "★ " : ""}
@@ -9483,7 +10179,7 @@ export default function HomePage() {
                           {(note.category || "personal").toUpperCase()} ·{" "}
                           {new Date(note.updatedAtISO).toLocaleDateString()}
                         </span>
-                      </button>
+                      </motion.button>
                       <button
                         type="button"
                         className={styles.notePinButton}
@@ -9493,7 +10189,7 @@ export default function HomePage() {
                       >
                         {note.isPinned ? "★" : "☆"}
                       </button>
-                    </div>
+                    </motion.div>
                   ))}
                   {filteredNotes.length === 0 && (
                     <p className={styles.emptyText}>No notes match your filters.</p>
@@ -9505,13 +10201,17 @@ export default function HomePage() {
                     whenever you want it back.
                   </p>
                 ) : null}
-              </aside>
+              </motion.aside>
               )}
 
               {!isMobileViewport && (
-                <article
+                <motion.article
                   className={styles.notesEditorCard}
-                  style={notesShellBackground(themeMode, selectedNoteSurfaceColor)}
+                  style={notesShellBackground(themeMode, selectedNoteSurfaceColor, selectedNotePageColor)}
+                  data-note-fill={selectedNote?.surfaceStyle ?? "solid"}
+                  initial={{ opacity: 0, x: 16 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
                 >
                 {!selectedNote ? (
                   <div className={styles.notesEmptyEditor}>
@@ -9527,37 +10227,81 @@ export default function HomePage() {
                   <>
                     <div className={styles.notesStudioHero}>
                       <div>
-                        <p className={styles.sectionLabel}>Whelm Writing Studio</p>
-                        <h2 className={`${styles.cardTitle} ${styles.noteSurfaceHeading}`}>
-                          Elite notes, not scratch paper
+                        <p className={styles.sectionLabel}>Writing Studio</p>
+                        <h2 className={styles.notesEditorTitle}>
+                          {selectedNote.title || "Untitled note"}
                         </h2>
                         <p className={styles.noteStudioCopy}>
-                          Shape the page the way you think: typography, emphasis, structure, and tone.
+                          Cleaner writing surface. Less chrome, more thought.
                         </p>
                       </div>
                       <div className={styles.noteColorRow}>
                         {isPro ? (
                           <>
-                            <button
-                              type="button"
-                              className={`${styles.noteColorPickerTrigger} ${styles.noteToneButton}`}
-                              style={
-                                { ["--note-tone-color" as const]: selectedNote.color || "#e7e5e4" } as CSSProperties
-                              }
-                              onClick={() => {
-                                setColorPickerOpen((open) => !open);
-                                setTextColorPickerOpen(false);
-                                setHighlightPickerOpen(false);
-                              }}
-                            >
-                              <span className={styles.noteToneButtonLabel}>Page tone</span>
-                              <span className={styles.noteColorPickerPreview}>
-                                <span
-                                  className={styles.noteColorPickerPreviewFill}
-                                  style={{ backgroundColor: selectedNote.color || "#e7e5e4" }}
-                                />
-                              </span>
-                            </button>
+                            <div className={styles.noteToneControlRow}>
+                              <div className={styles.noteFillModeSwitch}>
+                                <button
+                                  type="button"
+                                  className={`${styles.noteFillModeButton} ${
+                                    selectedNote.surfaceStyle === "solid" ? styles.noteFillModeButtonActive : ""
+                                  }`}
+                                  onClick={() => void updateSelectedNote({ surfaceStyle: "solid" })}
+                                >
+                                  Solid
+                                </button>
+                                <button
+                                  type="button"
+                                  className={`${styles.noteFillModeButton} ${
+                                    selectedNote.surfaceStyle === "airy" ? styles.noteFillModeButtonActive : ""
+                                  }`}
+                                  onClick={() => void updateSelectedNote({ surfaceStyle: "airy" })}
+                                >
+                                  Airy
+                                </button>
+                              </div>
+                              <button
+                                type="button"
+                                className={`${styles.noteColorPickerTrigger} ${styles.noteToneButton}`}
+                                style={
+                                  { ["--note-tone-color" as const]: selectedNote.color || "#e7e5e4" } as CSSProperties
+                                }
+                                onClick={() => {
+                                  setColorPickerOpen((open) => !open);
+                                  setShellColorPickerOpen(false);
+                                  setTextColorPickerOpen(false);
+                                  setHighlightPickerOpen(false);
+                                }}
+                              >
+                                <span className={styles.noteToneButtonLabel}>Page tone</span>
+                                <span className={styles.noteColorPickerPreview}>
+                                  <span
+                                    className={styles.noteColorPickerPreviewFill}
+                                    style={{ backgroundColor: selectedNote.color || "#e7e5e4" }}
+                                  />
+                                </span>
+                              </button>
+                              <button
+                                type="button"
+                                className={`${styles.noteColorPickerTrigger} ${styles.noteShellButton}`}
+                                style={
+                                  { ["--note-tone-color" as const]: selectedNote.shellColor || "#fff7d6" } as CSSProperties
+                                }
+                                onClick={() => {
+                                  setShellColorPickerOpen((open) => !open);
+                                  setColorPickerOpen(false);
+                                  setTextColorPickerOpen(false);
+                                  setHighlightPickerOpen(false);
+                                }}
+                              >
+                                <span className={styles.noteToneButtonLabel}>Notebook color</span>
+                                <span className={styles.noteColorPickerPreview}>
+                                  <span
+                                    className={styles.noteColorPickerPreviewFill}
+                                    style={{ backgroundColor: selectedNote.shellColor || "#fff7d6" }}
+                                  />
+                                </span>
+                              </button>
+                            </div>
 
                             {colorPickerOpen && (
                               <div className={styles.noteColorPickerPopover}>
@@ -9573,6 +10317,25 @@ export default function HomePage() {
                                     onClick={() => {
                                       void updateSelectedNote({ color: color.value });
                                       setColorPickerOpen(false);
+                                    }}
+                                  />
+                                ))}
+                              </div>
+                            )}
+                            {shellColorPickerOpen && (
+                              <div className={styles.noteColorPickerPopover}>
+                                {NOTE_COLORS.map((color) => (
+                                  <button
+                                    type="button"
+                                    key={color.value}
+                                    className={`${styles.noteColorSwatch} ${
+                                      selectedNote.shellColor === color.value ? styles.noteColorSwatchActive : ""
+                                    }`}
+                                    style={{ backgroundColor: color.value }}
+                                    title={color.label}
+                                    onClick={() => {
+                                      void updateSelectedNote({ shellColor: color.value });
+                                      setShellColorPickerOpen(false);
                                     }}
                                   />
                                 ))}
@@ -9612,6 +10375,15 @@ export default function HomePage() {
                         )}
                       </div>
                     </div>
+
+                    <input
+                      value={selectedNote.title}
+                      onChange={(event) => {
+                        void updateSelectedNote({ title: event.target.value });
+                      }}
+                      placeholder="Note title"
+                      className={styles.noteTitleInput}
+                    />
 
                     <div className={styles.noteMetaRow}>
                       <label className={styles.noteMetaLabel}>
@@ -9654,7 +10426,9 @@ export default function HomePage() {
                     </div>
 
                     <div className={styles.noteEditorToolbar}>
-                      <div className={styles.noteToolbarGroup}>
+                      <div className={styles.noteToolbarSection}>
+                        <span className={styles.noteToolbarLabel}>Text</span>
+                        <div className={styles.noteToolbarGroup}>
                         <button
                           type="button"
                           className={styles.noteToolButton}
@@ -9699,9 +10473,12 @@ export default function HomePage() {
                         >
                           Clear
                         </button>
+                        </div>
                       </div>
 
-                      <div className={styles.noteToolbarGroup}>
+                      <div className={styles.noteToolbarSection}>
+                        <span className={styles.noteToolbarLabel}>Structure</span>
+                        <div className={styles.noteToolbarGroup}>
                         <button
                           type="button"
                           className={styles.noteToolButton}
@@ -9746,9 +10523,12 @@ export default function HomePage() {
                         >
                           Divider
                         </button>
+                        </div>
                       </div>
 
-                      <div className={styles.noteToolbarGroup}>
+                      <div className={styles.noteToolbarSection}>
+                        <span className={styles.noteToolbarLabel}>Layout</span>
+                        <div className={styles.noteToolbarGroup}>
                         <button
                           type="button"
                           className={styles.noteToolButton}
@@ -9793,126 +10573,121 @@ export default function HomePage() {
                         >
                           Center
                         </button>
+                        </div>
                       </div>
 
-                      {isPro ? <div className={styles.noteToolbarGroup}>
-                        <select
-                          className={styles.noteToolSelect}
-                          value={selectedNote.fontFamily}
-                          onMouseDown={() => saveEditorSelection()}
-                          onChange={(event) => {
-                            const nextFont = event.target.value;
-                            applyEditorCommand("fontName", nextFont);
-                            void updateSelectedNote({ fontFamily: nextFont });
-                          }}
-                        >
-                          {NOTE_FONTS.map((font) => (
-                            <option key={font.label} value={font.value}>
-                              {font.label}
-                            </option>
-                          ))}
-                        </select>
-
-                        <select
-                          className={styles.noteToolSelect}
-                          value={String(selectedNote.fontSizePx)}
-                          onMouseDown={() => saveEditorSelection()}
-                          onChange={(event) => {
-                            const nextSize = Number(event.target.value);
-                            const option = NOTE_FONT_SIZES.find((item) => item.value === nextSize);
-                            applyEditorCommand("fontSize", option?.command ?? "4");
-                            void updateSelectedNote({ fontSizePx: nextSize });
-                          }}
-                        >
-                          {NOTE_FONT_SIZES.map((size) => (
-                            <option key={size.value} value={size.value}>
-                              {size.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div> : null}
-
-                      {isPro ? <div className={styles.noteToolbarGroup}>
-                        <div className={styles.noteInlinePalette}>
-                          <button
-                            type="button"
-                            className={styles.noteToolButton}
-                            onClick={() => {
-                              setTextColorPickerOpen((open) => !open);
-                              setHighlightPickerOpen(false);
-                              saveEditorSelection();
-                            }}
-                          >
-                            Text color
-                          </button>
-                          {textColorPickerOpen && (
-                            <div className={styles.noteInlinePalettePopover}>
-                              {NOTE_TEXT_COLORS.map((color) => (
-                                <button
-                                  type="button"
-                                  key={color.value}
-                                  className={styles.noteInlineSwatch}
-                                  style={{ backgroundColor: color.value }}
-                                  title={color.label}
-                                  onMouseDown={(event) => {
-                                    event.preventDefault();
-                                    saveEditorSelection();
-                                  }}
-                                  onClick={() => {
-                                    applyEditorCommand("foreColor", color.value);
-                                    setTextColorPickerOpen(false);
-                                  }}
-                                />
+                      {isPro ? (
+                        <div className={styles.noteToolbarSection}>
+                          <span className={styles.noteToolbarLabel}>Style</span>
+                          <div className={styles.noteToolbarGroup}>
+                            <select
+                              className={styles.noteToolSelect}
+                              value={selectedNote.fontFamily}
+                              onMouseDown={() => saveEditorSelection()}
+                              onChange={(event) => {
+                                const nextFont = event.target.value;
+                                applyEditorCommand("fontName", nextFont);
+                                void updateSelectedNote({ fontFamily: nextFont });
+                              }}
+                            >
+                              {NOTE_FONTS.map((font) => (
+                                <option key={font.label} value={font.value}>
+                                  {font.label}
+                                </option>
                               ))}
-                            </div>
-                          )}
-                        </div>
+                            </select>
 
-                        <div className={styles.noteInlinePalette}>
-                          <button
-                            type="button"
-                            className={styles.noteToolButton}
-                            onClick={() => {
-                              setHighlightPickerOpen((open) => !open);
-                              setTextColorPickerOpen(false);
-                              saveEditorSelection();
-                            }}
-                          >
-                            Highlight
-                          </button>
-                          {highlightPickerOpen && (
-                            <div className={styles.noteInlinePalettePopover}>
-                              {NOTE_HIGHLIGHTS.map((color) => (
-                                <button
-                                  type="button"
-                                  key={color.value}
-                                  className={styles.noteInlineSwatch}
-                                  style={{ backgroundColor: color.value }}
-                                  title={color.label}
-                                  onMouseDown={(event) => {
-                                    event.preventDefault();
-                                    saveEditorSelection();
-                                  }}
-                                  onClick={() => {
-                                    applyHighlightColor(color.value);
-                                    setHighlightPickerOpen(false);
-                                  }}
-                                />
+                            <select
+                              className={styles.noteToolSelect}
+                              value={String(selectedNote.fontSizePx)}
+                              onMouseDown={() => saveEditorSelection()}
+                              onChange={(event) => {
+                                const nextSize = Number(event.target.value);
+                                const option = NOTE_FONT_SIZES.find((item) => item.value === nextSize);
+                                applyEditorCommand("fontSize", option?.command ?? "4");
+                                void updateSelectedNote({ fontSizePx: nextSize });
+                              }}
+                            >
+                              {NOTE_FONT_SIZES.map((size) => (
+                                <option key={size.value} value={size.value}>
+                                  {size.label}
+                                </option>
                               ))}
+                            </select>
+
+                            <div className={styles.noteInlinePalette}>
+                              <button
+                                type="button"
+                                className={styles.noteToolButton}
+                                onClick={() => {
+                                  setTextColorPickerOpen((open) => !open);
+                                  setHighlightPickerOpen(false);
+                                  saveEditorSelection();
+                                }}
+                              >
+                                Text color
+                              </button>
+                              {textColorPickerOpen && (
+                                <div className={styles.noteInlinePalettePopover}>
+                                  {NOTE_TEXT_COLORS.map((color) => (
+                                    <button
+                                      type="button"
+                                      key={color.value}
+                                      className={styles.noteInlineSwatch}
+                                      style={{ backgroundColor: color.value }}
+                                      title={color.label}
+                                      onMouseDown={(event) => {
+                                        event.preventDefault();
+                                        saveEditorSelection();
+                                      }}
+                                      onClick={() => {
+                                        applyEditorCommand("foreColor", color.value);
+                                        setTextColorPickerOpen(false);
+                                      }}
+                                    />
+                                  ))}
+                                </div>
+                              )}
                             </div>
-                          )}
+
+                            <div className={styles.noteInlinePalette}>
+                              <button
+                                type="button"
+                                className={styles.noteToolButton}
+                                onClick={() => {
+                                  setHighlightPickerOpen((open) => !open);
+                                  setTextColorPickerOpen(false);
+                                  saveEditorSelection();
+                                }}
+                              >
+                                Highlight
+                              </button>
+                              {highlightPickerOpen && (
+                                <div className={styles.noteInlinePalettePopover}>
+                                  {NOTE_HIGHLIGHTS.map((color) => (
+                                    <button
+                                      type="button"
+                                      key={color.value}
+                                      className={styles.noteInlineSwatch}
+                                      style={{ backgroundColor: color.value }}
+                                      title={color.label}
+                                      onMouseDown={(event) => {
+                                        event.preventDefault();
+                                        saveEditorSelection();
+                                      }}
+                                      onClick={() => {
+                                        applyHighlightColor(color.value);
+                                        setHighlightPickerOpen(false);
+                                      }}
+                                    />
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                      </div> : null}
+                      ) : null}
                     </div>
-
-                    <input
-                      value={selectedNote.title}
-                      onChange={(event) => {
-                        void updateSelectedNote({ title: event.target.value });
-                      }}
-                      placeholder="Note title"
-                      className={styles.noteTitleInput}
-                    />
 
                     <div
                       ref={editorRef}
@@ -9968,13 +10743,13 @@ export default function HomePage() {
                     </div>
                   </>
                 )}
-              </article>
+              </motion.article>
               )}
-            </section>
+            </AnimatedTabSection>
           )}
 
           {activeTab === "history" && (
-            <section className={styles.historyShell} ref={historySectionRef}>
+            <AnimatedTabSection className={styles.historyShell} sectionRef={historySectionRef}>
               <CompanionPulse {...companionState.pulses.history} />
               <article className={styles.card} ref={historyPrimaryRef}>
                 <p className={styles.sectionLabel}>Block History</p>
@@ -10219,11 +10994,11 @@ export default function HomePage() {
                   />
                 ) : null}
               </article>
-            </section>
+            </AnimatedTabSection>
           )}
 
           {activeTab === "reports" && (
-            <section className={styles.reportsGrid} ref={reportsSectionRef}>
+            <AnimatedTabSection className={styles.reportsGrid} sectionRef={reportsSectionRef}>
               <CompanionPulse {...companionState.pulses.reports} />
               {!isPro ? (
                 <>
@@ -10238,26 +11013,26 @@ export default function HomePage() {
                       </div>
                     </div>
                     <div className={styles.analyticsHeroGrid}>
-                      <div className={styles.analyticsHeroMetric}>
+                      <motion.div className={styles.analyticsHeroMetric} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.24 }}>
                         <span>Today</span>
                         <strong>{focusMetrics.todayMinutes}m</strong>
                         <small>{focusMetrics.todaySessions} saved session{focusMetrics.todaySessions === 1 ? "" : "s"}</small>
-                      </div>
-                      <div className={styles.analyticsHeroMetric}>
+                      </motion.div>
+                      <motion.div className={styles.analyticsHeroMetric} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.24, delay: 0.04 }}>
                         <span>7 days</span>
                         <strong>{focusMetrics.weekMinutes}m</strong>
                         <small>last week of focus</small>
-                      </div>
-                      <div className={styles.analyticsHeroMetric}>
+                      </motion.div>
+                      <motion.div className={styles.analyticsHeroMetric} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.24, delay: 0.08 }}>
                         <span>30 days</span>
                         <strong>{focusMetrics.monthMinutes}m</strong>
                         <small>recent monthly total</small>
-                      </div>
-                      <div className={styles.analyticsHeroMetric}>
+                      </motion.div>
+                      <motion.div className={styles.analyticsHeroMetric} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.24, delay: 0.12 }}>
                         <span>Active days</span>
                         <strong>{focusMetrics.activeDaysInMonth}</strong>
                         <small>days with saved minutes</small>
-                      </div>
+                      </motion.div>
                     </div>
                   </article>
                   <article className={styles.card}>
@@ -10321,17 +11096,17 @@ export default function HomePage() {
                   <p className={styles.analyticsEmptyState}>Loading advanced reports...</p>
                 ) : analyticsWeeklySummary ? (
                   <div className={styles.analyticsHeroGrid}>
-                    <div className={styles.analyticsHeroMetric}>
+                    <motion.div className={styles.analyticsHeroMetric} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.24 }}>
                       <span>Avg Performance</span>
                       <strong>{analyticsWeeklySummary.averages.dailyPerformanceScore}</strong>
                       <small>score this week</small>
-                    </div>
-                    <div className={styles.analyticsHeroMetric}>
+                    </motion.div>
+                    <motion.div className={styles.analyticsHeroMetric} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.24, delay: 0.04 }}>
                       <span>Completion Rate</span>
                       <strong>{analyticsWeeklySummary.averages.completionRate}%</strong>
                       <small>{analyticsWeeklySummary.totals.sessionsCompleted} sessions finished</small>
-                    </div>
-                    <div className={styles.analyticsHeroMetric}>
+                    </motion.div>
+                    <motion.div className={styles.analyticsHeroMetric} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.24, delay: 0.08 }}>
                       <span>Session Quality</span>
                       <strong>
                         {analyticsWeeklySummary.averages.sessionQualityScore === null
@@ -10339,16 +11114,69 @@ export default function HomePage() {
                           : analyticsWeeklySummary.averages.sessionQualityScore}
                       </strong>
                       <small>quality average</small>
-                    </div>
-                    <div className={styles.analyticsHeroMetric}>
+                    </motion.div>
+                    <motion.div className={styles.analyticsHeroMetric} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.24, delay: 0.12 }}>
                       <span>Active Days</span>
                       <strong>{analyticsWeeklySummary.activeDays}</strong>
                       <small>captured this week</small>
-                    </div>
+                    </motion.div>
                   </div>
                 ) : (
                   <p className={styles.analyticsEmptyState}>Finish a few tracked sessions to unlock richer reports.</p>
                 )}
+              </article>
+
+              <article className={`${styles.card} ${styles.analyticsCommandCard}`}>
+                <div className={styles.cardHeader}>
+                  <div>
+                    <p className={styles.sectionLabel}>Readout</p>
+                    <h2 className={styles.cardTitle}>What needs attention now</h2>
+                  </div>
+                  <span className={styles.leaderboardCountPill}>Operator view</span>
+                </div>
+                <div className={styles.analyticsCommandGrid}>
+                  <div className={styles.analyticsCommandItem}>
+                    <span>Lead insight</span>
+                    <strong>{analyticsLeadInsight?.title ?? "No standout pattern yet"}</strong>
+                    <small>
+                      {analyticsLeadInsight?.body ?? "Keep logging tracked sessions and Whelm will sharpen the readout."}
+                    </small>
+                  </div>
+                  <div className={styles.analyticsCommandItem}>
+                    <span>Best window</span>
+                    <strong>
+                      {analyticsBestHours?.bestWindow
+                        ? formatAnalyticsWindowLabel(
+                            analyticsBestHours.bestWindow.startHour,
+                            analyticsBestHours.bestWindow.endHour,
+                          )
+                        : "Still forming"}
+                    </strong>
+                    <small>
+                      {analyticsBestHours?.bestWindow
+                        ? `${analyticsBestHours.bestWindow.focusMinutes} focus minutes sit in this window.`
+                        : "Complete more saved sessions to surface your strongest hours."}
+                    </small>
+                  </div>
+                  <div className={styles.analyticsCommandItem}>
+                    <span>Main subject</span>
+                    <strong>{analyticsLeadSubject?.label ?? "No dominant lane yet"}</strong>
+                    <small>
+                      {analyticsLeadSubject
+                        ? `${analyticsLeadSubject.focusMinutes} minutes tracked here across ${analyticsLeadSubject.sessionsCompleted} sessions.`
+                        : "Subject breakdown will strengthen as more work gets categorized."}
+                    </small>
+                  </div>
+                  <div className={styles.analyticsCommandItem}>
+                    <span>Recommended nudge</span>
+                    <strong>{analyticsLeadNotification?.title ?? "No nudge queued"}</strong>
+                    <small>
+                      {analyticsLeadNotification
+                        ? `${analyticsLeadNotification.body} Deliver at ${analyticsLeadNotification.deliverAtLocalTime}.`
+                        : "Once today has enough analytics data, Whelm will queue a targeted prompt here."}
+                    </small>
+                  </div>
+                </div>
               </article>
 
               <CollapsibleSectionCard
@@ -10361,6 +11189,16 @@ export default function HomePage() {
               >
                 {analyticsScoreHistory.length > 0 ? (
                   <>
+                    <div className={styles.analyticsSectionLead}>
+                      <strong>
+                        {analyticsWeeklySummary?.averages.dailyPerformanceScore ?? "--"} average score
+                      </strong>
+                      <span>
+                        {analyticsWeeklySummary
+                          ? `${analyticsWeeklySummary.performanceBands.high} high days, ${analyticsWeeklySummary.performanceBands.recovery} recovery days`
+                          : "Watch the line to see whether performance is stabilizing or breaking."}
+                      </span>
+                    </div>
                     <div className={styles.analyticsChartFrame}>
                       <svg viewBox="0 0 100 100" className={styles.trendChart} preserveAspectRatio="none">
                         <polyline points={analyticsScorePath} className={styles.analyticsTrendLine} />
@@ -10405,7 +11243,7 @@ export default function HomePage() {
               >
                 {analyticsInsights.length > 0 ? (
                   <div className={styles.analyticsInsightList}>
-                    {analyticsInsights.map((insight) => (
+                    {analyticsInsights.map((insight, index) => (
                       <article
                         key={insight.type}
                         className={`${styles.analyticsInsightCard} ${
@@ -10415,7 +11253,11 @@ export default function HomePage() {
                               ? styles.analyticsInsightPositive
                               : styles.analyticsInsightNeutral
                         }`}
+                        data-lead-insight={index === 0 ? "true" : "false"}
                       >
+                        <span className={styles.analyticsInsightKicker}>
+                          {index === 0 ? "Lead signal" : "Pattern"}
+                        </span>
                         <p className={styles.analyticsInsightTitle}>{insight.title}</p>
                         <p className={styles.accountMeta}>{insight.body}</p>
                       </article>
@@ -10447,16 +11289,20 @@ export default function HomePage() {
                       <small>{analyticsBestHours.bestWindow.sharePercent}% of your tracked completed-session focus lives here.</small>
                     </div>
                     <div className={styles.analyticsHourList}>
-                      {analyticsTopHours.map((hour) => (
+                      {analyticsTopHours.map((hour, index) => (
                         <div key={hour.hour} className={styles.analyticsHourRow}>
                           <div>
                             <strong>{formatHourLabel(hour.hour)}</strong>
-                            <p className={styles.accountMeta}>{hour.completedSessions} sessions</p>
+                            <p className={styles.accountMeta}>
+                              {index === 0 ? "Strongest hour" : `${hour.completedSessions} sessions`}
+                            </p>
                           </div>
                           <div className={styles.analyticsBarTrack}>
-                            <div
+                            <motion.div
                               className={styles.analyticsBarFill}
-                              style={{ width: `${Math.max(8, hour.sharePercent)}%` }}
+                              initial={{ width: "8%" }}
+                              animate={{ width: `${Math.max(8, hour.sharePercent)}%` }}
+                              transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
                             />
                           </div>
                           <span>{hour.focusMinutes}m</span>
@@ -10479,16 +11325,21 @@ export default function HomePage() {
               >
                 {analyticsTopSubjects.some((subject) => subject.focusMinutes > 0) ? (
                   <div className={styles.analyticsSubjectList}>
-                    {analyticsTopSubjects.map((subject) => (
+                    {analyticsTopSubjects.map((subject, index) => (
                       <div key={subject.key} className={styles.analyticsSubjectRow}>
                         <div className={styles.analyticsSubjectHeader}>
                           <strong>{subject.label}</strong>
                           <span>{subject.focusMinutes}m</span>
                         </div>
+                        {index === 0 ? (
+                          <p className={styles.analyticsSectionCallout}>This is where most of your tracked effort is landing.</p>
+                        ) : null}
                         <div className={styles.analyticsBarTrack}>
-                          <div
+                          <motion.div
                             className={styles.analyticsBarFill}
-                            style={{ width: `${(subject.focusMinutes / analyticsTopSubjectMinutes) * 100}%` }}
+                            initial={{ width: "8%" }}
+                            animate={{ width: `${(subject.focusMinutes / analyticsTopSubjectMinutes) * 100}%` }}
+                            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
                           />
                         </div>
                         <p className={styles.accountMeta}>
@@ -10532,12 +11383,18 @@ export default function HomePage() {
               </CollapsibleSectionCard>
                 </>
               )}
-            </section>
+            </AnimatedTabSection>
           )}
 
           {activeTab === "streaks" && (
-            <section className={styles.streaksShell} ref={streaksSectionRef}>
-              <article className={`${styles.card} ${styles.streakRulesCard}`} ref={streaksPrimaryRef}>
+            <AnimatedTabSection className={styles.streaksShell} sectionRef={streaksSectionRef}>
+              <motion.article
+                className={`${styles.card} ${styles.streakRulesCard}`}
+                ref={streaksPrimaryRef}
+                initial={{ opacity: 0, y: 18 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+              >
                 <button
                   type="button"
                   className={styles.streakRulesToggle}
@@ -10548,7 +11405,12 @@ export default function HomePage() {
                   <span className={styles.streakRulesToggleDots}>{streakRulesOpen ? "Close" : "•••"}</span>
                 </button>
                 {streakRulesOpen && (
-                  <div className={styles.streakRulesPanel}>
+                  <motion.div
+                    className={styles.streakRulesPanel}
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                  >
                     <p className={styles.accountMeta}>{streakRuleSummaryLine}</p>
                     <div className={styles.streakRulesList}>
                       <div className={styles.streakRuleChip}>
@@ -10574,9 +11436,9 @@ export default function HomePage() {
                     >
                       {streakStatusLine}
                     </p>
-                  </div>
+                  </motion.div>
                 )}
-              </article>
+              </motion.article>
 
               {(rawYesterdayMissed || yesterdaySave) &&
                 (sickDaySaveEligible || monthlySaveLimitReached || Boolean(yesterdaySave)) && (
@@ -10633,7 +11495,12 @@ export default function HomePage() {
                 </article>
               )}
 
-              <article className={`${styles.card} ${styles.streakCalendarCard}`}>
+              <motion.article
+                className={`${styles.card} ${styles.streakCalendarCard}`}
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.38, delay: 0.06, ease: [0.22, 1, 0.36, 1] }}
+              >
                 <div className={styles.cardHeader}>
                   <div>
                     <p className={styles.sectionLabel}>Calendar</p>
@@ -10738,12 +11605,12 @@ export default function HomePage() {
                     Return to Today
                   </button>
                 </div>
-              </article>
-            </section>
+              </motion.article>
+            </AnimatedTabSection>
           )}
 
           {activeTab === "settings" && (
-            <section className={styles.settingsGrid} ref={settingsSectionRef}>
+            <AnimatedTabSection className={styles.settingsGrid} sectionRef={settingsSectionRef}>
               <CompanionPulse {...companionState.pulses.settings} />
               <article className={`${styles.card} ${styles.settingsHeroCard}`} ref={settingsPrimaryRef}>
                 <div className={styles.settingsHeroHeader}>
@@ -10755,16 +11622,41 @@ export default function HomePage() {
                   />
                   <div>
                     <p className={styles.sectionLabel}>Account</p>
-                    <h2 className={styles.cardTitle}>{user.displayName || "WHELM user"}</h2>
+                    <h2 className={styles.cardTitle}>{user.displayName || "Whelm user"}</h2>
                     <p className={styles.accountMeta}>{user.email}</p>
                   </div>
+                </div>
+                <div className={styles.settingsReadoutGrid}>
+                  <article className={styles.settingsReadoutCard}>
+                    <span>Bandana</span>
+                    <strong>{streakBandanaTier?.label ?? "No tier yet"}</strong>
+                    <small>{profileTierTheme.title}</small>
+                  </article>
+                  <article className={styles.settingsReadoutCard}>
+                    <span>Next ascent</span>
+                    <strong>
+                      {nextBandanaMilestone
+                        ? `${nextBandanaMilestone.remainingDays} day${nextBandanaMilestone.remainingDays === 1 ? "" : "s"} left`
+                        : "Top tier reached"}
+                    </strong>
+                    <small>
+                      {nextBandanaMilestone
+                        ? nextBandanaMilestone.tier.label
+                        : "Keep the run alive."}
+                    </small>
+                  </article>
+                  <article className={styles.settingsReadoutCard}>
+                    <span>System mode</span>
+                    <strong>{companionStyle === "strict" ? "Strict" : companionStyle === "balanced" ? "Balanced" : "Gentle"}</strong>
+                    <small>{themeMode === "dark" ? "Dark shell" : "Light shell"}</small>
+                  </article>
                 </div>
                 <div className={styles.settingsPills}>
                   <span className={styles.settingsPill}>
                     Access: {isPro ? "Whelm Pro" : "Whelm Free"}
                   </span>
                   <span className={styles.settingsPill}>
-                    Status: {proSource === "preview" ? "Whelm Pro Preview" : isPro ? "Whelm Pro Active" : "Standard Whelm"}
+                    Status: {proSource === "preview" ? "Whelm Pro Preview" : isPro ? "Whelm Pro Active" : "Whelm Free"}
                   </span>
                   <span className={styles.settingsPill}>Streak: {streak}d</span>
                 </div>
@@ -11212,7 +12104,7 @@ export default function HomePage() {
                   <p className={styles.accountDangerStatus}>{accountDangerStatus}</p>
                 ) : null}
               </CollapsibleSectionCard>
-            </section>
+            </AnimatedTabSection>
           )}
         </section>
       </div>
@@ -11239,6 +12131,12 @@ export default function HomePage() {
         <span className={styles.mobileMoreFabIcon}>{iconForNavKey("more")}</span>
         <span>More</span>
       </button>
+
+      <AnimatePresence>
+        {sessionReward ? (
+          <SessionRewardToast reward={sessionReward} onDismiss={() => setSessionReward(null)} />
+        ) : null}
+      </AnimatePresence>
 
       {profileOpen && (
         <div className={styles.feedbackOverlay} onClick={() => setProfileOpen(false)}>
@@ -11268,6 +12166,16 @@ export default function HomePage() {
                   {profileTierTheme.title} · {streakBandanaTier?.label ?? "No bandana yet"}
                 </p>
               </div>
+            </article>
+
+            <article className={styles.profileCommandCard}>
+              <span>Current directive</span>
+              <strong>{nextPlannedBlock?.title ?? "No active block queued"}</strong>
+              <small>
+                {nextPlannedBlock
+                  ? `${normalizeTimeLabel(nextPlannedBlock.timeOfDay)} · ${nextPlannedBlock.durationMinutes}m`
+                  : "Open Schedule or Today and place the next deliberate move."}
+              </small>
             </article>
 
             <div className={styles.profileStatsGrid}>
@@ -11344,6 +12252,11 @@ export default function HomePage() {
                 Close
               </button>
             </div>
+            <article className={styles.mobileMoreHero}>
+              <span>Jump lanes</span>
+              <strong>Open the deeper Whelm surfaces quickly.</strong>
+              <small>Everything here should feel like a deliberate jump, not a buried overflow menu.</small>
+            </article>
             <div className={styles.mobileMoreGrid}>
               {MOBILE_MORE_TABS.map((tab) => (
                 <button
@@ -11353,7 +12266,8 @@ export default function HomePage() {
                   onClick={() => handleTabSelect(tab)}
                 >
                   <span className={styles.bottomTabIcon}>{iconForTab(tab)}</span>
-                  <span>{tabTitle(tab)}</span>
+                  <strong>{tabTitle(tab)}</strong>
+                  <small>{mobileTabDescription(tab)}</small>
                 </button>
               ))}
             </div>
@@ -11742,6 +12656,17 @@ export default function HomePage() {
           </div>
         </div>
       )}
+
+      <MilestoneReveal
+        open={Boolean(milestoneRevealTier)}
+        streak={displayStreak}
+        tier={milestoneRevealTier}
+        onOpenChange={(open) => {
+          if (!open) {
+            setMilestoneRevealTier(null);
+          }
+        }}
+      />
 
       {sickDaySavePromptOpen && ((rawYesterdayMissed && !yesterdaySave) || sickDaySavePromptPreview) && (
         <div className={styles.feedbackOverlay} onClick={dismissSickDaySavePrompt}>

@@ -1,6 +1,8 @@
 "use client";
 
+import { Float, Sparkles } from "@react-three/drei";
 import { Canvas, useFrame } from "@react-three/fiber";
+import { Bloom, EffectComposer, Vignette } from "@react-three/postprocessing";
 import { useRef } from "react";
 import type { Group, Mesh } from "three";
 
@@ -9,6 +11,7 @@ import styles from "./WhelmRitualScene.module.css";
 type RitualSceneProps = {
   variant?: "orb" | "totem";
   className?: string;
+  celebrationLevel?: "none" | "soft" | "full";
 };
 
 function OrbScene() {
@@ -160,7 +163,12 @@ function TotemScene() {
 export default function WhelmRitualScene({
   variant = "orb",
   className,
+  celebrationLevel = "none",
 }: RitualSceneProps) {
+  const isCelebrating = celebrationLevel !== "none";
+  const bloomIntensity = celebrationLevel === "full" ? 1.2 : 0.7;
+  const sparkleCount = celebrationLevel === "full" ? 28 : 14;
+
   return (
     <div className={[styles.scene, className].filter(Boolean).join(" ")}>
       <Canvas
@@ -173,7 +181,34 @@ export default function WhelmRitualScene({
         <pointLight position={[-2, 1.4, 2]} intensity={10} color="#8b5cf6" />
         <pointLight position={[1.7, -0.4, 2]} intensity={8} color="#c4b5fd" />
         <pointLight position={[0, 0.4, 2.6]} intensity={5.4} color="#dbeafe" />
-        {variant === "totem" ? <TotemScene /> : <OrbScene />}
+        <Float
+          speed={isCelebrating ? 1.9 : 1.15}
+          rotationIntensity={isCelebrating ? 0.32 : 0.14}
+          floatIntensity={isCelebrating ? 0.85 : 0.4}
+        >
+          {variant === "totem" ? <TotemScene /> : <OrbScene />}
+        </Float>
+        {isCelebrating ? (
+          <>
+            <Sparkles
+              count={sparkleCount}
+              scale={[3.1, 2.2, 1.6]}
+              size={3.2}
+              speed={0.55}
+              color="#f8fbff"
+              opacity={0.7}
+            />
+            <EffectComposer>
+              <Bloom
+                mipmapBlur
+                intensity={bloomIntensity}
+                luminanceThreshold={0.16}
+                luminanceSmoothing={0.5}
+              />
+              <Vignette eskil={false} offset={0.18} darkness={0.72} />
+            </EffectComposer>
+          </>
+        ) : null}
       </Canvas>
       <div className={styles.overlayGlow} aria-hidden="true" />
     </div>
