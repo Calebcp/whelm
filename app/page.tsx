@@ -1619,7 +1619,7 @@ function WhelmNavIcon({ icon }: { icon: NavIconKey }) {
         </svg>
       );
     case "leaderboard":
-      return <img src="/leaderboard-icon-tab.png" alt="" className={styles.navIconImage} />;
+      return <img src="/leaderboard-icon-tab.jpg" alt="" className={styles.navIconImage} />;
     case "notes":
       return (
         <svg {...svgProps}>
