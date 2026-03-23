@@ -284,6 +284,8 @@ type LeaderboardEntry = {
   level: number;
   totalXp: number;
   currentStreak: number;
+  avatarUrl?: string | null;
+  isProStyle?: boolean;
   isCurrentUser?: boolean;
 };
 type LeaderboardMovement = {
@@ -468,6 +470,7 @@ type PlannedBlock = {
 };
 
 type DayToneMap = Record<string, CalendarTone>;
+type MonthToneMap = Record<string, CalendarTone>;
 
 type KpiDetailKey =
   | "totalFocus"
@@ -515,7 +518,7 @@ function CalendarTonePicker({
   isPro,
   onUpgrade,
 }: {
-  label: "Day tone" | "Block tone";
+  label: "Month tone" | "Day tone" | "Block tone";
   selectedTone: CalendarTone | null;
   onSelectTone: (tone: CalendarTone | null) => void;
   isPro: boolean;
@@ -581,9 +584,44 @@ function CalendarTonePicker({
             ))}
           </div>
         ) : (
-          <button type="button" className={styles.inlineUpgrade} onClick={onUpgrade}>
-            Upgrade to Whelm Pro
-          </button>
+          <div className={styles.calendarToneLockedPreview}>
+            <div className={styles.calendarToneLockedSwatchGrid}>
+              {CALENDAR_TONES.map((tone) => (
+                <button
+                  key={tone.value}
+                  type="button"
+                  className={styles.calendarToneLockedSwatch}
+                  style={getCalendarToneStyle(tone.value)}
+                  onClick={onUpgrade}
+                  aria-label={`Preview ${tone.value.toLowerCase()} tone in Whelm Pro`}
+                >
+                  <span className={styles.calendarToneLockedSwatchFill} />
+                  <small>{tone.value}</small>
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              className={styles.calendarToneLockedCard}
+              style={getCalendarToneStyle(selectedTone ?? CALENDAR_TONES[0].value)}
+              onClick={onUpgrade}
+            >
+              <div className={styles.calendarToneLockedCardHead}>
+                <span>{label}</span>
+                <strong>{selectedTone ?? CALENDAR_TONES[0].value}</strong>
+              </div>
+              <div className={styles.calendarToneLockedCardPreview}>
+                <div className={styles.calendarToneLockedCardTime}>9:00 AM</div>
+                <div>
+                  <strong>Deep focus block</strong>
+                  <small>See how premium tone styling lands inside the planner.</small>
+                </div>
+              </div>
+            </button>
+            <button type="button" className={styles.inlineUpgrade} onClick={onUpgrade}>
+              Enter Whelm Pro Preview
+            </button>
+          </div>
         ))}
     </div>
   );
@@ -1168,7 +1206,7 @@ function analyticsSubjectModeFromText(text: string): "language" | "school" | "wo
 }
 
 type NavIconKey = AppTab | "more";
-type ProfileAvatarSize = "compact" | "hero";
+type ProfileAvatarSize = "mini" | "row" | "compact" | "hero";
 
 type ProfileTierTheme = {
   title: string;
@@ -1622,21 +1660,34 @@ function WhelmProfileAvatar({
   tierColor,
   size,
   isPro = false,
+  photoUrl,
 }: {
   tierColor: string | null | undefined;
   size: ProfileAvatarSize;
   isPro?: boolean;
+  photoUrl?: string | null;
 }) {
   const theme = getProfileTierTheme(tierColor, isPro);
 
   return (
     <div
       className={`${styles.profileAvatarCard} ${
-        size === "compact" ? styles.profileAvatarCardCompact : styles.profileAvatarCardHero
+        size === "mini"
+          ? styles.profileAvatarCardMini
+          : size === "row"
+          ? styles.profileAvatarCardRow
+          : size === "compact"
+            ? styles.profileAvatarCardCompact
+            : styles.profileAvatarCardHero
       }`}
       aria-hidden="true"
     >
       <img src={theme.imagePath} alt="" className={styles.profileAvatarImage} />
+      {photoUrl ? (
+        <span className={styles.profileAvatarPhotoShell}>
+          <img src={photoUrl} alt="" className={styles.profileAvatarPhoto} />
+        </span>
+      ) : null}
     </div>
   );
 }
@@ -1648,7 +1699,7 @@ function tabTitle(tab: AppTab) {
     case "calendar":
       return "Schedule";
     case "leaderboard":
-      return "Leaderboard";
+      return "Leadership";
     case "mirror":
       return "Streak Mirror";
     case "notes":
@@ -1806,6 +1857,12 @@ function LeaderboardRow({
           </div>
           <div className={styles.leaderboardIdentityCopy}>
             <div className={styles.leaderboardNameLine}>
+              <WhelmProfileAvatar
+                tierColor={bandana.tier?.color}
+                size="mini"
+                isPro={entry.isProStyle}
+                photoUrl={entry.avatarUrl}
+              />
               <strong>{entry.username}</strong>
               {entry.isCurrentUser ? <span className={styles.leaderboardYouBadge}>You</span> : null}
             </div>
@@ -1878,6 +1935,10 @@ function dayToneStorageKey(uid: string) {
   return `whelm:day-tones:${uid}`;
 }
 
+function monthToneStorageKey(uid: string) {
+  return `whelm:month-tones:${uid}`;
+}
+
 function streakMirrorStorageKey(uid: string) {
   return `whelm:streak-mirror:${uid}`;
 }
@@ -1895,6 +1956,7 @@ function clearLocalAccountData(uid: string) {
   window.localStorage.removeItem(`whelm:sessions:${uid}`);
   window.localStorage.removeItem(plannedBlocksStorageKey(uid));
   window.localStorage.removeItem(dayToneStorageKey(uid));
+  window.localStorage.removeItem(monthToneStorageKey(uid));
   window.localStorage.removeItem(senseiStyleStorageKey(uid));
   window.localStorage.removeItem(streakMirrorStorageKey(uid));
   window.localStorage.removeItem(sickDaySaveStorageKey(uid));
@@ -1965,6 +2027,28 @@ function loadDayTones(uid: string): DayToneMap {
 
 function saveDayTones(uid: string, tones: DayToneMap) {
   window.localStorage.setItem(dayToneStorageKey(uid), JSON.stringify(tones));
+}
+
+function loadMonthTones(uid: string): MonthToneMap {
+  try {
+    const raw = window.localStorage.getItem(monthToneStorageKey(uid));
+    const parsed = raw ? (JSON.parse(raw) as Record<string, string>) : {};
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    return Object.fromEntries(
+      Object.entries(parsed)
+        .filter(
+          ([monthKey, tone]) =>
+            /^\d{4}-\d{2}$/.test(monthKey) && Boolean(getCalendarToneMeta(tone as CalendarTone)),
+        )
+        .map(([monthKey, tone]) => [monthKey, tone as CalendarTone]),
+    );
+  } catch {
+    return {};
+  }
+}
+
+function saveMonthTones(uid: string, tones: MonthToneMap) {
+  window.localStorage.setItem(monthToneStorageKey(uid), JSON.stringify(tones));
 }
 
 function loadStreakMirrorEntries(uid: string): StreakMirrorEntry[] {
@@ -2163,17 +2247,17 @@ const DESKTOP_PRIMARY_TABS: Array<{ key: AppTab; label: string }> = [
   { key: "calendar", label: "Schedule" },
   { key: "today", label: "Today" },
   { key: "notes", label: "Notes" },
+  { key: "leaderboard", label: "Leadership" },
 ];
 
-const MOBILE_PRIMARY_TABS: Array<{ key: AppTab | "more"; label: string }> = [
+const MOBILE_PRIMARY_TABS: Array<{ key: AppTab; label: string }> = [
   { key: "calendar", label: "Schedule" },
   { key: "today", label: "Today" },
   { key: "notes", label: "Notes" },
-  { key: "more", label: "More" },
+  { key: "leaderboard", label: "Leadership" },
 ];
 
 const MOBILE_MORE_TABS: AppTab[] = [
-  "leaderboard",
   "mirror",
   "streaks",
   "history",
@@ -2389,12 +2473,14 @@ function ProUnlockCard({
   open,
   onToggle,
   onPreview,
+  preview,
 }: {
   title: string;
   body: string;
   open: boolean;
   onToggle: () => void;
   onPreview: () => void;
+  preview?: ReactNode;
 }) {
   return (
     <div className={styles.proUnlockCard}>
@@ -2407,6 +2493,7 @@ function ProUnlockCard({
       </button>
       {open ? (
         <div className={styles.proUnlockBody}>
+          {preview ? <div className={styles.proUnlockPreview}>{preview}</div> : null}
           <p className={styles.accountMeta}>{body}</p>
           <div className={styles.noteFooterActions}>
             <button type="button" className={styles.inlineUpgrade} onClick={onPreview}>
@@ -2475,8 +2562,8 @@ export default function HomePage() {
     createDailyRitualDrafts([]),
   );
   const [dailyRitualExpandedId, setDailyRitualExpandedId] = useState<string | null>(null);
-  const [isPro, setIsPro] = useState(false);
-  const [proSource, setProSource] = useState<"preview" | "store" | "none">("none");
+  const [isPro, setIsPro] = useState(true);
+  const [proSource, setProSource] = useState<"preview" | "store" | "none">("preview");
   const [appBackgroundSetting, setAppBackgroundSetting] = useState<AppBackgroundSetting>({
     kind: "default",
   });
@@ -2511,6 +2598,7 @@ export default function HomePage() {
   const [notesCategoryFilter, setNotesCategoryFilter] = useState<"all" | NoteCategory>("all");
   const [plannedBlocks, setPlannedBlocks] = useState<PlannedBlock[]>([]);
   const [dayTones, setDayTones] = useState<DayToneMap>({});
+  const [monthTones, setMonthTones] = useState<MonthToneMap>({});
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
   const [calendarCursor, setCalendarCursor] = useState<Date>(() => {
     const now = new Date();
@@ -3607,6 +3695,11 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!user) return;
+    setMonthTones(loadMonthTones(user.uid));
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
     setAppBackgroundSetting(loadBackgroundSetting(user.uid));
   }, [user]);
 
@@ -4188,6 +4281,12 @@ export default function HomePage() {
   }
 
   async function handleStartProPreview() {
+    const code = window.prompt("Enter the Whelm Pro preview code.");
+    if (code === null) return;
+    if (code.trim() !== "1234") {
+      window.alert("Incorrect preview code.");
+      return;
+    }
     const next = await startProPreview();
     setIsPro(next.isPro);
     setProSource(next.source);
@@ -4946,6 +5045,8 @@ export default function HomePage() {
 
   const selectedDateKey = selectedCalendarDate || dayKeyLocal(new Date());
   const selectedDateCanAddBlocks = !isDateKeyBeforeToday(selectedDateKey);
+  const selectedCalendarMonthKey = monthKeyLocal(calendarCursor);
+  const selectedMonthTone = isPro ? (monthTones[selectedCalendarMonthKey] ?? null) : null;
   const calendarMonthLabel = calendarCursor.toLocaleDateString(undefined, {
     month: "long",
     year: "numeric",
@@ -5058,7 +5159,7 @@ export default function HomePage() {
         minutes,
         level: focusLevel(minutes),
         isCurrentMonth: true,
-        tone: isPro ? dayTones[dateKey] : undefined,
+        tone: isPro ? (dayTones[dateKey] ?? monthTones[selectedCalendarMonthKey]) : undefined,
       });
     }
 
@@ -5073,7 +5174,7 @@ export default function HomePage() {
     }
 
     return cells;
-  }, [calendarCursor, dayTones, sessionMinutesByDay]);
+  }, [calendarCursor, dayTones, monthTones, selectedCalendarMonthKey, sessionMinutesByDay]);
   const streakMonthLabel = streakCalendarCursor.toLocaleDateString(undefined, {
     month: "long",
     year: "numeric",
@@ -5975,6 +6076,18 @@ export default function HomePage() {
     saveDayTones(user.uid, next);
   }
 
+  function applyMonthTone(monthKey: string, tone: CalendarTone | null) {
+    if (!user || !isPro) return;
+    const next = { ...monthTones };
+    if (tone) {
+      next[monthKey] = tone;
+    } else {
+      delete next[monthKey];
+    }
+    setMonthTones(next);
+    saveMonthTones(user.uid, next);
+  }
+
   function updatePlannedBlockTone(id: string, tone: CalendarTone | null) {
     if (!user || !isPro) return;
     const updated = plannedBlocks.map((item) =>
@@ -6195,6 +6308,7 @@ export default function HomePage() {
     user?.displayName?.trim() ||
     user?.email?.split("@")[0]?.trim() ||
     "Whelm user";
+  const currentUserPhotoUrl = user?.photoURL ?? null;
   const currentUserId = user?.uid ?? "current-user";
   const currentUserCreatedAtISO =
     user?.metadata.creationTime ? new Date(user.metadata.creationTime).toISOString() : new Date().toISOString();
@@ -6209,17 +6323,19 @@ export default function HomePage() {
     }));
 
     const currentEntry: LeaderboardEntry = {
-      id: "current-user",
+      id: currentUserId,
       username: profileDisplayName,
       createdAtISO: currentUserCreatedAtISO,
       level: lifetimeXpSummary.currentLevel,
       totalXp: lifetimeXpSummary.totalXp,
       currentStreak: displayStreak,
+      avatarUrl: currentUserPhotoUrl,
+      isProStyle: isPro,
       isCurrentUser: true,
     };
 
     return [...seeded, currentEntry];
-  }, [currentUserCreatedAtISO, displayStreak, lifetimeXpSummary.currentLevel, lifetimeXpSummary.totalXp, profileDisplayName]);
+  }, [currentUserCreatedAtISO, currentUserId, currentUserPhotoUrl, displayStreak, isPro, lifetimeXpSummary.currentLevel, lifetimeXpSummary.totalXp, profileDisplayName]);
   const leaderboardPreviousSnapshotEntries = useMemo<LeaderboardEntry[]>(() => {
     const seeded = LEADERBOARD_PREVIOUS_SNAPSHOT.map((entry) => ({
       id: entry.id,
@@ -6231,17 +6347,19 @@ export default function HomePage() {
     }));
 
     const currentEntry: LeaderboardEntry = {
-      id: "current-user",
+      id: currentUserId,
       username: profileDisplayName,
       createdAtISO: currentUserCreatedAtISO,
       level: getLifetimeXpSummary(Math.max(0, lifetimeXpSummary.totalXp - 420), 0).currentLevel,
       totalXp: Math.max(0, lifetimeXpSummary.totalXp - 420),
       currentStreak: Math.max(0, displayStreak - 1),
+      avatarUrl: currentUserPhotoUrl,
+      isProStyle: isPro,
       isCurrentUser: true,
     };
 
     return [...seeded, currentEntry];
-  }, [currentUserCreatedAtISO, displayStreak, lifetimeXpSummary.totalXp, profileDisplayName]);
+  }, [currentUserCreatedAtISO, currentUserId, currentUserPhotoUrl, displayStreak, isPro, lifetimeXpSummary.totalXp, profileDisplayName]);
   const leaderboardSortedEntries = useMemo(
     () => [...leaderboardEntries].sort((left, right) => compareLeaderboardEntries(left, right, leaderboardMetricTab)),
     [leaderboardEntries, leaderboardMetricTab],
@@ -6281,12 +6399,14 @@ export default function HomePage() {
           totalXp: entry.totalXp,
           currentStreak: entry.currentStreak,
           level: entry.level,
+          avatarUrl: entry.userId === currentUserId ? currentUserPhotoUrl : null,
+          isProStyle: entry.userId === currentUserId ? isPro : false,
           isCurrentUser: entry.userId === currentUserId,
         },
         rank: entry.rank,
         movement: movementFromSnapshot(entry),
       })),
-    [currentUserId, leaderboardPageItems],
+    [currentUserId, currentUserPhotoUrl, isPro, leaderboardPageItems],
   );
   const leaderboardAroundRows = useMemo(
     () =>
@@ -6298,12 +6418,14 @@ export default function HomePage() {
           totalXp: entry.totalXp,
           currentStreak: entry.currentStreak,
           level: entry.level,
+          avatarUrl: entry.userId === currentUserId ? currentUserPhotoUrl : null,
+          isProStyle: entry.userId === currentUserId ? isPro : false,
           isCurrentUser: entry.userId === currentUserId,
         },
         rank: entry.rank,
         movement: movementFromSnapshot(entry),
       })),
-    [currentUserId, leaderboardAroundMeItems],
+    [currentUserId, currentUserPhotoUrl, isPro, leaderboardAroundMeItems],
   );
   const leaderboardRows =
     leaderboardSource === "snapshot" && leaderboardRemoteRows.length > 0
@@ -6336,6 +6458,8 @@ export default function HomePage() {
             totalXp: entry.totalXp,
             currentStreak: entry.currentStreak,
             level: entry.level,
+            avatarUrl: entry.userId === currentUserId ? currentUserPhotoUrl : null,
+            isProStyle: entry.userId === currentUserId ? isPro : false,
           }))
         : leaderboardEntries;
 
@@ -6351,7 +6475,7 @@ export default function HomePage() {
         entry: topEntry,
       };
     });
-  }, [leaderboardEntries, leaderboardPageItems, leaderboardSource]);
+  }, [currentUserId, currentUserPhotoUrl, isPro, leaderboardEntries, leaderboardPageItems, leaderboardSource]);
   const leaderboardHasEntries = leaderboardRows.length > 0;
 
   useEffect(() => {
@@ -6714,7 +6838,12 @@ export default function HomePage() {
                 }`}
                 onClick={() => setProfileOpen(true)}
               >
-                <WhelmProfileAvatar tierColor={streakBandanaTier?.color} size="compact" isPro={isPro} />
+                <WhelmProfileAvatar
+                  tierColor={streakBandanaTier?.color}
+                  size="compact"
+                  isPro={isPro}
+                  photoUrl={currentUserPhotoUrl}
+                />
                 <span className={styles.profileDockCopy}>
                   {!isMobileViewport ? <small>Profile</small> : null}
                   <strong>{profileDisplayName}</strong>
@@ -7018,9 +7147,17 @@ export default function HomePage() {
             <section className={styles.calendarGrid} ref={calendarSectionRef}>
               <article
                 className={`${styles.card} ${calendarView === "month" ? styles.calendarPrimaryExpanded : ""} ${
+                  calendarView === "month" && selectedMonthTone ? styles[`calendarToneSurface${selectedMonthTone}`] : ""
+                } ${calendarView === "month" && selectedMonthTone ? styles.calendarToneSurfaceMonthCard : ""} ${
                   calendarView === "day" && selectedDateDayTone ? styles[`calendarToneSurface${selectedDateDayTone}`] : ""
                 } ${calendarView === "day" && selectedDateDayTone ? styles.calendarToneSurfaceDayCard : ""}`}
-                style={calendarView === "day" ? getCalendarToneStyle(selectedDateDayTone) : undefined}
+                style={
+                  calendarView === "month"
+                    ? getCalendarToneStyle(selectedMonthTone)
+                    : calendarView === "day"
+                      ? getCalendarToneStyle(selectedDateDayTone)
+                      : undefined
+                }
                 ref={calendarMonthRef}
               >
                 <div className={styles.calendarPrimaryHeader}>
@@ -7143,6 +7280,15 @@ export default function HomePage() {
                         Go
                       </button>
                     </div>
+                  )}
+                  {calendarView === "month" && (
+                    <CalendarTonePicker
+                      label="Month tone"
+                      selectedTone={selectedMonthTone}
+                      onSelectTone={(tone) => applyMonthTone(selectedCalendarMonthKey, tone)}
+                      isPro={isPro}
+                      onUpgrade={openUpgradeFlow}
+                    />
                   )}
                   {!isMobileViewport && (
                     <div className={styles.calendarSectionNav}>
@@ -8604,7 +8750,17 @@ export default function HomePage() {
                         style={holderStyle}
                       >
                         <span>{holder.label}</span>
-                        <strong>{holder.entry?.username ?? "No holder yet"}</strong>
+                        <div className={styles.leaderboardBandanaIdentity}>
+                          {holder.entry ? (
+                            <WhelmProfileAvatar
+                              tierColor={meta.tier?.color}
+                              size="row"
+                              isPro={holder.entry.isProStyle}
+                              photoUrl={holder.entry.avatarUrl}
+                            />
+                          ) : null}
+                          <strong>{holder.entry?.username ?? "No holder yet"}</strong>
+                        </div>
                         <small>
                           {holder.entry
                             ? `${formatLeaderboardXp(holder.entry.totalXp)} • ${holder.entry.currentStreak}d`
@@ -9198,6 +9354,26 @@ export default function HomePage() {
                         open={proPanelsOpen.notes}
                         onToggle={() => setProPanelsOpen((current) => ({ ...current, notes: !current.notes }))}
                         onPreview={() => void handleStartProPreview()}
+                        preview={
+                          <div className={styles.noteStylePreview}>
+                            <div className={styles.noteStylePreviewToolbar}>
+                              <span className={styles.noteStylePreviewChip}>Page tone</span>
+                              <span className={styles.noteStylePreviewChip}>Fraunces</span>
+                              <span className={styles.noteStylePreviewChip}>Highlight</span>
+                            </div>
+                            <article className={styles.noteStylePreviewCard}>
+                              <p className={styles.noteStylePreviewEyebrow}>Whelm Pro Writing Studio</p>
+                              <h3>Shape the page like a finished thought.</h3>
+                              <p>
+                                Make the page calmer, sharper, or warmer with tone, type, and emphasis that change
+                                how the note feels before a word is even read.
+                              </p>
+                              <p>
+                                <mark>Show the premium surface first.</mark>
+                              </p>
+                            </article>
+                          </div>
+                        }
                       />
                     ) : null}
 
@@ -9412,6 +9588,26 @@ export default function HomePage() {
                               setProPanelsOpen((current) => ({ ...current, notes: !current.notes }))
                             }
                             onPreview={() => void handleStartProPreview()}
+                            preview={
+                              <div className={styles.noteStylePreview}>
+                                <div className={styles.noteStylePreviewToolbar}>
+                                  <span className={styles.noteStylePreviewChip}>Page tone</span>
+                                  <span className={styles.noteStylePreviewChip}>Editorial</span>
+                                  <span className={styles.noteStylePreviewChip}>Text color</span>
+                                </div>
+                                <article className={styles.noteStylePreviewCard}>
+                                  <p className={styles.noteStylePreviewEyebrow}>Whelm Pro Writing Studio</p>
+                                  <h3>Notes stop looking generic.</h3>
+                                  <p>
+                                    Let page tone, typography, and highlights carry the mood of the idea instead of
+                                    leaving every note on the same flat surface.
+                                  </p>
+                                  <p>
+                                    <mark>Let the page itself sell the feature.</mark>
+                                  </p>
+                                </article>
+                              </div>
+                            }
                           />
                         )}
                       </div>
@@ -10551,7 +10747,12 @@ export default function HomePage() {
               <CompanionPulse {...companionState.pulses.settings} />
               <article className={`${styles.card} ${styles.settingsHeroCard}`} ref={settingsPrimaryRef}>
                 <div className={styles.settingsHeroHeader}>
-                  <WhelmProfileAvatar tierColor={streakBandanaTier?.color} size="compact" isPro={isPro} />
+                  <WhelmProfileAvatar
+                    tierColor={streakBandanaTier?.color}
+                    size="compact"
+                    isPro={isPro}
+                    photoUrl={currentUserPhotoUrl}
+                  />
                   <div>
                     <p className={styles.sectionLabel}>Account</p>
                     <h2 className={styles.cardTitle}>{user.displayName || "WHELM user"}</h2>
@@ -11021,20 +11222,23 @@ export default function HomePage() {
           <button
             key={tab.key}
             type="button"
-            className={`${styles.bottomTabButton} ${
-              (tab.key === "more" ? mobileMoreActive || mobileMoreOpen : activeTab === tab.key)
-                ? styles.bottomTabButtonActive
-                : ""
-            }`}
+            className={`${styles.bottomTabButton} ${activeTab === tab.key ? styles.bottomTabButtonActive : ""}`}
             onClick={() => handleMobileTabSelect(tab.key)}
           >
-            <span className={styles.bottomTabIcon}>
-              {tab.key === "more" ? iconForNavKey("more") : iconForTab(tab.key)}
-            </span>
+            <span className={styles.bottomTabIcon}>{iconForTab(tab.key)}</span>
             <span>{tab.label}</span>
           </button>
         ))}
       </nav>
+
+      <button
+        type="button"
+        className={`${styles.mobileMoreFab} ${mobileMoreActive || mobileMoreOpen ? styles.mobileMoreFabActive : ""}`}
+        onClick={() => setMobileMoreOpen(true)}
+      >
+        <span className={styles.mobileMoreFabIcon}>{iconForNavKey("more")}</span>
+        <span>More</span>
+      </button>
 
       {profileOpen && (
         <div className={styles.feedbackOverlay} onClick={() => setProfileOpen(false)}>
@@ -11051,7 +11255,12 @@ export default function HomePage() {
             </div>
 
             <article className={styles.profileHero}>
-              <WhelmProfileAvatar tierColor={streakBandanaTier?.color} size="hero" isPro={isPro} />
+              <WhelmProfileAvatar
+                tierColor={streakBandanaTier?.color}
+                size="hero"
+                isPro={isPro}
+                photoUrl={currentUserPhotoUrl}
+              />
               <div className={styles.profileHeroCopy}>
                 <p className={styles.sectionLabel}>Whelm Identity</p>
                 <h3 className={styles.profileHeroTitle}>{profileDisplayName}</h3>
@@ -11338,13 +11547,15 @@ export default function HomePage() {
                             />
                           </label>
                         </div>
-                        <CalendarTonePicker
-                          label="Block tone"
-                          selectedTone={draft.tone}
-                          onSelectTone={(tone) => updateDailyRitualDraft(draft.id, { tone })}
-                          isPro={isPro}
-                          onUpgrade={openUpgradeFlow}
-                        />
+                        {isPro ? (
+                          <CalendarTonePicker
+                            label="Block tone"
+                            selectedTone={draft.tone}
+                            onSelectTone={(tone) => updateDailyRitualDraft(draft.id, { tone })}
+                            isPro={isPro}
+                            onUpgrade={openUpgradeFlow}
+                          />
+                        ) : null}
                         <textarea
                           value={draft.note}
                           onChange={(event) =>

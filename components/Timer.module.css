@@ -234,7 +234,7 @@
     radial-gradient(circle at 50% 42%, rgba(255, 255, 255, 0.98), rgba(232, 240, 251, 0.94)),
     linear-gradient(180deg, rgba(246, 250, 255, 0.98), rgba(234, 242, 251, 0.92));
   overflow: hidden;
-  padding: 24px 16px 20px;
+  padding: 24px 16px 24px;
 }
 
 .faceSettingsWrap {
@@ -322,7 +322,7 @@
   gap: 8px;
   align-items: stretch;
   width: min(100%, 620px);
-  margin-top: 18px;
+  margin-top: 22px;
 }
 
 .faceDockButton,
@@ -758,8 +758,8 @@
   }
 
   .timerFace {
-    min-height: 360px;
-    padding: 22px 12px 18px;
+    min-height: 396px;
+    padding: 22px 12px 22px;
   }
 
   .ringTrack,
@@ -774,22 +774,27 @@
   }
 
   .faceDock {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 6px;
+    grid-template-columns: 1fr;
+    gap: 10px;
     width: 100%;
-    margin-top: 16px;
+    margin-top: 24px;
   }
 
   .faceDockButton,
   .faceDockPrimaryButton {
-    min-height: 40px;
-    padding: 9px 8px;
-    font-size: 0.75rem;
+    width: 100%;
+    min-height: 46px;
+    padding: 10px 12px;
+    font-size: 0.8rem;
     border-radius: 14px;
   }
 
+  .faceDockNoteWrap {
+    width: 100%;
+  }
+
   .faceDockMenu {
-    width: min(172px, 58vw);
+    width: min(220px, 72vw);
   }
 
   .modeTabs {
@@ -808,7 +813,7 @@
   }
 
   .faceWhelm {
-    width: min(42vw, 136px);
+    width: min(52vw, 168px);
     margin-top: 12px;
   }
 
@@ -833,9 +838,9 @@
   }
 
   .timerFace {
-    min-height: 336px;
+    min-height: 372px;
     border-radius: 28px;
-    padding: 18px 10px 16px;
+    padding: 18px 10px 20px;
   }
 
   .ringTrack {
