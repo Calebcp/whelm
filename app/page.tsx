@@ -6126,27 +6126,6 @@ export default function HomePage() {
     return () => window.clearTimeout(timeoutId);
   }, [authChecked, router, user]);
 
-  if (showIntroSplash) {
-    return <IntroSplash onComplete={() => setIntroFinished(true)} />;
-  }
-
-  if (!authChecked) {
-    return (
-      <main className={styles.pageShell}>
-        <div className={styles.loadingCard}>
-          <p className={styles.loadingLabel}>Preparing your WHELM session...</p>
-          <button
-            type="button"
-            className={styles.secondaryPlanButton}
-            onClick={() => setAuthChecked(true)}
-          >
-            Continue now
-          </button>
-        </div>
-      </main>
-    );
-  }
-
   const lastSession = sessions[0];
   const latestNote = orderedNotes[0] ?? null;
   const nextPlannedBlock = todayActivePlannedBlocks[0] ?? null;
@@ -6510,6 +6489,27 @@ export default function HomePage() {
       snapshotDate: leaderboardSnapshotDate,
     }).catch(() => undefined);
   }, [activeTab, leaderboardMetricTab, leaderboardSnapshotDate, user]);
+
+  if (showIntroSplash) {
+    return <IntroSplash onComplete={() => setIntroFinished(true)} />;
+  }
+
+  if (!authChecked) {
+    return (
+      <main className={styles.pageShell}>
+        <div className={styles.loadingCard}>
+          <p className={styles.loadingLabel}>Preparing your WHELM session...</p>
+          <button
+            type="button"
+            className={styles.secondaryPlanButton}
+            onClick={() => setAuthChecked(true)}
+          >
+            Continue now
+          </button>
+        </div>
+      </main>
+    );
+  }
 
   if (!user) {
     return (
