@@ -13,6 +13,10 @@ import {
   type SessionAbandonedEventInput,
   type SessionCompletedEventInput,
   type SessionStartedEventInput,
+  type LeaderboardAroundMeLoadedEventInput,
+  type LeaderboardPageLoadedEventInput,
+  type LeaderboardTabSwitchedEventInput,
+  type LeaderboardViewedEventInput,
   type StreakUpdatedEventInput,
   type TaskCompletedEventInput,
   type TaskCreatedEventInput,
@@ -151,6 +155,46 @@ export async function trackStreakUpdated(
 ) {
   return trackAnalyticsEvent(user, {
     eventName: "streak_updated",
+    ...input,
+  });
+}
+
+export async function trackLeaderboardViewed(
+  user: User,
+  input: Omit<LeaderboardViewedEventInput, "eventName">,
+) {
+  return trackAnalyticsEvent(user, {
+    eventName: "leaderboard_viewed",
+    ...input,
+  });
+}
+
+export async function trackLeaderboardTabSwitched(
+  user: User,
+  input: Omit<LeaderboardTabSwitchedEventInput, "eventName">,
+) {
+  return trackAnalyticsEvent(user, {
+    eventName: "leaderboard_tab_switched",
+    ...input,
+  });
+}
+
+export async function trackLeaderboardPageLoaded(
+  user: User,
+  input: Omit<LeaderboardPageLoadedEventInput, "eventName">,
+) {
+  return trackAnalyticsEvent(user, {
+    eventName: "leaderboard_page_loaded",
+    ...input,
+  });
+}
+
+export async function trackLeaderboardAroundMeLoaded(
+  user: User,
+  input: Omit<LeaderboardAroundMeLoadedEventInput, "eventName">,
+) {
+  return trackAnalyticsEvent(user, {
+    eventName: "leaderboard_around_me_loaded",
     ...input,
   });
 }

@@ -1,6 +1,6 @@
 {
   "firestore": {
-    "database": "default",
+    "database": "whelm-16d5c",
     "location": "nam5",
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"

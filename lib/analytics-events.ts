@@ -6,6 +6,10 @@ export const ANALYTICS_EVENT_NAMES = [
   "task_created",
   "task_completed",
   "streak_updated",
+  "leaderboard_viewed",
+  "leaderboard_tab_switched",
+  "leaderboard_page_loaded",
+  "leaderboard_around_me_loaded",
 ] as const;
 
 export type AnalyticsEventName = (typeof ANALYTICS_EVENT_NAMES)[number];
@@ -98,6 +102,34 @@ export type StreakUpdatedEventInput = BaseEventInput & {
   linkedSessionId?: string | null;
 };
 
+export type LeaderboardViewedEventInput = BaseEventInput & {
+  eventName: "leaderboard_viewed";
+  metric: "xp" | "streak";
+  snapshotDate?: string | null;
+};
+
+export type LeaderboardTabSwitchedEventInput = BaseEventInput & {
+  eventName: "leaderboard_tab_switched";
+  fromMetric: "xp" | "streak";
+  toMetric: "xp" | "streak";
+};
+
+export type LeaderboardPageLoadedEventInput = BaseEventInput & {
+  eventName: "leaderboard_page_loaded";
+  metric: "xp" | "streak";
+  pageSize: number;
+  cursor?: string | null;
+  snapshotDate?: string | null;
+};
+
+export type LeaderboardAroundMeLoadedEventInput = BaseEventInput & {
+  eventName: "leaderboard_around_me_loaded";
+  metric: "xp" | "streak";
+  anchorRank: number;
+  resultCount: number;
+  snapshotDate?: string | null;
+};
+
 export type AnalyticsEventInput =
   | AppOpenedEventInput
   | SessionStartedEventInput
@@ -105,7 +137,11 @@ export type AnalyticsEventInput =
   | SessionAbandonedEventInput
   | TaskCreatedEventInput
   | TaskCompletedEventInput
-  | StreakUpdatedEventInput;
+  | StreakUpdatedEventInput
+  | LeaderboardViewedEventInput
+  | LeaderboardTabSwitchedEventInput
+  | LeaderboardPageLoadedEventInput
+  | LeaderboardAroundMeLoadedEventInput;
 
 type AnalyticsProperties = Record<string, string | number | boolean | null>;
 
@@ -358,6 +394,38 @@ export function validateAnalyticsEventInput(input: unknown): AnalyticsEventInput
         ),
         linkedSessionId: optionalString(input.linkedSessionId),
       };
+    case "leaderboard_viewed":
+      return {
+        ...base,
+        eventName,
+        metric: requireEnumValue(["xp", "streak"] as const, input.metric, "metric"),
+        snapshotDate: optionalString(input.snapshotDate),
+      };
+    case "leaderboard_tab_switched":
+      return {
+        ...base,
+        eventName,
+        fromMetric: requireEnumValue(["xp", "streak"] as const, input.fromMetric, "fromMetric"),
+        toMetric: requireEnumValue(["xp", "streak"] as const, input.toMetric, "toMetric"),
+      };
+    case "leaderboard_page_loaded":
+      return {
+        ...base,
+        eventName,
+        metric: requireEnumValue(["xp", "streak"] as const, input.metric, "metric"),
+        pageSize: requireFiniteNumber(input.pageSize, "pageSize", 1),
+        cursor: optionalString(input.cursor),
+        snapshotDate: optionalString(input.snapshotDate),
+      };
+    case "leaderboard_around_me_loaded":
+      return {
+        ...base,
+        eventName,
+        metric: requireEnumValue(["xp", "streak"] as const, input.metric, "metric"),
+        anchorRank: requireFiniteNumber(input.anchorRank, "anchorRank", 1),
+        resultCount: requireFiniteNumber(input.resultCount, "resultCount", 0),
+        snapshotDate: optionalString(input.snapshotDate),
+      };
   }
 }
 
@@ -468,6 +536,42 @@ export function normalizeAnalyticsEvent(userId: string, input: AnalyticsEventInp
           newLength: input.newLength,
           updateSource: input.updateSource,
           linkedSessionId: input.linkedSessionId ?? null,
+        },
+      };
+    case "leaderboard_viewed":
+      return {
+        ...baseRecord,
+        properties: {
+          metric: input.metric,
+          snapshotDate: input.snapshotDate ?? null,
+        },
+      };
+    case "leaderboard_tab_switched":
+      return {
+        ...baseRecord,
+        properties: {
+          fromMetric: input.fromMetric,
+          toMetric: input.toMetric,
+        },
+      };
+    case "leaderboard_page_loaded":
+      return {
+        ...baseRecord,
+        properties: {
+          metric: input.metric,
+          pageSize: input.pageSize,
+          cursor: input.cursor ?? null,
+          snapshotDate: input.snapshotDate ?? null,
+        },
+      };
+    case "leaderboard_around_me_loaded":
+      return {
+        ...baseRecord,
+        properties: {
+          metric: input.metric,
+          anchorRank: input.anchorRank,
+          resultCount: input.resultCount,
+          snapshotDate: input.snapshotDate ?? null,
         },
       };
   }

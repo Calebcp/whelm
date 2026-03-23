@@ -15,6 +15,33 @@
         { "fieldPath": "userId", "order": "ASCENDING" },
         { "fieldPath": "occurredDateLocal", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "leaderboardSnapshotRuns",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "metric", "order": "ASCENDING" },
+        { "fieldPath": "snapshotDate", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "leaderboardDailySnapshots",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "metric", "order": "ASCENDING" },
+        { "fieldPath": "snapshotDate", "order": "ASCENDING" },
+        { "fieldPath": "rank", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "leaderboardDailySnapshots",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "metric", "order": "ASCENDING" },
+        { "fieldPath": "snapshotDate", "order": "ASCENDING" },
+        { "fieldPath": "bandanaColor", "order": "ASCENDING" },
+        { "fieldPath": "rank", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

@@ -272,14 +272,14 @@
 .topAppBarRight {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .xpDock {
   display: flex;
   align-items: center;
-  gap: 8px;
-  min-width: 200px;
+  gap: 6px;
+  min-width: 164px;
   --xp-accent: #59c7ff;
   --xp-accent-strong: #2f86ff;
   --xp-accent-deep: #143d9a;
@@ -291,8 +291,8 @@
 
 .xpDockBadge {
   flex: 0 0 auto;
-  width: 52px;
-  height: 44px;
+  width: 46px;
+  height: 38px;
 }
 
 .xpBandanaLevelMark {
@@ -323,8 +323,8 @@
 
 .xpDockTrack {
   position: relative;
-  min-width: 150px;
-  padding: 7px 12px;
+  min-width: 118px;
+  padding: 6px 10px;
   border-radius: 999px;
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--xp-accent-strong) 24%, white);
@@ -354,17 +354,17 @@
   position: relative;
   z-index: 1;
   display: grid;
-  gap: 1px;
+  gap: 2px;
 }
 
 .xpDockCopy strong {
-  font-size: 0.78rem;
+  font-size: 0.73rem;
   line-height: 1;
   color: var(--xp-text-strong);
 }
 
 .xpDockCopy small {
-  font-size: 0.57rem;
+  font-size: 0.52rem;
   line-height: 1.1;
   color: var(--xp-text-soft);
   letter-spacing: 0.05em;
@@ -2201,7 +2201,7 @@
 .mirrorHeroCard {
   display: grid;
   grid-template-columns: minmax(0, 1.4fr) minmax(220px, 0.6fr);
-  gap: 18px;
+  gap: 16px;
   align-items: center;
   background:
     radial-gradient(circle at top left, rgba(165, 230, 255, 0.28), transparent 30%),
@@ -2211,7 +2211,7 @@
 
 .mirrorHeroCopy {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .mirrorPrivacyWrap {
@@ -2228,11 +2228,12 @@
 
 .mirrorLead {
   color: #e2ecff;
-  max-width: 38ch;
+  max-width: 34ch;
 }
 
 .mirrorSaying {
   color: #9fc0ec;
+  max-width: 34ch;
 }
 
 .mirrorHeroMeta {
@@ -4758,6 +4759,425 @@
   box-shadow: 0 10px 24px rgba(3, 6, 18, 0.18);
 }
 
+.leaderboardShell {
+  display: grid;
+  gap: 14px;
+}
+
+.leaderboardHeroCard,
+.leaderboardBoardCard,
+.leaderboardSummaryCard {
+  border: 1px solid rgba(138, 107, 30, 0.2);
+  border-radius: 26px;
+  background:
+    radial-gradient(circle at top, rgba(255, 220, 115, 0.2), transparent 34%),
+    linear-gradient(180deg, rgba(27, 20, 10, 0.96), rgba(13, 17, 30, 0.96));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 231, 168, 0.14),
+    0 20px 44px rgba(3, 6, 18, 0.28);
+}
+
+.leaderboardHeroHeader {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: start;
+}
+
+.leaderboardHeroBadge {
+  min-width: 90px;
+  border: 1px solid rgba(255, 212, 97, 0.28);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255, 191, 73, 0.18), rgba(77, 44, 8, 0.3));
+  padding: 12px 14px;
+  display: grid;
+  gap: 4px;
+  justify-items: end;
+}
+
+.leaderboardHeroBadge span,
+.leaderboardHeroStat span,
+.leaderboardStat span {
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #b7c4e2;
+}
+
+.leaderboardHeroBadge strong {
+  font-size: 1.6rem;
+  line-height: 1;
+  color: #fff3c4;
+}
+
+.leaderboardToggle {
+  margin-top: 16px;
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid rgba(123, 138, 184, 0.16);
+  border-radius: 18px;
+  background: rgba(12, 18, 34, 0.8);
+}
+
+.leaderboardToggleButton {
+  border: 0;
+  border-radius: 14px;
+  padding: 11px 18px;
+  background: transparent;
+  color: #a6b5d4;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.leaderboardToggleButtonActive {
+  background: linear-gradient(180deg, rgba(255, 210, 98, 0.92), rgba(255, 161, 51, 0.9));
+  color: #281502;
+  box-shadow: 0 10px 22px rgba(255, 173, 56, 0.26);
+}
+
+.leaderboardHeroStats {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.leaderboardHeroStat {
+  border: 1px solid rgba(123, 138, 184, 0.14);
+  border-radius: 18px;
+  background: rgba(12, 18, 34, 0.74);
+  padding: 14px;
+  display: grid;
+  gap: 4px;
+}
+
+.leaderboardHeroStat strong {
+  color: #f6f8ff;
+  font-size: 1.02rem;
+  line-height: 1.2;
+}
+
+.leaderboardHeroStat small {
+  color: #8ea0c8;
+}
+
+.leaderboardCountPill {
+  border: 1px solid rgba(123, 138, 184, 0.16);
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: rgba(15, 20, 36, 0.86);
+  color: #e6eeff;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.leaderboardBoardList {
+  margin-top: 14px;
+  display: grid;
+  gap: 12px;
+}
+
+.leaderboardFooter {
+  margin-top: 14px;
+  display: flex;
+  justify-content: center;
+}
+
+.leaderboardLoadingList {
+  margin-top: 14px;
+  display: grid;
+  gap: 12px;
+}
+
+.leaderboardLoadingRow {
+  height: 126px;
+  border-radius: 22px;
+  background:
+    linear-gradient(90deg, rgba(22, 30, 52, 0.7), rgba(68, 84, 124, 0.4), rgba(22, 30, 52, 0.7));
+  background-size: 200% 100%;
+  animation: leaderboardShimmer 1.4s linear infinite;
+}
+
+@keyframes leaderboardShimmer {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.leaderboardEmptyState {
+  margin-top: 14px;
+  border: 1px dashed rgba(134, 150, 196, 0.24);
+  border-radius: 22px;
+  padding: 20px;
+  background: rgba(10, 16, 28, 0.48);
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  text-align: center;
+}
+
+.leaderboardEmptyState strong {
+  color: #f3f6ff;
+  font-size: 1rem;
+}
+
+.leaderboardRow {
+  --leaderboard-accent: #9eb4ff;
+  --leaderboard-accent-strong: #5576ff;
+  --leaderboard-accent-deep: #223079;
+  --leaderboard-accent-glow: rgba(101, 136, 255, 0.24);
+  --leaderboard-shell: rgba(50, 66, 120, 0.24);
+  --leaderboard-text-strong: #f4f7ff;
+  --leaderboard-text-soft: rgba(224, 233, 255, 0.8);
+  border: 1px solid color-mix(in srgb, var(--leaderboard-accent) 38%, rgba(255, 255, 255, 0.12));
+  border-radius: 22px;
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--leaderboard-accent-deep) 78%, #070b14),
+      color-mix(in srgb, var(--leaderboard-shell) 78%, rgba(8, 12, 24, 0.92))
+    );
+  padding: 14px;
+  display: grid;
+  gap: 12px;
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--leaderboard-accent) 16%, white),
+    0 14px 28px rgba(3, 6, 18, 0.18);
+}
+
+.leaderboardRowCurrentUser {
+  border-color: color-mix(in srgb, var(--leaderboard-accent) 58%, rgba(255, 255, 255, 0.24));
+  background:
+    radial-gradient(circle at top right, color-mix(in srgb, var(--leaderboard-accent) 18%, transparent), transparent 38%),
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--leaderboard-accent-deep) 74%, #050911),
+      color-mix(in srgb, var(--leaderboard-shell) 88%, rgba(8, 12, 24, 0.96))
+    );
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--leaderboard-accent) 24%, white),
+    0 0 0 2px color-mix(in srgb, var(--leaderboard-accent) 20%, transparent),
+    0 0 28px var(--leaderboard-accent-glow),
+    0 18px 32px rgba(3, 6, 18, 0.22);
+}
+
+.leaderboardRankStack {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+
+.leaderboardRowTop {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.leaderboardIdentity {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  min-width: 0;
+}
+
+.leaderboardRankBadge,
+.leaderboardLevelPill,
+.leaderboardBandanaChip,
+.leaderboardYouBadge {
+  border-radius: 999px;
+  font-weight: 800;
+}
+
+.leaderboardRankBadge {
+  min-width: 48px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--leaderboard-accent-strong) 68%, #0b1020);
+  color: var(--leaderboard-text-strong);
+  text-align: center;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--leaderboard-accent) 18%, white);
+}
+
+.leaderboardIdentityCopy {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.leaderboardMetaRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.leaderboardNameLine {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.leaderboardNameLine strong {
+  max-width: 100%;
+  color: var(--leaderboard-text-strong);
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+
+.leaderboardBandanaChip {
+  width: fit-content;
+  padding: 6px 10px;
+  background: color-mix(in srgb, var(--leaderboard-accent) 18%, rgba(255, 255, 255, 0.04));
+  color: var(--leaderboard-text-soft);
+  font-size: 0.76rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.leaderboardYouBadge {
+  padding: 4px 8px;
+  background: linear-gradient(180deg, rgba(255, 215, 111, 0.96), rgba(255, 174, 67, 0.92));
+  color: #261102;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.leaderboardCurrentUserAura {
+  border-radius: 999px;
+  padding: 5px 9px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--leaderboard-text-soft);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.leaderboardLevelPill {
+  padding: 8px 12px;
+  border: 1px solid color-mix(in srgb, var(--leaderboard-accent) 26%, rgba(255, 255, 255, 0.08));
+  background: rgba(7, 11, 22, 0.5);
+  color: var(--leaderboard-text-strong);
+}
+
+.leaderboardStatsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.leaderboardStat {
+  border-radius: 16px;
+  background: rgba(8, 13, 24, 0.36);
+  padding: 12px;
+  display: grid;
+  gap: 5px;
+}
+
+.leaderboardStat strong {
+  color: var(--leaderboard-text-strong);
+  font-size: 0.92rem;
+  line-height: 1.35;
+}
+
+.leaderboardMovementBadge,
+.leaderboardMovementSubtle {
+  border-radius: 999px;
+  font-weight: 800;
+}
+
+.leaderboardMovementBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: rgba(7, 11, 22, 0.64);
+  color: #eef4ff;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+}
+
+.leaderboardMovementArrow {
+  font-size: 0.7rem;
+}
+
+.leaderboardMovementSubtle {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--leaderboard-text-soft);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+}
+
+.leaderboardMovementUp {
+  color: #8cf0b3;
+}
+
+.leaderboardMovementDown {
+  color: #ff9b9b;
+}
+
+.leaderboardMovementSame {
+  color: #d7e1f8;
+}
+
+.leaderboardMovementNew {
+  color: #ffe08a;
+}
+
+.leaderboardHeroMovement {
+  display: inline-flex;
+  align-items: center;
+}
+
+.leaderboardBandanaGrid {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.leaderboardBandanaCard {
+  border: 1px solid color-mix(in srgb, var(--leaderboard-accent) 26%, rgba(255, 255, 255, 0.12));
+  border-radius: 18px;
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--leaderboard-accent-deep) 62%, #0a1020),
+      rgba(9, 14, 28, 0.92)
+    );
+  padding: 14px;
+  display: grid;
+  gap: 5px;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--leaderboard-accent) 16%, white);
+}
+
+.leaderboardBandanaCard span {
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #9fb0d3;
+}
+
+.leaderboardBandanaCard strong {
+  color: #f5f8ff;
+  line-height: 1.2;
+}
+
+.leaderboardBandanaCard small {
+  color: #b9c8e6;
+}
+
 .bottomTabs {
   position: fixed;
   left: 10px;
@@ -5647,7 +6067,9 @@
 .themeLight .profileSheet,
 .themeLight .mobileMoreSheet,
 .themeLight .mobileBlockModal,
-.themeLight .loadingCard {
+.themeLight .loadingCard,
+.themeLight .leaderboardCountPill,
+.themeLight .leaderboardToggle {
   background: linear-gradient(180deg, rgba(251, 248, 243, 0.97), rgba(246, 242, 235, 0.96));
   color: #16253c;
   border-color: rgba(111, 122, 150, 0.14);
@@ -5686,7 +6108,9 @@
 .themeLight.pageShellGlass .proUnlockCard,
 .themeLight.pageShellGlass .backgroundPresetButton,
 .themeLight.pageShellGlass .backgroundSkinPanel,
-.themeLight.pageShellGlass .settingsPill {
+.themeLight.pageShellGlass .settingsPill,
+.themeLight.pageShellGlass .leaderboardCountPill,
+.themeLight.pageShellGlass .leaderboardToggle {
   background:
     linear-gradient(
       180deg,
@@ -5806,6 +6230,74 @@
 
 .themeLight .mobileMoreButton:hover {
   filter: brightness(0.99);
+}
+
+.themeLight .leaderboardHeroCard,
+.themeLight .leaderboardBoardCard,
+.themeLight .leaderboardSummaryCard {
+  background:
+    radial-gradient(circle at top, rgba(255, 222, 140, 0.26), transparent 34%),
+    linear-gradient(180deg, rgba(255, 250, 242, 0.98), rgba(242, 236, 226, 0.96));
+  border-color: rgba(179, 141, 63, 0.2);
+}
+
+.themeLight .leaderboardHeroBadge {
+  background: linear-gradient(180deg, rgba(255, 224, 147, 0.48), rgba(255, 192, 91, 0.24));
+  border-color: rgba(189, 145, 56, 0.24);
+}
+
+.themeLight .leaderboardHeroBadge strong,
+.themeLight .leaderboardHeroStat strong,
+.themeLight .leaderboardNameLine strong,
+.themeLight .leaderboardLevelPill,
+.themeLight .leaderboardStat strong {
+  color: #1e293b;
+}
+
+.themeLight .leaderboardHeroBadge span,
+.themeLight .leaderboardHeroStat span,
+.themeLight .leaderboardHeroStat small,
+.themeLight .leaderboardStat span,
+.themeLight .leaderboardBandanaChip {
+  color: #66748f;
+}
+
+.themeLight .leaderboardHeroStat,
+.themeLight .leaderboardStat {
+  background: rgba(255, 255, 255, 0.66);
+}
+
+.themeLight .leaderboardMovementBadge {
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.themeLight .leaderboardMovementSubtle,
+.themeLight .leaderboardCurrentUserAura {
+  background: rgba(34, 51, 84, 0.07);
+  color: #66748f;
+}
+
+.themeLight .leaderboardBandanaCard {
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--leaderboard-accent) 10%, white),
+      rgba(255, 255, 255, 0.82)
+    );
+}
+
+.themeLight .leaderboardBandanaCard strong,
+.themeLight .leaderboardEmptyState strong {
+  color: #1e293b;
+}
+
+.themeLight .leaderboardBandanaCard span,
+.themeLight .leaderboardBandanaCard small {
+  color: #66748f;
+}
+
+.themeLight .leaderboardEmptyState {
+  background: rgba(255, 255, 255, 0.54);
 }
 
 .themeLight .topAppBarAction,
@@ -7486,13 +7978,12 @@
 
   .xpDock {
     min-width: 0;
-    gap: 6px;
+    gap: 4px;
   }
 
   .xpDockBadge {
-    width: 44px;
-    height: 36px;
-    border-radius: 13px;
+    width: 40px;
+    height: 32px;
   }
 
   .xpBandanaLevelValue {
@@ -7500,17 +7991,17 @@
   }
 
   .xpDockTrack {
-    min-width: 102px;
-    max-width: 118px;
-    padding: 5px 8px;
+    min-width: 92px;
+    max-width: 104px;
+    padding: 5px 7px;
   }
 
   .xpDockCopy strong {
-    font-size: 0.64rem;
+    font-size: 0.58rem;
   }
 
   .xpDockCopy small {
-    font-size: 0.5rem;
+    font-size: 0.45rem;
   }
 
   .profileDockButtonMobile .profileDockCopy {
@@ -7849,6 +8340,32 @@
     padding: 16px;
   }
 
+  .leaderboardHeroHeader {
+    grid-template-columns: 1fr;
+  }
+
+  .leaderboardRowTop {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .leaderboardHeroBadge {
+    justify-items: start;
+  }
+
+  .leaderboardHeroStats,
+  .leaderboardStatsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .leaderboardBandanaGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .leaderboardIdentity {
+    align-items: start;
+  }
+
   .streakRulesList {
     grid-template-columns: 1fr;
   }
@@ -8085,5 +8602,19 @@
 
   .analyticsHeroEmote {
     width: 82px;
+  }
+
+  .leaderboardRow {
+    padding: 12px;
+  }
+
+  .leaderboardIdentity {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .leaderboardRankBadge {
+    min-width: 0;
+    width: fit-content;
   }
 }

@@ -18,6 +18,10 @@ import WhelmEmote from "@/components/WhelmEmote";
 import WhelmRitualScene from "@/components/WhelmRitualScene";
 import {
   trackAppOpened,
+  trackLeaderboardAroundMeLoaded,
+  trackLeaderboardPageLoaded,
+  trackLeaderboardTabSwitched,
+  trackLeaderboardViewed,
   trackSessionAbandoned,
   trackSessionCompleted,
   trackSessionStarted,
@@ -58,6 +62,7 @@ import {
 import { evaluateSessionQuality } from "@/lib/session-quality";
 import { getStreakBandanaTier, STREAK_BANDANA_TIERS } from "@/lib/streak-bandanas";
 import { buildPerformanceNotificationPlan } from "@/lib/performance-notifications";
+import type { LeaderboardPageResponse, LeaderboardSnapshotEntry } from "@/lib/leaderboard";
 import type { WhelmEmoteId } from "@/lib/whelm-emotes";
 import styles from "./page.module.css";
 
@@ -264,12 +269,33 @@ type DailyRitualBlockDraft = {
 type AppTab =
   | "today"
   | "calendar"
+  | "leaderboard"
   | "mirror"
   | "notes"
   | "streaks"
   | "history"
   | "reports"
   | "settings";
+type LeaderboardMetricTab = "xp" | "streak";
+type LeaderboardEntry = {
+  id: string;
+  username: string;
+  createdAtISO: string;
+  level: number;
+  totalXp: number;
+  currentStreak: number;
+  isCurrentUser?: boolean;
+};
+type LeaderboardMovement = {
+  delta: number;
+  previousRank: number | null;
+  direction: "up" | "down" | "same" | "new";
+};
+type LeaderboardBandanaHolder = {
+  color: string;
+  label: string;
+  entry: LeaderboardEntry | null;
+};
 type NoteCategory = "personal" | "school" | "work";
 type InsightMetric = "focus" | "notes" | "planned" | "reminders";
 type SenseiTone = "steady" | "nudge" | "momentum" | "milestone";
@@ -1422,6 +1448,8 @@ function WhelmNavIcon({ icon }: { icon: NavIconKey }) {
           <line x1="19" y1="44" x2="45" y2="44" stroke="#1E86FF" strokeWidth="3.5" strokeLinecap="round" opacity="0.8" />
         </svg>
       );
+    case "leaderboard":
+      return <img src="/leaderboard-icon-tab.png" alt="" className={styles.navIconImage} />;
     case "notes":
       return (
         <svg {...svgProps}>
@@ -1619,6 +1647,8 @@ function tabTitle(tab: AppTab) {
       return "Today";
     case "calendar":
       return "Schedule";
+    case "leaderboard":
+      return "Leaderboard";
     case "mirror":
       return "Streak Mirror";
     case "notes":
@@ -1632,6 +1662,180 @@ function tabTitle(tab: AppTab) {
     case "settings":
       return "Settings";
   }
+}
+
+function getLeaderboardBandanaMeta(streak: number) {
+  const tier = getStreakBandanaTier(streak);
+  const theme = getStreakTierColorTheme(tier?.color);
+
+  return {
+    tier,
+    theme,
+    label: tier ? tier.label : "No bandana",
+    shortLabel: tier ? tier.label.replace(" Bandana", "") : "None",
+  };
+}
+
+function formatLeaderboardXp(totalXp: number) {
+  return `${totalXp.toLocaleString()} XP`;
+}
+
+function compareLeaderboardEntries(
+  left: LeaderboardEntry,
+  right: LeaderboardEntry,
+  tab: LeaderboardMetricTab,
+) {
+  if (tab === "xp") {
+    return (
+      right.totalXp - left.totalXp ||
+      right.currentStreak - left.currentStreak ||
+      left.createdAtISO.localeCompare(right.createdAtISO)
+    );
+  }
+
+  return (
+    right.currentStreak - left.currentStreak ||
+    right.totalXp - left.totalXp ||
+    left.createdAtISO.localeCompare(right.createdAtISO)
+  );
+}
+
+function movementForRanks(currentRank: number, previousRank: number | null): LeaderboardMovement {
+  if (previousRank === null) {
+    return { delta: 0, previousRank, direction: "new" };
+  }
+
+  const delta = previousRank - currentRank;
+  if (delta > 0) return { delta, previousRank, direction: "up" };
+  if (delta < 0) return { delta, previousRank, direction: "down" };
+  return { delta: 0, previousRank, direction: "same" };
+}
+
+function movementFromSnapshot(entry: LeaderboardSnapshotEntry): LeaderboardMovement {
+  return {
+    delta: entry.movement,
+    previousRank: entry.previousRank,
+    direction: entry.movementDirection,
+  };
+}
+
+function leaderboardMovementLabel(movement: LeaderboardMovement, tab: LeaderboardMetricTab) {
+  if (movement.direction === "new") return tab === "xp" ? "New challenger" : "New";
+  if (movement.direction === "same") return tab === "xp" ? "No movement" : "Flat";
+  const magnitude = Math.abs(movement.delta);
+  return movement.direction === "up"
+    ? `${tab === "xp" ? "Up" : "+"}${magnitude}`
+    : `${tab === "xp" ? "Down" : "-"}${magnitude}`;
+}
+
+function LeaderboardMovementIndicator({
+  movement,
+  tab,
+}: {
+  movement: LeaderboardMovement;
+  tab: LeaderboardMetricTab;
+}) {
+  const label = leaderboardMovementLabel(movement, tab);
+  const directionClassName =
+    movement.direction === "up"
+      ? styles.leaderboardMovementUp
+      : movement.direction === "down"
+        ? styles.leaderboardMovementDown
+        : movement.direction === "new"
+          ? styles.leaderboardMovementNew
+          : styles.leaderboardMovementSame;
+
+  if (tab === "xp") {
+    return (
+      <span className={`${styles.leaderboardMovementBadge} ${directionClassName}`}>
+        <span className={styles.leaderboardMovementArrow}>
+          {movement.direction === "up"
+            ? "▲"
+            : movement.direction === "down"
+              ? "▼"
+              : movement.direction === "new"
+                ? "✦"
+                : "•"}
+        </span>
+        <span>{label}</span>
+      </span>
+    );
+  }
+
+  return (
+    <span className={`${styles.leaderboardMovementSubtle} ${directionClassName}`}>
+      {label}
+    </span>
+  );
+}
+
+function LeaderboardRow({
+  entry,
+  rank,
+  movement,
+  tab,
+}: {
+  entry: LeaderboardEntry;
+  rank: number;
+  movement: LeaderboardMovement;
+  tab: LeaderboardMetricTab;
+}) {
+  const bandana = getLeaderboardBandanaMeta(entry.currentStreak);
+  const rowStyle = {
+    "--leaderboard-accent": bandana.theme.accent,
+    "--leaderboard-accent-strong": bandana.theme.accentStrong,
+    "--leaderboard-accent-deep": bandana.theme.accentDeep,
+    "--leaderboard-accent-glow": bandana.theme.accentGlow,
+    "--leaderboard-shell": bandana.theme.shell,
+    "--leaderboard-text-strong": bandana.theme.textStrong,
+    "--leaderboard-text-soft": bandana.theme.textSoft,
+  } as CSSProperties;
+
+  return (
+    <article
+      className={`${styles.leaderboardRow} ${
+        entry.isCurrentUser ? styles.leaderboardRowCurrentUser : ""
+      }`}
+      style={rowStyle}
+    >
+      <div className={styles.leaderboardRowTop}>
+        <div className={styles.leaderboardIdentity}>
+          <div className={styles.leaderboardRankStack}>
+            <div className={styles.leaderboardRankBadge}>#{rank}</div>
+            <LeaderboardMovementIndicator movement={movement} tab={tab} />
+          </div>
+          <div className={styles.leaderboardIdentityCopy}>
+            <div className={styles.leaderboardNameLine}>
+              <strong>{entry.username}</strong>
+              {entry.isCurrentUser ? <span className={styles.leaderboardYouBadge}>You</span> : null}
+            </div>
+            <div className={styles.leaderboardMetaRow}>
+              <span className={styles.leaderboardBandanaChip}>{bandana.shortLabel}</span>
+              {entry.isCurrentUser ? (
+                <span className={styles.leaderboardCurrentUserAura}>Current account</span>
+              ) : null}
+            </div>
+          </div>
+        </div>
+        <div className={styles.leaderboardLevelPill}>Lv {entry.level}</div>
+      </div>
+
+      <div className={styles.leaderboardStatsGrid}>
+        <div className={styles.leaderboardStat}>
+          <span>Bandana</span>
+          <strong>{bandana.label}</strong>
+        </div>
+        <div className={styles.leaderboardStat}>
+          <span>Total XP</span>
+          <strong>{formatLeaderboardXp(entry.totalXp)}</strong>
+        </div>
+        <div className={styles.leaderboardStat}>
+          <span>Current streak</span>
+          <strong>{entry.currentStreak}d</strong>
+        </div>
+      </div>
+    </article>
+  );
 }
 
 const BANDANA_WORD_COLORS: Record<string, string> = {
@@ -1968,7 +2172,52 @@ const MOBILE_PRIMARY_TABS: Array<{ key: AppTab | "more"; label: string }> = [
   { key: "more", label: "More" },
 ];
 
-const MOBILE_MORE_TABS: AppTab[] = ["mirror", "streaks", "history", "reports", "settings"];
+const MOBILE_MORE_TABS: AppTab[] = [
+  "leaderboard",
+  "mirror",
+  "streaks",
+  "history",
+  "reports",
+  "settings",
+];
+
+const LEADERBOARD_SEED_DATA: ReadonlyArray<{
+  id: string;
+  username: string;
+  totalXp: number;
+  currentStreak: number;
+  createdAtISO: string;
+}> = [
+  { id: "seed-1", username: "Astra Vale", totalXp: 28640, currentStreak: 123, createdAtISO: "2024-01-04T08:30:00.000Z" },
+  { id: "seed-2", username: "Soren Pike", totalXp: 21480, currentStreak: 74, createdAtISO: "2024-01-12T12:15:00.000Z" },
+  { id: "seed-3", username: "Mira Sol", totalXp: 18420, currentStreak: 33, createdAtISO: "2024-02-09T10:20:00.000Z" },
+  { id: "seed-4", username: "Kael Mercer", totalXp: 15110, currentStreak: 18, createdAtISO: "2024-02-21T07:10:00.000Z" },
+  { id: "seed-5", username: "Talia Reed", totalXp: 12340, currentStreak: 8, createdAtISO: "2024-03-03T09:45:00.000Z" },
+  { id: "seed-6", username: "Juno Hart", totalXp: 9780, currentStreak: 4, createdAtISO: "2024-03-18T14:05:00.000Z" },
+  { id: "seed-7", username: "Ren Kade", totalXp: 8325, currentStreak: 2, createdAtISO: "2024-04-06T16:25:00.000Z" },
+  { id: "seed-8", username: "Ivo Lane", totalXp: 6940, currentStreak: 1, createdAtISO: "2024-04-19T11:50:00.000Z" },
+  { id: "seed-9", username: "Nova Chen", totalXp: 5420, currentStreak: 57, createdAtISO: "2024-05-08T13:30:00.000Z" },
+  { id: "seed-10", username: "Eden Cross", totalXp: 11960, currentStreak: 21, createdAtISO: "2024-05-12T15:40:00.000Z" },
+] as const;
+
+const LEADERBOARD_PREVIOUS_SNAPSHOT: ReadonlyArray<{
+  id: string;
+  username: string;
+  totalXp: number;
+  currentStreak: number;
+  createdAtISO: string;
+}> = [
+  { id: "seed-1", username: "Astra Vale", totalXp: 27880, currentStreak: 121, createdAtISO: "2024-01-04T08:30:00.000Z" },
+  { id: "seed-2", username: "Soren Pike", totalXp: 21310, currentStreak: 73, createdAtISO: "2024-01-12T12:15:00.000Z" },
+  { id: "seed-3", username: "Mira Sol", totalXp: 18340, currentStreak: 31, createdAtISO: "2024-02-09T10:20:00.000Z" },
+  { id: "seed-4", username: "Kael Mercer", totalXp: 14810, currentStreak: 17, createdAtISO: "2024-02-21T07:10:00.000Z" },
+  { id: "seed-5", username: "Talia Reed", totalXp: 12180, currentStreak: 8, createdAtISO: "2024-03-03T09:45:00.000Z" },
+  { id: "seed-6", username: "Juno Hart", totalXp: 9610, currentStreak: 4, createdAtISO: "2024-03-18T14:05:00.000Z" },
+  { id: "seed-7", username: "Ren Kade", totalXp: 8250, currentStreak: 2, createdAtISO: "2024-04-06T16:25:00.000Z" },
+  { id: "seed-8", username: "Ivo Lane", totalXp: 6895, currentStreak: 1, createdAtISO: "2024-04-19T11:50:00.000Z" },
+  { id: "seed-9", username: "Nova Chen", totalXp: 5210, currentStreak: 54, createdAtISO: "2024-05-08T13:30:00.000Z" },
+  { id: "seed-10", username: "Eden Cross", totalXp: 12040, currentStreak: 19, createdAtISO: "2024-05-12T15:40:00.000Z" },
+] as const;
 
 const INTRO_SPLASH_MIN_MS = 1500;
 const INTRO_SPLASH_MAX_MS = 2200;
@@ -2242,6 +2491,16 @@ export default function HomePage() {
   });
   const [trendRange, setTrendRange] = useState<TrendRange>(7);
   const [activeTab, setActiveTab] = useState<AppTab>("calendar");
+  const [leaderboardMetricTab, setLeaderboardMetricTab] = useState<LeaderboardMetricTab>("xp");
+  const [leaderboardLoading, setLeaderboardLoading] = useState(false);
+  const [leaderboardPageItems, setLeaderboardPageItems] = useState<LeaderboardSnapshotEntry[]>([]);
+  const [leaderboardAroundMeItems, setLeaderboardAroundMeItems] = useState<LeaderboardSnapshotEntry[]>([]);
+  const [leaderboardCursor, setLeaderboardCursor] = useState<string | null>(null);
+  const [leaderboardHasMore, setLeaderboardHasMore] = useState(false);
+  const [leaderboardSnapshotDate, setLeaderboardSnapshotDate] = useState<string | null>(null);
+  const [leaderboardSource, setLeaderboardSource] = useState<LeaderboardPageResponse["source"]>("fallback");
+  const [leaderboardTotalEntries, setLeaderboardTotalEntries] = useState(0);
+  const [leaderboardError, setLeaderboardError] = useState("");
   const [insightRange, setInsightRange] = useState<TrendRange>(30);
   const [insightMetric, setInsightMetric] = useState<InsightMetric>("focus");
   const [calendarView, setCalendarView] = useState<CalendarView>("month");
@@ -2354,18 +2613,40 @@ export default function HomePage() {
   const savedSelectionRef = useRef<Range | null>(null);
   const syncInFlightRef = useRef(false);
   const todaySummaryRef = useRef<HTMLElement | null>(null);
+  const todaySectionRef = useRef<HTMLElement | null>(null);
   const todayTimerRef = useRef<HTMLDivElement | null>(null);
   const todayQueueRef = useRef<HTMLElement | null>(null);
+  const calendarSectionRef = useRef<HTMLElement | null>(null);
   const calendarHeroRef = useRef<HTMLDivElement | null>(null);
   const calendarMonthRef = useRef<HTMLElement | null>(null);
   const calendarStreakRef = useRef<HTMLElement | null>(null);
   const calendarPlannerRef = useRef<HTMLElement | null>(null);
   const calendarTimelineRef = useRef<HTMLDivElement | null>(null);
+  const mirrorSectionRef = useRef<HTMLElement | null>(null);
+  const mirrorEntriesAnchorRef = useRef<HTMLDivElement | null>(null);
+  const notesSectionRef = useRef<HTMLElement | null>(null);
   const notesStartRef = useRef<HTMLElement | null>(null);
   const notesRecentRef = useRef<HTMLElement | null>(null);
   const notesEditorRef = useRef<HTMLElement | null>(null);
+  const leaderboardSectionRef = useRef<HTMLElement | null>(null);
+  const leaderboardPrimaryRef = useRef<HTMLElement | null>(null);
+  const historySectionRef = useRef<HTMLElement | null>(null);
+  const historyPrimaryRef = useRef<HTMLElement | null>(null);
+  const reportsSectionRef = useRef<HTMLElement | null>(null);
+  const reportsPrimaryRef = useRef<HTMLElement | null>(null);
+  const streaksSectionRef = useRef<HTMLElement | null>(null);
+  const streaksPrimaryRef = useRef<HTMLElement | null>(null);
+  const settingsSectionRef = useRef<HTMLElement | null>(null);
+  const settingsPrimaryRef = useRef<HTMLElement | null>(null);
   const appOpenTrackedRef = useRef<string | null>(null);
   const mobileDayTimelineScrollRef = useRef<HTMLDivElement | null>(null);
+  const tabScrollPositionsRef = useRef<Partial<Record<AppTab, number>>>({});
+  const lastTabTapRef = useRef<{ key: AppTab | "more"; at: number } | null>(null);
+  const guidedRevealSeenRef = useRef<Partial<Record<AppTab, boolean>>>({});
+  const previousActiveTabRef = useRef<AppTab | null>(null);
+  const dayTimelineMotionRef = useRef<"guide" | "restore">("restore");
+  const activeMotionCancelRef = useRef<(() => void) | null>(null);
+  const authReadyRef = useRef(false);
   const activatedCalendarEntryTimeoutRef = useRef<number | null>(null);
   const calendarHoverPreviewTimeoutRef = useRef<number | null>(null);
 
@@ -2957,7 +3238,11 @@ export default function HomePage() {
 
   const nextSenseiMilestone = useMemo(() => milestoneForStreak(streak), [streak]);
   const senseiActiveTab =
-    activeTab === "streaks" ? "reports" : activeTab === "mirror" ? "notes" : activeTab;
+    activeTab === "streaks" || activeTab === "leaderboard"
+      ? "reports"
+      : activeTab === "mirror"
+        ? "notes"
+        : activeTab;
 
   const companionState = useMemo(
     () =>
@@ -3264,11 +3549,13 @@ export default function HomePage() {
         setSickDaySavePromptOpen(false);
         setSelectedNoteId(null);
         setSelectedCalendarDate(null);
-        setAuthChecked(true);
-        router.replace("/login");
+        if (authReadyRef.current) {
+          setAuthChecked(true);
+        }
         return;
       }
 
+      authReadyRef.current = true;
       setUser(nextUser);
       if (appOpenTrackedRef.current !== nextUser.uid) {
         appOpenTrackedRef.current = nextUser.uid;
@@ -3290,12 +3577,22 @@ export default function HomePage() {
   }, [router]);
 
   useEffect(() => {
-    if (authChecked) return;
-    const timeoutId = window.setTimeout(() => {
+    let cancelled = false;
+
+    const waitForAuthReady =
+      typeof auth.authStateReady === "function" ? auth.authStateReady() : Promise.resolve();
+
+    waitForAuthReady.catch(() => undefined).finally(() => {
+      if (cancelled || authReadyRef.current) return;
+      authReadyRef.current = true;
+      setUser(auth.currentUser);
       setAuthChecked(true);
-    }, 2500);
-    return () => window.clearTimeout(timeoutId);
-  }, [authChecked]);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -4079,6 +4376,273 @@ export default function HomePage() {
     target.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
+  function cancelActiveMotion() {
+    activeMotionCancelRef.current?.();
+    activeMotionCancelRef.current = null;
+  }
+
+  function runInterruptibleScroll({
+    getPosition,
+    setPosition,
+    target,
+    duration = 500,
+    onComplete,
+  }: {
+    getPosition: () => number;
+    setPosition: (next: number) => void;
+    target: number;
+    duration?: number;
+    onComplete?: () => void;
+  }) {
+    if (typeof window === "undefined") return;
+
+    cancelActiveMotion();
+
+    const start = getPosition();
+    const distance = target - start;
+    if (Math.abs(distance) < 2) {
+      setPosition(target);
+      onComplete?.();
+      return;
+    }
+
+    let frameId: number | null = null;
+    let finished = false;
+    const startedAt = performance.now();
+    const easeInOut = (value: number) =>
+      value < 0.5 ? 4 * value * value * value : 1 - ((-2 * value + 2) ** 3) / 2;
+
+    const cleanup = () => {
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId);
+      }
+      window.removeEventListener("wheel", interrupt, listenerOptions);
+      window.removeEventListener("touchstart", interrupt, listenerOptions);
+      window.removeEventListener("pointerdown", interrupt, listenerOptions);
+      window.removeEventListener("keydown", interrupt, listenerOptions);
+      if (activeMotionCancelRef.current === interrupt) {
+        activeMotionCancelRef.current = null;
+      }
+    };
+
+    const finish = (complete: boolean) => {
+      if (finished) return;
+      finished = true;
+      cleanup();
+      if (complete) {
+        setPosition(target);
+        onComplete?.();
+      }
+    };
+
+    const step = (timestamp: number) => {
+      if (finished) return;
+      const progress = Math.min(1, (timestamp - startedAt) / duration);
+      const eased = easeInOut(progress);
+      setPosition(start + distance * eased);
+      if (progress >= 1) {
+        finish(true);
+        return;
+      }
+      frameId = window.requestAnimationFrame(step);
+    };
+
+    const interrupt = () => finish(false);
+    const listenerOptions: AddEventListenerOptions = { passive: true };
+
+    activeMotionCancelRef.current = interrupt;
+    window.addEventListener("wheel", interrupt, listenerOptions);
+    window.addEventListener("touchstart", interrupt, listenerOptions);
+    window.addEventListener("pointerdown", interrupt, listenerOptions);
+    window.addEventListener("keydown", interrupt, listenerOptions);
+    frameId = window.requestAnimationFrame(step);
+  }
+
+  function scrollWindowToY(target: number, options?: { immediate?: boolean; duration?: number; onComplete?: () => void }) {
+    if (typeof window === "undefined") return;
+    if (options?.immediate) {
+      cancelActiveMotion();
+      window.scrollTo({ top: target, behavior: "auto" });
+      options.onComplete?.();
+      return;
+    }
+
+    runInterruptibleScroll({
+      getPosition: () => window.scrollY,
+      setPosition: (next) => window.scrollTo({ top: next, behavior: "auto" }),
+      target,
+      duration: options?.duration,
+      onComplete: options?.onComplete,
+    });
+  }
+
+  function scrollElementToY(
+    element: HTMLElement,
+    target: number,
+    options?: { immediate?: boolean; duration?: number; onComplete?: () => void },
+  ) {
+    if (options?.immediate) {
+      cancelActiveMotion();
+      element.scrollTop = target;
+      options.onComplete?.();
+      return;
+    }
+
+    runInterruptibleScroll({
+      getPosition: () => element.scrollTop,
+      setPosition: (next) => {
+        element.scrollTop = next;
+      },
+      target,
+      duration: options?.duration,
+      onComplete: options?.onComplete,
+    });
+  }
+
+  function topAnchorForTab(tab: AppTab) {
+    switch (tab) {
+      case "today":
+        return todaySectionRef.current;
+      case "calendar":
+        return calendarSectionRef.current;
+      case "leaderboard":
+        return leaderboardSectionRef.current;
+      case "mirror":
+        return mirrorSectionRef.current;
+      case "notes":
+        return notesSectionRef.current;
+      case "history":
+        return historySectionRef.current;
+      case "reports":
+        return reportsSectionRef.current;
+      case "streaks":
+        return streaksSectionRef.current;
+      case "settings":
+        return settingsSectionRef.current;
+      default:
+        return null;
+    }
+  }
+
+  function primaryAnchorForTab(tab: AppTab) {
+    switch (tab) {
+      case "today":
+        return todayTimerRef.current ?? todaySummaryRef.current;
+      case "calendar":
+        return calendarTimelineRef.current ?? calendarHeroRef.current ?? calendarMonthRef.current;
+      case "leaderboard":
+        return leaderboardPrimaryRef.current ?? leaderboardSectionRef.current;
+      case "mirror":
+        return mirrorEntriesAnchorRef.current ?? mirrorSectionRef.current;
+      case "notes":
+        return notesEditorRef.current ?? notesRecentRef.current ?? notesStartRef.current ?? notesSectionRef.current;
+      case "history":
+        return historyPrimaryRef.current ?? historySectionRef.current;
+      case "reports":
+        return reportsPrimaryRef.current ?? reportsSectionRef.current;
+      case "streaks":
+        return streaksPrimaryRef.current ?? streaksSectionRef.current;
+      case "settings":
+        return settingsPrimaryRef.current ?? settingsSectionRef.current;
+      default:
+        return null;
+    }
+  }
+
+  function persistGuidedRevealSeen() {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(
+        "whelm-guided-tabs-v1",
+        JSON.stringify(guidedRevealSeenRef.current),
+      );
+    } catch {
+      // Ignore storage failures in private / constrained webviews.
+    }
+  }
+
+  function scrollTabToTop(tab: AppTab) {
+    cancelActiveMotion();
+    if (tab === "calendar" && isMobileViewport) {
+      const timelineContainer = mobileDayTimelineScrollRef.current ?? calendarTimelineRef.current;
+      if (timelineContainer) {
+        scrollElementToY(timelineContainer, 0, {
+          duration: 320,
+        });
+      }
+    }
+    const target = topAnchorForTab(tab);
+    if (target) {
+      const top = window.scrollY + target.getBoundingClientRect().top;
+      scrollWindowToY(top, { duration: 320 });
+      return;
+    }
+    if (typeof window !== "undefined") {
+      scrollWindowToY(0, { duration: 320 });
+    }
+  }
+
+  function getDayTimelineScrollTarget() {
+    const container = mobileDayTimelineScrollRef.current;
+    if (!container) return null;
+
+    const targetMinute =
+      currentTimeMarker?.minute ??
+      dayViewTimeline.items[0]?.startMinute ??
+      dayViewTimeline.startMinute;
+    const relative =
+      (targetMinute - dayViewTimeline.startMinute) / Math.max(1, dayViewTimeline.totalMinutes);
+    const contentHeight = container.scrollHeight;
+    const viewportHeight = container.clientHeight;
+    return Math.max(0, relative * contentHeight - viewportHeight * 0.5);
+  }
+
+  function scrollCalendarTimelineToNow(options?: { immediate?: boolean; guided?: boolean }) {
+    const container = mobileDayTimelineScrollRef.current;
+    const targetScrollTop = getDayTimelineScrollTarget();
+    if (!container || targetScrollTop === null) return;
+
+    if (options?.guided) {
+      container.scrollTop = 0;
+      scrollElementToY(container, targetScrollTop, { duration: 900 });
+      return;
+    }
+
+    scrollElementToY(container, targetScrollTop, {
+      immediate: options?.immediate ?? false,
+      duration: options?.immediate ? 0 : 360,
+    });
+  }
+
+  function handleTabSelect(tab: AppTab | "more") {
+    const now = Date.now();
+    const previousTap = lastTabTapRef.current;
+    const isDoubleTap =
+      previousTap &&
+      previousTap.key === tab &&
+      now - previousTap.at < 360;
+
+    lastTabTapRef.current = { key: tab, at: now };
+
+    if (tab === "more") {
+      setMobileMoreOpen(true);
+      return;
+    }
+
+    if (tab === activeTab) {
+      if (isDoubleTap) {
+        scrollTabToTop(tab);
+      }
+      return;
+    }
+
+    if (typeof window !== "undefined") {
+      tabScrollPositionsRef.current[activeTab] = window.scrollY;
+    }
+    setMobileMoreOpen(false);
+    setActiveTab(tab);
+  }
+
   function openMobileNoteEditor(noteId: string) {
     setSelectedNoteId(noteId);
     setMobileNotesEditorOpen(true);
@@ -4311,13 +4875,54 @@ export default function HomePage() {
   }
 
   function handleMobileTabSelect(tab: AppTab | "more") {
-    if (tab === "more") {
-      setMobileMoreOpen(true);
-      return;
-    }
+    handleTabSelect(tab);
+  }
 
-    setMobileMoreOpen(false);
-    setActiveTab(tab);
+  async function handleLeaderboardLoadMore() {
+    if (!user || !leaderboardHasMore || !leaderboardCursor) return;
+    setLeaderboardLoading(true);
+    setLeaderboardError("");
+
+    try {
+      const token = await user.getIdToken();
+      const url = new URL(resolveApiUrl("/api/leaderboard"), window.location.origin);
+      url.searchParams.set("metric", leaderboardMetricTab);
+      url.searchParams.set("limit", "20");
+      url.searchParams.set("userId", user.uid);
+      url.searchParams.set("cursor", leaderboardCursor);
+      url.searchParams.set("aroundWindow", "2");
+
+      const response = await fetch(url.toString(), {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const body = (await response.json()) as LeaderboardPageResponse | { error?: string };
+      if (!response.ok) {
+        throw new Error(("error" in body && body.error) || "Failed to load more leaderboard entries.");
+      }
+
+      const payload = body as LeaderboardPageResponse;
+      setLeaderboardPageItems((current) => [...current, ...payload.items]);
+      setLeaderboardCursor(payload.nextCursor);
+      setLeaderboardHasMore(payload.hasMore);
+      setLeaderboardSnapshotDate(payload.snapshotDate);
+      setLeaderboardSource(payload.source);
+      setLeaderboardTotalEntries(payload.totalEntries);
+
+      void trackLeaderboardPageLoaded(user, {
+        metric: leaderboardMetricTab,
+        pageSize: payload.items.length,
+        cursor: leaderboardCursor,
+        snapshotDate: payload.snapshotDate,
+      }).catch(() => undefined);
+    } catch (error: unknown) {
+      setLeaderboardError(
+        error instanceof Error ? error.message : "Failed to load more leaderboard entries.",
+      );
+    } finally {
+      setLeaderboardLoading(false);
+    }
   }
 
   function convertNoteToPlannedBlock(note: WorkspaceNote) {
@@ -4822,22 +5427,72 @@ export default function HomePage() {
     };
   }, [dayViewTimeline.endMinute, dayViewTimeline.startMinute, dayViewTimeline.totalMinutes, selectedDateKey]);
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const stored = window.localStorage.getItem("whelm-guided-tabs-v1");
+      if (!stored) return;
+      const parsed = JSON.parse(stored) as Partial<Record<AppTab, boolean>>;
+      if (parsed && typeof parsed === "object") {
+        guidedRevealSeenRef.current = parsed;
+      }
+    } catch {
+      // Ignore invalid or unavailable storage state.
+    }
+  }, []);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const previousTab = previousActiveTabRef.current;
+    const savedTop = tabScrollPositionsRef.current[activeTab];
+    const hasSeenGuidedReveal = Boolean(guidedRevealSeenRef.current[activeTab]);
+    const shouldGuide =
+      isMobileViewport &&
+      savedTop == null &&
+      !hasSeenGuidedReveal;
+
+    if (previousTab) {
+      tabScrollPositionsRef.current[previousTab] = window.scrollY;
+    }
+    previousActiveTabRef.current = activeTab;
+    dayTimelineMotionRef.current = shouldGuide ? "guide" : "restore";
+
+    const target = shouldGuide ? primaryAnchorForTab(activeTab) : topAnchorForTab(activeTab);
+    const timer = window.setTimeout(() => {
+      if (savedTop != null) {
+        scrollWindowToY(savedTop, { immediate: true });
+        return;
+      }
+
+      if (shouldGuide) {
+        scrollWindowToY(0, { immediate: true });
+        if (target) {
+          const top = window.scrollY + target.getBoundingClientRect().top;
+          scrollWindowToY(top, {
+            duration: activeTab === "calendar" ? 760 : 420,
+          });
+        }
+        guidedRevealSeenRef.current[activeTab] = true;
+        persistGuidedRevealSeen();
+        return;
+      }
+
+      scrollWindowToY(0, { immediate: true });
+    }, previousTab ? 110 : 180);
+
+    return () => window.clearTimeout(timer);
+  }, [activeTab, isMobileViewport]);
+  useEffect(() => {
     if (!isMobileViewport || calendarView !== "day") return;
-    const container = mobileDayTimelineScrollRef.current;
-    if (!container) return;
+    if (dayTimelineMotionRef.current === "guide" && activeTab === "calendar") {
+      const timer = window.setTimeout(() => {
+        scrollCalendarTimelineToNow({ guided: true });
+      }, 260);
+      return () => window.clearTimeout(timer);
+    }
 
-    const targetMinute =
-      currentTimeMarker?.minute ??
-      dayViewTimeline.items[0]?.startMinute ??
-      dayViewTimeline.startMinute;
-    const relative =
-      (targetMinute - dayViewTimeline.startMinute) / Math.max(1, dayViewTimeline.totalMinutes);
-    const contentHeight = container.scrollHeight;
-    const viewportHeight = container.clientHeight;
-    const targetScrollTop = Math.max(0, relative * contentHeight - viewportHeight * 0.32);
-
-    container.scrollTop = targetScrollTop;
+    scrollCalendarTimelineToNow({ immediate: true });
   }, [
+    activeTab,
     calendarView,
     currentTimeMarker?.minute,
     dayViewTimeline.items,
@@ -5452,6 +6107,12 @@ export default function HomePage() {
   }, [dailyRitualDrafts]);
 
   useEffect(() => {
+    return () => {
+      cancelActiveMotion();
+    };
+  }, []);
+
+  useEffect(() => {
     if (!authChecked || user) return;
 
     router.replace("/login");
@@ -5572,11 +6233,305 @@ export default function HomePage() {
     user.displayName?.trim() ||
     user.email?.split("@")[0]?.trim() ||
     "Whelm user";
+  const leaderboardEntries = useMemo<LeaderboardEntry[]>(() => {
+    const seeded = LEADERBOARD_SEED_DATA.map((entry) => ({
+      id: entry.id,
+      username: entry.username,
+      createdAtISO: entry.createdAtISO,
+      totalXp: entry.totalXp,
+      currentStreak: entry.currentStreak,
+      level: getLifetimeXpSummary(entry.totalXp, 0).currentLevel,
+    }));
+
+    const currentEntry: LeaderboardEntry = {
+      id: "current-user",
+      username: profileDisplayName,
+      createdAtISO: user.metadata.creationTime
+        ? new Date(user.metadata.creationTime).toISOString()
+        : new Date().toISOString(),
+      level: lifetimeXpSummary.currentLevel,
+      totalXp: lifetimeXpSummary.totalXp,
+      currentStreak: displayStreak,
+      isCurrentUser: true,
+    };
+
+    return [...seeded, currentEntry];
+  }, [displayStreak, lifetimeXpSummary.currentLevel, lifetimeXpSummary.totalXp, profileDisplayName, user.metadata.creationTime]);
+  const leaderboardPreviousSnapshotEntries = useMemo<LeaderboardEntry[]>(() => {
+    const seeded = LEADERBOARD_PREVIOUS_SNAPSHOT.map((entry) => ({
+      id: entry.id,
+      username: entry.username,
+      createdAtISO: entry.createdAtISO,
+      totalXp: entry.totalXp,
+      currentStreak: entry.currentStreak,
+      level: getLifetimeXpSummary(entry.totalXp, 0).currentLevel,
+    }));
+
+    const currentEntry: LeaderboardEntry = {
+      id: "current-user",
+      username: profileDisplayName,
+      createdAtISO: user.metadata.creationTime
+        ? new Date(user.metadata.creationTime).toISOString()
+        : new Date().toISOString(),
+      level: getLifetimeXpSummary(Math.max(0, lifetimeXpSummary.totalXp - 420), 0).currentLevel,
+      totalXp: Math.max(0, lifetimeXpSummary.totalXp - 420),
+      currentStreak: Math.max(0, displayStreak - 1),
+      isCurrentUser: true,
+    };
+
+    return [...seeded, currentEntry];
+  }, [displayStreak, lifetimeXpSummary.totalXp, profileDisplayName, user.metadata.creationTime]);
+  const leaderboardSortedEntries = useMemo(
+    () => [...leaderboardEntries].sort((left, right) => compareLeaderboardEntries(left, right, leaderboardMetricTab)),
+    [leaderboardEntries, leaderboardMetricTab],
+  );
+  const leaderboardPreviousRankMaps = useMemo(() => {
+    const xp = new Map<string, number>();
+    [...leaderboardPreviousSnapshotEntries]
+      .sort((left, right) => compareLeaderboardEntries(left, right, "xp"))
+      .forEach((entry, index) => xp.set(entry.id, index + 1));
+
+    const streak = new Map<string, number>();
+    [...leaderboardPreviousSnapshotEntries]
+      .sort((left, right) => compareLeaderboardEntries(left, right, "streak"))
+      .forEach((entry, index) => streak.set(entry.id, index + 1));
+
+    return { xp, streak };
+  }, [leaderboardPreviousSnapshotEntries]);
+  const leaderboardFallbackRows = useMemo(
+    () =>
+      leaderboardSortedEntries.map((entry, index) => ({
+        entry,
+        rank: index + 1,
+        movement: movementForRanks(
+          index + 1,
+          leaderboardPreviousRankMaps[leaderboardMetricTab].get(entry.id) ?? null,
+        ),
+      })),
+    [leaderboardMetricTab, leaderboardPreviousRankMaps, leaderboardSortedEntries],
+  );
+  const leaderboardRemoteRows = useMemo(
+    () =>
+      leaderboardPageItems.map((entry) => ({
+        entry: {
+          id: entry.userId,
+          username: entry.username,
+          createdAtISO: entry.createdAtISO,
+          totalXp: entry.totalXp,
+          currentStreak: entry.currentStreak,
+          level: entry.level,
+          isCurrentUser: entry.userId === user.uid,
+        },
+        rank: entry.rank,
+        movement: movementFromSnapshot(entry),
+      })),
+    [leaderboardPageItems, user.uid],
+  );
+  const leaderboardAroundRows = useMemo(
+    () =>
+      leaderboardAroundMeItems.map((entry) => ({
+        entry: {
+          id: entry.userId,
+          username: entry.username,
+          createdAtISO: entry.createdAtISO,
+          totalXp: entry.totalXp,
+          currentStreak: entry.currentStreak,
+          level: entry.level,
+          isCurrentUser: entry.userId === user.uid,
+        },
+        rank: entry.rank,
+        movement: movementFromSnapshot(entry),
+      })),
+    [leaderboardAroundMeItems, user.uid],
+  );
+  const leaderboardRows =
+    leaderboardSource === "snapshot" && leaderboardRemoteRows.length > 0
+      ? leaderboardRemoteRows
+      : leaderboardFallbackRows;
+  const leaderboardCurrentUserRank =
+    (leaderboardSource === "snapshot" && leaderboardAroundRows.find((row) => row.entry.isCurrentUser)?.rank) ??
+    leaderboardRows.find((row) => row.entry.isCurrentUser)?.rank ??
+    0;
+  const leaderboardCurrentUserMovement =
+    (leaderboardSource === "snapshot"
+      ? leaderboardAroundRows.find((row) => row.entry.isCurrentUser)?.movement
+      : undefined) ??
+    leaderboardRows.find((row) => row.entry.isCurrentUser)?.movement ?? {
+      delta: 0,
+      previousRank: null,
+      direction: "same" as const,
+    };
+  const leaderboardLeader = leaderboardRows[0]?.entry ?? null;
+  const leaderboardLeaderBandana = leaderboardLeader
+    ? getLeaderboardBandanaMeta(leaderboardLeader.currentStreak)
+    : null;
+  const leaderboardBandanaHolders = useMemo<LeaderboardBandanaHolder[]>(() => {
+    const sourceEntries =
+      leaderboardSource === "snapshot" && leaderboardPageItems.length > 0
+        ? leaderboardPageItems.map((entry) => ({
+            id: entry.userId,
+            username: entry.username,
+            createdAtISO: entry.createdAtISO,
+            totalXp: entry.totalXp,
+            currentStreak: entry.currentStreak,
+            level: entry.level,
+          }))
+        : leaderboardEntries;
+
+    return STREAK_BANDANA_TIERS.map((tier) => {
+      const topEntry =
+        [...sourceEntries]
+          .filter((entry) => getStreakBandanaTier(entry.currentStreak)?.color === tier.color)
+          .sort((left, right) => compareLeaderboardEntries(left, right, "xp"))[0] ?? null;
+
+      return {
+        color: tier.color,
+        label: `Top ${tier.label.replace(" Bandana", "")}`,
+        entry: topEntry,
+      };
+    });
+  }, [leaderboardEntries, leaderboardPageItems, leaderboardSource]);
+  const leaderboardHasEntries = leaderboardRows.length > 0;
+
+  useEffect(() => {
+    if (activeTab !== "leaderboard") return;
+    const currentUser = user;
+    if (!currentUser) return;
+
+    const controller = new AbortController();
+
+    async function syncLeaderboardProfile() {
+      try {
+        const token = await currentUser.getIdToken();
+        await fetch(resolveApiUrl("/api/leaderboard/profile"), {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            userId: currentUser.uid,
+            username: profileDisplayName,
+            totalXp: lifetimeXpSummary.totalXp,
+            currentStreak: displayStreak,
+            level: lifetimeXpSummary.currentLevel,
+            createdAtISO: currentUser.metadata.creationTime
+              ? new Date(currentUser.metadata.creationTime).toISOString()
+              : new Date().toISOString(),
+          }),
+          signal: controller.signal,
+        });
+      } catch {
+        // Ignore sync failures and keep the current leaderboard UI available.
+      }
+    }
+
+    void syncLeaderboardProfile();
+    return () => controller.abort();
+  }, [
+    activeTab,
+    displayStreak,
+    lifetimeXpSummary.currentLevel,
+    lifetimeXpSummary.totalXp,
+    profileDisplayName,
+    user,
+  ]);
+
+  useEffect(() => {
+    if (activeTab !== "leaderboard") return;
+    const currentUser = user;
+    if (!currentUser) return;
+
+    let cancelled = false;
+
+    async function loadLeaderboard() {
+      setLeaderboardLoading(true);
+      setLeaderboardError("");
+
+      try {
+        const token = await currentUser.getIdToken();
+        const url = new URL(resolveApiUrl("/api/leaderboard"), window.location.origin);
+        url.searchParams.set("metric", leaderboardMetricTab);
+        url.searchParams.set("limit", "20");
+        url.searchParams.set("userId", currentUser.uid);
+        url.searchParams.set("aroundWindow", "2");
+
+        const response = await fetch(url.toString(), {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        const body = (await response.json()) as LeaderboardPageResponse | { error?: string };
+        if (!response.ok) {
+          throw new Error(("error" in body && body.error) || "Failed to load leaderboard.");
+        }
+
+        if (cancelled) return;
+        const payload = body as LeaderboardPageResponse;
+        setLeaderboardPageItems(payload.items);
+        setLeaderboardAroundMeItems(payload.aroundMe);
+        setLeaderboardCursor(payload.nextCursor);
+        setLeaderboardHasMore(payload.hasMore);
+        setLeaderboardSnapshotDate(payload.snapshotDate);
+        setLeaderboardSource(payload.source);
+        setLeaderboardTotalEntries(payload.totalEntries);
+
+        void trackLeaderboardPageLoaded(currentUser, {
+          metric: leaderboardMetricTab,
+          pageSize: payload.items.length,
+          cursor: null,
+          snapshotDate: payload.snapshotDate,
+        }).catch(() => undefined);
+
+        if (payload.aroundMe.length > 0) {
+          void trackLeaderboardAroundMeLoaded(currentUser, {
+            metric: leaderboardMetricTab,
+            anchorRank:
+              payload.aroundMe.find((entry) => entry.userId === currentUser.uid)?.rank ??
+              payload.aroundMe[0].rank,
+            resultCount: payload.aroundMe.length,
+            snapshotDate: payload.snapshotDate,
+          }).catch(() => undefined);
+        }
+      } catch (error: unknown) {
+        if (cancelled) return;
+        setLeaderboardPageItems([]);
+        setLeaderboardAroundMeItems([]);
+        setLeaderboardCursor(null);
+        setLeaderboardHasMore(false);
+        setLeaderboardSnapshotDate(null);
+        setLeaderboardSource("fallback");
+        setLeaderboardTotalEntries(0);
+        setLeaderboardError(error instanceof Error ? error.message : "Failed to load leaderboard.");
+      } finally {
+        if (!cancelled) {
+          setLeaderboardLoading(false);
+        }
+      }
+    }
+
+    void loadLeaderboard();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, leaderboardMetricTab, user]);
+
+  useEffect(() => {
+    if (activeTab !== "leaderboard") return;
+    const currentUser = user;
+    if (!currentUser) return;
+    void trackLeaderboardViewed(currentUser, {
+      metric: leaderboardMetricTab,
+      snapshotDate: leaderboardSnapshotDate,
+    }).catch(() => undefined);
+  }, [activeTab, leaderboardMetricTab, leaderboardSnapshotDate, user]);
+
   const formattedLifetimeXp = lifetimeXpSummary.totalXp.toLocaleString();
-  const formattedNextLevelXp = lifetimeXpSummary.nextLevelXp.toLocaleString();
-  const formattedTodayXp = lifetimeXpSummary.todayXp.toLocaleString();
-  const currentXpMultiplier = getXpMultiplierForStreak(displayStreak);
-  const currentXpMultiplierLabel = formatXpMultiplier(currentXpMultiplier);
+  const formattedXpToNextLevel = Math.max(
+    0,
+    lifetimeXpSummary.nextLevelXp - lifetimeXpSummary.totalXp,
+  ).toLocaleString();
   const nextBandanaMilestone = buildNextBandanaMilestone(displayStreak, !hasEarnedToday);
   const longestStreak = Math.max(0, ...Array.from(historicalStreaksByDay.values()));
   const lifetimeFocusMinutes = sessions.reduce((sum, session) => sum + session.minutes, 0);
@@ -5700,7 +6655,7 @@ export default function HomePage() {
               key={tab.key}
               type="button"
               className={`${styles.tabButton} ${activeTab === tab.key ? styles.tabButtonActive : ""}`}
-              onClick={() => setActiveTab(tab.key)}
+              onClick={() => handleTabSelect(tab.key)}
             >
               <span className={styles.tabIcon}>{iconForTab(tab.key)}</span>
               <span>{tab.label}</span>
@@ -5709,7 +6664,7 @@ export default function HomePage() {
           <button
             type="button"
             className={`${styles.tabButton} ${mobileMoreActive || mobileMoreOpen ? styles.tabButtonActive : ""}`}
-            onClick={() => setMobileMoreOpen(true)}
+            onClick={() => handleTabSelect("more")}
           >
             <span className={styles.tabIcon}>{iconForNavKey("more")}</span>
             <span>More</span>
@@ -5733,7 +6688,7 @@ export default function HomePage() {
               <div
                 className={styles.xpDock}
                 style={xpDockStyle}
-                aria-label={`Level ${lifetimeXpSummary.currentLevel}. ${formattedLifetimeXp} XP total. ${formattedTodayXp} XP earned today.`}
+                aria-label={`Level ${lifetimeXpSummary.currentLevel}. ${formattedLifetimeXp} XP total. ${formattedXpToNextLevel} XP to next level.`}
               >
                 <XpBandanaLevelMark
                   className={styles.xpDockBadge}
@@ -5746,10 +6701,8 @@ export default function HomePage() {
                     style={{ width: `${Math.max(8, lifetimeXpSummary.progressToNextLevel * 100)}%` }}
                   />
                   <div className={styles.xpDockCopy}>
-                    <strong>{formattedLifetimeXp}/{formattedNextLevelXp}</strong>
-                    <small>
-                      Today {formattedTodayXp}/{XP_DAILY_TARGET} · {currentXpMultiplierLabel} streak pace
-                    </small>
+                    <strong>{formattedLifetimeXp} XP</strong>
+                    <small>{formattedXpToNextLevel} to level {lifetimeXpSummary.currentLevel + 1}</small>
                   </div>
                 </div>
               </div>
@@ -5780,7 +6733,7 @@ export default function HomePage() {
 
           {activeTab === "today" && (
             <>
-              {isMobileViewport && <section className={styles.mobileTodayStack}>
+              {isMobileViewport && <section className={styles.mobileTodayStack} ref={todaySectionRef}>
                 <article className={styles.mobileSummaryCard} ref={todaySummaryRef}>
                   <div className={styles.mobileSummaryHeader}>
                     <div>
@@ -5831,7 +6784,7 @@ export default function HomePage() {
                 </div>
               </section>}
 
-              <section className={styles.statsGrid}>
+              <section className={styles.statsGrid} ref={!isMobileViewport ? todaySectionRef : undefined}>
                 <article className={styles.statCard}>
                   <span className={styles.statLabel}>Discipline Score</span>
                   <strong className={styles.statValue}>
@@ -6061,7 +7014,7 @@ export default function HomePage() {
           )}
 
           {activeTab === "calendar" && (
-            <section className={styles.calendarGrid}>
+            <section className={styles.calendarGrid} ref={calendarSectionRef}>
               <article
                 className={`${styles.card} ${calendarView === "month" ? styles.calendarPrimaryExpanded : ""} ${
                   calendarView === "day" && selectedDateDayTone ? styles[`calendarToneSurface${selectedDateDayTone}`] : ""
@@ -6134,6 +7087,15 @@ export default function HomePage() {
                       </button>
                     </div>
                     <div className={styles.mobileInlineActions}>
+                      {calendarView === "day" && currentTimeMarker && (
+                        <button
+                          type="button"
+                          className={styles.calendarSectionButton}
+                          onClick={() => scrollCalendarTimelineToNow()}
+                        >
+                          Now
+                        </button>
+                      )}
                       {isMobileViewport && calendarView !== "day" && (
                         <button
                           type="button"
@@ -7521,13 +8483,226 @@ export default function HomePage() {
             </section>
           )}
 
+          {activeTab === "leaderboard" && (
+            <section className={styles.leaderboardShell} ref={leaderboardSectionRef}>
+              <article
+                className={`${styles.card} ${styles.leaderboardHeroCard}`}
+                ref={leaderboardPrimaryRef}
+              >
+                <div className={styles.leaderboardHeroHeader}>
+                  <div>
+                    <p className={styles.sectionLabel}>Leaderboard</p>
+                    <h2 className={styles.cardTitle}>Command rank</h2>
+                    <p className={styles.accountMeta}>
+                      Switch between XP and streak standings. Ranking updates use deterministic tie-breakers for a clean board.
+                    </p>
+                  </div>
+                  <div className={styles.leaderboardHeroBadge}>
+                    <span>{leaderboardMetricTab === "xp" ? "XP ladder" : "Streak ladder"}</span>
+                    <strong>#{leaderboardCurrentUserRank || "--"}</strong>
+                  </div>
+                </div>
+
+                <div className={styles.leaderboardToggle} role="tablist" aria-label="Leaderboard views">
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={leaderboardMetricTab === "xp"}
+                    className={`${styles.leaderboardToggleButton} ${
+                      leaderboardMetricTab === "xp" ? styles.leaderboardToggleButtonActive : ""
+                    }`}
+                    onClick={() => {
+                      if (leaderboardMetricTab === "xp") return;
+                      void trackLeaderboardTabSwitched(user, {
+                        fromMetric: leaderboardMetricTab,
+                        toMetric: "xp",
+                      }).catch(() => undefined);
+                      setLeaderboardMetricTab("xp");
+                    }}
+                  >
+                    XP
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={leaderboardMetricTab === "streak"}
+                    className={`${styles.leaderboardToggleButton} ${
+                      leaderboardMetricTab === "streak" ? styles.leaderboardToggleButtonActive : ""
+                    }`}
+                    onClick={() => {
+                      if (leaderboardMetricTab === "streak") return;
+                      void trackLeaderboardTabSwitched(user, {
+                        fromMetric: leaderboardMetricTab,
+                        toMetric: "streak",
+                      }).catch(() => undefined);
+                      setLeaderboardMetricTab("streak");
+                    }}
+                  >
+                    Streak
+                  </button>
+                </div>
+
+                <div className={styles.leaderboardHeroStats}>
+                  <article className={styles.leaderboardHeroStat}>
+                    <span>Your standing</span>
+                    <strong>#{leaderboardCurrentUserRank || "--"}</strong>
+                    <small className={styles.leaderboardHeroMovement}>
+                      <LeaderboardMovementIndicator
+                        movement={leaderboardCurrentUserMovement}
+                        tab={leaderboardMetricTab}
+                      />
+                    </small>
+                  </article>
+                  <article className={styles.leaderboardHeroStat}>
+                    <span>Current leader</span>
+                    <strong>{leaderboardLeader?.username ?? "No data"}</strong>
+                    <small>
+                      {leaderboardMetricTab === "xp"
+                        ? leaderboardLeader
+                          ? formatLeaderboardXp(leaderboardLeader.totalXp)
+                          : "Waiting"
+                        : leaderboardLeader
+                          ? `${leaderboardLeader.currentStreak}d streak`
+                          : "Waiting"}
+                    </small>
+                  </article>
+                  <article className={styles.leaderboardHeroStat}>
+                    <span>Top bandana</span>
+                    <strong>{leaderboardLeaderBandana?.shortLabel ?? "None"}</strong>
+                    <small>
+                      {leaderboardSnapshotDate
+                        ? `Snapshot ${leaderboardSnapshotDate}`
+                        : leaderboardLeaderBandana?.label ?? "No streak yet"}
+                    </small>
+                  </article>
+                </div>
+              </article>
+
+              <article className={`${styles.card} ${styles.leaderboardSummaryCard}`}>
+                <div className={styles.cardHeader}>
+                  <div>
+                    <p className={styles.sectionLabel}>Bandana holders</p>
+                    <h2 className={styles.cardTitle}>Top holders by bandana tier</h2>
+                  </div>
+                  <span className={styles.leaderboardCountPill}>Global ladder</span>
+                </div>
+
+                <div className={styles.leaderboardBandanaGrid}>
+                  {leaderboardBandanaHolders.map((holder) => {
+                    const meta = getLeaderboardBandanaMeta(holder.entry?.currentStreak ?? 0);
+                    const holderStyle = {
+                      "--leaderboard-accent": meta.theme.accent,
+                      "--leaderboard-accent-strong": meta.theme.accentStrong,
+                      "--leaderboard-accent-deep": meta.theme.accentDeep,
+                    } as CSSProperties;
+
+                    return (
+                      <article
+                        key={holder.color}
+                        className={styles.leaderboardBandanaCard}
+                        style={holderStyle}
+                      >
+                        <span>{holder.label}</span>
+                        <strong>{holder.entry?.username ?? "No holder yet"}</strong>
+                        <small>
+                          {holder.entry
+                            ? `${formatLeaderboardXp(holder.entry.totalXp)} • ${holder.entry.currentStreak}d`
+                            : "No qualifying streak yet"}
+                        </small>
+                      </article>
+                    );
+                  })}
+                </div>
+              </article>
+
+              <article className={`${styles.card} ${styles.leaderboardBoardCard}`}>
+                <div className={styles.cardHeader}>
+                  <div>
+                    <p className={styles.sectionLabel}>Standings</p>
+                    <h2 className={styles.cardTitle}>
+                      {leaderboardMetricTab === "xp" ? "XP ranking" : "Current streak ranking"}
+                    </h2>
+                  </div>
+                  <span className={styles.leaderboardCountPill}>
+                    {(leaderboardSource === "snapshot" ? leaderboardTotalEntries : leaderboardRows.length)} players
+                  </span>
+                </div>
+
+                {leaderboardError ? (
+                  <p className={styles.analyticsEmptyState}>{leaderboardError}</p>
+                ) : null}
+
+                {leaderboardLoading ? (
+                  <div className={styles.leaderboardLoadingList}>
+                    {Array.from({ length: 5 }).map((_, index) => (
+                      <div key={index} className={styles.leaderboardLoadingRow} aria-hidden="true" />
+                    ))}
+                  </div>
+                ) : !leaderboardHasEntries ? (
+                  <div className={styles.leaderboardEmptyState}>
+                    <strong>No leaderboard data yet</strong>
+                    <p className={styles.accountMeta}>
+                      Once competitive data is available, the global Whelm ladder will populate here.
+                    </p>
+                  </div>
+                ) : (
+                  <div className={styles.leaderboardBoardList}>
+                    {leaderboardRows.map((row) => (
+                      <LeaderboardRow
+                        key={row.entry.id}
+                        entry={row.entry}
+                        rank={row.rank}
+                        movement={row.movement}
+                        tab={leaderboardMetricTab}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {!leaderboardLoading && leaderboardHasMore ? (
+                  <div className={styles.leaderboardFooter}>
+                    <button
+                      type="button"
+                      className={styles.secondaryPlanButton}
+                      onClick={() => void handleLeaderboardLoadMore()}
+                    >
+                      Load more
+                    </button>
+                  </div>
+                ) : null}
+              </article>
+
+              {!leaderboardLoading && leaderboardAroundRows.length > 0 ? (
+                <article className={`${styles.card} ${styles.leaderboardAroundCard}`}>
+                  <div className={styles.cardHeader}>
+                    <div>
+                      <p className={styles.sectionLabel}>Around you</p>
+                      <h2 className={styles.cardTitle}>Your local slice of the global ladder</h2>
+                    </div>
+                  </div>
+                  <div className={styles.leaderboardBoardList}>
+                    {leaderboardAroundRows.map((row) => (
+                      <LeaderboardRow
+                        key={`around-${row.entry.id}-${row.rank}`}
+                        entry={row.entry}
+                        rank={row.rank}
+                        movement={row.movement}
+                        tab={leaderboardMetricTab}
+                      />
+                    ))}
+                  </div>
+                </article>
+              ) : null}
+            </section>
+          )}
+
           {activeTab === "mirror" && (
-            <section className={styles.mirrorShell}>
+            <section className={styles.mirrorShell} ref={mirrorSectionRef}>
               <CollapsibleSectionCard
                 className={styles.mirrorHeroCard}
                 label="Private Reflection"
                 title="Streak Mirror"
-                description="Private reflection for sick-day saves and pattern review."
+                description="Private reflection for resets, sick-day saves, and pattern review."
                 open={mirrorSectionsOpen.summary}
                 onToggle={() =>
                   setMirrorSectionsOpen((current) => ({ ...current, summary: !current.summary }))
@@ -7541,7 +8716,7 @@ export default function HomePage() {
                       className={styles.secondaryPlanButton}
                       onClick={() => setMirrorPrivacyOpen((current) => !current)}
                     >
-                      {mirrorPrivacyOpen ? "Hide privacy" : "Privacy"}
+                      Privacy
                     </button>
                     {mirrorPrivacyOpen ? (
                       <p className={styles.mirrorLead}>
@@ -7566,24 +8741,25 @@ export default function HomePage() {
                 </div>
               </CollapsibleSectionCard>
 
-              <CollapsibleSectionCard
-                className={styles.mirrorGridCard}
-                label="Entries"
-                title={streakMirrorEntries.length === 0 ? "No reflections yet" : "Look back clearly"}
-                description={
-                  streakMirrorEntries.length === 0
-                    ? "When a streak save is used, the reflection is stored here as a private mirror entry."
-                    : isPro
-                      ? "Every saved mirror entry stays available here."
-                      : "Whelm Free keeps your 2 most recent mirror entries visible. Whelm Pro keeps the full archive available."
-                }
-                open={mirrorSectionsOpen.entries}
-                onToggle={() =>
-                  setMirrorSectionsOpen((current) => ({ ...current, entries: !current.entries }))
-                }
-              >
-                {streakMirrorVisibleEntries.length > 0 ? (
-                  <div className={styles.mirrorEntryGrid}>
+              <div ref={mirrorEntriesAnchorRef}>
+                <CollapsibleSectionCard
+                  className={styles.mirrorGridCard}
+                  label="Entries"
+                  title={streakMirrorEntries.length === 0 ? "No reflections yet" : "Look back clearly"}
+                  description={
+                    streakMirrorEntries.length === 0
+                      ? "When a streak save is used, the reflection is stored here as a private mirror entry."
+                      : isPro
+                        ? "Every saved mirror entry stays available here."
+                        : "Whelm Free keeps your 2 most recent mirror entries visible. Whelm Pro keeps the full archive available."
+                  }
+                  open={mirrorSectionsOpen.entries}
+                  onToggle={() =>
+                    setMirrorSectionsOpen((current) => ({ ...current, entries: !current.entries }))
+                  }
+                >
+                  {streakMirrorVisibleEntries.length > 0 ? (
+                    <div className={styles.mirrorEntryGrid}>
                     {streakMirrorVisibleEntries.map((entry) => {
                       const tagMeta = getStreakMirrorTagMeta(entry.tag);
                       return (
@@ -7625,16 +8801,19 @@ export default function HomePage() {
                   <p className={styles.emptyText}>No mirror entries yet. Honest save reflections will appear here.</p>
                 )}
 
-                {!isPro && streakMirrorEntries.length > 2 ? (
-                  <ProUnlockCard
-                    title="Full Streak Mirror archive"
-                    body={`${WHELM_PRO_POSITIONING} Whelm Free keeps the 2 most recent mirror reflections visible. Whelm Pro keeps the full archive so patterns stay easy to trace.`}
-                    open={proPanelsOpen.mirror}
-                    onToggle={() => setProPanelsOpen((current) => ({ ...current, mirror: !current.mirror }))}
-                    onPreview={() => void handleStartProPreview()}
-                  />
-                ) : null}
-              </CollapsibleSectionCard>
+                  {!isPro && streakMirrorEntries.length > 2 ? (
+                    <ProUnlockCard
+                      title="Full Streak Mirror archive"
+                      body={`${WHELM_PRO_POSITIONING} Whelm Free keeps the 2 most recent mirror reflections visible. Whelm Pro keeps the full archive so patterns stay easy to trace.`}
+                      open={proPanelsOpen.mirror}
+                      onToggle={() =>
+                        setProPanelsOpen((current) => ({ ...current, mirror: !current.mirror }))
+                      }
+                      onPreview={() => void handleStartProPreview()}
+                    />
+                  ) : null}
+                </CollapsibleSectionCard>
+              </div>
 
               <CollapsibleSectionCard
                 className={styles.mirrorDetailCard}
@@ -7693,7 +8872,7 @@ export default function HomePage() {
           )}
 
           {activeTab === "notes" && (
-            <section className={styles.notesWorkspace}>
+            <section className={styles.notesWorkspace} ref={notesSectionRef}>
               {isMobileViewport && <div className={styles.mobileNotesPanel}>
                 <article className={styles.mobileNotesStartCard} ref={notesStartRef}>
                   <div className={styles.mobileNotesStartHeaderCompact}>
@@ -8598,9 +9777,9 @@ export default function HomePage() {
           )}
 
           {activeTab === "history" && (
-            <section className={styles.historyShell}>
+            <section className={styles.historyShell} ref={historySectionRef}>
               <CompanionPulse {...companionState.pulses.history} />
-              <article className={styles.card}>
+              <article className={styles.card} ref={historyPrimaryRef}>
                 <p className={styles.sectionLabel}>Block History</p>
                 <h2 className={styles.cardTitle}>Completed and incomplete blocks</h2>
                 <div className={styles.planSectionStack}>
@@ -8847,11 +10026,11 @@ export default function HomePage() {
           )}
 
           {activeTab === "reports" && (
-            <section className={styles.reportsGrid}>
+            <section className={styles.reportsGrid} ref={reportsSectionRef}>
               <CompanionPulse {...companionState.pulses.reports} />
               {!isPro ? (
                 <>
-                  <article className={`${styles.card} ${styles.analyticsHeroCard}`}>
+                  <article className={`${styles.card} ${styles.analyticsHeroCard}`} ref={reportsPrimaryRef}>
                     <div className={styles.cardHeader}>
                       <div>
                         <p className={styles.sectionLabel}>Focus Readout</p>
@@ -8898,7 +10077,7 @@ export default function HomePage() {
                 </>
               ) : (
                 <>
-              <article className={`${styles.card} ${styles.analyticsHeroCard}`}>
+              <article className={`${styles.card} ${styles.analyticsHeroCard}`} ref={reportsPrimaryRef}>
                 <div className={styles.cardHeader}>
                   <div>
                     <p className={styles.sectionLabel}>Advanced Reports</p>
@@ -9160,8 +10339,8 @@ export default function HomePage() {
           )}
 
           {activeTab === "streaks" && (
-            <section className={styles.streaksShell}>
-              <article className={`${styles.card} ${styles.streakRulesCard}`}>
+            <section className={styles.streaksShell} ref={streaksSectionRef}>
+              <article className={`${styles.card} ${styles.streakRulesCard}`} ref={streaksPrimaryRef}>
                 <button
                   type="button"
                   className={styles.streakRulesToggle}
@@ -9367,9 +10546,9 @@ export default function HomePage() {
           )}
 
           {activeTab === "settings" && (
-            <section className={styles.settingsGrid}>
+            <section className={styles.settingsGrid} ref={settingsSectionRef}>
               <CompanionPulse {...companionState.pulses.settings} />
-              <article className={`${styles.card} ${styles.settingsHeroCard}`}>
+              <article className={`${styles.card} ${styles.settingsHeroCard}`} ref={settingsPrimaryRef}>
                 <div className={styles.settingsHeroHeader}>
                   <WhelmProfileAvatar tierColor={streakBandanaTier?.color} size="compact" isPro={isPro} />
                   <div>
@@ -9961,7 +11140,7 @@ export default function HomePage() {
                   key={tab}
                   type="button"
                   className={styles.mobileMoreButton}
-                  onClick={() => handleMobileTabSelect(tab)}
+                  onClick={() => handleTabSelect(tab)}
                 >
                   <span className={styles.bottomTabIcon}>{iconForTab(tab)}</span>
                   <span>{tabTitle(tab)}</span>
