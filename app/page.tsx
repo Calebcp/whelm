@@ -4164,18 +4164,29 @@ export default function HomePage() {
     }
 
     function onVisibilityChange() {
+      if (document.visibilityState === "hidden") {
+        void flushSelectedNoteDraft();
+        return;
+      }
+
       if (document.visibilityState === "visible") {
         void pullLatest();
       }
     }
 
+    function onPageHide() {
+      void flushSelectedNoteDraft();
+    }
+
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("pagehide", onPageHide);
 
     return () => {
       window.clearInterval(intervalId);
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("pagehide", onPageHide);
     };
   }, [editorBodyDraft, notesSyncStatus, selectedNote, user]);
 
@@ -4452,6 +4463,31 @@ export default function HomePage() {
     const now = new Date().toISOString();
     const nextNotes = notesRef.current.map((note) =>
       note.id === currentSelectedNoteId ? { ...note, ...patch, updatedAtISO: now } : note,
+    );
+    notesRef.current = nextNotes;
+    setNotes(nextNotes);
+    setNotesSyncStatus("syncing");
+    setNotesSyncMessage("");
+    const result = await saveNotes(user, nextNotes);
+    setNotesSyncStatus(result.synced ? "synced" : "local-only");
+    setNotesSyncMessage(result.message ?? "");
+  }
+
+  async function flushSelectedNoteDraft() {
+    if (!user) return;
+
+    const currentSelectedNoteId = selectedNoteIdRef.current;
+    if (!currentSelectedNoteId) return;
+
+    const currentNote = notesRef.current.find((note) => note.id === currentSelectedNoteId);
+    if (!currentNote) return;
+
+    const nextBody = editorRef.current?.innerHTML ?? editorBodyDraft;
+    if (nextBody === currentNote.body) return;
+
+    const now = new Date().toISOString();
+    const nextNotes = notesRef.current.map((note) =>
+      note.id === currentSelectedNoteId ? { ...note, body: nextBody, updatedAtISO: now } : note,
     );
     notesRef.current = nextNotes;
     setNotes(nextNotes);
@@ -9803,7 +9839,10 @@ export default function HomePage() {
                         <button
                           type="button"
                           className={`${styles.secondaryPlanButton} ${styles.noteDoneButton}`}
-                          onClick={() => setMobileNotesEditorOpen(false)}
+                          onClick={() => {
+                            void flushSelectedNoteDraft();
+                            setMobileNotesEditorOpen(false);
+                          }}
                         >
                           Done
                         </button>
