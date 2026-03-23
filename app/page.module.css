@@ -6143,8 +6143,8 @@
 }
 
 .bottomTabButtonLeaderboard {
-  padding-inline: 6px;
-  gap: 4px;
+  padding: 6px 4px 7px;
+  gap: 2px;
 }
 
 .bottomTabButtonActive {
@@ -6169,18 +6169,18 @@
 }
 
 .bottomTabIconLeaderboard .navIconImage {
-  width: 30px;
-  height: 30px;
+  width: 46px;
+  height: 46px;
 }
 
 .bottomTabIconLeaderboard {
-  width: 30px;
-  height: 30px;
-  flex-basis: 30px;
+  width: 46px;
+  height: 46px;
+  flex-basis: 46px;
 }
 
 .bottomTabLabelLeaderboard {
-  font-size: 0.69rem;
+  font-size: 0.66rem;
   letter-spacing: -0.01em;
   white-space: nowrap;
 }
@@ -9542,33 +9542,6 @@
     padding: 14px;
   }
 
-  .leaderboardPodiumGrid {
-    grid-auto-flow: column;
-    grid-auto-columns: minmax(176px, 72vw);
-    grid-template-columns: none;
-    overflow-x: auto;
-    padding-bottom: 6px;
-    scroll-snap-type: x proximity;
-    scrollbar-width: none;
-  }
-
-  .leaderboardPodiumGrid::-webkit-scrollbar {
-    display: none;
-  }
-
-  .leaderboardPodiumCard {
-    min-width: 176px;
-    scroll-snap-align: start;
-  }
-
-  .leaderboardPodiumIdentity strong {
-    font-size: 1rem;
-  }
-
-  .leaderboardPodiumStats {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .dayPortalCopy {
     gap: 10px;
   }
@@ -9585,7 +9558,6 @@
 
   .leaderboardHeroHeader {
     grid-template-columns: 1fr;
-    gap: 18px;
   }
 
   .leaderboardRowTop {
@@ -9595,7 +9567,6 @@
 
   .leaderboardHeroBadge {
     justify-items: start;
-    width: 100%;
   }
 
   .leaderboardHeroStats,
