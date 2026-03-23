@@ -374,9 +374,9 @@
   .formShell {
     min-height: 100%;
     display: grid;
-    grid-template-rows: auto auto auto 1fr;
+    grid-template-rows: auto 1fr;
     align-content: stretch;
-    gap: 10px;
+    gap: 12px;
     padding: 8px 0 0;
     border: 0;
     border-radius: 0;
@@ -385,22 +385,26 @@
     backdrop-filter: none;
   }
 
+  .mobileAppChrome {
+    display: none;
+  }
+
   .mobileWelcomeCard {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-columns: 72px minmax(0, 1fr);
     gap: 12px;
     align-items: center;
     margin-bottom: 0;
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    border-radius: 28px;
+    border: 1px solid rgba(187, 203, 255, 0.22);
+    border-radius: 30px;
     background:
-      linear-gradient(145deg, rgba(26, 46, 88, 0.9), rgba(32, 59, 112, 0.84)),
-      radial-gradient(circle at top left, rgba(170, 186, 255, 0.18), transparent 38%);
-    padding: 16px;
+      radial-gradient(circle at top left, rgba(176, 194, 255, 0.22), transparent 36%),
+      linear-gradient(145deg, rgba(29, 48, 102, 0.96), rgba(50, 68, 147, 0.92) 58%, rgba(68, 79, 175, 0.9));
+    padding: 14px 16px;
     color: #f4f8ff;
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.18),
-      0 20px 44px rgba(2, 8, 23, 0.24);
+      0 20px 44px rgba(7, 12, 33, 0.26);
     backdrop-filter: blur(18px);
   }
 
@@ -441,7 +445,7 @@
   }
 
   .mobileWelcomeSensei {
-    width: 76px;
+    width: 70px;
   }
 
   .mobileWelcomeCopy .kicker {
@@ -450,41 +454,40 @@
   }
 
   .mobileWelcomeTitle {
-    font-size: 1.45rem;
-    line-height: 0.96;
+    font-size: 1.56rem;
+    line-height: 0.94;
     color: #f7fbff;
   }
 
   .mobileWelcomeBody {
-    color: rgba(223, 232, 248, 0.84);
-    line-height: 1.42;
-    font-size: 0.96rem;
+    color: rgba(226, 233, 252, 0.88);
+    line-height: 1.38;
+    font-size: 0.9rem;
   }
 
   .formHeader {
     margin: 0;
-    padding: 18px 20px 0;
+    padding: 0;
   }
 
   .formEyebrow {
-    display: block;
+    display: none;
   }
 
   .formTitle {
-    font-size: 1.32rem;
-    line-height: 0.98;
-    color: #12233f;
+    font-size: 1.18rem;
+    line-height: 1;
+    color: #152847;
   }
 
   .formCopy {
-    font-size: 0.95rem;
-    color: #617492;
+    display: none;
   }
 
   .modeSwitch {
-    margin-bottom: 12px;
+    margin-bottom: 0;
     padding: 5px;
-    background: rgba(218, 226, 241, 0.96);
+    background: rgba(221, 229, 244, 0.96);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
   }
 
@@ -510,7 +513,7 @@
     box-shadow:
       0 -10px 40px rgba(15, 23, 42, 0.08),
       0 -1px 0 rgba(255, 255, 255, 0.7);
-    padding: 0 20px calc(16px + env(safe-area-inset-bottom));
+    padding: 14px 20px calc(16px + env(safe-area-inset-bottom));
   }
 
   .fieldBlock {
@@ -562,41 +565,8 @@
     display: none;
   }
 
-  .loginMode .mobileWelcomeCard {
-    grid-template-columns: 68px minmax(0, 1fr);
-    gap: 10px;
-    padding: 12px 14px;
-  }
-
-  .loginMode .formHeader {
-    padding-top: 10px;
-  }
-
-  .loginMode .formCopy {
-    margin-top: 6px;
-    font-size: 0.9rem;
-    line-height: 1.42;
-  }
-
-  .loginMode .mobileWelcomeTitle {
-    font-size: 1.28rem;
-  }
-
-  .loginMode .mobileWelcomeBody {
-    font-size: 0.9rem;
-    line-height: 1.34;
-  }
-
-  .loginMode .mobileWelcomeSensei {
-    width: 64px;
-  }
-
-  .loginMode .authCard {
-    padding-top: 12px;
-  }
-
   .loginMode .fieldBlock {
-    gap: 9px;
+    gap: 8px;
   }
 
   .loginMode .label {
@@ -623,8 +593,12 @@
     padding: 10px 12px;
   }
 
+  .loginMode .authCard {
+    justify-content: center;
+  }
+
   .signupMode .authCard {
-    max-height: min(58svh, 560px);
+    max-height: min(60svh, 560px);
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
   }
@@ -633,12 +607,15 @@
     padding-bottom: 4px;
   }
 
-  .signupMode .formTitle {
-    max-width: 12ch;
+  .loginMode .formTitle {
+    display: none;
   }
 
-  .loginMode .formTitle {
-    font-size: 1.14rem;
+  .signupMode .formTitle {
+    display: block;
+    max-width: 14ch;
+    margin-top: 14px;
+    font-size: 1.16rem;
     line-height: 1.02;
   }
 
@@ -647,8 +624,8 @@
     overflow: hidden;
   }
 
-  .loginMode .fieldBlock {
-    justify-content: flex-start;
+  .loginMode .formHeader {
+    margin-bottom: 10px;
   }
 
   .signupMode .formCopy {

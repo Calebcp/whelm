@@ -183,7 +183,7 @@ export default function LoginPage() {
               <div className={styles.mobileWelcomeCopy}>
                 <p className={styles.kicker}>WHELM</p>
                 <h2 className={styles.mobileWelcomeTitle}>
-                  {mode === "signup" ? "Start your Whelm journey." : "Welcome back."}
+                  {mode === "signup" ? "Start your Whelm journey." : "Welcome back to Whelm."}
                 </h2>
                 <p className={styles.mobileWelcomeBody}>
                   {mode === "signup"
@@ -225,7 +225,7 @@ export default function LoginPage() {
               </div>
 
               <h2 className={styles.formTitle}>
-                {mode === "signup" ? "Productivity on another level" : "Log in to Whelm"}
+                {mode === "signup" ? "Productivity on another level" : "Log in and continue"}
               </h2>
               <p className={styles.formCopy}>
                 {mode === "signup"
