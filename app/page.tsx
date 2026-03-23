@@ -6147,23 +6147,6 @@ export default function HomePage() {
     );
   }
 
-  if (!user) {
-    return (
-      <main className={styles.pageShell}>
-        <div className={styles.loadingCard}>
-          <p className={styles.loadingLabel}>Opening Whelm login...</p>
-          <button
-            type="button"
-            className={styles.secondaryPlanButton}
-            onClick={() => window.location.assign("/login")}
-          >
-            Go to login
-          </button>
-        </div>
-      </main>
-    );
-  }
-
   const lastSession = sessions[0];
   const latestNote = orderedNotes[0] ?? null;
   const nextPlannedBlock = todayActivePlannedBlocks[0] ?? null;
@@ -6230,9 +6213,12 @@ export default function HomePage() {
   } as CSSProperties;
   const profileTierTheme = getProfileTierTheme(streakBandanaTier?.color, isPro);
   const profileDisplayName =
-    user.displayName?.trim() ||
-    user.email?.split("@")[0]?.trim() ||
+    user?.displayName?.trim() ||
+    user?.email?.split("@")[0]?.trim() ||
     "Whelm user";
+  const currentUserId = user?.uid ?? "current-user";
+  const currentUserCreatedAtISO =
+    user?.metadata.creationTime ? new Date(user.metadata.creationTime).toISOString() : new Date().toISOString();
   const leaderboardEntries = useMemo<LeaderboardEntry[]>(() => {
     const seeded = LEADERBOARD_SEED_DATA.map((entry) => ({
       id: entry.id,
@@ -6246,9 +6232,7 @@ export default function HomePage() {
     const currentEntry: LeaderboardEntry = {
       id: "current-user",
       username: profileDisplayName,
-      createdAtISO: user.metadata.creationTime
-        ? new Date(user.metadata.creationTime).toISOString()
-        : new Date().toISOString(),
+      createdAtISO: currentUserCreatedAtISO,
       level: lifetimeXpSummary.currentLevel,
       totalXp: lifetimeXpSummary.totalXp,
       currentStreak: displayStreak,
@@ -6256,7 +6240,7 @@ export default function HomePage() {
     };
 
     return [...seeded, currentEntry];
-  }, [displayStreak, lifetimeXpSummary.currentLevel, lifetimeXpSummary.totalXp, profileDisplayName, user.metadata.creationTime]);
+  }, [currentUserCreatedAtISO, displayStreak, lifetimeXpSummary.currentLevel, lifetimeXpSummary.totalXp, profileDisplayName]);
   const leaderboardPreviousSnapshotEntries = useMemo<LeaderboardEntry[]>(() => {
     const seeded = LEADERBOARD_PREVIOUS_SNAPSHOT.map((entry) => ({
       id: entry.id,
@@ -6270,9 +6254,7 @@ export default function HomePage() {
     const currentEntry: LeaderboardEntry = {
       id: "current-user",
       username: profileDisplayName,
-      createdAtISO: user.metadata.creationTime
-        ? new Date(user.metadata.creationTime).toISOString()
-        : new Date().toISOString(),
+      createdAtISO: currentUserCreatedAtISO,
       level: getLifetimeXpSummary(Math.max(0, lifetimeXpSummary.totalXp - 420), 0).currentLevel,
       totalXp: Math.max(0, lifetimeXpSummary.totalXp - 420),
       currentStreak: Math.max(0, displayStreak - 1),
@@ -6280,7 +6262,7 @@ export default function HomePage() {
     };
 
     return [...seeded, currentEntry];
-  }, [displayStreak, lifetimeXpSummary.totalXp, profileDisplayName, user.metadata.creationTime]);
+  }, [currentUserCreatedAtISO, displayStreak, lifetimeXpSummary.totalXp, profileDisplayName]);
   const leaderboardSortedEntries = useMemo(
     () => [...leaderboardEntries].sort((left, right) => compareLeaderboardEntries(left, right, leaderboardMetricTab)),
     [leaderboardEntries, leaderboardMetricTab],
@@ -6320,12 +6302,12 @@ export default function HomePage() {
           totalXp: entry.totalXp,
           currentStreak: entry.currentStreak,
           level: entry.level,
-          isCurrentUser: entry.userId === user.uid,
+          isCurrentUser: entry.userId === currentUserId,
         },
         rank: entry.rank,
         movement: movementFromSnapshot(entry),
       })),
-    [leaderboardPageItems, user.uid],
+    [currentUserId, leaderboardPageItems],
   );
   const leaderboardAroundRows = useMemo(
     () =>
@@ -6337,12 +6319,12 @@ export default function HomePage() {
           totalXp: entry.totalXp,
           currentStreak: entry.currentStreak,
           level: entry.level,
-          isCurrentUser: entry.userId === user.uid,
+          isCurrentUser: entry.userId === currentUserId,
         },
         rank: entry.rank,
         movement: movementFromSnapshot(entry),
       })),
-    [leaderboardAroundMeItems, user.uid],
+    [currentUserId, leaderboardAroundMeItems],
   );
   const leaderboardRows =
     leaderboardSource === "snapshot" && leaderboardRemoteRows.length > 0
@@ -6397,12 +6379,13 @@ export default function HomePage() {
     if (activeTab !== "leaderboard") return;
     const currentUser = user;
     if (!currentUser) return;
+    const authedUser = currentUser;
 
     const controller = new AbortController();
 
     async function syncLeaderboardProfile() {
       try {
-        const token = await currentUser.getIdToken();
+        const token = await authedUser.getIdToken();
         await fetch(resolveApiUrl("/api/leaderboard/profile"), {
           method: "POST",
           headers: {
@@ -6410,13 +6393,13 @@ export default function HomePage() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            userId: currentUser.uid,
+            userId: authedUser.uid,
             username: profileDisplayName,
             totalXp: lifetimeXpSummary.totalXp,
             currentStreak: displayStreak,
             level: lifetimeXpSummary.currentLevel,
-            createdAtISO: currentUser.metadata.creationTime
-              ? new Date(currentUser.metadata.creationTime).toISOString()
+            createdAtISO: authedUser.metadata.creationTime
+              ? new Date(authedUser.metadata.creationTime).toISOString()
               : new Date().toISOString(),
           }),
           signal: controller.signal,
@@ -6441,6 +6424,7 @@ export default function HomePage() {
     if (activeTab !== "leaderboard") return;
     const currentUser = user;
     if (!currentUser) return;
+    const authedUser = currentUser;
 
     let cancelled = false;
 
@@ -6449,11 +6433,11 @@ export default function HomePage() {
       setLeaderboardError("");
 
       try {
-        const token = await currentUser.getIdToken();
+        const token = await authedUser.getIdToken();
         const url = new URL(resolveApiUrl("/api/leaderboard"), window.location.origin);
         url.searchParams.set("metric", leaderboardMetricTab);
         url.searchParams.set("limit", "20");
-        url.searchParams.set("userId", currentUser.uid);
+        url.searchParams.set("userId", authedUser.uid);
         url.searchParams.set("aroundWindow", "2");
 
         const response = await fetch(url.toString(), {
@@ -6477,7 +6461,7 @@ export default function HomePage() {
         setLeaderboardSource(payload.source);
         setLeaderboardTotalEntries(payload.totalEntries);
 
-        void trackLeaderboardPageLoaded(currentUser, {
+        void trackLeaderboardPageLoaded(authedUser, {
           metric: leaderboardMetricTab,
           pageSize: payload.items.length,
           cursor: null,
@@ -6485,10 +6469,10 @@ export default function HomePage() {
         }).catch(() => undefined);
 
         if (payload.aroundMe.length > 0) {
-          void trackLeaderboardAroundMeLoaded(currentUser, {
+          void trackLeaderboardAroundMeLoaded(authedUser, {
             metric: leaderboardMetricTab,
             anchorRank:
-              payload.aroundMe.find((entry) => entry.userId === currentUser.uid)?.rank ??
+              payload.aroundMe.find((entry) => entry.userId === authedUser.uid)?.rank ??
               payload.aroundMe[0].rank,
             resultCount: payload.aroundMe.length,
             snapshotDate: payload.snapshotDate,
@@ -6526,6 +6510,23 @@ export default function HomePage() {
       snapshotDate: leaderboardSnapshotDate,
     }).catch(() => undefined);
   }, [activeTab, leaderboardMetricTab, leaderboardSnapshotDate, user]);
+
+  if (!user) {
+    return (
+      <main className={styles.pageShell}>
+        <div className={styles.loadingCard}>
+          <p className={styles.loadingLabel}>Opening Whelm login...</p>
+          <button
+            type="button"
+            className={styles.secondaryPlanButton}
+            onClick={() => window.location.assign("/login")}
+          >
+            Go to login
+          </button>
+        </div>
+      </main>
+    );
+  }
 
   const formattedLifetimeXp = lifetimeXpSummary.totalXp.toLocaleString();
   const formattedXpToNextLevel = Math.max(
