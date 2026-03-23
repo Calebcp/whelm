@@ -37,6 +37,7 @@ import {
   loadNotes,
   retryNotesSync,
   saveNotes,
+  saveNotesLocally,
   type WorkspaceNote,
 } from "@/lib/notes-store";
 import { loadSessions, saveSession } from "@/lib/session-store";
@@ -4539,7 +4540,21 @@ export default function HomePage() {
 
   function captureEditorDraft() {
     if (!editorRef.current) return;
-    setEditorBodyDraft(editorRef.current.innerHTML);
+    const nextBody = editorRef.current.innerHTML;
+    setEditorBodyDraft(nextBody);
+
+    const currentSelectedNoteId = selectedNoteIdRef.current;
+    if (!user || !currentSelectedNoteId) return;
+
+    const currentNote = notesRef.current.find((note) => note.id === currentSelectedNoteId);
+    if (!currentNote || currentNote.body === nextBody) return;
+
+    const now = new Date().toISOString();
+    const nextNotes = notesRef.current.map((note) =>
+      note.id === currentSelectedNoteId ? { ...note, body: nextBody, updatedAtISO: now } : note,
+    );
+    notesRef.current = nextNotes;
+    saveNotesLocally(user.uid, nextNotes);
   }
 
   function saveEditorSelection() {
@@ -9928,15 +9943,35 @@ export default function HomePage() {
 
                     {mobileNotesToolsOpen === "format" && (
                       <div className={styles.mobileToolPanel}>
-                        <button type="button" className={styles.noteToolButton} onClick={() => applyEditorCommand("bold")}>
+                        <button
+                          type="button"
+                          className={styles.noteToolButton}
+                          onMouseDown={(event) => {
+                            event.preventDefault();
+                            saveEditorSelection();
+                          }}
+                          onClick={() => applyEditorCommand("bold")}
+                        >
                           Bold
                         </button>
-                        <button type="button" className={styles.noteToolButton} onClick={() => applyEditorCommand("italic")}>
+                        <button
+                          type="button"
+                          className={styles.noteToolButton}
+                          onMouseDown={(event) => {
+                            event.preventDefault();
+                            saveEditorSelection();
+                          }}
+                          onClick={() => applyEditorCommand("italic")}
+                        >
                           Italic
                         </button>
                         <button
                           type="button"
                           className={styles.noteToolButton}
+                          onMouseDown={(event) => {
+                            event.preventDefault();
+                            saveEditorSelection();
+                          }}
                           onClick={() => applyEditorCommand("underline")}
                         >
                           Underline
@@ -9944,6 +9979,10 @@ export default function HomePage() {
                         <button
                           type="button"
                           className={styles.noteToolButton}
+                          onMouseDown={(event) => {
+                            event.preventDefault();
+                            saveEditorSelection();
+                          }}
                           onClick={() => applyEditorCommand("insertUnorderedList")}
                         >
                           Bullet
@@ -9951,6 +9990,10 @@ export default function HomePage() {
                         <button
                           type="button"
                           className={styles.noteToolButton}
+                          onMouseDown={(event) => {
+                            event.preventDefault();
+                            saveEditorSelection();
+                          }}
                           onClick={() => applyEditorCommand("formatBlock", "H1")}
                         >
                           H1
@@ -9958,6 +10001,10 @@ export default function HomePage() {
                         <button
                           type="button"
                           className={styles.noteToolButton}
+                          onMouseDown={(event) => {
+                            event.preventDefault();
+                            saveEditorSelection();
+                          }}
                           onClick={() => applyEditorCommand("formatBlock", "H2")}
                         >
                           H2
@@ -9970,6 +10017,7 @@ export default function HomePage() {
                         <select
                           className={styles.noteToolSelect}
                           value={selectedNote.fontFamily}
+                          onMouseDown={() => saveEditorSelection()}
                           onChange={(event) => {
                             const nextFont = event.target.value;
                             applyEditorCommand("fontName", nextFont);
@@ -9985,6 +10033,7 @@ export default function HomePage() {
                         <select
                           className={styles.noteToolSelect}
                           value={String(selectedNote.fontSizePx)}
+                          onMouseDown={() => saveEditorSelection()}
                           onChange={(event) => {
                             const nextSize = Number(event.target.value);
                             const option = NOTE_FONT_SIZES.find((item) => item.value === nextSize);
@@ -10006,6 +10055,10 @@ export default function HomePage() {
                         <button
                           type="button"
                           className={styles.noteToolButton}
+                          onMouseDown={(event) => {
+                            event.preventDefault();
+                            saveEditorSelection();
+                          }}
                           onClick={() => {
                             setTextColorPickerOpen((open) => !open);
                             setHighlightPickerOpen(false);
@@ -10016,6 +10069,10 @@ export default function HomePage() {
                         <button
                           type="button"
                           className={styles.noteToolButton}
+                          onMouseDown={(event) => {
+                            event.preventDefault();
+                            saveEditorSelection();
+                          }}
                           onClick={() => {
                             setHighlightPickerOpen((open) => !open);
                             setTextColorPickerOpen(false);
@@ -10031,6 +10088,10 @@ export default function HomePage() {
                                 key={color.value}
                                 className={styles.noteInlineSwatch}
                                 style={{ backgroundColor: color.value }}
+                                onMouseDown={(event) => {
+                                  event.preventDefault();
+                                  saveEditorSelection();
+                                }}
                                 onClick={() => {
                                   applyEditorCommand("foreColor", color.value);
                                   setTextColorPickerOpen(false);
@@ -10047,6 +10108,10 @@ export default function HomePage() {
                                 key={color.value}
                                 className={styles.noteInlineSwatch}
                                 style={{ backgroundColor: color.value }}
+                                onMouseDown={(event) => {
+                                  event.preventDefault();
+                                  saveEditorSelection();
+                                }}
                                 onClick={() => {
                                   applyHighlightColor(color.value);
                                   setHighlightPickerOpen(false);
@@ -10658,10 +10723,13 @@ export default function HomePage() {
                               <button
                                 type="button"
                                 className={styles.noteToolButton}
+                                onMouseDown={(event) => {
+                                  event.preventDefault();
+                                  saveEditorSelection();
+                                }}
                                 onClick={() => {
                                   setTextColorPickerOpen((open) => !open);
                                   setHighlightPickerOpen(false);
-                                  saveEditorSelection();
                                 }}
                               >
                                 Text color
@@ -10693,10 +10761,13 @@ export default function HomePage() {
                               <button
                                 type="button"
                                 className={styles.noteToolButton}
+                                onMouseDown={(event) => {
+                                  event.preventDefault();
+                                  saveEditorSelection();
+                                }}
                                 onClick={() => {
                                   setHighlightPickerOpen((open) => !open);
                                   setTextColorPickerOpen(false);
-                                  saveEditorSelection();
                                 }}
                               >
                                 Highlight

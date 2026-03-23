@@ -101,6 +101,27 @@ function writeLocalNotes(uid: string, notes: WorkspaceNote[]) {
   window.localStorage.setItem(storageKey(uid), JSON.stringify(normalizeNotes(notes)));
 }
 
+function mergeNotesPreferNewest(localNotes: WorkspaceNote[], cloudNotes: WorkspaceNote[]) {
+  const merged = new Map<string, WorkspaceNote>();
+
+  for (const note of cloudNotes) {
+    merged.set(note.id, note);
+  }
+
+  for (const note of localNotes) {
+    const existing = merged.get(note.id);
+    if (!existing || existing.updatedAtISO < note.updatedAtISO) {
+      merged.set(note.id, note);
+    }
+  }
+
+  return normalizeNotes([...merged.values()]);
+}
+
+export function saveNotesLocally(uid: string, notes: WorkspaceNote[]) {
+  writeLocalNotes(uid, notes);
+}
+
 async function authorizedRequest(
   user: User,
   input: string,
@@ -156,10 +177,11 @@ export async function loadNotes(user: User) {
     );
     const body = (await response.json()) as { notes?: WorkspaceNote[] };
     const cloudNotes = Array.isArray(body.notes) ? normalizeNotes(body.notes) : [];
-    writeLocalNotes(user.uid, cloudNotes);
+    const mergedNotes = mergeNotesPreferNewest(localNotes, cloudNotes);
+    writeLocalNotes(user.uid, mergedNotes);
 
     return {
-      notes: cloudNotes,
+      notes: mergedNotes,
       synced: true,
     } as NotesSyncResult;
   } catch (error: unknown) {
