@@ -12114,11 +12114,23 @@ export default function HomePage() {
           <button
             key={tab.key}
             type="button"
-            className={`${styles.bottomTabButton} ${activeTab === tab.key ? styles.bottomTabButtonActive : ""}`}
+            className={`${styles.bottomTabButton} ${
+              tab.key === "leaderboard" ? styles.bottomTabButtonLeaderboard : ""
+            } ${activeTab === tab.key ? styles.bottomTabButtonActive : ""}`}
             onClick={() => handleMobileTabSelect(tab.key)}
           >
-            <span className={styles.bottomTabIcon}>{iconForTab(tab.key)}</span>
-            <span>{tab.label}</span>
+            <span
+              className={`${styles.bottomTabIcon} ${
+                tab.key === "leaderboard" ? styles.bottomTabIconLeaderboard : ""
+              }`}
+            >
+              {iconForTab(tab.key)}
+            </span>
+            <span
+              className={tab.key === "leaderboard" ? styles.bottomTabLabelLeaderboard : undefined}
+            >
+              {tab.label}
+            </span>
           </button>
         ))}
       </nav>
