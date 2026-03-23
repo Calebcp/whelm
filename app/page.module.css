@@ -6143,9 +6143,8 @@
 }
 
 .bottomTabButtonLeaderboard {
-  padding: 4px 4px 9px;
-  gap: 1px;
-  align-content: start;
+  padding: 9px 4px;
+  gap: 3px;
 }
 
 .bottomTabButtonActive {
@@ -6170,23 +6169,20 @@
 }
 
 .bottomTabIconLeaderboard .navIconImage {
-  width: 46px;
-  height: 46px;
+  width: 26px;
+  height: 26px;
 }
 
 .bottomTabIconLeaderboard {
-  width: 46px;
-  height: 46px;
-  flex-basis: 46px;
-  align-self: start;
-  transform: translateY(-3px);
+  width: 26px;
+  height: 26px;
+  flex-basis: 26px;
 }
 
 .bottomTabLabelLeaderboard {
-  font-size: 0.66rem;
-  letter-spacing: -0.01em;
+  font-size: 0.74rem;
+  letter-spacing: 0.01em;
   white-space: nowrap;
-  transform: translateY(-2px);
 }
 
 .mobileJumpRow {
