@@ -2495,6 +2495,22 @@ function sickDaySaveDismissalsStorageKey(uid: string) {
   return `whelm:sick-day-save-dismissals:${uid}`;
 }
 
+function dailyPlanningPromptSeenStorageKey(uid: string, dateKey: string) {
+  return `whelm:daily-planning-prompt-seen:${uid}:${dateKey}`;
+}
+
+function readDailyPlanningPromptSeen(uid: string, dateKey: string) {
+  try {
+    return window.localStorage.getItem(dailyPlanningPromptSeenStorageKey(uid, dateKey)) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function markDailyPlanningPromptSeen(uid: string, dateKey: string) {
+  window.localStorage.setItem(dailyPlanningPromptSeenStorageKey(uid, dateKey), "1");
+}
+
 function clearLocalAccountData(uid: string) {
   window.localStorage.removeItem(`whelm:notes:${uid}`);
   window.localStorage.removeItem(`whelm:sessions:${uid}`);
@@ -2755,6 +2771,53 @@ function createDailyRitualDrafts(existing: PlannedBlock[]): DailyRitualBlockDraf
   }
 
   return seeded;
+}
+
+function syncDailyRitualDrafts(
+  existing: PlannedBlock[],
+  current: DailyRitualBlockDraft[],
+): DailyRitualBlockDraft[] {
+  const synced: DailyRitualBlockDraft[] = existing
+    .slice(0, 3)
+    .map((item, index) => ({
+      id: `existing-${item.id}-${index}`,
+      existingBlockId: item.id,
+      title: item.title,
+      note: item.note,
+      tone: item.tone ?? null,
+      timeOfDay: item.timeOfDay,
+      durationMinutes: item.durationMinutes,
+    }));
+
+  const openDrafts = current
+    .filter((draft) => !draft.existingBlockId)
+    .map((draft) => ({
+      ...draft,
+      id: draft.id.startsWith("new-") ? draft.id : `new-${draft.id}`,
+    }));
+
+  while (synced.length < 3 && openDrafts.length > 0) {
+    const nextIndex = synced.length;
+    const nextDraft = openDrafts.shift()!;
+    synced.push({
+      ...nextDraft,
+      id: `new-${nextIndex}`,
+    });
+  }
+
+  while (synced.length < 3) {
+    const nextIndex = synced.length;
+    synced.push({
+      id: `new-${nextIndex}`,
+      title: "",
+      note: "",
+      tone: null,
+      timeOfDay: ["09:00", "13:00", "17:00"][nextIndex] || "09:00",
+      durationMinutes: 30,
+    });
+  }
+
+  return synced;
 }
 
 const DESKTOP_PRIMARY_TABS: Array<{ key: AppTab; label: string }> = [
@@ -3317,6 +3380,7 @@ export default function HomePage() {
   "use no memo";
 
   const router = useRouter();
+  const liveTodayKey = dayKeyLocal(new Date());
 
   const [user, setUser] = useState<User | null>(null);
   const [sessions, setSessions] = useState<SessionDoc[]>([]);
@@ -3370,6 +3434,7 @@ export default function HomePage() {
   const [themePromptOpen, setThemePromptOpen] = useState(false);
   const [dailyPlanningOpen, setDailyPlanningOpen] = useState(false);
   const [dailyPlanningStatus, setDailyPlanningStatus] = useState("");
+  const [dailyPlanningPromptSeenToday, setDailyPlanningPromptSeenToday] = useState<boolean | null>(null);
   const [dailyRitualDrafts, setDailyRitualDrafts] = useState<DailyRitualBlockDraft[]>(() =>
     createDailyRitualDrafts([]),
   );
@@ -4552,18 +4617,29 @@ export default function HomePage() {
   }, [isPro, selectedStreakMirrorId, streakMirrorEntries]);
 
   useEffect(() => {
-    if (!user || !plannedBlocksHydrated) return;
-    setDailyRitualDrafts(createDailyRitualDrafts(claimedBlocksToday));
+    if (!user) {
+      setDailyPlanningPromptSeenToday(null);
+      return;
+    }
+
+    setDailyPlanningPromptSeenToday(readDailyPlanningPromptSeen(user.uid, liveTodayKey));
+  }, [liveTodayKey, user]);
+
+  useEffect(() => {
+    if (!user || !plannedBlocksHydrated || dailyPlanningPromptSeenToday === null) return;
+    setDailyRitualDrafts((current) => syncDailyRitualDrafts(claimedBlocksToday, current));
     setDailyPlanningStatus("");
-    if (claimedBlocksToday.length < 3) {
+    if (claimedBlocksToday.length < 3 && !dailyPlanningPromptSeenToday) {
+      markDailyPlanningPromptSeen(user.uid, liveTodayKey);
+      setDailyPlanningPromptSeenToday(true);
       setDailyPlanningOpen(true);
       setActiveTab("calendar");
-      setSelectedCalendarDate(dayKeyLocal(new Date()));
+      setSelectedCalendarDate(liveTodayKey);
       setCalendarView("day");
-    } else {
+    } else if (claimedBlocksToday.length >= 3) {
       setDailyPlanningOpen(false);
     }
-  }, [claimedBlocksToday, plannedBlocksHydrated, user]);
+  }, [claimedBlocksToday, dailyPlanningPromptSeenToday, liveTodayKey, plannedBlocksHydrated, user]);
 
   useEffect(() => {
     document.body.dataset.theme = themeMode;
@@ -7496,7 +7572,7 @@ export default function HomePage() {
 
     if (invalidDraft) {
       setDailyPlanningStatus(
-        "Place 3 real blocks for today. Each one needs a title, time, and a reasonable duration.",
+        "Place 3 real commitments for today. Each one needs a title, time, and a reasonable duration.",
       );
       return;
     }
@@ -7544,7 +7620,7 @@ export default function HomePage() {
     }
 
     if (claimedBlocksToday.length + newBlocks.length < 3) {
-      setDailyPlanningStatus("Three blocks are required before Whelm unlocks.");
+      setDailyPlanningStatus("Three commitments are required before Whelm unlocks.");
       return;
     }
 
@@ -13754,20 +13830,20 @@ export default function HomePage() {
         </div>
       )}
 
-      {dailyPlanningLocked && !dailyPlanningOpen && (
+      {dailyPlanningLocked && !dailyPlanningOpen && dailyPlanningPromptSeenToday === false && (
         <div className={styles.dailyLockOverlay} onClick={() => setDailyPlanningOpen(true)}>
           <div className={styles.dailyLockCard} onClick={(event) => event.stopPropagation()}>
-            <p className={styles.sectionLabel}>Daily Entry Commitment</p>
+            <p className={styles.sectionLabel}>Daily Commitments</p>
             <h2 className={styles.cardTitle}>Today is not claimed yet.</h2>
             <p className={styles.accountMeta}>
-              Whelm stays locked until you place 3 blocks for today. Minimum 15 minutes each.
+              Whelm stays locked until you place 3 commitments for today. Minimum 15 minutes each.
             </p>
             <button
               type="button"
               className={styles.reportButton}
               onClick={() => setDailyPlanningOpen(true)}
             >
-              Place today&apos;s blocks
+              Place today&apos;s commitments
             </button>
           </div>
         </div>
@@ -13787,12 +13863,12 @@ export default function HomePage() {
             </div>
             <div className={styles.feedbackHeader}>
               <div>
-                <p className={styles.sectionLabel}>Daily Entry Commitment</p>
+                <p className={styles.sectionLabel}>Daily Commitments</p>
                 <h2 className={styles.feedbackTitle}>Claim today before it claims you.</h2>
               </div>
             </div>
             <p className={styles.feedbackMeta}>
-              <strong className={styles.dailyRitualCallout}>3 foundational blocks to enter.</strong>{" "}
+              <strong className={styles.dailyRitualCallout}>3 daily commitments to enter.</strong>{" "}
               {dailyPlanningPreviewOpen
                 ? "Preview mode only. Inspect the flow without changing today."
                 : "Place them before Whelm unlocks. Each one must be at least 15 minutes."}
@@ -13811,7 +13887,7 @@ export default function HomePage() {
                       }
                     >
                       <div className={styles.dailyRitualHeaderMain}>
-                        <strong>Block {index + 1}</strong>
+                        <strong>Commitment {index + 1}</strong>
                         <span>{locked ? "Claimed" : "Required"}</span>
                       </div>
                       <div className={styles.dailyRitualSummary}>
