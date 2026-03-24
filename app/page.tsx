@@ -1573,6 +1573,13 @@ type SessionRewardState = {
   tierUnlocked: StreakBandanaTier | null;
 };
 
+type StreakCelebrationState = {
+  id: string;
+  streakAfter: number;
+  todayLabel: string;
+  tier: StreakBandanaTier | null;
+};
+
 type StreakNudgeState = {
   id: string;
   title: string;
@@ -3078,6 +3085,68 @@ function SessionRewardToast({
   );
 }
 
+function StreakCelebrationToast({
+  celebration,
+  onDismiss,
+}: {
+  celebration: StreakCelebrationState;
+  onDismiss: () => void;
+}) {
+  const tierTheme = getStreakTierColorTheme(celebration.tier?.color);
+  const rewardStyle = {
+    "--reward-accent": tierTheme.accent,
+    "--reward-accent-strong": tierTheme.accentStrong,
+    "--reward-accent-glow": tierTheme.accentGlow,
+  } as CSSProperties;
+
+  return (
+    <motion.div
+      className={`${styles.sessionRewardToast} ${styles.streakCelebrationToast}`}
+      style={rewardStyle}
+      initial={{ opacity: 0, y: 28, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 18, scale: 0.98 }}
+      transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
+    >
+      <button
+        type="button"
+        className={styles.sessionRewardClose}
+        onClick={onDismiss}
+        aria-label="Dismiss streak celebration"
+      >
+        ×
+      </button>
+      <div className={styles.sessionRewardTop}>
+        <div>
+          <p className={styles.sectionLabel}>Streak secured</p>
+          <h3 className={styles.sessionRewardTitle}>Congratulations. {celebration.todayLabel} is protected.</h3>
+          <p className={styles.sessionRewardBody}>
+            That last point pushed you over the line. Your streak now holds at {celebration.streakAfter} day
+            {celebration.streakAfter === 1 ? "" : "s"}.
+          </p>
+        </div>
+        <div className={styles.sessionRewardBadge}>
+          <span>{celebration.streakAfter}d</span>
+        </div>
+      </div>
+      <div className={styles.sessionRewardStats}>
+        <div className={styles.sessionRewardStat}>
+          <span>Today</span>
+          <strong>Protected</strong>
+        </div>
+        <div className={styles.sessionRewardStat}>
+          <span>Streak</span>
+          <strong>{celebration.streakAfter} day line</strong>
+        </div>
+        <div className={styles.sessionRewardStat}>
+          <span>Tier</span>
+          <strong>{celebration.tier?.label ?? "Holding line"}</strong>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 function StreakNudgeToast({
   nudge,
   onDismiss,
@@ -3415,6 +3484,7 @@ export default function HomePage() {
   const [streakSaveStatus, setStreakSaveStatus] = useState("");
   const [milestoneRevealTier, setMilestoneRevealTier] = useState<StreakBandanaTier | null>(null);
   const [sessionReward, setSessionReward] = useState<SessionRewardState | null>(null);
+  const [streakCelebration, setStreakCelebration] = useState<StreakCelebrationState | null>(null);
   const [streakNudge, setStreakNudge] = useState<StreakNudgeState | null>(null);
   const [editorBandanaCaret, setEditorBandanaCaret] = useState<{
     left: number;
@@ -5083,6 +5153,14 @@ export default function HomePage() {
     }, 4200);
     return () => window.clearTimeout(timeoutId);
   }, [sessionReward]);
+
+  useEffect(() => {
+    if (!streakCelebration) return;
+    const timeoutId = window.setTimeout(() => {
+      setStreakCelebration((current) => (current?.id === streakCelebration.id ? null : current));
+    }, 4200);
+    return () => window.clearTimeout(timeoutId);
+  }, [streakCelebration]);
 
   function captureEditorDraft() {
     if (!editorRef.current) return;
@@ -8017,6 +8095,7 @@ export default function HomePage() {
     ? "A streak day needs 1 completed block and either 30 focus minutes or 33 note words."
     : "Your previous streak days stay unchanged. The new stricter rule starts on March 22.";
   const notificationsBlocked = dailyPlanningLocked || dailyPlanningOpen || dailyPlanningPreviewOpen;
+  const previousStreakProtectedTodayRef = useRef<boolean | null>(null);
 
   useEffect(() => {
     if (streakProtectedToday) {
@@ -8028,7 +8107,38 @@ export default function HomePage() {
     if (!notificationsBlocked) return;
     setStreakNudge(null);
     setSessionReward(null);
+    setStreakCelebration(null);
   }, [notificationsBlocked]);
+
+  useEffect(() => {
+    if (!authChecked || !user) {
+      previousStreakProtectedTodayRef.current = streakProtectedToday;
+      return;
+    }
+
+    const previousProtected = previousStreakProtectedTodayRef.current;
+    previousStreakProtectedTodayRef.current = streakProtectedToday;
+
+    if (previousProtected === null) return;
+    if (notificationsBlocked || !streakRuleV2ActiveToday) return;
+    if (previousProtected || !streakProtectedToday) return;
+
+    setStreakCelebration({
+      id: `${todayKey}-${Date.now()}`,
+      streakAfter: displayStreak,
+      todayLabel,
+      tier: getStreakBandanaTier(displayStreak),
+    });
+  }, [
+    authChecked,
+    displayStreak,
+    notificationsBlocked,
+    streakProtectedToday,
+    streakRuleV2ActiveToday,
+    todayKey,
+    todayLabel,
+    user,
+  ]);
 
   useEffect(() => {
     if (notificationsBlocked) return;
@@ -14018,6 +14128,15 @@ export default function HomePage() {
           )}
         </div>
       )}
+
+      <AnimatePresence>
+        {!notificationsBlocked && streakCelebration ? (
+          <StreakCelebrationToast
+            celebration={streakCelebration}
+            onDismiss={() => setStreakCelebration(null)}
+          />
+        ) : null}
+      </AnimatePresence>
 
       <AnimatePresence>
         {!notificationsBlocked && streakNudge ? (

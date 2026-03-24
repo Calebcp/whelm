@@ -6445,6 +6445,10 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
+.streakCelebrationToast {
+  bottom: 212px;
+}
+
 .streakNudgeToast {
   position: fixed;
   left: 16px;
@@ -9649,6 +9653,17 @@
 }
 
 @media (max-width: 760px) {
+  .sessionRewardToast {
+    left: max(14px, env(safe-area-inset-left));
+    right: max(14px, env(safe-area-inset-right));
+    width: auto;
+  }
+
+  .streakCelebrationToast {
+    top: calc(env(safe-area-inset-top) + 82px);
+    bottom: auto;
+  }
+
   .streakNudgeToast {
     left: max(14px, env(safe-area-inset-left));
     right: max(14px, env(safe-area-inset-right));
