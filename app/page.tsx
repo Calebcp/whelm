@@ -275,6 +275,8 @@ const STREAK_MIRROR_SAYINGS = [
   "The win here is accuracy, not perfection.",
 ] as const;
 const NOTE_ATTACHMENT_MAX_BYTES = 20 * 1024 * 1024;
+const NOTE_ATTACHMENT_UPLOAD_IDLE_TIMEOUT_MS = 15000;
+const NOTE_ATTACHMENT_UPLOAD_TOTAL_TIMEOUT_MS = 120000;
 const NOTE_ATTACHMENT_ACCEPT = [
   "image/*",
   ".pdf",
@@ -879,6 +881,43 @@ function formatAttachmentSize(sizeBytes: number) {
   if (sizeBytes < 1024) return `${sizeBytes} B`;
   if (sizeBytes < 1024 * 1024) return `${Math.round(sizeBytes / 1024)} KB`;
   return `${(sizeBytes / (1024 * 1024)).toFixed(sizeBytes >= 10 * 1024 * 1024 ? 0 : 1)} MB`;
+}
+
+function resolveFirebaseStorageBucket() {
+  return typeof storage.app.options.storageBucket === "string"
+    ? storage.app.options.storageBucket.trim()
+    : "";
+}
+
+function describeAttachmentUploadError(error: unknown, bucketName: string) {
+  const code =
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    typeof (error as { code?: unknown }).code === "string"
+      ? (error as { code: string }).code
+      : "";
+
+  switch (code) {
+    case "storage/unauthorized":
+      return "Firebase Storage rejected the upload. Check Storage rules for authenticated writes to users/{uid}/notes/**.";
+    case "storage/bucket-not-found":
+      return `Firebase Storage bucket "${bucketName}" was not found. Check NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET and confirm Storage is enabled for this project.`;
+    case "storage/project-not-found":
+      return "Firebase Storage could not find this Firebase project. Check the deployed Firebase project configuration.";
+    case "storage/quota-exceeded":
+      return "Firebase Storage quota was exceeded. The upload was rejected by the bucket.";
+    case "storage/retry-limit-exceeded":
+      return `Firebase Storage stopped retrying the upload for bucket "${bucketName}". Check the bucket, Storage rules, and browser network access.`;
+    case "storage/canceled":
+      return error instanceof Error && error.message
+        ? error.message
+        : "Attachment upload was canceled.";
+    default:
+      return error instanceof Error && error.message
+        ? error.message
+        : "Attachment upload failed.";
+  }
 }
 
 function bandanaCursorAssetPath(color: string | null | undefined, size: 128 | 256 = 128) {
@@ -5161,6 +5200,14 @@ export default function HomePage() {
       return;
     }
 
+    const bucketName = resolveFirebaseStorageBucket();
+    if (!bucketName) {
+      setNoteAttachmentStatus(
+        "Attachment uploads are unavailable because NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET is missing.",
+      );
+      return;
+    }
+
     setNoteAttachmentBusy(true);
     setNoteAttachmentStatus(
       files.length === 1 ? `Adding ${files[0].name}...` : `Adding ${files.length} files...`,
@@ -5187,9 +5234,47 @@ export default function HomePage() {
             contentType: file.type || "application/octet-stream",
           });
           await new Promise<void>((resolve, reject) => {
-            uploadTask.on(
+            let settled = false;
+            let idleTimeoutId = 0;
+            let totalTimeoutId = 0;
+            let unsubscribe: () => void = () => undefined;
+
+            const clearTimers = () => {
+              window.clearTimeout(idleTimeoutId);
+              window.clearTimeout(totalTimeoutId);
+            };
+
+            const failWithMessage = (message: string) => {
+              if (settled) return;
+              settled = true;
+              clearTimers();
+              unsubscribe();
+              uploadTask.cancel();
+              reject(new Error(message));
+            };
+
+            const refreshIdleTimeout = () => {
+              window.clearTimeout(idleTimeoutId);
+              idleTimeoutId = window.setTimeout(() => {
+                failWithMessage(
+                  `Upload stalled for ${file.name}. Check Firebase Storage bucket "${bucketName}" and confirm Storage rules allow writes to users/${user.uid}/notes/**.`,
+                );
+              }, NOTE_ATTACHMENT_UPLOAD_IDLE_TIMEOUT_MS);
+            };
+
+            totalTimeoutId = window.setTimeout(() => {
+              failWithMessage(
+                `Upload timed out for ${file.name}. Check your connection or Firebase Storage bucket "${bucketName}".`,
+              );
+            }, NOTE_ATTACHMENT_UPLOAD_TOTAL_TIMEOUT_MS);
+
+            refreshIdleTimeout();
+
+            unsubscribe = uploadTask.on(
               "state_changed",
               (snapshot) => {
+                if (settled) return;
+                refreshIdleTimeout();
                 const progress =
                   snapshot.totalBytes > 0
                     ? (snapshot.bytesTransferred / snapshot.totalBytes) * 100
@@ -5200,8 +5285,20 @@ export default function HomePage() {
                   ),
                 );
               },
-              reject,
-              () => resolve(),
+              (error) => {
+                if (settled) return;
+                settled = true;
+                clearTimers();
+                unsubscribe();
+                reject(error);
+              },
+              () => {
+                if (settled) return;
+                settled = true;
+                clearTimers();
+                unsubscribe();
+                resolve();
+              },
             );
           });
 
@@ -5238,9 +5335,7 @@ export default function HomePage() {
       );
     } catch (error: unknown) {
       setPendingNoteAttachments([]);
-      setNoteAttachmentStatus(
-        error instanceof Error ? error.message : "Attachment upload failed.",
-      );
+      setNoteAttachmentStatus(describeAttachmentUploadError(error, bucketName));
     } finally {
       setNoteAttachmentBusy(false);
     }
