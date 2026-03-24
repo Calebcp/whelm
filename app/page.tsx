@@ -882,6 +882,11 @@ function formatAttachmentSize(sizeBytes: number) {
   return `${(sizeBytes / (1024 * 1024)).toFixed(sizeBytes >= 10 * 1024 * 1024 ? 0 : 1)} MB`;
 }
 
+function bandanaCursorAssetPath(color: string | null | undefined, size: 128 | 256 = 128) {
+  const resolved = color ?? "yellow";
+  return `/streak/cursor/bandana-${resolved}-${size}.png`;
+}
+
 function attachmentIndicatorLabel(count: number) {
   return `📎 ${count}`;
 }
@@ -2508,12 +2513,22 @@ function saveSickDaySaveDismissals(uid: string, dateKeys: string[]) {
   window.localStorage.setItem(sickDaySaveDismissalsStorageKey(uid), JSON.stringify(dateKeys));
 }
 
-function notesShellBackground(themeMode: ThemeMode, shellColor?: string, pageColor?: string) {
+function notesShellBackground(
+  themeMode: ThemeMode,
+  shellColor?: string,
+  pageColor?: string,
+  accent?: string,
+  accentStrong?: string,
+  glow?: string,
+) {
   return {
     ["--note-surface-tint" as const]:
       shellColor ?? (themeMode === "dark" ? "#182038" : "#fff7d6"),
     ["--note-page-tone" as const]:
       pageColor ?? (themeMode === "dark" ? "#182038" : "#fffaf0"),
+    ["--note-bandana-accent" as const]: accent ?? "#59c7ff",
+    ["--note-bandana-accent-strong" as const]: accentStrong ?? "#2f86ff",
+    ["--note-bandana-glow" as const]: glow ?? "rgba(84, 173, 255, 0.34)",
   } as CSSProperties;
 }
 
@@ -3274,6 +3289,15 @@ export default function HomePage() {
   const [milestoneRevealTier, setMilestoneRevealTier] = useState<StreakBandanaTier | null>(null);
   const [sessionReward, setSessionReward] = useState<SessionRewardState | null>(null);
   const [streakNudge, setStreakNudge] = useState<StreakNudgeState | null>(null);
+  const [editorBandanaCaret, setEditorBandanaCaret] = useState<{
+    left: number;
+    top: number;
+    visible: boolean;
+  }>({
+    left: 0,
+    top: 0,
+    visible: false,
+  });
   const [dailyPlanningPreviewOpen, setDailyPlanningPreviewOpen] = useState(false);
   const [mobileNotesRecentOpen, setMobileNotesRecentOpen] = useState(false);
   const [mobileNotesEditorOpen, setMobileNotesEditorOpen] = useState(false);
@@ -3304,6 +3328,7 @@ export default function HomePage() {
   const [mobileAgendaEntriesOpen, setMobileAgendaEntriesOpen] = useState(false);
 
   const editorRef = useRef<HTMLDivElement | null>(null);
+  const noteBodyShellRef = useRef<HTMLDivElement | null>(null);
   const noteAttachmentInputRef = useRef<HTMLInputElement | null>(null);
   const savedSelectionRef = useRef<Range | null>(null);
   const syncInFlightRef = useRef(false);
@@ -4466,6 +4491,26 @@ export default function HomePage() {
     }
   }, [editorBodyDraft, selectedNoteId, isMobileViewport, mobileNotesEditorOpen]);
 
+  useEffect(() => {
+    if (!selectedNote) {
+      setEditorBandanaCaret((current) => (current.visible ? { ...current, visible: false } : current));
+      return;
+    }
+
+    const handleSelectionChange = () => {
+      if (document.activeElement !== editorRef.current) {
+        setEditorBandanaCaret((current) => (current.visible ? { ...current, visible: false } : current));
+        return;
+      }
+      updateEditorBandanaCaret();
+    };
+
+    document.addEventListener("selectionchange", handleSelectionChange);
+    return () => {
+      document.removeEventListener("selectionchange", handleSelectionChange);
+    };
+  }, [selectedNote, selectedNoteId]);
+
   async function refreshSessions(uid: string) {
     const currentUser = auth.currentUser;
     if (!currentUser || currentUser.uid !== uid) {
@@ -4938,6 +4983,47 @@ export default function HomePage() {
     savedSelectionRef.current = range.cloneRange();
   }
 
+  function updateEditorBandanaCaret() {
+    const editor = editorRef.current;
+    const shell = noteBodyShellRef.current;
+    const selection = window.getSelection();
+    if (!editor || !shell || !selection || selection.rangeCount === 0 || !selection.isCollapsed) {
+      setEditorBandanaCaret((current) => (current.visible ? { ...current, visible: false } : current));
+      return;
+    }
+
+    const range = selection.getRangeAt(0);
+    if (!editor.contains(range.startContainer) || !editor.contains(range.endContainer)) {
+      setEditorBandanaCaret((current) => (current.visible ? { ...current, visible: false } : current));
+      return;
+    }
+
+    const measuredRange = range.cloneRange();
+    const marker = document.createElement("span");
+    marker.textContent = "\u200b";
+    marker.style.position = "relative";
+    marker.style.display = "inline-block";
+    marker.style.width = "1px";
+    marker.style.height = "1em";
+    marker.style.pointerEvents = "none";
+
+    measuredRange.insertNode(marker);
+    const rect = marker.getBoundingClientRect();
+    marker.parentNode?.removeChild(marker);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    const shellRect = shell.getBoundingClientRect();
+    const top = rect.top - shellRect.top - 2;
+    const left = rect.left - shellRect.left - 2;
+
+    setEditorBandanaCaret({
+      left: Number.isFinite(left) ? left : 0,
+      top: Number.isFinite(top) ? top : 0,
+      visible: true,
+    });
+  }
+
   function restoreEditorSelection() {
     const editor = editorRef.current;
     const selection = window.getSelection();
@@ -4950,6 +5036,7 @@ export default function HomePage() {
     editor.focus();
     selection.removeAllRanges();
     selection.addRange(savedRange);
+    updateEditorBandanaCaret();
     return true;
   }
 
@@ -4961,6 +5048,7 @@ export default function HomePage() {
     document.execCommand("styleWithCSS", false, "true");
     document.execCommand(command, false, value);
     saveEditorSelection();
+    updateEditorBandanaCaret();
     captureEditorDraft();
   }
 
@@ -7875,9 +7963,7 @@ export default function HomePage() {
   return (
     <>
       <BandanaCursor
-        accent={xpTierTheme.accent}
-        accentStrong={xpTierTheme.accentStrong}
-        accentDeep={xpTierTheme.accentDeep}
+        tierColor={streakBandanaTier?.color}
         glow={xpTierTheme.accentGlow}
       />
       <main
@@ -10475,7 +10561,14 @@ export default function HomePage() {
                   <article
                     className={styles.mobileNotesEditorCard}
                     ref={notesEditorRef}
-                    style={notesShellBackground(themeMode, selectedNoteSurfaceColor, selectedNotePageColor)}
+                    style={notesShellBackground(
+                      themeMode,
+                      selectedNoteSurfaceColor,
+                      selectedNotePageColor,
+                      xpTierTheme.accent,
+                      xpTierTheme.accentStrong,
+                      xpTierTheme.accentGlow,
+                    )}
                     data-note-fill={selectedNote.surfaceStyle}
                   >
                     <div className={styles.notesStudioHero}>
@@ -10864,7 +10957,7 @@ export default function HomePage() {
                       placeholder="Note title"
                       className={styles.noteTitleInput}
                     />
-                    <div className={styles.noteBodyShell}>
+                    <div className={styles.noteBodyShell} ref={noteBodyShellRef}>
                       <div
                         ref={editorRef}
                         className={styles.noteBodyInput}
@@ -10877,27 +10970,53 @@ export default function HomePage() {
                         onInput={() => {
                           captureEditorDraft();
                           saveEditorSelection();
+                          updateEditorBandanaCaret();
                         }}
                         onKeyUp={() => {
                           captureEditorDraft();
                           saveEditorSelection();
+                          updateEditorBandanaCaret();
                         }}
                         onPaste={() => {
                           window.setTimeout(() => {
                             captureEditorDraft();
                             saveEditorSelection();
+                            updateEditorBandanaCaret();
                           }, 0);
                         }}
                         onCompositionEnd={() => {
                           captureEditorDraft();
                           saveEditorSelection();
+                          updateEditorBandanaCaret();
                         }}
                         onBlur={() => {
                           captureEditorDraft();
+                          setEditorBandanaCaret((current) =>
+                            current.visible ? { ...current, visible: false } : current,
+                          );
                         }}
-                        onMouseUp={() => saveEditorSelection()}
-                        onFocus={() => saveEditorSelection()}
+                        onMouseUp={() => {
+                          saveEditorSelection();
+                          updateEditorBandanaCaret();
+                        }}
+                        onFocus={() => {
+                          saveEditorSelection();
+                          updateEditorBandanaCaret();
+                        }}
+                        onScroll={() => updateEditorBandanaCaret()}
                       />
+                      {editorBandanaCaret.visible ? (
+                        <img
+                          className={styles.noteBandanaCaret}
+                          src={bandanaCursorAssetPath(streakBandanaTier?.color, 128)}
+                          srcSet={`${bandanaCursorAssetPath(streakBandanaTier?.color, 128)} 1x, ${bandanaCursorAssetPath(streakBandanaTier?.color, 256)} 2x`}
+                          alt=""
+                          style={{
+                            left: `${editorBandanaCaret.left}px`,
+                            top: `${editorBandanaCaret.top}px`,
+                          }}
+                        />
+                      ) : null}
                       <div className={styles.noteEditorFooter}>
                         <NoteAttachmentsSection
                           note={selectedNote}
@@ -10914,6 +11033,16 @@ export default function HomePage() {
                       </div>
                     </div>
                     <div className={styles.noteFooterActions}>
+                      <button
+                        type="button"
+                        className={`${styles.secondaryPlanButton} ${styles.noteDoneButton}`}
+                        onClick={() => {
+                          void flushSelectedNoteDraft();
+                          setSelectedNoteId(null);
+                        }}
+                      >
+                        Done
+                      </button>
                       <button
                         type="button"
                         className={`${styles.reportButton} ${styles.blockActionButton}`}
@@ -10936,7 +11065,14 @@ export default function HomePage() {
               {!isMobileViewport && (
                 <motion.aside
                   className={styles.notesSidebar}
-                  style={notesShellBackground(themeMode, selectedNoteSurfaceColor, selectedNotePageColor)}
+                  style={notesShellBackground(
+                    themeMode,
+                    selectedNoteSurfaceColor,
+                    selectedNotePageColor,
+                    xpTierTheme.accent,
+                    xpTierTheme.accentStrong,
+                    xpTierTheme.accentGlow,
+                  )}
                   data-note-fill={selectedNote?.surfaceStyle ?? "solid"}
                   initial={{ opacity: 0, x: -16 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -11046,7 +11182,14 @@ export default function HomePage() {
               {!isMobileViewport && (
                 <motion.article
                   className={styles.notesEditorCard}
-                  style={notesShellBackground(themeMode, selectedNoteSurfaceColor, selectedNotePageColor)}
+                  style={notesShellBackground(
+                    themeMode,
+                    selectedNoteSurfaceColor,
+                    selectedNotePageColor,
+                    xpTierTheme.accent,
+                    xpTierTheme.accentStrong,
+                    xpTierTheme.accentGlow,
+                  )}
                   data-note-fill={selectedNote?.surfaceStyle ?? "solid"}
                   initial={{ opacity: 0, x: 16 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -11537,7 +11680,7 @@ export default function HomePage() {
                       ) : null}
                     </div>
 
-                    <div className={styles.noteBodyShell}>
+                    <div className={styles.noteBodyShell} ref={noteBodyShellRef}>
                       <div
                         ref={editorRef}
                         className={styles.noteBodyInput}
@@ -11550,27 +11693,53 @@ export default function HomePage() {
                         onInput={() => {
                           captureEditorDraft();
                           saveEditorSelection();
+                          updateEditorBandanaCaret();
                         }}
                         onKeyUp={() => {
                           captureEditorDraft();
                           saveEditorSelection();
+                          updateEditorBandanaCaret();
                         }}
                         onPaste={() => {
                           window.setTimeout(() => {
                             captureEditorDraft();
                             saveEditorSelection();
+                            updateEditorBandanaCaret();
                           }, 0);
                         }}
                         onCompositionEnd={() => {
                           captureEditorDraft();
                           saveEditorSelection();
+                          updateEditorBandanaCaret();
                         }}
                         onBlur={() => {
                           captureEditorDraft();
+                          setEditorBandanaCaret((current) =>
+                            current.visible ? { ...current, visible: false } : current,
+                          );
                         }}
-                        onMouseUp={() => saveEditorSelection()}
-                        onFocus={() => saveEditorSelection()}
+                        onMouseUp={() => {
+                          saveEditorSelection();
+                          updateEditorBandanaCaret();
+                        }}
+                        onFocus={() => {
+                          saveEditorSelection();
+                          updateEditorBandanaCaret();
+                        }}
+                        onScroll={() => updateEditorBandanaCaret()}
                       />
+                      {editorBandanaCaret.visible ? (
+                        <img
+                          className={styles.noteBandanaCaret}
+                          src={bandanaCursorAssetPath(streakBandanaTier?.color, 128)}
+                          srcSet={`${bandanaCursorAssetPath(streakBandanaTier?.color, 128)} 1x, ${bandanaCursorAssetPath(streakBandanaTier?.color, 256)} 2x`}
+                          alt=""
+                          style={{
+                            left: `${editorBandanaCaret.left}px`,
+                            top: `${editorBandanaCaret.top}px`,
+                          }}
+                        />
+                      ) : null}
                       <div className={styles.noteEditorFooter}>
                         <NoteAttachmentsSection
                           note={selectedNote}

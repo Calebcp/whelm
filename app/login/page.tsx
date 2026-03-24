@@ -110,9 +110,7 @@ export default function LoginPage() {
   return (
     <>
       <BandanaCursor
-        accent="#f6d36f"
-        accentStrong="#f2a93b"
-        accentDeep="#a65018"
+        tierColor="yellow"
         glow="rgba(242, 169, 59, 0.28)"
       />
       <main className={styles.pageShell}>

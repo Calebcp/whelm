@@ -5,18 +5,54 @@ import { useEffect, useState, type CSSProperties } from "react";
 import styles from "./BandanaCursor.module.css";
 
 type BandanaCursorProps = {
-  accent: string;
-  accentStrong: string;
-  accentDeep: string;
+  tierColor: string | null | undefined;
   glow: string;
 };
 
+const CURSOR_ASSET_BY_COLOR: Record<string, { src: string; srcSet: string }> = {
+  yellow: {
+    src: "/streak/cursor/bandana-yellow-128.png",
+    srcSet:
+      "/streak/cursor/bandana-yellow-128.png 1x, /streak/cursor/bandana-yellow-256.png 2x",
+  },
+  red: {
+    src: "/streak/cursor/bandana-red-128.png",
+    srcSet:
+      "/streak/cursor/bandana-red-128.png 1x, /streak/cursor/bandana-red-256.png 2x",
+  },
+  green: {
+    src: "/streak/cursor/bandana-green-128.png",
+    srcSet:
+      "/streak/cursor/bandana-green-128.png 1x, /streak/cursor/bandana-green-256.png 2x",
+  },
+  purple: {
+    src: "/streak/cursor/bandana-purple-128.png",
+    srcSet:
+      "/streak/cursor/bandana-purple-128.png 1x, /streak/cursor/bandana-purple-256.png 2x",
+  },
+  blue: {
+    src: "/streak/cursor/bandana-blue-128.png",
+    srcSet:
+      "/streak/cursor/bandana-blue-128.png 1x, /streak/cursor/bandana-blue-256.png 2x",
+  },
+  black: {
+    src: "/streak/cursor/bandana-black-128.png",
+    srcSet:
+      "/streak/cursor/bandana-black-128.png 1x, /streak/cursor/bandana-black-256.png 2x",
+  },
+  white: {
+    src: "/streak/cursor/bandana-white-128.png",
+    srcSet:
+      "/streak/cursor/bandana-white-128.png 1x, /streak/cursor/bandana-white-256.png 2x",
+  },
+};
+
 export default function BandanaCursor({
-  accent,
-  accentStrong,
-  accentDeep,
+  tierColor,
   glow,
 }: BandanaCursorProps) {
+  const HOTSPOT_X = 32;
+  const HOTSPOT_Y = 12;
   const [enabled, setEnabled] = useState(false);
   const [pressed, setPressed] = useState(false);
   const [position, setPosition] = useState({ x: -100, y: -100 });
@@ -56,22 +92,27 @@ export default function BandanaCursor({
 
   if (!enabled) return null;
 
+  const asset = CURSOR_ASSET_BY_COLOR[tierColor ?? "yellow"] ?? CURSOR_ASSET_BY_COLOR.yellow;
+
   return (
     <div
       className={`${styles.cursorShell} ${pressed ? styles.cursorShellPressed : ""}`}
       style={
         {
-          left: `${position.x}px`,
-          top: `${position.y}px`,
-          "--bandana-accent": accent,
-          "--bandana-accent-strong": accentStrong,
-          "--bandana-accent-deep": accentDeep,
+          left: `${position.x - HOTSPOT_X}px`,
+          top: `${position.y - HOTSPOT_Y}px`,
           "--bandana-glow": glow,
         } as CSSProperties
       }
       aria-hidden="true"
     >
-      <div className={styles.cursorBandana} />
+      <img
+        className={styles.cursorBandana}
+        src={asset.src}
+        srcSet={asset.srcSet}
+        alt=""
+        draggable="false"
+      />
       <div className={styles.cursorKnot} />
     </div>
   );

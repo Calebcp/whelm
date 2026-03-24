@@ -41,11 +41,9 @@ body[data-theme="light"] {
 }
 
 body.bandanaCursorActive,
-body.bandanaCursorActive button,
-body.bandanaCursorActive a,
-body.bandanaCursorActive input,
-body.bandanaCursorActive textarea,
-body.bandanaCursorActive [contenteditable="true"] {
+body.bandanaCursorActive *,
+body.bandanaCursorActive *::before,
+body.bandanaCursorActive *::after {
   cursor: none !important;
 }
 
