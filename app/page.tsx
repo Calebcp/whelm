@@ -1056,6 +1056,14 @@ function normalizeBodyForEditor(body: string) {
   return next;
 }
 
+function isEffectivelyEmptyEditorHtml(value: string) {
+  return value
+    .replace(/<br\s*\/?>/gi, "")
+    .replace(/&nbsp;/gi, "")
+    .replace(/<[^>]*>/g, "")
+    .trim().length === 0;
+}
+
 function summarizePlainText(value: string, maxChars = 120) {
   const plain = value
     .replace(/<[^>]*>/g, " ")
@@ -5013,7 +5021,14 @@ export default function HomePage() {
     const currentNote = notesRef.current.find((note) => note.id === currentSelectedNoteId);
     if (!currentNote) return;
 
-    const nextBody = editorRef.current?.innerHTML ?? editorBodyDraft;
+    const editorHtml = editorRef.current?.innerHTML ?? "";
+    const draftBody = editorBodyDraft;
+    const currentBody = currentNote.body;
+    const nextBody =
+      isEffectivelyEmptyEditorHtml(editorHtml) && !isEffectivelyEmptyEditorHtml(draftBody) && !isEffectivelyEmptyEditorHtml(currentBody)
+        ? draftBody
+        : editorHtml || draftBody;
+
     if (nextBody === currentNote.body) return;
 
     const now = new Date().toISOString();
