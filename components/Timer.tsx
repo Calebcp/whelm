@@ -125,6 +125,8 @@ export default function Timer({
   onOpenSessionNotes,
   streakMinimumMinutes = 30,
   isPro = false,
+  showHeaderCopy = true,
+  showStreakHint = true,
 }: {
   minutes?: number;
   title: string;
@@ -148,6 +150,8 @@ export default function Timer({
   onOpenSessionNotes?: () => void;
   streakMinimumMinutes?: number;
   isPro?: boolean;
+  showHeaderCopy?: boolean;
+  showStreakHint?: boolean;
 }) {
   const [mode, setMode] = useState<"countdown" | "stopwatch">("countdown");
   const [configuredMinutes, setConfiguredMinutes] = useState(minutes);
@@ -432,9 +436,9 @@ export default function Timer({
     >
       <div className={styles.header}>
         <div>
-          <p className={styles.kicker}>Whelm Focus Modes</p>
+          {showHeaderCopy ? <p className={styles.kicker}>Whelm Focus Modes</p> : null}
           <h2 className={styles.title}>{title}</h2>
-          {!running && !done && mode === "countdown" && (
+          {showStreakHint && !running && !done && mode === "countdown" && (
             <p className={styles.streakHint}>{streakMinimumMinutes}m protects today&apos;s streak.</p>
           )}
         </div>

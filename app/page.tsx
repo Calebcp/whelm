@@ -883,6 +883,55 @@ function formatAttachmentSize(sizeBytes: number) {
   return `${(sizeBytes / (1024 * 1024)).toFixed(sizeBytes >= 10 * 1024 * 1024 ? 0 : 1)} MB`;
 }
 
+function parseHexColor(value: string) {
+  const normalized = value.trim();
+  const match = normalized.match(/^#([\da-f]{3}|[\da-f]{6})$/i);
+  if (!match) return null;
+
+  const hex = match[1];
+  const expanded =
+    hex.length === 3
+      ? hex
+          .split("")
+          .map((char) => `${char}${char}`)
+          .join("")
+      : hex;
+
+  const red = Number.parseInt(expanded.slice(0, 2), 16);
+  const green = Number.parseInt(expanded.slice(2, 4), 16);
+  const blue = Number.parseInt(expanded.slice(4, 6), 16);
+
+  return { red, green, blue };
+}
+
+function relativeLuminance({ red, green, blue }: { red: number; green: number; blue: number }) {
+  const toLinear = (channel: number) => {
+    const normalized = channel / 255;
+    return normalized <= 0.03928
+      ? normalized / 12.92
+      : ((normalized + 0.055) / 1.055) ** 2.4;
+  };
+
+  return 0.2126 * toLinear(red) + 0.7152 * toLinear(green) + 0.0722 * toLinear(blue);
+}
+
+function notePreviewStyle(tint: string): CSSProperties {
+  const parsed = parseHexColor(tint);
+  const luminance = parsed ? relativeLuminance(parsed) : 1;
+  const usesDarkInk = luminance > 0.64;
+
+  return {
+    ["--note-item-tint" as const]: tint,
+    ["--note-item-title" as const]: usesDarkInk ? "#102033" : "#f7fbff",
+    ["--note-item-meta" as const]: usesDarkInk ? "rgba(16, 32, 51, 0.72)" : "rgba(247, 251, 255, 0.78)",
+    ["--note-item-chip-bg" as const]: usesDarkInk ? "rgba(16, 32, 51, 0.12)" : "rgba(255, 255, 255, 0.16)",
+    ["--note-item-chip-color" as const]: usesDarkInk ? "#183a67" : "#f7fbff",
+    ["--note-item-text-shadow" as const]: usesDarkInk
+      ? "0 1px 0 rgba(255, 255, 255, 0.26)"
+      : "0 1px 10px rgba(8, 12, 24, 0.28)",
+  } as CSSProperties;
+}
+
 function resolveFirebaseStorageBucket() {
   return typeof storage.app.options.storageBucket === "string"
     ? storage.app.options.storageBucket.trim()
@@ -3237,6 +3286,7 @@ export default function HomePage() {
   >([]);
   const [paywallOpen, setPaywallOpen] = useState(false);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
+  const [mobileTodayOverviewOpen, setMobileTodayOverviewOpen] = useState(false);
   const [senseiReaction, setSenseiReaction] = useState("");
   const [companionStyle, setCompanionStyle] = useState<SenseiCompanionStyle>("balanced");
   const [themeMode, setThemeMode] = useState<ThemeMode>("dark");
@@ -8242,58 +8292,10 @@ export default function HomePage() {
           {activeTab === "today" && (
             <>
               {isMobileViewport && <section className={styles.mobileTodayStack} ref={todaySectionRef}>
-                <article className={styles.mobileSummaryCard} ref={todaySummaryRef}>
-                  <div className={styles.mobileSummaryHeader}>
-                    <div>
-                      <p className={styles.sectionLabel}>Whelm Flow</p>
-                      <p className={styles.accountMeta}>Act before analysis. Protect the run and keep momentum visible.</p>
-                    </div>
-                    <button
-                      type="button"
-                      className={styles.reportButton}
-                      onClick={handleTodayPrimaryAction}
-                    >
-                      {senseiGuidance.actionLabel}
-                    </button>
-                  </div>
-                  <div className={styles.mobileSummaryGrid}>
-                    <div className={styles.mobileSummaryItem}>
-                      <span className={styles.mobileSummaryLabel}>Focus</span>
-                      <strong>{focusMetrics.todayMinutes}m</strong>
-                    </div>
-                    <div className={styles.mobileSummaryItem}>
-                      <span className={styles.mobileSummaryLabel}>Sessions</span>
-                      <strong>{focusMetrics.todaySessions}</strong>
-                    </div>
-                    <div className={styles.mobileSummaryItem}>
-                      <span className={styles.mobileSummaryLabel}>Streak</span>
-                      <strong>{streak}d</strong>
-                    </div>
-                  </div>
-                  <div className={styles.mobileSummaryRail}>
-                    <article className={styles.mobileSummaryRailItem}>
-                      <span>Next block</span>
-                      <strong>{nextPlannedBlock?.title ?? "No block queued"}</strong>
-                      <small>
-                        {nextPlannedBlock
-                          ? `${normalizeTimeLabel(nextPlannedBlock.timeOfDay)} · ${nextPlannedBlock.durationMinutes}m`
-                          : "Place the next move before the day opens up."}
-                      </small>
-                    </article>
-                    <article className={styles.mobileSummaryRailItem}>
-                      <span>Return points</span>
-                      <strong>{dueReminderNotes.length} due today</strong>
-                      <small>
-                        {dueReminderNotes[0]?.title ?? "No reminders are pulling at you right now."}
-                      </small>
-                    </article>
-                  </div>
-                </article>
-
                 <div className={styles.mobileTimerWrap} ref={todayTimerRef}>
                   <Timer
                     minutes={30}
-                    title={FOCUS_TIMER.title}
+                    title="Focus timer"
                     actionLabel={FOCUS_TIMER.actionLabel}
                     theme={FOCUS_TIMER.theme}
                     appearance={themeMode}
@@ -8301,6 +8303,8 @@ export default function HomePage() {
                     sessionNoteCount={todaySessionNoteCount}
                     onOpenSessionNotes={() => setActiveTab("history")}
                     streakMinimumMinutes={30}
+                    showHeaderCopy={false}
+                    showStreakHint={false}
                     onSessionStart={handleSessionStarted}
                     onSessionAbandon={handleSessionAbandoned}
                     onComplete={(note, minutesSpent, sessionContext) =>
@@ -8308,6 +8312,66 @@ export default function HomePage() {
                     }
                   />
                 </div>
+
+                <article className={styles.mobileSummaryCard} ref={todaySummaryRef}>
+                  <button
+                    type="button"
+                    className={styles.mobileSummaryToggle}
+                    onClick={() => setMobileTodayOverviewOpen((open) => !open)}
+                    aria-expanded={mobileTodayOverviewOpen}
+                  >
+                    <div>
+                      <p className={styles.sectionLabel}>Today</p>
+                      <strong className={styles.mobileSectionToggleTitle}>Today&apos;s overview</strong>
+                    </div>
+                    <span>{mobileTodayOverviewOpen ? "Hide" : "Open"}</span>
+                  </button>
+                  {mobileTodayOverviewOpen ? (
+                    <div className={styles.mobileSummaryBody}>
+                      <div className={styles.mobileSummaryHeader}>
+                        <button
+                          type="button"
+                          className={styles.reportButton}
+                          onClick={handleTodayPrimaryAction}
+                        >
+                          {senseiGuidance.actionLabel}
+                        </button>
+                      </div>
+                      <div className={styles.mobileSummaryGrid}>
+                        <div className={styles.mobileSummaryItem}>
+                          <span className={styles.mobileSummaryLabel}>Focus</span>
+                          <strong>{focusMetrics.todayMinutes}m</strong>
+                        </div>
+                        <div className={styles.mobileSummaryItem}>
+                          <span className={styles.mobileSummaryLabel}>Sessions</span>
+                          <strong>{focusMetrics.todaySessions}</strong>
+                        </div>
+                        <div className={styles.mobileSummaryItem}>
+                          <span className={styles.mobileSummaryLabel}>Streak</span>
+                          <strong>{streak}d</strong>
+                        </div>
+                      </div>
+                      <div className={styles.mobileSummaryRail}>
+                        <article className={styles.mobileSummaryRailItem}>
+                          <span>Next block</span>
+                          <strong>{nextPlannedBlock?.title ?? "No block set"}</strong>
+                          <small>
+                            {nextPlannedBlock
+                              ? `${normalizeTimeLabel(nextPlannedBlock.timeOfDay)} · ${nextPlannedBlock.durationMinutes}m`
+                              : "Nothing scheduled"}
+                          </small>
+                        </article>
+                        <article className={styles.mobileSummaryRailItem}>
+                          <span>Reminders</span>
+                          <strong>{dueReminderNotes.length} due today</strong>
+                          <small>
+                            {dueReminderNotes[0]?.title ?? "No reminders today"}
+                          </small>
+                        </article>
+                      </div>
+                    </div>
+                  ) : null}
+                </article>
               </section>}
 
               <section className={styles.statsGrid} ref={!isMobileViewport ? todaySectionRef : undefined}>
@@ -10689,7 +10753,10 @@ export default function HomePage() {
                           key={note.id}
                           type="button"
                           className={styles.mobileRecentNote}
-                          style={{ backgroundColor: note.shellColor || "#fff7d6" }}
+                          style={{
+                            ...notePreviewStyle(note.shellColor || "#fff7d6"),
+                            backgroundColor: note.shellColor || "#fff7d6",
+                          }}
                           onClick={() => openMobileNoteEditor(note.id)}
                         >
                             <strong className={styles.noteListTitle}>
@@ -11292,7 +11359,7 @@ export default function HomePage() {
                       <motion.button
                         type="button"
                         className={`${styles.noteListItem} ${selectedNoteId === note.id ? styles.noteListItemActive : ""}`}
-                        style={{ ["--note-item-tint" as const]: note.shellColor || "#fff7d6" } as CSSProperties}
+                        style={notePreviewStyle(note.shellColor || "#fff7d6")}
                         data-note-fill={note.surfaceStyle ?? "solid"}
                         onClick={() => setSelectedNoteId(note.id)}
                         whileHover={{ y: -2, scale: 1.01 }}
@@ -13453,7 +13520,7 @@ export default function HomePage() {
         <div className={styles.feedbackOverlay} onClick={() => setMobileMoreOpen(false)}>
           <div className={styles.mobileMoreSheet} onClick={(event) => event.stopPropagation()}>
             <div className={styles.feedbackHeader}>
-              <h2 className={styles.feedbackTitle}>More</h2>
+              <h2 className={styles.feedbackTitle}>Quick links</h2>
               <button
                 type="button"
                 className={styles.feedbackClose}
@@ -13462,11 +13529,6 @@ export default function HomePage() {
                 Close
               </button>
             </div>
-            <article className={styles.mobileMoreHero}>
-              <span>Jump lanes</span>
-              <strong>Open the deeper Whelm surfaces quickly.</strong>
-              <small>Everything here should feel like a deliberate jump, not a buried overflow menu.</small>
-            </article>
             <div className={styles.mobileMoreGrid}>
               {MOBILE_MORE_TABS.map((tab) => (
                 <button
