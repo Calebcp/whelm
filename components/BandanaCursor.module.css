@@ -1,0 +1,47 @@
+.cursorShell {
+  --bandana-accent: #59c7ff;
+  --bandana-accent-strong: #2f86ff;
+  --bandana-accent-deep: #143d9a;
+  --bandana-glow: rgba(84, 173, 255, 0.34);
+  position: fixed;
+  z-index: 9999;
+  width: 30px;
+  height: 26px;
+  pointer-events: none;
+  transform: translate(10px, 10px);
+  transition:
+    transform 90ms ease-out,
+    filter 120ms ease-out;
+  filter: drop-shadow(0 0 12px var(--bandana-glow));
+}
+
+.cursorShellPressed {
+  transform: translate(10px, 10px) scale(0.92) rotate(-6deg);
+}
+
+.cursorBandana {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.82), transparent 24%),
+    linear-gradient(135deg, var(--bandana-accent), var(--bandana-accent-strong) 52%, var(--bandana-accent-deep));
+  -webkit-mask-image: url("/streak/whitebandana.png");
+  mask-image: url("/streak/whitebandana.png");
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+
+.cursorKnot {
+  position: absolute;
+  right: -3px;
+  top: 6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 0 12px var(--bandana-glow);
+}

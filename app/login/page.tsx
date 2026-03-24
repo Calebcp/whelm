@@ -9,6 +9,7 @@ import {
   updateProfile,
 } from "firebase/auth";
 
+import BandanaCursor from "@/components/BandanaCursor";
 import SenseiFigure from "@/components/SenseiFigure";
 import WhelmRitualScene from "@/components/WhelmRitualScene";
 import { auth } from "@/lib/firebase";
@@ -107,9 +108,16 @@ export default function LoginPage() {
   }
 
   return (
-    <main className={styles.pageShell}>
-      <div className={styles.pageAura} aria-hidden="true" />
-      <div className={styles.loginFrame}>
+    <>
+      <BandanaCursor
+        accent="#f6d36f"
+        accentStrong="#f2a93b"
+        accentDeep="#a65018"
+        glow="rgba(242, 169, 59, 0.28)"
+      />
+      <main className={styles.pageShell}>
+        <div className={styles.pageAura} aria-hidden="true" />
+        <div className={styles.loginFrame}>
         <section className={styles.storyPanel}>
           <div className={styles.storyBackdrop}>
             <WhelmRitualScene variant="orb" />
@@ -304,7 +312,8 @@ export default function LoginPage() {
             </div>
           </div>
         </section>
-      </div>
-    </main>
+        </div>
+      </main>
+    </>
   );
 }

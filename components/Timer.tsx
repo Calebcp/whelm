@@ -281,11 +281,23 @@ export default function Timer({
       return;
     }
 
-    const rotationId = window.setInterval(() => {
-      setActiveWhelmIndex((current) => (current + 1) % TIMER_WHELM_ROTATION.length);
-    }, 300000);
+    const syncRotation = () => {
+      const bucket = Math.floor(Date.now() / 300000);
+      setActiveWhelmIndex(bucket % TIMER_WHELM_ROTATION.length);
+    };
 
-    return () => window.clearInterval(rotationId);
+    syncRotation();
+    const delayToBoundary = 300000 - (Date.now() % 300000);
+    let rotationId: number | null = null;
+    const timeoutId = window.setTimeout(() => {
+      syncRotation();
+      rotationId = window.setInterval(syncRotation, 300000);
+    }, delayToBoundary);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      if (rotationId) window.clearInterval(rotationId);
+    };
   }, [isPro, running]);
 
   const displaySeconds = mode === "countdown" ? secondsLeft : secondsElapsed;

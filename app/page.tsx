@@ -12,8 +12,10 @@ import {
   signOut,
   type User,
 } from "firebase/auth";
+import { deleteObject, getDownloadURL, ref as storageRef, uploadBytes } from "firebase/storage";
 
 import SenseiFigure, { type SenseiVariant } from "@/components/SenseiFigure";
+import BandanaCursor from "@/components/BandanaCursor";
 import Timer, { type TimerSessionContext } from "@/components/Timer";
 import MilestoneReveal from "@/components/MilestoneReveal";
 import WhelmEmote from "@/components/WhelmEmote";
@@ -32,14 +34,28 @@ import {
   trackTaskCreated,
 } from "@/lib/analytics-tracker";
 import { resolveApiUrl } from "@/lib/api-base";
-import { auth } from "@/lib/firebase";
+import { auth, storage } from "@/lib/firebase";
 import {
   loadNotes,
   retryNotesSync,
   saveNotes,
   saveNotesLocally,
+  type NoteAttachment,
   type WorkspaceNote,
 } from "@/lib/notes-store";
+import {
+  loadPlannedBlocks as loadSyncedPlannedBlocks,
+  savePlannedBlocks as saveSyncedPlannedBlocks,
+  savePlannedBlocksLocally,
+} from "@/lib/planned-blocks-store";
+import {
+  loadPreferences,
+  savePreferences,
+} from "@/lib/preferences-store";
+import {
+  loadReflectionState,
+  saveReflectionState,
+} from "@/lib/reflection-store";
 import { loadSessions, saveSession } from "@/lib/session-store";
 import {
   computeHistoricalStreaks,
@@ -259,6 +275,25 @@ const STREAK_MIRROR_SAYINGS = [
   "This space is private. Use it to be honest, reset clearly, and move forward.",
   "The win here is accuracy, not perfection.",
 ] as const;
+const NOTE_ATTACHMENT_MAX_BYTES = 20 * 1024 * 1024;
+const NOTE_ATTACHMENT_ACCEPT = [
+  "image/*",
+  ".pdf",
+  ".doc",
+  ".docx",
+  ".ppt",
+  ".pptx",
+  ".xls",
+  ".xlsx",
+  ".csv",
+  ".txt",
+  ".md",
+  ".rtf",
+  ".pages",
+  ".numbers",
+  ".key",
+  ".zip",
+].join(",");
 
 type FeedbackCategory = "bug" | "feature" | "other";
 type TrendRange = 7 | 30 | 90;
@@ -469,11 +504,13 @@ type PlannedBlock = {
   dateKey: string;
   title: string;
   note: string;
+  attachmentCount?: number;
   tone?: CalendarTone;
   durationMinutes: number;
   timeOfDay: string;
   sortOrder: number;
   createdAtISO: string;
+  updatedAtISO: string;
   status: "active" | "completed";
   completedAtISO?: string;
 };
@@ -744,6 +781,7 @@ function createNote(): WorkspaceNote {
     id: typeof crypto !== "undefined" ? crypto.randomUUID() : `${Date.now()}`,
     title: "Untitled note",
     body: "",
+    attachments: [],
     color: "#e7e5e4",
     shellColor: "#fff7d6",
     surfaceStyle: "solid",
@@ -755,6 +793,117 @@ function createNote(): WorkspaceNote {
     createdAtISO: now,
     updatedAtISO: now,
   };
+}
+
+function noteAttachmentKind(mimeType: string, fileName: string): NoteAttachment["kind"] {
+  const normalizedMime = mimeType.toLowerCase();
+  const extension = fileName.toLowerCase().split(".").pop() || "";
+
+  if (normalizedMime.startsWith("image/")) return "image";
+  if (
+    normalizedMime.includes("pdf") ||
+    normalizedMime.includes("word") ||
+    normalizedMime.includes("document") ||
+    ["pdf", "doc", "docx", "pages", "rtf"].includes(extension)
+  ) {
+    return "document";
+  }
+  if (
+    normalizedMime.includes("spreadsheet") ||
+    normalizedMime.includes("excel") ||
+    ["xls", "xlsx", "csv", "numbers"].includes(extension)
+  ) {
+    return "spreadsheet";
+  }
+  if (
+    normalizedMime.includes("presentation") ||
+    normalizedMime.includes("powerpoint") ||
+    ["ppt", "pptx", "key"].includes(extension)
+  ) {
+    return "presentation";
+  }
+  if (
+    normalizedMime.startsWith("text/") ||
+    ["txt", "md"].includes(extension)
+  ) {
+    return "text";
+  }
+  if (
+    normalizedMime.includes("zip") ||
+    normalizedMime.includes("compressed") ||
+    ["zip"].includes(extension)
+  ) {
+    return "archive";
+  }
+  return "other";
+}
+
+function noteAttachmentBadgeLabel(attachment: NoteAttachment) {
+  switch (attachment.kind) {
+    case "image":
+      return "Image";
+    case "document":
+      return "Document";
+    case "spreadsheet":
+      return "Sheet";
+    case "presentation":
+      return "Slides";
+    case "archive":
+      return "Archive";
+    case "text":
+      return "Text";
+    default:
+      return "File";
+  }
+}
+
+function noteAttachmentGlyph(attachment: NoteAttachment) {
+  switch (attachment.kind) {
+    case "image":
+      return "◫";
+    case "document":
+      return "▤";
+    case "spreadsheet":
+      return "▥";
+    case "presentation":
+      return "◩";
+    case "archive":
+      return "⬚";
+    case "text":
+      return "≣";
+    default:
+      return "•";
+  }
+}
+
+function formatAttachmentSize(sizeBytes: number) {
+  if (sizeBytes < 1024) return `${sizeBytes} B`;
+  if (sizeBytes < 1024 * 1024) return `${Math.round(sizeBytes / 1024)} KB`;
+  return `${(sizeBytes / (1024 * 1024)).toFixed(sizeBytes >= 10 * 1024 * 1024 ? 0 : 1)} MB`;
+}
+
+function attachmentIndicatorLabel(count: number) {
+  return `📎 ${count}`;
+}
+
+function streakNudgeStorageKey(uid: string, dateKey: string) {
+  return `whelm:streak-nudges:${uid}:${dateKey}`;
+}
+
+function readStreakNudgeSeen(uid: string, dateKey: string) {
+  try {
+    const raw = window.localStorage.getItem(streakNudgeStorageKey(uid, dateKey));
+    const parsed = raw ? (JSON.parse(raw) as string[]) : [];
+    return new Set(Array.isArray(parsed) ? parsed.filter((value) => typeof value === "string") : []);
+  } catch {
+    return new Set<string>();
+  }
+}
+
+function markStreakNudgeSeen(uid: string, dateKey: string, slot: string) {
+  const next = readStreakNudgeSeen(uid, dateKey);
+  next.add(slot);
+  window.localStorage.setItem(streakNudgeStorageKey(uid, dateKey), JSON.stringify([...next]));
 }
 
 type LocalNoteDraft = {
@@ -1322,6 +1471,14 @@ type SessionRewardState = {
   streakDelta: number;
   leveledUp: boolean;
   tierUnlocked: StreakBandanaTier | null;
+};
+
+type StreakNudgeState = {
+  id: string;
+  title: string;
+  body: string;
+  actionLabel: string;
+  actionTab: AppTab;
 };
 
 type LifetimeXpSummary = {
@@ -2228,6 +2385,7 @@ function clearLocalAccountData(uid: string) {
   window.localStorage.removeItem(`whelm:notes:${uid}`);
   window.localStorage.removeItem(`whelm:sessions:${uid}`);
   window.localStorage.removeItem(plannedBlocksStorageKey(uid));
+  window.localStorage.removeItem(`whelm:preferences:${uid}`);
   window.localStorage.removeItem(dayToneStorageKey(uid));
   window.localStorage.removeItem(monthToneStorageKey(uid));
   window.localStorage.removeItem(senseiStyleStorageKey(uid));
@@ -2235,49 +2393,6 @@ function clearLocalAccountData(uid: string) {
   window.localStorage.removeItem(sickDaySaveStorageKey(uid));
   window.localStorage.removeItem(sickDaySaveDismissalsStorageKey(uid));
   window.localStorage.removeItem("whelm-pro-state-v1");
-}
-
-function loadPlannedBlocks(uid: string): PlannedBlock[] {
-  try {
-    const raw = window.localStorage.getItem(plannedBlocksStorageKey(uid));
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as PlannedBlock[];
-    if (!Array.isArray(parsed)) return [];
-    return parsed
-      .filter((item) => item.id && item.dateKey && item.title)
-      .map((item) => ({
-        id: item.id,
-        dateKey: item.dateKey,
-        title: String(item.title).slice(0, 80),
-        note: String((item as Partial<PlannedBlock>).note || "").slice(0, 280),
-        tone: getCalendarToneMeta((item as Partial<PlannedBlock>).tone as CalendarTone | undefined)?.value,
-        durationMinutes: Math.min(
-          MAX_PLANNED_BLOCK_MINUTES,
-          Math.max(MIN_PLANNED_BLOCK_MINUTES, Number(item.durationMinutes) || 25),
-        ),
-        timeOfDay: String(item.timeOfDay || "09:00").slice(0, 5),
-        sortOrder: Number((item as Partial<PlannedBlock>).sortOrder) || 0,
-        createdAtISO: item.createdAtISO || new Date().toISOString(),
-        status: (item.status === "completed" ? "completed" : "active") as PlannedBlock["status"],
-        completedAtISO:
-          item.status === "completed" && item.completedAtISO ? item.completedAtISO : undefined,
-      }))
-      .sort((a, b) =>
-        a.dateKey === b.dateKey
-          ? a.sortOrder - b.sortOrder || a.timeOfDay.localeCompare(b.timeOfDay)
-          : a.dateKey.localeCompare(b.dateKey),
-      )
-      .map((item, index) => ({
-        ...item,
-        sortOrder: Number.isFinite(item.sortOrder) ? item.sortOrder : index,
-      }));
-  } catch {
-    return [];
-  }
-}
-
-function savePlannedBlocks(uid: string, items: PlannedBlock[]) {
-  window.localStorage.setItem(plannedBlocksStorageKey(uid), JSON.stringify(items));
 }
 
 function loadDayTones(uid: string): DayToneMap {
@@ -2846,6 +2961,149 @@ function SessionRewardToast({
   );
 }
 
+function StreakNudgeToast({
+  nudge,
+  onDismiss,
+  onAction,
+}: {
+  nudge: StreakNudgeState;
+  onDismiss: () => void;
+  onAction: (tab: AppTab) => void;
+}) {
+  return (
+    <motion.div
+      className={styles.streakNudgeToast}
+      initial={{ opacity: 0, y: 28, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 18, scale: 0.98 }}
+      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+    >
+      <button type="button" className={styles.sessionRewardClose} onClick={onDismiss} aria-label="Dismiss streak nudge">
+        ×
+      </button>
+      <p className={styles.sectionLabel}>Streak at risk</p>
+      <h3 className={styles.streakNudgeTitle}>{nudge.title}</h3>
+      <p className={styles.streakNudgeBody}>{nudge.body}</p>
+      <div className={styles.noteFooterActions}>
+        <button
+          type="button"
+          className={styles.reportButton}
+          onClick={() => onAction(nudge.actionTab)}
+        >
+          {nudge.actionLabel}
+        </button>
+        <button type="button" className={styles.secondaryPlanButton} onClick={onDismiss}>
+          Later
+        </button>
+      </div>
+    </motion.div>
+  );
+}
+
+function NoteAttachmentsSection({
+  note,
+  uploadBusy,
+  uploadStatus,
+  onAttach,
+  onOpen,
+  onRemove,
+}: {
+  note: WorkspaceNote;
+  uploadBusy: boolean;
+  uploadStatus: string;
+  onAttach: () => void;
+  onOpen: (attachment: NoteAttachment) => void;
+  onRemove: (attachment: NoteAttachment) => void;
+}) {
+  const hasAttachments = note.attachments.length > 0;
+
+  return (
+    <section className={styles.noteAttachmentsSection}>
+      <div className={styles.noteAttachmentsHeader}>
+        <div className={styles.noteAttachmentsSummary}>
+          <p className={styles.noteAttachmentsEyebrow}>Files</p>
+          <strong className={styles.noteAttachmentsTitle}>
+            {hasAttachments
+              ? `${note.attachments.length} attached`
+              : "Keep files with this note"}
+          </strong>
+        </div>
+        <button
+          type="button"
+          className={styles.noteAttachmentAddButton}
+          onClick={onAttach}
+          disabled={uploadBusy}
+        >
+          {uploadBusy ? "Adding..." : "Add file"}
+        </button>
+      </div>
+      {uploadStatus ? <p className={styles.noteAttachmentStatus}>{uploadStatus}</p> : null}
+      {hasAttachments ? (
+        <div className={styles.noteAttachmentsRail}>
+          {note.attachments.map((attachment) => (
+            <article
+              key={attachment.id}
+              className={`${styles.noteAttachmentCard} ${
+                attachment.kind === "image" ? styles.noteAttachmentCardImage : ""
+              }`}
+            >
+              {attachment.kind === "image" ? (
+                <button
+                  type="button"
+                  className={styles.noteAttachmentPreviewButton}
+                  onClick={() => onOpen(attachment)}
+                >
+                  <img
+                    src={attachment.downloadUrl}
+                    alt={attachment.name}
+                    className={styles.noteAttachmentPreviewImage}
+                  />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className={styles.noteAttachmentFileFace}
+                  onClick={() => onOpen(attachment)}
+                >
+                  <span className={styles.noteAttachmentGlyph}>{noteAttachmentGlyph(attachment)}</span>
+                  <span className={styles.noteAttachmentBadge}>{noteAttachmentBadgeLabel(attachment)}</span>
+                </button>
+              )}
+              <div className={styles.noteAttachmentMeta}>
+                <strong className={styles.noteAttachmentName}>{attachment.name}</strong>
+                <span className={styles.noteAttachmentInfo}>
+                  {noteAttachmentBadgeLabel(attachment)} · {formatAttachmentSize(attachment.sizeBytes)}
+                </span>
+              </div>
+              <div className={styles.noteAttachmentActions}>
+                <button
+                  type="button"
+                  className={styles.noteAttachmentOpenButton}
+                  onClick={() => onOpen(attachment)}
+                >
+                  Open
+                </button>
+                <button
+                  type="button"
+                  className={styles.noteAttachmentRemoveButton}
+                  onClick={() => onRemove(attachment)}
+                >
+                  Remove
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <span className={styles.noteAttachmentsEmpty}>
+          <span className={styles.noteAttachmentEmptyGlyph}>＋</span>
+          <p>No files attached</p>
+        </span>
+      )}
+    </section>
+  );
+}
+
 export default function HomePage() {
   "use no memo";
 
@@ -2864,6 +3122,8 @@ export default function HomePage() {
     "synced" | "local-only" | "syncing"
   >("syncing");
   const [notesSyncMessage, setNotesSyncMessage] = useState("");
+  const [noteAttachmentBusy, setNoteAttachmentBusy] = useState(false);
+  const [noteAttachmentStatus, setNoteAttachmentStatus] = useState("");
   const [authChecked, setAuthChecked] = useState(false);
   const [showIntroSplash, setShowIntroSplash] = useState(true);
   const [introFinished, setIntroFinished] = useState(false);
@@ -2938,6 +3198,7 @@ export default function HomePage() {
   const [notesSearch, setNotesSearch] = useState("");
   const [notesCategoryFilter, setNotesCategoryFilter] = useState<"all" | NoteCategory>("all");
   const [plannedBlocks, setPlannedBlocks] = useState<PlannedBlock[]>([]);
+  const [plannedBlocksHydrated, setPlannedBlocksHydrated] = useState(false);
   const [dayTones, setDayTones] = useState<DayToneMap>({});
   const [monthTones, setMonthTones] = useState<MonthToneMap>({});
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
@@ -2954,6 +3215,7 @@ export default function HomePage() {
   const [calendarAuxPanel, setCalendarAuxPanel] = useState<"agenda" | "streak" | "guide">("agenda");
   const [planTitle, setPlanTitle] = useState("");
   const [planNote, setPlanNote] = useState("");
+  const [planAttachmentCount, setPlanAttachmentCount] = useState(0);
   const [planNoteExpanded, setPlanNoteExpanded] = useState(false);
   const [planTone, setPlanTone] = useState<CalendarTone | null>(null);
   const [planDuration, setPlanDuration] = useState(25);
@@ -3011,6 +3273,7 @@ export default function HomePage() {
   const [streakSaveStatus, setStreakSaveStatus] = useState("");
   const [milestoneRevealTier, setMilestoneRevealTier] = useState<StreakBandanaTier | null>(null);
   const [sessionReward, setSessionReward] = useState<SessionRewardState | null>(null);
+  const [streakNudge, setStreakNudge] = useState<StreakNudgeState | null>(null);
   const [dailyPlanningPreviewOpen, setDailyPlanningPreviewOpen] = useState(false);
   const [mobileNotesRecentOpen, setMobileNotesRecentOpen] = useState(false);
   const [mobileNotesEditorOpen, setMobileNotesEditorOpen] = useState(false);
@@ -3041,6 +3304,7 @@ export default function HomePage() {
   const [mobileAgendaEntriesOpen, setMobileAgendaEntriesOpen] = useState(false);
 
   const editorRef = useRef<HTMLDivElement | null>(null);
+  const noteAttachmentInputRef = useRef<HTMLInputElement | null>(null);
   const savedSelectionRef = useRef<Range | null>(null);
   const syncInFlightRef = useRef(false);
   const notesRef = useRef<WorkspaceNote[]>([]);
@@ -3642,7 +3906,7 @@ export default function HomePage() {
     () => todayPlannedBlocks.filter((item) => item.durationMinutes >= 15),
     [todayPlannedBlocks],
   );
-  const dailyPlanningLocked = claimedBlocksToday.length < 3;
+  const dailyPlanningLocked = plannedBlocksHydrated && claimedBlocksToday.length < 3;
 
   const averageSessionStartHour = useMemo(() => {
     const recentSessions = sessions.slice(0, 14);
@@ -3987,6 +4251,7 @@ export default function HomePage() {
         setSessions([]);
         setNotes([]);
         setPlannedBlocks([]);
+        setPlannedBlocksHydrated(false);
         setSickDaySaves([]);
         setSickDaySaveDismissals([]);
         setSickDaySavePromptOpen(false);
@@ -4011,7 +4276,13 @@ export default function HomePage() {
       }
       // Unblock the shell immediately after auth; sync data in the background.
       setAuthChecked(true);
-      void Promise.all([refreshSessions(nextUser.uid), refreshNotes(nextUser.uid)]).catch(() => {
+      void Promise.all([
+        refreshSessions(nextUser.uid),
+        refreshNotes(nextUser.uid),
+        refreshPlannedBlocks(nextUser.uid),
+        refreshReflectionState(nextUser.uid),
+        refreshPreferencesState(nextUser.uid),
+      ]).catch(() => {
         // Keep existing local UI visible even if initial cloud sync is slow/unavailable.
       });
     });
@@ -4039,51 +4310,12 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!user) return;
-    const loaded = loadPlannedBlocks(user.uid);
-    setPlannedBlocks(loaded);
-  }, [user]);
-
-  useEffect(() => {
-    if (!user) return;
     setDayTones(loadDayTones(user.uid));
   }, [user]);
 
   useEffect(() => {
     if (!user) return;
     setMonthTones(loadMonthTones(user.uid));
-  }, [user]);
-
-  useEffect(() => {
-    if (!user) return;
-    setAppBackgroundSetting(loadBackgroundSetting(user.uid));
-  }, [user]);
-
-  useEffect(() => {
-    if (!user) return;
-    setBackgroundSkin(loadBackgroundSkin(user.uid));
-  }, [user]);
-
-  useEffect(() => {
-    if (!user) return;
-    saveBackgroundSetting(user.uid, appBackgroundSetting);
-  }, [appBackgroundSetting, user]);
-
-  useEffect(() => {
-    if (!user) return;
-    saveBackgroundSkin(user.uid, backgroundSkin);
-  }, [backgroundSkin, user]);
-
-  useEffect(() => {
-    if (!user) return;
-    const loaded = loadStreakMirrorEntries(user.uid);
-    setStreakMirrorEntries(loaded);
-    setSelectedStreakMirrorId(loaded[0]?.id ?? null);
-  }, [user]);
-
-  useEffect(() => {
-    if (!user) return;
-    setSickDaySaves(loadSickDaySaves(user.uid));
-    setSickDaySaveDismissals(loadSickDaySaveDismissals(user.uid));
   }, [user]);
 
   useEffect(() => {
@@ -4098,7 +4330,7 @@ export default function HomePage() {
   }, [isPro, selectedStreakMirrorId, streakMirrorEntries]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !plannedBlocksHydrated) return;
     setDailyRitualDrafts(createDailyRitualDrafts(claimedBlocksToday));
     setDailyPlanningStatus("");
     if (claimedBlocksToday.length < 3) {
@@ -4109,32 +4341,7 @@ export default function HomePage() {
     } else {
       setDailyPlanningOpen(false);
     }
-  }, [claimedBlocksToday, user]);
-
-  useEffect(() => {
-    if (!user) return;
-    const stored = window.localStorage.getItem(senseiStyleStorageKey(user.uid));
-    if (stored === "gentle" || stored === "balanced" || stored === "strict") {
-      setCompanionStyle(stored);
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (!user) return;
-    window.localStorage.setItem(senseiStyleStorageKey(user.uid), companionStyle);
-  }, [companionStyle, user]);
-
-  useEffect(() => {
-    if (!user) return;
-    const stored = window.localStorage.getItem(themeModeStorageKey(user.uid));
-    if (stored === "light" || stored === "dark") {
-      setThemeMode(stored);
-      setThemePromptOpen(false);
-      return;
-    }
-    setThemeMode("dark");
-    setThemePromptOpen(true);
-  }, [user]);
+  }, [claimedBlocksToday, plannedBlocksHydrated, user]);
 
   useEffect(() => {
     document.body.dataset.theme = themeMode;
@@ -4184,7 +4391,13 @@ export default function HomePage() {
 
       syncInFlightRef.current = true;
       try {
-        await Promise.all([refreshSessions(user.uid), refreshNotes(user.uid)]);
+        await Promise.all([
+          refreshSessions(user.uid),
+          refreshNotes(user.uid),
+          refreshPlannedBlocks(user.uid),
+          refreshReflectionState(user.uid),
+          refreshPreferencesState(user.uid),
+        ]);
       } finally {
         syncInFlightRef.current = false;
       }
@@ -4229,6 +4442,7 @@ export default function HomePage() {
     setColorPickerOpen(false);
     setTextColorPickerOpen(false);
     setHighlightPickerOpen(false);
+    setNoteAttachmentStatus("");
   }, [selectedNoteId]);
 
   useEffect(() => {
@@ -4272,6 +4486,93 @@ export default function HomePage() {
     setSelectedNoteId((current) => current ?? result.notes[0]?.id ?? null);
     setNotesSyncStatus(result.synced ? "synced" : "local-only");
     setNotesSyncMessage(result.message ?? "");
+  }
+
+  async function refreshPlannedBlocks(uid: string) {
+    const currentUser = auth.currentUser;
+    if (!currentUser || currentUser.uid !== uid) {
+      throw new Error("Your login session is missing. Sign in again.");
+    }
+
+    const result = await loadSyncedPlannedBlocks(currentUser);
+    setPlannedBlocks(result.blocks as PlannedBlock[]);
+    setPlannedBlocksHydrated(true);
+  }
+
+  async function refreshReflectionState(uid: string) {
+    const currentUser = auth.currentUser;
+    if (!currentUser || currentUser.uid !== uid) {
+      throw new Error("Your login session is missing. Sign in again.");
+    }
+
+    const result = await loadReflectionState(currentUser);
+    setStreakMirrorEntries(result.mirrorEntries as StreakMirrorEntry[]);
+    setSelectedStreakMirrorId((current) => current ?? result.mirrorEntries[0]?.id ?? null);
+    setSickDaySaves(result.sickDaySaves as SickDaySave[]);
+    setSickDaySaveDismissals(result.sickDaySaveDismissals);
+  }
+
+  async function refreshPreferencesState(uid: string) {
+    const currentUser = auth.currentUser;
+    if (!currentUser || currentUser.uid !== uid) {
+      throw new Error("Your login session is missing. Sign in again.");
+    }
+
+    const result = await loadPreferences(currentUser);
+    setCompanionStyle(result.companionStyle as SenseiCompanionStyle);
+    setThemeMode(result.themeMode);
+    setThemePromptOpen(false);
+    setAppBackgroundSetting(result.backgroundSetting as AppBackgroundSetting);
+    setBackgroundSkin(result.backgroundSkin as BackgroundSkinSetting);
+  }
+
+  async function persistPlannedBlocks(nextBlocks: PlannedBlock[]) {
+    if (!user) return;
+
+    setPlannedBlocks(nextBlocks);
+    savePlannedBlocksLocally(user.uid, nextBlocks);
+
+    const result = await saveSyncedPlannedBlocks(user, nextBlocks);
+    setPlannedBlocks(result.blocks as PlannedBlock[]);
+  }
+
+  async function persistReflectionState(nextState: {
+    mirrorEntries: StreakMirrorEntry[];
+    sickDaySaves: SickDaySave[];
+    sickDaySaveDismissals: string[];
+  }) {
+    if (!user) return;
+
+    setStreakMirrorEntries(nextState.mirrorEntries);
+    setSickDaySaves(nextState.sickDaySaves);
+    setSickDaySaveDismissals(nextState.sickDaySaveDismissals);
+
+    const result = await saveReflectionState(user, nextState);
+    setStreakMirrorEntries(result.mirrorEntries as StreakMirrorEntry[]);
+    setSickDaySaves(result.sickDaySaves as SickDaySave[]);
+    setSickDaySaveDismissals(result.sickDaySaveDismissals);
+  }
+
+  async function persistPreferencesState(nextState: {
+    companionStyle: SenseiCompanionStyle;
+    themeMode: ThemeMode;
+    backgroundSetting: AppBackgroundSetting;
+    backgroundSkin: BackgroundSkinSetting;
+  }) {
+    if (!user) return;
+
+    setCompanionStyle(nextState.companionStyle);
+    setThemeMode(nextState.themeMode);
+    setThemePromptOpen(false);
+    setAppBackgroundSetting(nextState.backgroundSetting);
+    setBackgroundSkin(nextState.backgroundSkin);
+
+    await savePreferences(user, {
+      companionStyle: nextState.companionStyle,
+      themeMode: nextState.themeMode,
+      backgroundSetting: nextState.backgroundSetting,
+      backgroundSkin: nextState.backgroundSkin,
+    });
   }
 
   function fireAndForgetTracking(work: Promise<unknown>) {
@@ -4480,6 +4781,40 @@ export default function HomePage() {
     return nextNote.id;
   }
 
+  async function updateNoteById(
+    noteId: string,
+    patch: Partial<
+      Pick<
+        WorkspaceNote,
+        | "title"
+        | "body"
+        | "color"
+        | "shellColor"
+        | "surfaceStyle"
+        | "isPinned"
+        | "fontFamily"
+        | "fontSizePx"
+        | "category"
+        | "reminderAtISO"
+        | "attachments"
+      >
+    >,
+  ) {
+    if (!user) return;
+
+    const now = new Date().toISOString();
+    const nextNotes = notesRef.current.map((note) =>
+      note.id === noteId ? { ...note, ...patch, updatedAtISO: now } : note,
+    );
+    notesRef.current = nextNotes;
+    setNotes(nextNotes);
+    setNotesSyncStatus("syncing");
+    setNotesSyncMessage("");
+    const result = await saveNotes(user, nextNotes);
+    setNotesSyncStatus(result.synced ? "synced" : "local-only");
+    setNotesSyncMessage(result.message ?? "");
+  }
+
   async function updateSelectedNote(
     patch: Partial<
       Pick<
@@ -4494,25 +4829,14 @@ export default function HomePage() {
         | "fontSizePx"
         | "category"
         | "reminderAtISO"
+        | "attachments"
       >
     >,
   ) {
-    if (!user) return;
-
     const currentSelectedNoteId = selectedNoteIdRef.current;
     if (!currentSelectedNoteId) return;
 
-    const now = new Date().toISOString();
-    const nextNotes = notesRef.current.map((note) =>
-      note.id === currentSelectedNoteId ? { ...note, ...patch, updatedAtISO: now } : note,
-    );
-    notesRef.current = nextNotes;
-    setNotes(nextNotes);
-    setNotesSyncStatus("syncing");
-    setNotesSyncMessage("");
-    const result = await saveNotes(user, nextNotes);
-    setNotesSyncStatus(result.synced ? "synced" : "local-only");
-    setNotesSyncMessage(result.message ?? "");
+    await updateNoteById(currentSelectedNoteId, patch);
   }
 
   async function flushSelectedNoteDraft() {
@@ -4694,6 +5018,106 @@ export default function HomePage() {
     } else {
       setNotesSyncStatus("local-only");
       setNotesSyncMessage(result.message ?? "Retry failed.");
+    }
+  }
+
+  function openNoteAttachmentPicker() {
+    if (!selectedNote) return;
+    noteAttachmentInputRef.current?.click();
+  }
+
+  function openNoteAttachment(attachment: NoteAttachment) {
+    window.open(attachment.downloadUrl, "_blank", "noopener,noreferrer");
+  }
+
+  async function handleNoteAttachmentInput(event: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files ?? []);
+    event.target.value = "";
+
+    if (!user || !selectedNote || files.length === 0) return;
+
+    const oversized = files.find((file) => file.size > NOTE_ATTACHMENT_MAX_BYTES);
+    if (oversized) {
+      setNoteAttachmentStatus(`${oversized.name} is too large. Keep each file under 20 MB.`);
+      return;
+    }
+
+    setNoteAttachmentBusy(true);
+    setNoteAttachmentStatus(
+      files.length === 1 ? `Adding ${files[0].name}...` : `Adding ${files.length} files...`,
+    );
+
+    try {
+      const uploadedAttachments = await Promise.all(
+        files.map(async (file) => {
+          const attachmentId =
+            typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+              ? crypto.randomUUID()
+              : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+          const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g, "-").slice(0, 120) || "file";
+          const storagePath = `users/${user.uid}/notes/${selectedNote.id}/${attachmentId}-${safeName}`;
+          const attachmentRef = storageRef(storage, storagePath);
+
+          await uploadBytes(attachmentRef, file, {
+            contentType: file.type || "application/octet-stream",
+          });
+
+          const downloadUrl = await getDownloadURL(attachmentRef);
+          const uploadedAtISO = new Date().toISOString();
+
+          return {
+            id: attachmentId,
+            name: file.name,
+            mimeType: file.type || "application/octet-stream",
+            sizeBytes: file.size,
+            kind: noteAttachmentKind(file.type, file.name),
+            storagePath,
+            downloadUrl,
+            uploadedAtISO,
+          } satisfies NoteAttachment;
+        }),
+      );
+
+      const latestTargetNote = notesRef.current.find((note) => note.id === selectedNote.id);
+      const existingAttachments = latestTargetNote?.attachments ?? [];
+      const dedupedAttachments = [...uploadedAttachments, ...existingAttachments].filter(
+        (attachment, index, all) => all.findIndex((item) => item.id === attachment.id) === index,
+      );
+
+      await updateNoteById(selectedNote.id, { attachments: dedupedAttachments });
+      setNoteAttachmentStatus(
+        uploadedAttachments.length === 1
+          ? `${uploadedAttachments[0].name} attached.`
+          : `${uploadedAttachments.length} files attached.`,
+      );
+    } catch (error: unknown) {
+      setNoteAttachmentStatus(
+        error instanceof Error ? error.message : "Attachment upload failed.",
+      );
+    } finally {
+      setNoteAttachmentBusy(false);
+    }
+  }
+
+  async function removeNoteAttachment(attachment: NoteAttachment) {
+    if (!user || !selectedNote) return;
+
+    setNoteAttachmentBusy(true);
+    setNoteAttachmentStatus(`Removing ${attachment.name}...`);
+
+    try {
+      await deleteObject(storageRef(storage, attachment.storagePath)).catch(() => undefined);
+      const latestTargetNote = notesRef.current.find((note) => note.id === selectedNote.id);
+      await updateNoteById(selectedNote.id, {
+        attachments: (latestTargetNote?.attachments ?? []).filter((item) => item.id !== attachment.id),
+      });
+      setNoteAttachmentStatus(`${attachment.name} removed.`);
+    } catch (error: unknown) {
+      setNoteAttachmentStatus(
+        error instanceof Error ? error.message : "Attachment removal failed.",
+      );
+    } finally {
+      setNoteAttachmentBusy(false);
     }
   }
 
@@ -4901,6 +5325,51 @@ export default function HomePage() {
             | { error?: string }
             | null;
           throw new Error(body?.error || "Failed to delete saved sessions.");
+        }
+
+        const deletePlannedBlocksResponse = await fetch(
+          resolveApiUrl(`/api/planned-blocks?uid=${encodeURIComponent(currentUser.uid)}`),
+          {
+            method: "DELETE",
+            headers,
+          },
+        );
+
+        if (!deletePlannedBlocksResponse.ok) {
+          const body = (await deletePlannedBlocksResponse.json().catch(() => null)) as
+            | { error?: string }
+            | null;
+          throw new Error(body?.error || "Failed to delete saved planned blocks.");
+        }
+
+        const deleteReflectionStateResponse = await fetch(
+          resolveApiUrl(`/api/reflection-state?uid=${encodeURIComponent(currentUser.uid)}`),
+          {
+            method: "DELETE",
+            headers,
+          },
+        );
+
+        if (!deleteReflectionStateResponse.ok) {
+          const body = (await deleteReflectionStateResponse.json().catch(() => null)) as
+            | { error?: string }
+            | null;
+          throw new Error(body?.error || "Failed to delete saved reflection state.");
+        }
+
+        const deletePreferencesResponse = await fetch(
+          resolveApiUrl(`/api/preferences?uid=${encodeURIComponent(currentUser.uid)}`),
+          {
+            method: "DELETE",
+            headers,
+          },
+        );
+
+        if (!deletePreferencesResponse.ok) {
+          const body = (await deletePreferencesResponse.json().catch(() => null)) as
+            | { error?: string }
+            | null;
+          throw new Error(body?.error || "Failed to delete saved preferences.");
         }
 
         clearLocalAccountData(currentUser.uid);
@@ -5270,6 +5739,7 @@ export default function HomePage() {
   function openCalendarBlockComposer() {
     setPlanStatus("");
     setPlanConflictWarning(null);
+    setPlanAttachmentCount(0);
     setActiveTab("calendar");
     setCalendarView("day");
     if (isMobileViewport) {
@@ -5285,11 +5755,13 @@ export default function HomePage() {
     note: string;
     timeOfDay: string;
     durationMinutes: number;
+    attachmentCount?: number;
   }) {
     const nextDateKey = normalizePlannableDateKey(options.dateKey);
     setSelectedCalendarDate(nextDateKey);
     setPlanTitle(options.title);
     setPlanNote(options.note);
+    setPlanAttachmentCount(Math.max(0, options.attachmentCount ?? 0));
     setPlanNoteExpanded(Boolean(options.note));
     setPlanTime(options.timeOfDay);
     setPlanDuration(options.durationMinutes);
@@ -5315,6 +5787,7 @@ export default function HomePage() {
     setCalendarView("day");
     setMobileBlockSheetOpen(true);
     setDayPortalComposerOpen(true);
+    setPlanAttachmentCount(0);
     setPlanStatus(
       nextDateKey !== dateKey
         ? "Past dates stay read-only. Add the block to today or a future day."
@@ -5341,8 +5814,11 @@ export default function HomePage() {
   function declineSickDaySave() {
     if (!user || !rawYesterdayMissed) return;
     const nextDismissals = [...new Set([...sickDaySaveDismissals, yesterdayKey])];
-    setSickDaySaveDismissals(nextDismissals);
-    saveSickDaySaveDismissals(user.uid, nextDismissals);
+    void persistReflectionState({
+      mirrorEntries: streakMirrorEntries,
+      sickDaySaves,
+      sickDaySaveDismissals: nextDismissals,
+    });
     setSickDaySavePromptOpen(false);
   }
 
@@ -5439,11 +5915,12 @@ export default function HomePage() {
     const nextMirrorEntries = [nextMirrorEntry, ...streakMirrorEntries].sort((a, b) =>
       a.updatedAtISO < b.updatedAtISO ? 1 : -1,
     );
-    setSickDaySaves(nextSaves);
-    setStreakMirrorEntries(nextMirrorEntries);
+    void persistReflectionState({
+      mirrorEntries: nextMirrorEntries,
+      sickDaySaves: nextSaves,
+      sickDaySaveDismissals,
+    });
     setSelectedStreakMirrorId(nextMirrorEntry.id);
-    saveSickDaySaves(user.uid, nextSaves);
-    saveStreakMirrorEntries(user.uid, nextMirrorEntries);
     trackStreakChange(
       previousStreak,
       computeStreak(sessions, nextSaves.map((save) => save.dateKey)),
@@ -5539,6 +6016,7 @@ export default function HomePage() {
       note: summarizePlainText(note.body, 280),
       timeOfDay,
       durationMinutes: 25,
+      attachmentCount: note.attachments.length,
     });
   }
 
@@ -6262,11 +6740,13 @@ export default function HomePage() {
       return false;
     }
 
+    const now = new Date().toISOString();
     const next: PlannedBlock = {
       id: typeof crypto !== "undefined" ? crypto.randomUUID() : `${Date.now()}`,
       dateKey: selectedDateKey,
       title,
       note,
+      attachmentCount: planAttachmentCount > 0 ? planAttachmentCount : undefined,
       tone: isPro ? planTone ?? undefined : undefined,
       durationMinutes: nextDuration,
       timeOfDay: nextTime,
@@ -6274,12 +6754,12 @@ export default function HomePage() {
         selectedDatePlans.length === 0
           ? 0
           : Math.max(...selectedDatePlans.map((item) => item.sortOrder)) + 1,
-      createdAtISO: new Date().toISOString(),
+      createdAtISO: now,
+      updatedAtISO: now,
       status: "active",
     };
     const updated = [...plannedBlocks, next];
-    setPlannedBlocks(updated);
-    savePlannedBlocks(user.uid, updated);
+    void persistPlannedBlocks(updated);
     fireAndForgetTracking(
       trackTaskCreated(user, {
         taskId: next.id,
@@ -6291,6 +6771,7 @@ export default function HomePage() {
     );
     setPlanTitle("");
     setPlanNote("");
+    setPlanAttachmentCount(0);
     setPlanNoteExpanded(false);
     setPlanTone(null);
     setPlanConflictWarning(null);
@@ -6321,17 +6802,16 @@ export default function HomePage() {
       setDailyPlanningStatus("Today needs 3 active blocks. Replace the removed block to unlock the workspace again.");
     }
     const updated = plannedBlocks.filter((item) => item.id !== id);
-    setPlannedBlocks(updated);
-    savePlannedBlocks(user.uid, updated);
+    void persistPlannedBlocks(updated);
     setDeletedPlanUndo(removed);
     window.setTimeout(() => setDeletedPlanUndo(null), 5000);
   }
 
   function undoDeletePlannedBlock() {
     if (!user || !deletedPlanUndo) return;
-    const updated = [...plannedBlocks, deletedPlanUndo];
-    setPlannedBlocks(updated);
-    savePlannedBlocks(user.uid, updated);
+    const restoredAt = new Date().toISOString();
+    const updated = [...plannedBlocks, { ...deletedPlanUndo, updatedAtISO: restoredAt }];
+    void persistPlannedBlocks(updated);
     setDeletedPlanUndo(null);
   }
 
@@ -6353,11 +6833,11 @@ export default function HomePage() {
       setPlanStatus(buildBlockSpacingMessage(conflicts));
       return;
     }
+    const updatedAtISO = new Date().toISOString();
     const updated = plannedBlocks.map((item) =>
-      item.id === id ? { ...item, timeOfDay } : item,
+      item.id === id ? { ...item, timeOfDay, updatedAtISO } : item,
     );
-    setPlannedBlocks(updated);
-    savePlannedBlocks(user.uid, updated);
+    void persistPlannedBlocks(updated);
     setPlanStatus("");
   }
 
@@ -6376,15 +6856,16 @@ export default function HomePage() {
     const [moved] = reordered.splice(sourceIndex, 1);
     reordered.splice(targetIndex, 0, moved);
 
+    const updatedAtISO = new Date().toISOString();
     const withOrder = reordered.map((item, index) => ({
       ...item,
       sortOrder: index,
+      updatedAtISO,
     }));
 
     const untouched = plannedBlocks.filter((item) => item.dateKey !== selectedDateKey);
     const updated = [...untouched, ...withOrder];
-    setPlannedBlocks(updated);
-    savePlannedBlocks(user.uid, updated);
+    void persistPlannedBlocks(updated);
   }
 
   async function completePlannedBlock(item: PlannedBlock) {
@@ -6468,11 +6949,11 @@ export default function HomePage() {
             ...block,
             status: "completed" as PlannedBlock["status"],
             completedAtISO,
+            updatedAtISO: new Date().toISOString(),
           }
         : block,
     );
-    setPlannedBlocks(updated);
-    savePlannedBlocks(user.uid, updated);
+    void persistPlannedBlocks(updated);
     setPlanStatus("Session saved from plan.");
     window.setTimeout(() => setPlanStatus(""), 1200);
   }
@@ -6492,6 +6973,7 @@ export default function HomePage() {
 
   useEffect(() => {
     setPlanTone(null);
+    setPlanAttachmentCount(0);
   }, [selectedDateKey]);
 
   function jumpToToday() {
@@ -6511,15 +6993,39 @@ export default function HomePage() {
   }
 
   function applyThemeMode(nextMode: ThemeMode) {
-    setThemeMode(nextMode);
-    if (user) {
-      window.localStorage.setItem(themeModeStorageKey(user.uid), nextMode);
-    }
-    setThemePromptOpen(false);
+    void persistPreferencesState({
+      companionStyle,
+      themeMode: nextMode,
+      backgroundSetting: appBackgroundSetting,
+      backgroundSkin,
+    });
   }
 
   function applyBackgroundSetting(nextSetting: AppBackgroundSetting) {
-    setAppBackgroundSetting(nextSetting);
+    void persistPreferencesState({
+      companionStyle,
+      themeMode,
+      backgroundSetting: nextSetting,
+      backgroundSkin,
+    });
+  }
+
+  function applyCompanionStyle(nextStyle: SenseiCompanionStyle) {
+    void persistPreferencesState({
+      companionStyle: nextStyle,
+      themeMode,
+      backgroundSetting: appBackgroundSetting,
+      backgroundSkin,
+    });
+  }
+
+  function updateBackgroundSkin(nextSkin: BackgroundSkinSetting) {
+    void persistPreferencesState({
+      companionStyle,
+      themeMode,
+      backgroundSetting: appBackgroundSetting,
+      backgroundSkin: nextSkin,
+    });
   }
 
   function openPlannedBlockDetail(blockId: string) {
@@ -6556,11 +7062,11 @@ export default function HomePage() {
 
   function updatePlannedBlockTone(id: string, tone: CalendarTone | null) {
     if (!user || !isPro) return;
+    const updatedAtISO = new Date().toISOString();
     const updated = plannedBlocks.map((item) =>
-      item.id === id ? { ...item, tone: tone ?? undefined } : item,
+      item.id === id ? { ...item, tone: tone ?? undefined, updatedAtISO } : item,
     );
-    setPlannedBlocks(updated);
-    savePlannedBlocks(user.uid, updated);
+    void persistPlannedBlocks(updated);
   }
 
   function handleBackgroundUpload(event: ChangeEvent<HTMLInputElement>) {
@@ -6612,18 +7118,23 @@ export default function HomePage() {
 
     const newBlocks = dailyRitualDrafts
       .filter((draft) => !draft.existingBlockId)
-      .map((draft, index) => ({
-        id: typeof crypto !== "undefined" ? crypto.randomUUID() : `${Date.now()}-${index}`,
-        dateKey: todayKey,
-        title: draft.title.trim(),
-        note: draft.note.trim(),
-        tone: isPro ? draft.tone ?? undefined : undefined,
-        durationMinutes: draft.durationMinutes,
-        timeOfDay: draft.timeOfDay,
-        sortOrder: claimedBlocksToday.length + index,
-        createdAtISO: new Date().toISOString(),
-        status: "active" as const,
-      }));
+      .map((draft, index) => {
+        const createdAtISO = new Date().toISOString();
+        return {
+          id: typeof crypto !== "undefined" ? crypto.randomUUID() : `${Date.now()}-${index}`,
+          dateKey: todayKey,
+          title: draft.title.trim(),
+          note: draft.note.trim(),
+          attachmentCount: undefined,
+          tone: isPro ? draft.tone ?? undefined : undefined,
+          durationMinutes: draft.durationMinutes,
+          timeOfDay: draft.timeOfDay,
+          sortOrder: claimedBlocksToday.length + index,
+          createdAtISO,
+          updatedAtISO: createdAtISO,
+          status: "active" as const,
+        };
+      });
 
     const spacingConflicts: PlannedBlock[] = [];
     const candidatePool = plannedBlocks.filter(
@@ -6653,8 +7164,7 @@ export default function HomePage() {
     }
 
     const updated = [...plannedBlocks, ...newBlocks];
-    setPlannedBlocks(updated);
-    savePlannedBlocks(user.uid, updated);
+    void persistPlannedBlocks(updated);
     newBlocks.forEach((block) => {
       fireAndForgetTracking(
         trackTaskCreated(user, {
@@ -7120,6 +7630,119 @@ export default function HomePage() {
     }).catch(() => undefined);
   }, [activeTab, leaderboardMetricTab, leaderboardSnapshotDate, user]);
 
+  const formattedLifetimeXp = lifetimeXpSummary.totalXp.toLocaleString();
+  const formattedXpToNextLevel = Math.max(
+    0,
+    lifetimeXpSummary.nextLevelXp - lifetimeXpSummary.totalXp,
+  ).toLocaleString();
+  const nextBandanaMilestone = buildNextBandanaMilestone(displayStreak, !hasEarnedToday);
+  const longestStreak = Math.max(0, ...Array.from(historicalStreaksByDay.values()));
+  const lifetimeFocusMinutes = sessions.reduce((sum, session) => sum + session.minutes, 0);
+  const streakMinutesLeft = Math.max(0, 30 - todayFocusMinutes);
+  const streakWordsLeft = Math.max(0, 33 - todayNoteWords);
+  const streakBlocksLeft = Math.max(0, 1 - todayCompletedBlocksCount);
+  const streakEffortRequirementMet = todayFocusMinutes >= 30 || todayNoteWords >= 33;
+  const streakRuleV2ActiveToday = todayKey >= STREAK_RULE_V2_START_DATE;
+  const streakProtectedToday = hasEarnedToday;
+  const streakProgressMinutesLabel = `${todayMinutesProgress}/30 focus minutes`;
+  const streakProgressBlocksLabel = `${Math.min(todayCompletedBlocksCount, 1)}/1 completed block`;
+  const streakProgressWordsLabel = `${todayWordsProgress}/33 note words`;
+  const streakStatusLine = streakProtectedToday
+    ? streakRuleV2ActiveToday
+      ? `Congratulations. ${todayLabel} is protected and your streak is secured for today.`
+      : `${todayLabel} already counts toward your streak. The stricter rule starts on March 22.`
+    : streakBlocksLeft > 0 && streakEffortRequirementMet
+      ? `${todayLabel} is not protected yet. You met the focus or writing requirement. Complete 1 block to secure the streak.`
+      : streakBlocksLeft === 0
+        ? `${todayLabel} is not protected yet. Your block is done. Finish ${streakMinutesLeft} more focus minute${streakMinutesLeft === 1 ? "" : "s"} or write ${streakWordsLeft} more note word${streakWordsLeft === 1 ? "" : "s"}.`
+        : `${todayLabel} is not protected yet. Complete 1 block and either reach 30 focus minutes or write 33 note words.`;
+  const streakNudgeDraft = useMemo(() => {
+    if (streakProtectedToday || !streakRuleV2ActiveToday) return null;
+
+    if (streakBlocksLeft > 0 && !streakEffortRequirementMet) {
+      return {
+        title: "One block and one clean push secures today.",
+        body: `You still need 1 completed block plus either ${streakMinutesLeft} more focus minute${
+          streakMinutesLeft === 1 ? "" : "s"
+        } or ${streakWordsLeft} more note word${streakWordsLeft === 1 ? "" : "s"}.`,
+        actionLabel: "Open Schedule",
+        actionTab: "calendar" as const,
+      };
+    }
+
+    if (streakBlocksLeft > 0) {
+      return {
+        title: "You already did the hard part.",
+        body: "Your focus or writing requirement is already met. One completed block is all that is left to protect today.",
+        actionLabel: "Finish A Block",
+        actionTab: "calendar" as const,
+      };
+    }
+
+    if (streakMinutesLeft <= streakWordsLeft) {
+      return {
+        title: "Today is still one focused session away.",
+        body: `Your block is already done. Add ${streakMinutesLeft} more focus minute${
+          streakMinutesLeft === 1 ? "" : "s"
+        } to secure the streak.`,
+        actionLabel: "Open Timer",
+        actionTab: "today" as const,
+      };
+    }
+
+    return {
+      title: "One more note can still protect today.",
+      body: `Your block is already done. Write ${streakWordsLeft} more note word${
+        streakWordsLeft === 1 ? "" : "s"
+      } and today is secured.`,
+      actionLabel: "Open Notes",
+      actionTab: "notes" as const,
+    };
+  }, [
+    streakBlocksLeft,
+    streakEffortRequirementMet,
+    streakMinutesLeft,
+    streakProtectedToday,
+    streakRuleV2ActiveToday,
+    streakWordsLeft,
+  ]);
+  const streakRuleSummaryLine = streakRuleV2ActiveToday
+    ? "A streak day needs 1 completed block and either 30 focus minutes or 33 note words."
+    : "Your previous streak days stay unchanged. The new stricter rule starts on March 22.";
+
+  useEffect(() => {
+    if (streakProtectedToday) {
+      setStreakNudge(null);
+    }
+  }, [streakProtectedToday]);
+
+  useEffect(() => {
+    if (!user || !authChecked || !plannedBlocksHydrated || !streakNudgeDraft) return;
+    if (streakNudge) return;
+
+    const now = new Date();
+    const hour = now.getHours();
+    const slot = hour >= 19 ? "evening" : hour >= 13 ? "midday" : hour >= 9 ? "morning" : null;
+    if (!slot) return;
+
+    const seen = readStreakNudgeSeen(user.uid, todayKey);
+    if (seen.has(slot)) return;
+
+    setStreakNudge({
+      id: `${todayKey}-${slot}`,
+      ...streakNudgeDraft,
+    });
+    markStreakNudgeSeen(user.uid, todayKey, slot);
+  }, [
+    authChecked,
+    landingWisdomMinute,
+    plannedBlocksHydrated,
+    streakNudge,
+    streakNudgeDraft,
+    todayKey,
+    user,
+  ]);
+
   if (showIntroSplash) {
     return <IntroSplash onComplete={() => setIntroFinished(true)} />;
   }
@@ -7158,35 +7781,24 @@ export default function HomePage() {
     );
   }
 
-  const formattedLifetimeXp = lifetimeXpSummary.totalXp.toLocaleString();
-  const formattedXpToNextLevel = Math.max(
-    0,
-    lifetimeXpSummary.nextLevelXp - lifetimeXpSummary.totalXp,
-  ).toLocaleString();
-  const nextBandanaMilestone = buildNextBandanaMilestone(displayStreak, !hasEarnedToday);
-  const longestStreak = Math.max(0, ...Array.from(historicalStreaksByDay.values()));
-  const lifetimeFocusMinutes = sessions.reduce((sum, session) => sum + session.minutes, 0);
-  const streakMinutesLeft = Math.max(0, 30 - todayFocusMinutes);
-  const streakWordsLeft = Math.max(0, 33 - todayNoteWords);
-  const streakBlocksLeft = Math.max(0, 1 - todayCompletedBlocksCount);
-  const streakEffortRequirementMet = todayFocusMinutes >= 30 || todayNoteWords >= 33;
-  const streakRuleV2ActiveToday = todayKey >= STREAK_RULE_V2_START_DATE;
-  const streakProtectedToday = hasEarnedToday;
-  const streakProgressMinutesLabel = `${todayMinutesProgress}/30 focus minutes`;
-  const streakProgressBlocksLabel = `${Math.min(todayCompletedBlocksCount, 1)}/1 completed block`;
-  const streakProgressWordsLabel = `${todayWordsProgress}/33 note words`;
-  const streakStatusLine = streakProtectedToday
-    ? streakRuleV2ActiveToday
-      ? `Congratulations. ${todayLabel} is protected and your streak is secured for today.`
-      : `${todayLabel} already counts toward your streak. The stricter rule starts on March 22.`
-    : streakBlocksLeft > 0 && streakEffortRequirementMet
-      ? `${todayLabel} is not protected yet. You met the focus or writing requirement. Complete 1 block to secure the streak.`
-      : streakBlocksLeft === 0
-        ? `${todayLabel} is not protected yet. Your block is done. Finish ${streakMinutesLeft} more focus minute${streakMinutesLeft === 1 ? "" : "s"} or write ${streakWordsLeft} more note word${streakWordsLeft === 1 ? "" : "s"}.`
-        : `${todayLabel} is not protected yet. Complete 1 block and either reach 30 focus minutes or write 33 note words.`;
-  const streakRuleSummaryLine = streakRuleV2ActiveToday
-    ? "A streak day needs 1 completed block and either 30 focus minutes or 33 note words."
-    : "Your previous streak days stay unchanged. The new stricter rule starts on March 22.";
+  function handleStreakNudgeAction(tab: AppTab) {
+    setStreakNudge(null);
+    setActiveTab(tab);
+    if (tab === "today") {
+      window.setTimeout(() => scrollToSection(todayTimerRef.current ?? todaySectionRef.current), 80);
+      return;
+    }
+    if (tab === "notes") {
+      window.setTimeout(() => scrollToSection(notesEditorRef.current ?? notesSectionRef.current), 80);
+      return;
+    }
+    if (tab === "calendar") {
+      setCalendarView("day");
+      setSelectedCalendarDate(todayKey);
+      window.setTimeout(() => scrollToSection(calendarTimelineRef.current ?? calendarSectionRef.current), 80);
+    }
+  }
+
   const streakMirrorVisibleEntries = isPro
     ? streakMirrorEntries
     : streakMirrorEntries.slice(0, 2);
@@ -7261,12 +7873,19 @@ export default function HomePage() {
   } as CSSProperties;
 
   return (
-    <main
-      className={`${styles.pageShell} ${
-        themeMode === "light" ? styles.themeLight : styles.themeDark
-      } ${backgroundSkinActive ? styles.pageShellGlass : ""}`}
-      style={pageShellStyle}
-    >
+    <>
+      <BandanaCursor
+        accent={xpTierTheme.accent}
+        accentStrong={xpTierTheme.accentStrong}
+        accentDeep={xpTierTheme.accentDeep}
+        glow={xpTierTheme.accentGlow}
+      />
+      <main
+        className={`${styles.pageShell} ${
+          themeMode === "light" ? styles.themeLight : styles.themeDark
+        } ${backgroundSkinActive ? styles.pageShellGlass : ""}`}
+        style={pageShellStyle}
+      >
       <div className={styles.pageFrame}>
         <header className={styles.header}>
           <div>
@@ -9041,6 +9660,11 @@ export default function HomePage() {
                               <div>
                                 <div className={styles.planItemHeadline}>
                                   <strong>{item.title}</strong>
+                                  {item.attachmentCount ? (
+                                    <span className={styles.attachmentIndicatorChip}>
+                                      {attachmentIndicatorLabel(item.attachmentCount)}
+                                    </span>
+                                  ) : null}
                                   <span className={`${styles.agendaStatePill} ${styles[`agendaStatePill${planState.charAt(0).toUpperCase()}${planState.slice(1)}`]}`}>
                                     {planState}
                                   </span>
@@ -9133,6 +9757,11 @@ export default function HomePage() {
                               <div>
                                 <div className={styles.planItemHeadline}>
                                   <strong>{item.title}</strong>
+                                  {item.attachmentCount ? (
+                                    <span className={styles.attachmentIndicatorChip}>
+                                      {attachmentIndicatorLabel(item.attachmentCount)}
+                                    </span>
+                                  ) : null}
                                   <span className={`${styles.agendaStatePill} ${styles[`agendaStatePill${planState.charAt(0).toUpperCase()}${planState.slice(1)}`]}`}>
                                     {planState}
                                   </span>
@@ -9293,7 +9922,14 @@ export default function HomePage() {
                             item.status === "completed" ? styles.mobileBlockItemCompleted : ""
                           }`}
                         >
-                          <strong>{item.title}</strong>
+                          <strong>
+                            {item.title}
+                            {item.attachmentCount ? (
+                              <span className={styles.attachmentIndicatorChip}>
+                                {attachmentIndicatorLabel(item.attachmentCount)}
+                              </span>
+                            ) : null}
+                          </strong>
                           <span>
                             {item.timeOfDay} • {item.durationMinutes}m
                             {item.status === "completed" ? " • completed" : ""}
@@ -9733,6 +10369,14 @@ export default function HomePage() {
 
           {activeTab === "notes" && (
             <AnimatedTabSection className={styles.notesWorkspace} sectionRef={notesSectionRef}>
+              <input
+                ref={noteAttachmentInputRef}
+                type="file"
+                multiple
+                accept={NOTE_ATTACHMENT_ACCEPT}
+                className={styles.hiddenAttachmentInput}
+                onChange={handleNoteAttachmentInput}
+              />
               {isMobileViewport && <div className={styles.mobileNotesPanel}>
                 <article className={styles.mobileNotesStartCard} ref={notesStartRef}>
                   <div className={styles.mobileNotesStartHeaderCompact}>
@@ -9803,8 +10447,20 @@ export default function HomePage() {
                           style={{ backgroundColor: note.shellColor || "#fff7d6" }}
                           onClick={() => openMobileNoteEditor(note.id)}
                         >
-                            <strong>{note.title || "Untitled note"}</strong>
-                            <span>{new Date(note.updatedAtISO).toLocaleDateString()}</span>
+                            <strong className={styles.noteListTitle}>
+                              {note.title || "Untitled note"}
+                              {note.attachments.length > 0 ? (
+                                <span className={styles.attachmentIndicatorChip}>
+                                  {attachmentIndicatorLabel(note.attachments.length)}
+                                </span>
+                              ) : null}
+                            </strong>
+                            <span>
+                              {new Date(note.updatedAtISO).toLocaleDateString()}
+                              {note.attachments.length > 0
+                                ? ` · ${note.attachments.length} file${note.attachments.length === 1 ? "" : "s"}`
+                                : ""}
+                            </span>
                           </button>
                         ))}
                         {recentNotes.length === 0 && (
@@ -10208,44 +10864,54 @@ export default function HomePage() {
                       placeholder="Note title"
                       className={styles.noteTitleInput}
                     />
-                    <div
-                      ref={editorRef}
-                      className={styles.noteBodyInput}
-                      contentEditable
-                      suppressContentEditableWarning
-                      style={{
-                        fontFamily: selectedNote.fontFamily,
-                        fontSize: `${selectedNote.fontSizePx}px`,
-                      }}
-                      onInput={() => {
-                        captureEditorDraft();
-                        saveEditorSelection();
-                      }}
-                      onKeyUp={() => {
-                        captureEditorDraft();
-                        saveEditorSelection();
-                      }}
-                      onPaste={() => {
-                        window.setTimeout(() => {
+                    <div className={styles.noteBodyShell}>
+                      <div
+                        ref={editorRef}
+                        className={styles.noteBodyInput}
+                        contentEditable
+                        suppressContentEditableWarning
+                        style={{
+                          fontFamily: selectedNote.fontFamily,
+                          fontSize: `${selectedNote.fontSizePx}px`,
+                        }}
+                        onInput={() => {
                           captureEditorDraft();
                           saveEditorSelection();
-                        }, 0);
-                      }}
-                      onCompositionEnd={() => {
-                        captureEditorDraft();
-                        saveEditorSelection();
-                      }}
-                      onBlur={() => {
-                        captureEditorDraft();
-                      }}
-                      onMouseUp={() => saveEditorSelection()}
-                      onFocus={() => saveEditorSelection()}
-                    />
-                    <div className={styles.noteEditorFooter}>
-                      <span className={styles.noteWordCount}>
-                        {selectedNoteWordCount} word{selectedNoteWordCount === 1 ? "" : "s"}
-                        {selectedNoteWordCount >= 33 ? " · streak writing met" : ""}
-                      </span>
+                        }}
+                        onKeyUp={() => {
+                          captureEditorDraft();
+                          saveEditorSelection();
+                        }}
+                        onPaste={() => {
+                          window.setTimeout(() => {
+                            captureEditorDraft();
+                            saveEditorSelection();
+                          }, 0);
+                        }}
+                        onCompositionEnd={() => {
+                          captureEditorDraft();
+                          saveEditorSelection();
+                        }}
+                        onBlur={() => {
+                          captureEditorDraft();
+                        }}
+                        onMouseUp={() => saveEditorSelection()}
+                        onFocus={() => saveEditorSelection()}
+                      />
+                      <div className={styles.noteEditorFooter}>
+                        <NoteAttachmentsSection
+                          note={selectedNote}
+                          uploadBusy={noteAttachmentBusy}
+                          uploadStatus={noteAttachmentStatus}
+                          onAttach={openNoteAttachmentPicker}
+                          onOpen={openNoteAttachment}
+                          onRemove={(attachment) => void removeNoteAttachment(attachment)}
+                        />
+                        <span className={styles.noteWordCount}>
+                          {selectedNoteWordCount} word{selectedNoteWordCount === 1 ? "" : "s"}
+                          {selectedNoteWordCount >= 33 ? " · streak writing met" : ""}
+                        </span>
+                      </div>
                     </div>
                     <div className={styles.noteFooterActions}>
                       <button
@@ -10339,10 +11005,18 @@ export default function HomePage() {
                         <span className={styles.noteListTitle}>
                           {note.isPinned ? "★ " : ""}
                           {note.title || "Untitled note"}
+                          {note.attachments.length > 0 ? (
+                            <span className={styles.attachmentIndicatorChip}>
+                              {attachmentIndicatorLabel(note.attachments.length)}
+                            </span>
+                          ) : null}
                         </span>
                         <span className={styles.noteListMeta}>
                           {(note.category || "personal").toUpperCase()} ·{" "}
                           {new Date(note.updatedAtISO).toLocaleDateString()}
+                          {note.attachments.length > 0
+                            ? ` · ${note.attachments.length} attachment${note.attachments.length === 1 ? "" : "s"}`
+                            : ""}
                         </span>
                       </motion.button>
                       <button
@@ -10863,54 +11537,62 @@ export default function HomePage() {
                       ) : null}
                     </div>
 
-                    <div
-                      ref={editorRef}
-                      className={styles.noteBodyInput}
-                      contentEditable
-                      suppressContentEditableWarning
-                      style={{
-                        fontFamily: selectedNote.fontFamily,
-                        fontSize: `${selectedNote.fontSizePx}px`,
-                      }}
-                      onInput={() => {
-                        captureEditorDraft();
-                        saveEditorSelection();
-                      }}
-                      onKeyUp={() => {
-                        captureEditorDraft();
-                        saveEditorSelection();
-                      }}
-                      onPaste={() => {
-                        window.setTimeout(() => {
+                    <div className={styles.noteBodyShell}>
+                      <div
+                        ref={editorRef}
+                        className={styles.noteBodyInput}
+                        contentEditable
+                        suppressContentEditableWarning
+                        style={{
+                          fontFamily: selectedNote.fontFamily,
+                          fontSize: `${selectedNote.fontSizePx}px`,
+                        }}
+                        onInput={() => {
                           captureEditorDraft();
                           saveEditorSelection();
-                        }, 0);
-                      }}
-                      onCompositionEnd={() => {
-                        captureEditorDraft();
-                        saveEditorSelection();
-                      }}
-                      onBlur={() => {
-                        captureEditorDraft();
-                      }}
-                      onMouseUp={() => saveEditorSelection()}
-                      onFocus={() => saveEditorSelection()}
-                    />
-
-                    <div className={styles.noteEditorFooter}>
-                      <span>
-                        {notesSyncStatus === "synced"
-                          ? "Synced to your account."
-                          : notesSyncStatus === "syncing"
-                            ? "Syncing notes..."
-                            : "Saved locally only. Sync needed for other devices."}
-                        {notesSyncMessage ? ` ${notesSyncMessage}` : ""}
-                      </span>
-                      <span className={styles.noteWordCount}>
-                        {selectedNoteWordCount} word{selectedNoteWordCount === 1 ? "" : "s"}
-                        {selectedNoteWordCount >= 33 ? " · streak writing met" : ""}
-                      </span>
-                      <div className={styles.noteFooterActions}>
+                        }}
+                        onKeyUp={() => {
+                          captureEditorDraft();
+                          saveEditorSelection();
+                        }}
+                        onPaste={() => {
+                          window.setTimeout(() => {
+                            captureEditorDraft();
+                            saveEditorSelection();
+                          }, 0);
+                        }}
+                        onCompositionEnd={() => {
+                          captureEditorDraft();
+                          saveEditorSelection();
+                        }}
+                        onBlur={() => {
+                          captureEditorDraft();
+                        }}
+                        onMouseUp={() => saveEditorSelection()}
+                        onFocus={() => saveEditorSelection()}
+                      />
+                      <div className={styles.noteEditorFooter}>
+                        <NoteAttachmentsSection
+                          note={selectedNote}
+                          uploadBusy={noteAttachmentBusy}
+                          uploadStatus={noteAttachmentStatus}
+                          onAttach={openNoteAttachmentPicker}
+                          onOpen={openNoteAttachment}
+                          onRemove={(attachment) => void removeNoteAttachment(attachment)}
+                        />
+                        <span>
+                          {notesSyncStatus === "synced"
+                            ? "Synced to your account."
+                            : notesSyncStatus === "syncing"
+                              ? "Syncing notes..."
+                              : "Saved locally only. Sync needed for other devices."}
+                          {notesSyncMessage ? ` ${notesSyncMessage}` : ""}
+                        </span>
+                        <span className={styles.noteWordCount}>
+                          {selectedNoteWordCount} word{selectedNoteWordCount === 1 ? "" : "s"}
+                          {selectedNoteWordCount >= 33 ? " · streak writing met" : ""}
+                        </span>
+                        <div className={styles.noteFooterActions}>
                       <button
                         type="button"
                         className={`${styles.reportButton} ${styles.blockActionButton}`}
@@ -10926,6 +11608,7 @@ export default function HomePage() {
                         <button type="button" className={styles.deleteNoteButton} onClick={() => void deleteNote(selectedNote.id)}>
                           Remove note
                         </button>
+                        </div>
                       </div>
                     </div>
                   </>
@@ -11974,7 +12657,7 @@ export default function HomePage() {
                       className={`${styles.companionStyleButton} ${
                         companionStyle === style ? styles.companionStyleButtonActive : ""
                       }`}
-                      onClick={() => setCompanionStyle(style)}
+                      onClick={() => applyCompanionStyle(style)}
                     >
                       {formatSenseiLabel(style)}
                     </button>
@@ -12097,9 +12780,7 @@ export default function HomePage() {
                                 ? styles.companionStyleButtonActive
                                 : ""
                             }`}
-                            onClick={() =>
-                              setBackgroundSkin((current) => ({ ...current, mode: option.key }))
-                            }
+                            onClick={() => updateBackgroundSkin({ ...backgroundSkin, mode: option.key })}
                           >
                             {option.label}
                           </button>
@@ -12124,10 +12805,10 @@ export default function HomePage() {
                                       : ""
                                   }`}
                                   onClick={() =>
-                                    setBackgroundSkin((current) => ({
-                                      ...current,
+                                    updateBackgroundSkin({
+                                      ...backgroundSkin,
                                       imageFit: option.key,
-                                    }))
+                                    })
                                   }
                                 >
                                   {option.label}
@@ -12145,10 +12826,10 @@ export default function HomePage() {
                               step="1"
                               value={Math.round(backgroundSkin.dim * 100)}
                               onChange={(event) =>
-                                setBackgroundSkin((current) => ({
-                                  ...current,
+                                updateBackgroundSkin({
+                                  ...backgroundSkin,
                                   dim: Number(event.target.value) / 100,
-                                }))
+                                })
                               }
                             />
                           </label>
@@ -12162,10 +12843,10 @@ export default function HomePage() {
                               step="1"
                               value={Math.round(backgroundSkin.surfaceOpacity * 100)}
                               onChange={(event) =>
-                                setBackgroundSkin((current) => ({
-                                  ...current,
+                                updateBackgroundSkin({
+                                  ...backgroundSkin,
                                   surfaceOpacity: Number(event.target.value) / 100,
-                                }))
+                                })
                               }
                             />
                           </label>
@@ -12179,10 +12860,10 @@ export default function HomePage() {
                               step="1"
                               value={backgroundSkin.blur}
                               onChange={(event) =>
-                                setBackgroundSkin((current) => ({
-                                  ...current,
+                                updateBackgroundSkin({
+                                  ...backgroundSkin,
                                   blur: Number(event.target.value),
-                                }))
+                                })
                               }
                             />
                           </label>
@@ -12496,6 +13177,9 @@ export default function HomePage() {
                 day: "numeric",
               })}{" "}
               • {normalizeTimeLabel(selectedPlanDetail.timeOfDay)} • {selectedPlanDetail.durationMinutes}m
+              {selectedPlanDetail.attachmentCount
+                ? ` • ${attachmentIndicatorLabel(selectedPlanDetail.attachmentCount)}`
+                : ""}
             </p>
             {selectedPlanDetail.note.trim() ? (
               <div className={styles.blockDetailNote}>
@@ -12928,6 +13612,16 @@ export default function HomePage() {
         </div>
       )}
 
+      <AnimatePresence>
+        {streakNudge ? (
+          <StreakNudgeToast
+            nudge={streakNudge}
+            onDismiss={() => setStreakNudge(null)}
+            onAction={handleStreakNudgeAction}
+          />
+        ) : null}
+      </AnimatePresence>
+
       {paywallOpen && (
         <div className={styles.feedbackOverlay} onClick={() => setPaywallOpen(false)}>
           <div className={styles.paywallModal} onClick={(event) => event.stopPropagation()}>
@@ -13059,6 +13753,7 @@ export default function HomePage() {
           </div>
         </div>
       )}
-    </main>
+      </main>
+    </>
   );
 }

@@ -6,6 +6,7 @@ export type WorkspaceNote = {
   id: string;
   title: string;
   body: string;
+  attachments: NoteAttachment[];
   color: string;
   shellColor: string;
   surfaceStyle: "solid" | "airy";
@@ -16,6 +17,17 @@ export type WorkspaceNote = {
   reminderAtISO: string;
   updatedAtISO: string;
   createdAtISO: string;
+};
+
+export type NoteAttachment = {
+  id: string;
+  name: string;
+  mimeType: string;
+  sizeBytes: number;
+  kind: "image" | "document" | "spreadsheet" | "presentation" | "archive" | "text" | "other";
+  storagePath: string;
+  downloadUrl: string;
+  uploadedAtISO: string;
 };
 
 export type NotesSyncResult = {
@@ -54,6 +66,7 @@ function normalizeNotes(notes: WorkspaceNote[]) {
         id: note.id,
         title: note.title.slice(0, 200),
         body: note.body.slice(0, 20000),
+        attachments: normalizeAttachments((note as WorkspaceNote).attachments),
         color:
           typeof note.color === "string" && note.color
             ? legacyColorMap[note.color] || note.color
@@ -83,6 +96,41 @@ function normalizeNotes(notes: WorkspaceNote[]) {
         createdAtISO: note.createdAtISO,
       })),
   );
+}
+
+function normalizeAttachments(attachments: WorkspaceNote["attachments"]) {
+  if (!Array.isArray(attachments)) return [] as NoteAttachment[];
+
+  return attachments
+    .filter(
+      (attachment) =>
+        attachment &&
+        typeof attachment.id === "string" &&
+        typeof attachment.name === "string" &&
+        typeof attachment.mimeType === "string" &&
+        typeof attachment.storagePath === "string" &&
+        typeof attachment.downloadUrl === "string" &&
+        typeof attachment.uploadedAtISO === "string",
+    )
+    .map((attachment) => ({
+      id: attachment.id,
+      name: attachment.name.slice(0, 180),
+      mimeType: attachment.mimeType.slice(0, 140),
+      sizeBytes: Math.max(0, Math.round(Number(attachment.sizeBytes) || 0)),
+      kind:
+        attachment.kind === "image" ||
+        attachment.kind === "document" ||
+        attachment.kind === "spreadsheet" ||
+        attachment.kind === "presentation" ||
+        attachment.kind === "archive" ||
+        attachment.kind === "text"
+          ? attachment.kind
+          : "other",
+      storagePath: attachment.storagePath.slice(0, 500),
+      downloadUrl: attachment.downloadUrl.slice(0, 2000),
+      uploadedAtISO: attachment.uploadedAtISO,
+    }) satisfies NoteAttachment)
+    .sort((a, b) => (a.uploadedAtISO < b.uploadedAtISO ? 1 : -1));
 }
 
 function readLocalNotes(uid: string) {

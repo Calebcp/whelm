@@ -4,9 +4,10 @@
   overflow: hidden;
   padding: 24px 18px;
   background:
-    radial-gradient(circle at top left, rgba(191, 219, 254, 0.55), transparent 28%),
-    radial-gradient(circle at bottom right, rgba(251, 191, 36, 0.12), transparent 26%),
-    linear-gradient(180deg, #eef4fb 0%, #e7edf5 42%, #f5f1ea 100%);
+    radial-gradient(circle at top left, rgba(132, 188, 255, 0.52), transparent 28%),
+    radial-gradient(circle at 78% 18%, rgba(251, 191, 36, 0.22), transparent 20%),
+    radial-gradient(circle at 68% 82%, rgba(13, 78, 120, 0.12), transparent 24%),
+    linear-gradient(180deg, #f6f0e6 0%, #eef4fb 26%, #e5edf8 68%, #f7f1e8 100%);
 }
 
 .pageAura {
@@ -38,7 +39,8 @@
   border: 1px solid rgba(15, 23, 42, 0.1);
   border-radius: 38px;
   background:
-    linear-gradient(145deg, rgba(14, 26, 40, 0.97), rgba(18, 49, 77, 0.94) 46%, rgba(17, 92, 120, 0.9));
+    radial-gradient(circle at 18% 16%, rgba(255, 223, 153, 0.18), transparent 24%),
+    linear-gradient(145deg, rgba(18, 25, 38, 0.98), rgba(18, 66, 93, 0.96) 42%, rgba(21, 116, 132, 0.92) 74%, rgba(172, 86, 18, 0.88));
   color: #f7fafc;
   box-shadow: 0 30px 80px rgba(16, 32, 51, 0.2);
 }
@@ -57,7 +59,7 @@
   width: 320px;
   aspect-ratio: 1;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 208, 123, 0.12);
   filter: blur(8px);
 }
 
@@ -134,7 +136,9 @@
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 22px;
   padding: 16px;
-  background: rgba(255, 255, 255, 0.08);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.08)),
+    radial-gradient(circle at top left, rgba(255, 214, 140, 0.12), transparent 36%);
   backdrop-filter: blur(12px);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
@@ -164,10 +168,13 @@
   border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: 34px;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(248, 251, 255, 0.88)),
-    radial-gradient(circle at top, rgba(219, 234, 254, 0.42), transparent 38%);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(250, 245, 237, 0.9)),
+    radial-gradient(circle at top, rgba(219, 234, 254, 0.42), transparent 38%),
+    radial-gradient(circle at 86% 10%, rgba(251, 191, 36, 0.14), transparent 22%);
   padding: clamp(24px, 4vw, 34px);
-  box-shadow: 0 24px 60px rgba(16, 32, 51, 0.12);
+  box-shadow:
+    0 24px 60px rgba(16, 32, 51, 0.12),
+    0 0 0 1px rgba(255, 223, 164, 0.18);
   backdrop-filter: blur(10px);
 }
 
@@ -240,7 +247,8 @@
 }
 
 .modeButtonActive {
-  background: #ffffff;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 244, 225, 0.92));
   color: #102033;
   box-shadow: 0 8px 22px rgba(16, 32, 51, 0.08);
 }
@@ -280,7 +288,7 @@
   border: 1px solid rgba(15, 23, 42, 0.1);
   border-radius: 18px;
   background: rgba(248, 250, 252, 0.96);
-  padding: 15px 16px;
+  padding: 15px 44px 15px 16px;
   color: #102033;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
@@ -288,12 +296,16 @@
 .input:focus {
   outline: 2px solid rgba(38, 132, 255, 0.18);
   border-color: rgba(38, 132, 255, 0.35);
+  background-image: url("/streak/whitebandana.png");
+  background-repeat: no-repeat;
+  background-size: 16px 16px;
+  background-position: calc(100% - 16px) center;
 }
 
 .submitButton {
   border: 0;
   border-radius: 999px;
-  background: linear-gradient(135deg, #102033, #16486f 58%, #14646e);
+  background: linear-gradient(135deg, #11223d, #1f6b90 48%, #d67b1d);
   padding: 15px 18px;
   color: #ffffff;
   box-shadow: 0 18px 40px rgba(16, 32, 51, 0.16);
