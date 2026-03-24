@@ -12,10 +12,9 @@ import {
   signOut,
   type User,
 } from "firebase/auth";
-import { deleteObject, getDownloadURL, ref as storageRef, uploadBytes } from "firebase/storage";
+import { deleteObject, getDownloadURL, ref as storageRef, uploadBytesResumable } from "firebase/storage";
 
 import SenseiFigure, { type SenseiVariant } from "@/components/SenseiFigure";
-import BandanaCursor from "@/components/BandanaCursor";
 import Timer, { type TimerSessionContext } from "@/components/Timer";
 import MilestoneReveal from "@/components/MilestoneReveal";
 import WhelmEmote from "@/components/WhelmEmote";
@@ -857,7 +856,7 @@ function noteAttachmentBadgeLabel(attachment: NoteAttachment) {
   }
 }
 
-function noteAttachmentGlyph(attachment: NoteAttachment) {
+function noteAttachmentGlyph(attachment: Pick<NoteAttachment, "kind">) {
   switch (attachment.kind) {
     case "image":
       return "◫";
@@ -1484,6 +1483,13 @@ type StreakNudgeState = {
   body: string;
   actionLabel: string;
   actionTab: AppTab;
+};
+
+type PendingNoteAttachment = {
+  id: string;
+  name: string;
+  kind: NoteAttachment["kind"];
+  progress: number;
 };
 
 type LifetimeXpSummary = {
@@ -3017,6 +3023,7 @@ function StreakNudgeToast({
 
 function NoteAttachmentsSection({
   note,
+  pendingUploads,
   uploadBusy,
   uploadStatus,
   onAttach,
@@ -3024,6 +3031,7 @@ function NoteAttachmentsSection({
   onRemove,
 }: {
   note: WorkspaceNote;
+  pendingUploads: PendingNoteAttachment[];
   uploadBusy: boolean;
   uploadStatus: string;
   onAttach: () => void;
@@ -3031,6 +3039,7 @@ function NoteAttachmentsSection({
   onRemove: (attachment: NoteAttachment) => void;
 }) {
   const hasAttachments = note.attachments.length > 0;
+  const hasPendingUploads = pendingUploads.length > 0;
 
   return (
     <section className={styles.noteAttachmentsSection}>
@@ -3053,6 +3062,26 @@ function NoteAttachmentsSection({
         </button>
       </div>
       {uploadStatus ? <p className={styles.noteAttachmentStatus}>{uploadStatus}</p> : null}
+      {hasPendingUploads ? (
+        <div className={styles.noteAttachmentsRail}>
+          {pendingUploads.map((attachment) => (
+            <article key={attachment.id} className={styles.noteAttachmentPendingCard}>
+              <div className={styles.noteAttachmentPendingTop}>
+                <span className={styles.noteAttachmentGlyph}>{noteAttachmentGlyph(attachment)}</span>
+                <span className={styles.noteAttachmentBadge}>Uploading</span>
+              </div>
+              <strong className={styles.noteAttachmentName}>{attachment.name}</strong>
+              <div className={styles.noteAttachmentProgressTrack}>
+                <span
+                  className={styles.noteAttachmentProgressFill}
+                  style={{ width: `${Math.max(6, attachment.progress)}%` }}
+                />
+              </div>
+              <span className={styles.noteAttachmentInfo}>{Math.round(attachment.progress)}%</span>
+            </article>
+          ))}
+        </div>
+      ) : null}
       {hasAttachments ? (
         <div className={styles.noteAttachmentsRail}>
           {note.attachments.map((attachment) => (
@@ -3139,6 +3168,7 @@ export default function HomePage() {
   const [notesSyncMessage, setNotesSyncMessage] = useState("");
   const [noteAttachmentBusy, setNoteAttachmentBusy] = useState(false);
   const [noteAttachmentStatus, setNoteAttachmentStatus] = useState("");
+  const [pendingNoteAttachments, setPendingNoteAttachments] = useState<PendingNoteAttachment[]>([]);
   const [authChecked, setAuthChecked] = useState(false);
   const [showIntroSplash, setShowIntroSplash] = useState(true);
   const [introFinished, setIntroFinished] = useState(false);
@@ -4468,6 +4498,7 @@ export default function HomePage() {
     setTextColorPickerOpen(false);
     setHighlightPickerOpen(false);
     setNoteAttachmentStatus("");
+    setPendingNoteAttachments([]);
   }, [selectedNoteId]);
 
   useEffect(() => {
@@ -5134,26 +5165,49 @@ export default function HomePage() {
     setNoteAttachmentStatus(
       files.length === 1 ? `Adding ${files[0].name}...` : `Adding ${files.length} files...`,
     );
+    const pendingEntries = files.map((file) => ({
+      id:
+        typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      name: file.name,
+      kind: noteAttachmentKind(file.type, file.name),
+      progress: 0,
+    }));
+    setPendingNoteAttachments(pendingEntries);
 
     try {
       const uploadedAttachments = await Promise.all(
-        files.map(async (file) => {
-          const attachmentId =
-            typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-              ? crypto.randomUUID()
-              : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        files.map(async (file, index) => {
+          const attachmentId = pendingEntries[index].id;
           const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g, "-").slice(0, 120) || "file";
           const storagePath = `users/${user.uid}/notes/${selectedNote.id}/${attachmentId}-${safeName}`;
           const attachmentRef = storageRef(storage, storagePath);
-
-          await uploadBytes(attachmentRef, file, {
+          const uploadTask = uploadBytesResumable(attachmentRef, file, {
             contentType: file.type || "application/octet-stream",
+          });
+          await new Promise<void>((resolve, reject) => {
+            uploadTask.on(
+              "state_changed",
+              (snapshot) => {
+                const progress =
+                  snapshot.totalBytes > 0
+                    ? (snapshot.bytesTransferred / snapshot.totalBytes) * 100
+                    : 0;
+                setPendingNoteAttachments((current) =>
+                  current.map((item) =>
+                    item.id === attachmentId ? { ...item, progress } : item,
+                  ),
+                );
+              },
+              reject,
+              () => resolve(),
+            );
           });
 
           const downloadUrl = await getDownloadURL(attachmentRef);
           const uploadedAtISO = new Date().toISOString();
-
-          return {
+          const uploadedAttachment = {
             id: attachmentId,
             name: file.name,
             mimeType: file.type || "application/octet-stream",
@@ -5163,22 +5217,27 @@ export default function HomePage() {
             downloadUrl,
             uploadedAtISO,
           } satisfies NoteAttachment;
+
+          const latestTargetNote = notesRef.current.find((note) => note.id === selectedNote.id);
+          const existingAttachments = latestTargetNote?.attachments ?? [];
+          const dedupedAttachments = [uploadedAttachment, ...existingAttachments].filter(
+            (attachment, dedupeIndex, all) =>
+              all.findIndex((item) => item.id === attachment.id) === dedupeIndex,
+          );
+
+          await updateNoteById(selectedNote.id, { attachments: dedupedAttachments });
+          setPendingNoteAttachments((current) => current.filter((item) => item.id !== attachmentId));
+          setNoteAttachmentStatus(`${file.name} attached.`);
+          return uploadedAttachment;
         }),
       );
-
-      const latestTargetNote = notesRef.current.find((note) => note.id === selectedNote.id);
-      const existingAttachments = latestTargetNote?.attachments ?? [];
-      const dedupedAttachments = [...uploadedAttachments, ...existingAttachments].filter(
-        (attachment, index, all) => all.findIndex((item) => item.id === attachment.id) === index,
-      );
-
-      await updateNoteById(selectedNote.id, { attachments: dedupedAttachments });
       setNoteAttachmentStatus(
         uploadedAttachments.length === 1
           ? `${uploadedAttachments[0].name} attached.`
           : `${uploadedAttachments.length} files attached.`,
       );
     } catch (error: unknown) {
+      setPendingNoteAttachments([]);
       setNoteAttachmentStatus(
         error instanceof Error ? error.message : "Attachment upload failed.",
       );
@@ -7797,6 +7856,7 @@ export default function HomePage() {
   const streakRuleSummaryLine = streakRuleV2ActiveToday
     ? "A streak day needs 1 completed block and either 30 focus minutes or 33 note words."
     : "Your previous streak days stay unchanged. The new stricter rule starts on March 22.";
+  const notificationsBlocked = dailyPlanningLocked || dailyPlanningOpen || dailyPlanningPreviewOpen;
 
   useEffect(() => {
     if (streakProtectedToday) {
@@ -7805,6 +7865,13 @@ export default function HomePage() {
   }, [streakProtectedToday]);
 
   useEffect(() => {
+    if (!notificationsBlocked) return;
+    setStreakNudge(null);
+    setSessionReward(null);
+  }, [notificationsBlocked]);
+
+  useEffect(() => {
+    if (notificationsBlocked) return;
     if (!user || !authChecked || !plannedBlocksHydrated || !streakNudgeDraft) return;
     if (streakNudge) return;
 
@@ -7824,6 +7891,7 @@ export default function HomePage() {
   }, [
     authChecked,
     landingWisdomMinute,
+    notificationsBlocked,
     plannedBlocksHydrated,
     streakNudge,
     streakNudgeDraft,
@@ -7962,10 +8030,6 @@ export default function HomePage() {
 
   return (
     <>
-      <BandanaCursor
-        tierColor={streakBandanaTier?.color}
-        glow={xpTierTheme.accentGlow}
-      />
       <main
         className={`${styles.pageShell} ${
           themeMode === "light" ? styles.themeLight : styles.themeDark
@@ -11020,6 +11084,7 @@ export default function HomePage() {
                       <div className={styles.noteEditorFooter}>
                         <NoteAttachmentsSection
                           note={selectedNote}
+                          pendingUploads={pendingNoteAttachments}
                           uploadBusy={noteAttachmentBusy}
                           uploadStatus={noteAttachmentStatus}
                           onAttach={openNoteAttachmentPicker}
@@ -11743,6 +11808,7 @@ export default function HomePage() {
                       <div className={styles.noteEditorFooter}>
                         <NoteAttachmentsSection
                           note={selectedNote}
+                          pendingUploads={pendingNoteAttachments}
                           uploadBusy={noteAttachmentBusy}
                           uploadStatus={noteAttachmentStatus}
                           onAttach={openNoteAttachmentPicker}
@@ -13182,7 +13248,7 @@ export default function HomePage() {
       </button>
 
       <AnimatePresence>
-        {sessionReward ? (
+        {!notificationsBlocked && sessionReward ? (
           <SessionRewardToast reward={sessionReward} onDismiss={() => setSessionReward(null)} />
         ) : null}
       </AnimatePresence>
@@ -13719,7 +13785,7 @@ export default function HomePage() {
         }}
       />
 
-      {sickDaySavePromptOpen && ((rawYesterdayMissed && !yesterdaySave) || sickDaySavePromptPreview) && (
+      {!notificationsBlocked && sickDaySavePromptOpen && ((rawYesterdayMissed && !yesterdaySave) || sickDaySavePromptPreview) && (
         <div className={styles.feedbackOverlay} onClick={dismissSickDaySavePrompt}>
           <div className={styles.feedbackModal} onClick={(event) => event.stopPropagation()}>
             <div className={styles.feedbackHeader}>
@@ -13761,7 +13827,7 @@ export default function HomePage() {
         </div>
       )}
 
-      {(noteUndoItem || deletedPlanUndo) && (
+      {!notificationsBlocked && (noteUndoItem || deletedPlanUndo) && (
         <div className={styles.undoToast}>
           <span>
             {noteUndoItem
@@ -13782,7 +13848,7 @@ export default function HomePage() {
       )}
 
       <AnimatePresence>
-        {streakNudge ? (
+        {!notificationsBlocked && streakNudge ? (
           <StreakNudgeToast
             nudge={streakNudge}
             onDismiss={() => setStreakNudge(null)}

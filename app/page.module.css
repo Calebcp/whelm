@@ -4095,12 +4095,12 @@
 
 .noteBandanaCaret {
   position: absolute;
-  width: 14px;
-  height: 12px;
+  width: 18px;
+  height: 16px;
   pointer-events: none;
   user-select: none;
-  transform: translate(-1px, 2px);
-  filter: drop-shadow(0 0 8px var(--note-bandana-glow, rgba(84, 173, 255, 0.28)));
+  transform: translate(-2px, 1px);
+  filter: drop-shadow(0 0 10px var(--note-bandana-glow, rgba(84, 173, 255, 0.28)));
   animation: noteBandanaCaretBlink 1.7s steps(1, end) infinite;
 }
 
@@ -4320,6 +4320,46 @@
   display: grid;
   gap: 7px;
   box-shadow: 0 8px 20px rgba(16, 32, 51, 0.07);
+}
+
+.noteAttachmentPendingCard {
+  flex: 0 0 188px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--note-footer-border, rgba(15, 23, 42, 0.08)) 86%, transparent);
+  background:
+    linear-gradient(
+      160deg,
+      color-mix(in srgb, var(--note-page-tone, #fffaf0) 78%, white 22%),
+      color-mix(in srgb, var(--note-page-tone, #fffaf0) 58%, var(--note-surface-tint, #fff7d6) 42%)
+    );
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+  box-shadow: 0 8px 18px rgba(16, 32, 51, 0.06);
+}
+
+.noteAttachmentPendingTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.noteAttachmentProgressTrack {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--note-page-tone, #fffaf0) 62%, rgba(31, 41, 55, 0.22) 38%);
+}
+
+.noteAttachmentProgressFill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background:
+    linear-gradient(90deg, var(--note-bandana-accent, #59c7ff), var(--note-bandana-accent-strong, #2f86ff));
+  box-shadow: 0 0 12px var(--note-bandana-glow, rgba(84, 173, 255, 0.24));
 }
 
 .noteAttachmentCardImage {
