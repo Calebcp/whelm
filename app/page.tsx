@@ -10279,7 +10279,7 @@ export default function HomePage() {
                 <div className={styles.leaderboardHeroHeader}>
                   <div>
                     <p className={styles.sectionLabel}>Whelmboard</p>
-                    <h2 className={styles.cardTitle}>Global command rank</h2>
+                    <h2 className={styles.cardTitle}>Global Whelm rank</h2>
                     <p className={styles.accountMeta}>
                       Switch between XP and streak standings. Whelmboard updates use deterministic tie-breakers for a clean board.
                     </p>
@@ -10370,7 +10370,7 @@ export default function HomePage() {
                   <div className={styles.cardHeader}>
                     <div>
                       <p className={styles.sectionLabel}>Podium</p>
-                      <h2 className={styles.cardTitle}>Top command holders</h2>
+                      <h2 className={styles.cardTitle}>Top Whelm holders</h2>
                     </div>
                     <span className={styles.leaderboardCountPill}>
                       {leaderboardMetricTab === "xp" ? "Prestige by XP" : "Prestige by streak"}
@@ -11249,8 +11249,8 @@ export default function HomePage() {
                       {editorBandanaCaret.visible ? (
                         <img
                           className={styles.noteBandanaCaret}
-                          src={bandanaCursorAssetPath(streakBandanaTier?.color, 128)}
-                          srcSet={`${bandanaCursorAssetPath(streakBandanaTier?.color, 128)} 1x, ${bandanaCursorAssetPath(streakBandanaTier?.color, 256)} 2x`}
+                          src={bandanaCursorAssetPath(streakBandanaTier?.color, 256)}
+                          srcSet={`${bandanaCursorAssetPath(streakBandanaTier?.color, 256)} 1x`}
                           alt=""
                           style={{
                             left: `${editorBandanaCaret.left}px`,
@@ -11973,8 +11973,8 @@ export default function HomePage() {
                       {editorBandanaCaret.visible ? (
                         <img
                           className={styles.noteBandanaCaret}
-                          src={bandanaCursorAssetPath(streakBandanaTier?.color, 128)}
-                          srcSet={`${bandanaCursorAssetPath(streakBandanaTier?.color, 128)} 1x, ${bandanaCursorAssetPath(streakBandanaTier?.color, 256)} 2x`}
+                          src={bandanaCursorAssetPath(streakBandanaTier?.color, 256)}
+                          srcSet={`${bandanaCursorAssetPath(streakBandanaTier?.color, 256)} 1x`}
                           alt=""
                           style={{
                             left: `${editorBandanaCaret.left}px`,

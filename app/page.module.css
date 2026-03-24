@@ -4102,13 +4102,13 @@
 
 .noteBandanaCaret {
   position: absolute;
-  width: 18px;
-  height: 16px;
+  width: 34px;
+  height: 30px;
   pointer-events: none;
   user-select: none;
-  transform: translate(-2px, 1px);
+  transform: translate(-5px, 3px);
   filter: drop-shadow(0 0 10px var(--note-bandana-glow, rgba(84, 173, 255, 0.28)));
-  animation: noteBandanaCaretBlink 1.7s steps(1, end) infinite;
+  animation: noteBandanaCaretBlink 1.05s steps(1, end) infinite;
 }
 
 @keyframes noteBandanaCaretBlink {
@@ -10117,6 +10117,30 @@
   .leaderboardHeroStats,
   .leaderboardStatsGrid {
     grid-template-columns: 1fr;
+  }
+
+  .leaderboardPodiumGrid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .leaderboardPodiumCard,
+  .leaderboardPodiumCardFirst {
+    transform: none;
+  }
+
+  .leaderboardPodiumCard {
+    padding: 14px;
+    gap: 10px;
+  }
+
+  .leaderboardPodiumIdentity strong {
+    font-size: 0.94rem;
+    overflow-wrap: anywhere;
+  }
+
+  .leaderboardPodiumIdentity span {
+    font-size: 0.72rem;
   }
 
   .leaderboardBandanaGrid {
