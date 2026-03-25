@@ -19,6 +19,7 @@ import Timer, { type TimerSessionContext } from "@/components/Timer";
 import MilestoneReveal from "@/components/MilestoneReveal";
 import WhelmEmote from "@/components/WhelmEmote";
 import WhelmRitualScene from "@/components/WhelmRitualScene";
+import CardsTab from "@/components/CardsTab";
 import {
   trackAppOpened,
   trackLeaderboardAroundMeLoaded,
@@ -3386,6 +3387,7 @@ export default function HomePage() {
   const [sessions, setSessions] = useState<SessionDoc[]>([]);
   const [notes, setNotes] = useState<WorkspaceNote[]>([]);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
+  const [notesSurface, setNotesSurface] = useState<"notes" | "cards">("notes");
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
   const [shellColorPickerOpen, setShellColorPickerOpen] = useState(false);
   const [textColorPickerOpen, setTextColorPickerOpen] = useState(false);
@@ -8374,6 +8376,11 @@ export default function HomePage() {
       : {}),
   } as CSSProperties;
 
+  function handleCardsXPEarned(amount: number) {
+    if (amount <= 0) return;
+    // TODO: reconcile cards-earned XP with the derived xpByDay/lifetimeXpSummary flow before mutating parent XP state.
+  }
+
   return (
     <>
       <main
@@ -10887,6 +10894,39 @@ export default function HomePage() {
                 className={styles.hiddenAttachmentInput}
                 onChange={handleNoteAttachmentInput}
               />
+              <div className={styles.cardsHeader}>
+                <div>
+                  <p className={styles.sectionLabel}>Notes Workspace</p>
+                  <h2 className={styles.cardTitle}>Choose your mode</h2>
+                  <p className={styles.accountMeta}>
+                    Switch between freeform writing and spaced-repetition review.
+                  </p>
+                </div>
+                <div className={styles.cardsHeaderActions}>
+                  <button
+                    type="button"
+                    className={
+                      notesSurface === "notes" ? styles.reportButton : styles.secondaryPlanButton
+                    }
+                    onClick={() => setNotesSurface("notes")}
+                  >
+                    Notes
+                  </button>
+                  <button
+                    type="button"
+                    className={
+                      notesSurface === "cards" ? styles.reportButton : styles.secondaryPlanButton
+                    }
+                    onClick={() => setNotesSurface("cards")}
+                  >
+                    Cards
+                  </button>
+                </div>
+              </div>
+              {notesSurface === "cards" ? (
+                user ? <CardsTab uid={user.uid} onXPEarned={handleCardsXPEarned} /> : null
+              ) : (
+                <>
               {isMobileViewport && <div className={styles.mobileNotesPanel}>
                 <article className={styles.mobileNotesStartCard} ref={notesStartRef}>
                   <div className={styles.mobileNotesStartHeaderCompact}>
@@ -12212,6 +12252,8 @@ export default function HomePage() {
                   </>
                 )}
               </motion.article>
+              )}
+                </>
               )}
             </AnimatedTabSection>
           )}
