@@ -38,7 +38,7 @@ test("a completed session awards correct base XP", () => {
 
   assert.deepEqual(result, {
     awarded: 45,
-    reason: "session complete",
+    reason: "session_complete",
   });
 });
 
@@ -51,7 +51,7 @@ test("daily cap is enforced when awarding XP", () => {
 
   assert.deepEqual(result, {
     awarded: 10,
-    reason: "session complete",
+    reason: "session_complete",
     cappedAt: 150,
   });
 });
