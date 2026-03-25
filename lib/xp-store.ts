@@ -54,15 +54,15 @@ export function calculateXP(
   switch (event) {
     case "session_complete":
       awarded = Math.min(XP_FOCUS_DAILY_CAP, context.sessionDurationMinutes ?? 0);
-      reason = "session complete";
+      reason = "session_complete";
       break;
     case "deep_work":
       awarded = (context.sessionDurationMinutes ?? 0) >= 90 ? XP_CONFIG.deepWorkBonus : 0;
-      reason = "deep work";
+      reason = "deep_work";
       break;
     case "note_written":
       awarded = getXpWritingBonus(context.sessionDurationMinutes ?? 0);
-      reason = "note written";
+      reason = "note_written";
       break;
     case "combo":
       awarded = XP_CONFIG.comboBonus;
