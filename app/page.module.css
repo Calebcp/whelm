@@ -10426,3 +10426,124 @@
     width: fit-content;
   }
 }
+
+.cardsTabShell {
+  display: grid;
+  gap: 16px;
+}
+
+.cardsBoardStack,
+.cardsReviewShell,
+.cardsEditorCard,
+.cardsSummaryCard {
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+  border-radius: 24px;
+  border: 1px solid rgba(136, 153, 208, 0.16);
+  background: rgba(16, 22, 42, 0.72);
+  box-shadow: 0 20px 48px rgba(5, 8, 18, 0.18);
+}
+
+.cardsHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.cardsHeaderActions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.cardsBoardGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.cardsZoneColumn {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(136, 153, 208, 0.14);
+  background: rgba(21, 27, 48, 0.72);
+}
+
+.cardsZoneHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cardsZoneList {
+  display: grid;
+  gap: 10px;
+}
+
+.cardsTile {
+  display: grid;
+  gap: 6px;
+  min-height: 72px;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(136, 153, 208, 0.14);
+  background: rgba(11, 16, 34, 0.78);
+}
+
+.cardsReviewCard {
+  display: grid;
+  gap: 16px;
+  padding: 24px;
+  border-radius: 24px;
+  border: 1px solid rgba(136, 153, 208, 0.16);
+  background: rgba(16, 22, 42, 0.76);
+}
+
+.cardsAnswerPanel {
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(136, 153, 208, 0.12);
+  background: rgba(11, 16, 34, 0.76);
+  color: #e8eefc;
+}
+
+.cardsOutcomeRow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.cardsOutcomeForgot,
+.cardsOutcomeHard,
+.cardsOutcomeEasy {
+  min-height: 44px;
+  border: 0;
+  border-radius: 14px;
+  padding: 12px 14px;
+  font: inherit;
+  color: #f5f7ff;
+}
+
+.cardsOutcomeForgot {
+  background: linear-gradient(180deg, rgba(157, 41, 57, 0.94), rgba(124, 24, 41, 0.96));
+}
+
+.cardsOutcomeHard {
+  background: linear-gradient(180deg, rgba(178, 108, 24, 0.94), rgba(142, 78, 11, 0.96));
+}
+
+.cardsOutcomeEasy {
+  background: linear-gradient(180deg, rgba(33, 128, 70, 0.94), rgba(18, 99, 51, 0.96));
+}
+
+@media (max-width: 720px) {
+  .cardsOutcomeRow {
+    grid-template-columns: 1fr;
+  }
+}
