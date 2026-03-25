@@ -1,4 +1,4 @@
-Drop the provided Whelm Sensei PNGs into this folder with these exact names:
+Drop the provided Whelm PNGs into this folder with these exact names:
 
 - `stressed.png` - wiping face / overload nudge
 - `scholar.png` - coffee + book / guidance and learning

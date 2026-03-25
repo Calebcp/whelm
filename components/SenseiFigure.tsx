@@ -36,52 +36,52 @@ const SENSEI_VARIANTS: Record<
 > = {
   stressed: {
     src: "/sensei/stressed.png",
-    alt: "Whelm Sensei wiping stress away",
+    alt: "Whelm wiping stress away",
     motion: "float",
   },
   scholar: {
     src: "/sensei/scholar.png",
-    alt: "Whelm Sensei holding coffee and a book",
+    alt: "Whelm holding coffee and a book",
     motion: "float",
   },
   victory: {
     src: "/sensei/victory.png",
-    alt: "Whelm Sensei celebrating with raised fists",
+    alt: "Whelm celebrating with raised fists",
     motion: "celebrate",
   },
   neutral: {
     src: "/sensei/neutral.png",
-    alt: "Whelm Sensei standing ready",
+    alt: "Whelm standing ready",
     motion: "still",
   },
   anchor: {
     src: "/sensei/anchor.png",
-    alt: "Whelm Sensei standing with hands on hips",
+    alt: "Whelm standing with hands on hips",
     motion: "float",
   },
   bowed: {
     src: "/sensei/bowed.png",
-    alt: "Whelm Sensei hanging their head",
+    alt: "Whelm hanging their head",
     motion: "still",
   },
   meditate: {
     src: "/sensei/meditate.png",
-    alt: "Whelm Sensei meditating",
+    alt: "Whelm meditating",
     motion: "calm",
   },
   rest: {
     src: "/sensei/rest.png",
-    alt: "Whelm Sensei holding a pillow",
+    alt: "Whelm holding a pillow",
     motion: "calm",
   },
   wave: {
     src: "/sensei/betterwave.png",
-    alt: "Whelm Sensei waving hello",
+    alt: "Whelm waving hello",
     motion: "wave",
   },
   applause: {
     src: "/sensei/applause.png",
-    alt: "Whelm Sensei clapping",
+    alt: "Whelm clapping",
     motion: "celebrate",
   },
 };

@@ -13872,26 +13872,8 @@ export default function HomePage() {
         </div>
       )}
 
-      {dailyPlanningLocked && !dailyPlanningOpen && dailyPlanningPromptSeenToday === false && (
-        <div className={styles.dailyLockOverlay} onClick={() => setDailyPlanningOpen(true)}>
-          <div className={styles.dailyLockCard} onClick={(event) => event.stopPropagation()}>
-            <p className={styles.sectionLabel}>Daily Commitments</p>
-            <h2 className={styles.cardTitle}>Today is not claimed yet.</h2>
-            <p className={styles.accountMeta}>
-              Whelm stays locked until you place 3 commitments for today. Minimum 15 minutes each.
-            </p>
-            <button
-              type="button"
-              className={styles.reportButton}
-              onClick={() => setDailyPlanningOpen(true)}
-            >
-              Place today&apos;s commitments
-            </button>
-          </div>
-        </div>
-      )}
 
-      {dailyPlanningOpen && (dailyPlanningLocked || dailyPlanningPreviewOpen) && (
+      {dailyPlanningOpen && dailyPlanningPreviewOpen && (
         <div className={styles.feedbackOverlay}>
           <div
             className={`${styles.feedbackModal} ${styles.dailyRitualModal}`}
