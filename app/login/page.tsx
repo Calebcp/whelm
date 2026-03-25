@@ -9,7 +9,6 @@ import {
   updateProfile,
 } from "firebase/auth";
 
-import BandanaCursor from "@/components/BandanaCursor";
 import SenseiFigure from "@/components/SenseiFigure";
 import WhelmRitualScene from "@/components/WhelmRitualScene";
 import { auth } from "@/lib/firebase";
@@ -109,10 +108,6 @@ export default function LoginPage() {
 
   return (
     <>
-      <BandanaCursor
-        tierColor="yellow"
-        glow="rgba(242, 169, 59, 0.28)"
-      />
       <main className={styles.pageShell}>
         <div className={styles.pageAura} aria-hidden="true" />
         <div className={styles.loginFrame}>

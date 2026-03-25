@@ -242,7 +242,13 @@ async function upsertDocument(request: NextRequest, payload: NotesPayload) {
     const body = (await response.json().catch(() => null)) as
       | { error?: { message?: string; status?: string } }
       | null;
-    throw new Error(body?.error?.message || body?.error?.status || "Failed to save notes.");
+    const message = body?.error?.message || body?.error?.status || "Failed to save notes.";
+    console.error("Notes Firestore write failed.", {
+      uid: payload.uid,
+      status: response.status,
+      message,
+    });
+    throw new Error(message);
   }
 }
 
@@ -314,7 +320,9 @@ export async function POST(request: NextRequest) {
     await upsertDocument(request, payload);
     return NextResponse.json({ ok: true });
   } catch (error: unknown) {
-    return jsonError(error instanceof Error ? error.message : "Failed to save notes.");
+    const message = error instanceof Error ? error.message : "Failed to save notes.";
+    console.error("Notes API POST failed.", { message });
+    return jsonError(message, 500);
   }
 }
 

@@ -40,13 +40,6 @@ body[data-theme="light"] {
   color: #102033;
 }
 
-body.bandanaCursorActive,
-body.bandanaCursorActive *,
-body.bandanaCursorActive *::before,
-body.bandanaCursorActive *::after {
-  cursor: none !important;
-}
-
 button,
 input {
   font: inherit;
