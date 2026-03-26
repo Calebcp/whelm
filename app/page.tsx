@@ -10852,10 +10852,10 @@ export default function HomePage() {
               />
               <div className={styles.cardsHeader}>
                 <div>
-                  <p className={styles.sectionLabel}>Notes Workspace</p>
-                  <h2 className={styles.cardTitle}>Choose your mode</h2>
+                  <p className={styles.sectionLabel}>Notes + Cards</p>
+                  <h2 className={styles.cardTitle}>Your writing studio</h2>
                   <p className={styles.accountMeta}>
-                    Switch between freeform writing and spaced-repetition review.
+                    Write freely, then turn your notes into flashcards for spaced-repetition review.
                   </p>
                 </div>
                 <div className={styles.cardsHeaderActions}>
@@ -11518,7 +11518,7 @@ export default function HomePage() {
                 >
                 <div className={styles.notesSidebarHeader}>
                   <div>
-                    <p className={styles.sectionLabel}>Notes</p>
+                    <p className={styles.sectionLabel}>Notes + Cards</p>
                     <h2 className={styles.notesSidebarTitle}>Writing studio</h2>
                     <p className={styles.notesSidebarMeta}>
                       {filteredNotes.length} visible note{filteredNotes.length === 1 ? "" : "s"}

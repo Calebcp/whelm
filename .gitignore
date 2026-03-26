@@ -10,3 +10,4 @@ pnpm-debug.log*
 .env*.local
 tsconfig.tsbuildinfo
 backups/*.bundle
+.vercel
