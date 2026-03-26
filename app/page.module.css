@@ -1,10 +1,107 @@
+/* ─────────────────────────────────────────────────────────────
+   WHELM DESIGN TOKENS
+   Dark mode is the default (values on :root).
+   Light mode overrides are nested under [data-theme="light"]
+   which is already set on document.body by the app.
+   ───────────────────────────────────────────────────────────── */
+:root {
+  /* Page background */
+  --wh-page-bg: linear-gradient(160deg, #1a1a4e 0%, #2d1660 50%, #4a1a6e 100%);
+  --wh-page-glow-1: radial-gradient(ellipse at 12% 0%, rgba(120, 80, 255, 0.22), transparent 32%);
+  --wh-page-glow-2: radial-gradient(ellipse at 96% 14%, rgba(80, 140, 255, 0.16), transparent 28%);
+
+  /* Surface (cards, panels) */
+  --wh-surface-bg: linear-gradient(180deg, rgba(40, 28, 80, 0.88), rgba(22, 14, 52, 0.92));
+  --wh-surface-bg-alt: linear-gradient(135deg, rgba(60, 40, 120, 0.06), rgba(100, 50, 180, 0.04));
+  --wh-surface-border: rgba(160, 130, 255, 0.16);
+  --wh-surface-shadow: rgba(5, 2, 18, 0.36);
+
+  /* Text */
+  --wh-text-primary: #ffffff;
+  --wh-text-secondary: rgba(210, 200, 255, 0.65);
+  --wh-text-tertiary: rgba(180, 165, 255, 0.45);
+
+  /* Accent */
+  --wh-accent: #8b5cf6;
+  --wh-accent-strong: #6d28d9;
+  --wh-accent-glow: rgba(139, 92, 246, 0.28);
+
+  /* Nav */
+  --wh-nav-bg: rgba(18, 10, 44, 0.96);
+  --wh-nav-border: rgba(160, 130, 255, 0.18);
+  --wh-nav-active: linear-gradient(180deg, rgba(120, 80, 255, 0.9), rgba(80, 40, 200, 0.95));
+  --wh-nav-text: rgba(200, 185, 255, 0.6);
+  --wh-nav-text-active: #ffffff;
+
+  /* Input / control */
+  --wh-input-bg: rgba(255, 255, 255, 0.06);
+  --wh-input-border: rgba(160, 130, 255, 0.22);
+  --wh-input-text: #f0ebff;
+  --wh-input-placeholder: rgba(180, 165, 255, 0.4);
+
+  /* Buttons */
+  --wh-btn-primary-bg: linear-gradient(135deg, #29355f, #4b4cd0);
+  --wh-btn-primary-text: #ffffff;
+  --wh-btn-secondary-bg: rgba(23, 29, 50, 0.86);
+  --wh-btn-secondary-border: rgba(123, 138, 184, 0.2);
+  --wh-btn-secondary-text: #eff4ff;
+
+  /* Panel (modals, sheets, drawers) */
+  --wh-panel-bg: rgba(11, 15, 29, 0.98);
+  --wh-panel-border: rgba(123, 138, 184, 0.18);
+  --wh-panel-shadow: rgba(7, 18, 31, 0.3);
+}
+
+/* Light mode token overrides — document.body already gets data-theme="light" */
+body[data-theme="light"] {
+  --wh-page-bg: linear-gradient(160deg, #f0eeff 0%, #e8e0ff 52%, #ede4ff 100%);
+  --wh-page-glow-1: radial-gradient(ellipse at 12% 0%, rgba(120, 80, 255, 0.1), transparent 32%);
+  --wh-page-glow-2: radial-gradient(ellipse at 96% 14%, rgba(80, 120, 255, 0.08), transparent 28%);
+
+  --wh-surface-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(248, 244, 255, 0.96));
+  --wh-surface-bg-alt: linear-gradient(135deg, rgba(120, 80, 255, 0.04), rgba(80, 120, 255, 0.03));
+  --wh-surface-border: rgba(106, 0, 200, 0.1);
+  --wh-surface-shadow: rgba(80, 40, 160, 0.1);
+
+  --wh-text-primary: #1a1a4e;
+  --wh-text-secondary: #4a4a8a;
+  --wh-text-tertiary: #7a72a8;
+
+  --wh-accent: #6d28d9;
+  --wh-accent-strong: #5b21b6;
+  --wh-accent-glow: rgba(109, 40, 217, 0.18);
+
+  --wh-nav-bg: rgba(255, 255, 255, 0.96);
+  --wh-nav-border: rgba(106, 0, 200, 0.12);
+  --wh-nav-active: linear-gradient(180deg, rgba(109, 40, 217, 0.9), rgba(91, 33, 182, 0.95));
+  --wh-nav-text: #7a72a8;
+  --wh-nav-text-active: #ffffff;
+
+  --wh-input-bg: rgba(255, 255, 255, 0.88);
+  --wh-input-border: rgba(106, 0, 200, 0.18);
+  --wh-input-text: #1a1a4e;
+  --wh-input-placeholder: #9d8fc0;
+
+  /* Buttons */
+  --wh-btn-primary-bg: linear-gradient(135deg, #4769b6, #5f5fd4);
+  --wh-btn-primary-text: #fffdf8;
+  --wh-btn-secondary-bg: linear-gradient(135deg, rgba(109, 118, 196, 0.96), rgba(88, 97, 180, 0.94));
+  --wh-btn-secondary-border: rgba(102, 111, 188, 0.16);
+  --wh-btn-secondary-text: #faf8f3;
+
+  /* Panel (modals, sheets, drawers) */
+  --wh-panel-bg: linear-gradient(180deg, rgba(251, 248, 243, 0.97), rgba(246, 242, 235, 0.96));
+  --wh-panel-border: rgba(111, 122, 150, 0.14);
+  --wh-panel-shadow: rgba(85, 95, 128, 0.1);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   PAGE SHELL
+   ───────────────────────────────────────────────────────────── */
 .pageShell {
   min-height: 100vh;
   padding: 28px 18px 106px;
-  background:
-    radial-gradient(circle at 8% 0%, rgba(73, 102, 255, 0.18), transparent 26%),
-    radial-gradient(circle at 100% 12%, rgba(136, 76, 255, 0.16), transparent 24%),
-    linear-gradient(180deg, rgba(7, 9, 18, 0.92), rgba(14, 18, 34, 0.98));
+  background: var(--wh-page-glow-1), var(--wh-page-glow-2), var(--wh-page-bg);
 }
 
 .pageShellGlass {
@@ -257,9 +354,9 @@
   position: sticky;
   top: 10px;
   z-index: 12;
-  border: 1px solid rgba(123, 138, 184, 0.18);
+  border: 1px solid var(--wh-panel-border);
   border-radius: 20px;
-  background: rgba(11, 15, 29, 0.88);
+  background: var(--wh-panel-bg);
   backdrop-filter: blur(10px);
   padding: 10px 12px;
   display: flex;
@@ -528,11 +625,11 @@
 .profileSheet {
   width: min(460px, 100%);
   align-self: end;
-  border: 1px solid rgba(123, 138, 184, 0.18);
+  border: 1px solid var(--wh-panel-border);
   border-radius: 24px 24px 0 0;
-  background: rgba(11, 15, 29, 0.985);
+  background: var(--wh-panel-bg);
   padding: 18px;
-  box-shadow: 0 -18px 50px rgba(7, 18, 31, 0.28);
+  box-shadow: 0 -18px 50px var(--wh-panel-shadow);
   display: grid;
   gap: 16px;
 }
@@ -672,12 +769,10 @@
 
 .statCard,
 .card {
-  border: 1px solid rgba(123, 138, 184, 0.18);
+  border: 1px solid var(--wh-surface-border);
   border-radius: 24px;
-  background:
-    linear-gradient(180deg, rgba(18, 23, 41, 0.92), rgba(12, 16, 30, 0.94)),
-    linear-gradient(135deg, rgba(83, 101, 215, 0.08), rgba(136, 76, 255, 0.06));
-  box-shadow: 0 18px 48px rgba(3, 6, 18, 0.32);
+  background: var(--wh-surface-bg), var(--wh-surface-bg-alt);
+  box-shadow: 0 18px 48px var(--wh-surface-shadow);
 }
 
 .statCard {
@@ -1178,8 +1273,8 @@
 .reportButton,
 .newNoteButton,
 .feedbackSubmit {
-  background: linear-gradient(135deg, #29355f, #4b4cd0);
-  color: #ffffff;
+  background: var(--wh-btn-primary-bg);
+  color: var(--wh-btn-primary-text);
   font-weight: 800;
   box-shadow: 0 10px 22px rgba(55, 78, 171, 0.2);
 }
@@ -1195,9 +1290,9 @@
 }
 
 .secondaryPlanButton {
-  border: 1px solid rgba(123, 138, 184, 0.2);
-  background: rgba(23, 29, 50, 0.86);
-  color: #eff4ff;
+  border: 1px solid var(--wh-btn-secondary-border);
+  background: var(--wh-btn-secondary-bg);
+  color: var(--wh-btn-secondary-text);
   font-weight: 700;
 }
 
@@ -5481,11 +5576,11 @@
 }
 
 .planControl {
-  border: 1px solid rgba(15, 23, 42, 0.14);
+  border: 1px solid var(--wh-input-border);
   border-radius: 10px;
   padding: 9px 10px;
-  background: #ffffff;
-  color: #102033;
+  background: var(--wh-input-bg);
+  color: var(--wh-input-text);
 }
 
 .planAddButton {
@@ -6202,15 +6297,15 @@
   right: 10px;
   bottom: 10px;
   z-index: 24;
-  border: 1px solid rgba(123, 138, 184, 0.18);
+  border: 1px solid var(--wh-nav-border);
   border-radius: 24px;
-  background: rgba(12, 16, 30, 0.94);
+  background: var(--wh-nav-bg);
   backdrop-filter: blur(14px);
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 4px;
   padding: 8px;
-  box-shadow: 0 18px 40px rgba(3, 6, 18, 0.32);
+  box-shadow: 0 18px 40px var(--wh-surface-shadow);
 }
 
 .mobileMoreFab {
@@ -6427,7 +6522,7 @@
   border-radius: 16px;
   padding: 9px 4px;
   background: transparent;
-  color: #9eaacc;
+  color: var(--wh-nav-text);
   display: grid;
   justify-items: center;
   gap: 3px;
@@ -6444,9 +6539,9 @@
 }
 
 .bottomTabButtonActive {
-  background: linear-gradient(180deg, rgba(45, 54, 94, 0.96), rgba(31, 39, 69, 0.94));
+  background: var(--wh-nav-active);
   border-color: rgba(123, 138, 184, 0.18);
-  color: #f2f6ff;
+  color: var(--wh-nav-text-active);
   box-shadow: inset 0 1px 0 rgba(173, 187, 236, 0.14);
 }
 
@@ -6935,11 +7030,11 @@
 .mobileMoreSheet {
   width: min(420px, 100%);
   align-self: end;
-  border: 1px solid rgba(123, 138, 184, 0.18);
+  border: 1px solid var(--wh-panel-border);
   border-radius: 24px 24px 0 0;
-  background: rgba(11, 15, 29, 0.98);
+  background: var(--wh-panel-bg);
   padding: 18px;
-  box-shadow: 0 -18px 50px rgba(7, 18, 31, 0.28);
+  box-shadow: 0 -18px 50px var(--wh-panel-shadow);
 }
 
 .mobileMoreGrid {
@@ -6974,12 +7069,12 @@
 .loadingCard {
   width: min(440px, 100%);
   margin: 12vh auto 0;
-  border: 1px solid rgba(123, 138, 184, 0.16);
+  border: 1px solid var(--wh-panel-border);
   border-radius: 28px;
-  background: rgba(12, 16, 30, 0.94);
+  background: var(--wh-panel-bg);
   padding: 30px;
   text-align: center;
-  box-shadow: 0 24px 60px rgba(3, 6, 18, 0.3);
+  box-shadow: 0 24px 60px var(--wh-panel-shadow);
 }
 
 .loadingLabel {
@@ -7005,11 +7100,11 @@
 .paywallModal,
 .kpiModal {
   width: min(560px, 100%);
-  border: 1px solid rgba(123, 138, 184, 0.18);
+  border: 1px solid var(--wh-panel-border);
   border-radius: 24px;
-  background: rgba(11, 15, 29, 0.98);
+  background: var(--wh-panel-bg);
   padding: 18px;
-  box-shadow: 0 22px 60px rgba(7, 18, 31, 0.34);
+  box-shadow: 0 22px 60px var(--wh-panel-shadow);
 }
 
 .feedbackModalScrollable {
@@ -7498,10 +7593,8 @@
 }
 
 .themeLight {
-  background:
-    radial-gradient(circle at 8% 0%, rgba(93, 120, 216, 0.1), transparent 24%),
-    radial-gradient(circle at 100% 14%, rgba(164, 145, 214, 0.1), transparent 24%),
-    linear-gradient(180deg, #f6f3ec 0%, #eef1f7 52%, #edf0f6 100%);
+  /* Page background delegates to CSS vars (set by body[data-theme="light"]) */
+  background: var(--wh-page-glow-1), var(--wh-page-glow-2), var(--wh-page-bg);
 }
 
 .themeLight .header {
@@ -7529,22 +7622,12 @@
   color: #f8f5ef;
 }
 
-.themeLight .topAppBar,
-.themeLight .tabRail,
-.themeLight .bottomTabs,
-.themeLight .card,
 .themeLight .statCard,
 .themeLight .companionPulse,
 .themeLight .companionPulseSpeech,
 .themeLight .senseiCard,
 .themeLight .settingsHeroCard,
-.themeLight .feedbackModal,
-.themeLight .paywallModal,
-.themeLight .kpiModal,
-.themeLight .profileSheet,
-.themeLight .mobileMoreSheet,
 .themeLight .mobileBlockModal,
-.themeLight .loadingCard,
 .themeLight .leaderboardCountPill,
 .themeLight .leaderboardToggle {
   background: linear-gradient(180deg, rgba(251, 248, 243, 0.97), rgba(246, 242, 235, 0.96));
@@ -7553,16 +7636,19 @@
   box-shadow: 0 18px 42px rgba(85, 95, 128, 0.1);
 }
 
-.themeLight .bottomTabButton {
-  color: #7f8cab;
+/* Panel surfaces — background/border handled by --wh-panel-* vars */
+.themeLight .topAppBar,
+.themeLight .tabRail,
+.themeLight .profileSheet,
+.themeLight .mobileMoreSheet,
+.themeLight .feedbackModal,
+.themeLight .paywallModal,
+.themeLight .kpiModal,
+.themeLight .loadingCard {
+  color: #16253c;
+  box-shadow: 0 18px 42px var(--wh-panel-shadow);
 }
 
-.themeLight .bottomTabButtonActive {
-  background: linear-gradient(180deg, rgba(85, 97, 168, 0.96), rgba(69, 80, 146, 0.94));
-  border-color: rgba(101, 113, 180, 0.18);
-  color: #f8fbff;
-  box-shadow: inset 0 1px 0 rgba(225, 231, 255, 0.2);
-}
 
 .themeLight .mobileMoreFab {
   border-color: rgba(111, 122, 150, 0.16);
@@ -7582,8 +7668,6 @@
 
 .themeLight.pageShellGlass .topAppBar,
 .themeLight.pageShellGlass .tabRail,
-.themeLight.pageShellGlass .bottomTabs,
-.themeLight.pageShellGlass .card,
 .themeLight.pageShellGlass .statCard,
 .themeLight.pageShellGlass .profileDockButton,
 .themeLight.pageShellGlass .companionPulse,
@@ -7662,10 +7746,6 @@
   color: #6b7890;
 }
 
-.themeLight .tabRail {
-  background: linear-gradient(180deg, rgba(252, 249, 245, 0.98), rgba(245, 239, 232, 0.96));
-  box-shadow: 0 20px 44px rgba(112, 121, 152, 0.12);
-}
 
 .themeLight .tabButton {
   color: #8594b3;
@@ -7741,9 +7821,6 @@
   box-shadow: 0 14px 24px rgba(101, 109, 181, 0.18);
 }
 
-.themeLight .topAppBar {
-  background: rgba(252, 249, 245, 0.96);
-}
 
 .themeLight .topAppBarLabel,
 .themeLight .calendarHeader span,
@@ -7792,7 +7869,6 @@
 
 .themeLight .topAppBarAction,
 .themeLight .inlineUpgrade,
-.themeLight .secondaryPlanButton,
 .themeLight .planNoteToggle,
 .themeLight .mobileJumpButton,
 .themeLight .feedbackClose {
@@ -7808,13 +7884,6 @@
   color: #1d2a40;
 }
 
-.themeLight .reportButton,
-.themeLight .newNoteButton,
-.themeLight .feedbackSubmit,
-.themeLight .planAddButton {
-  background: linear-gradient(135deg, #4769b6, #5f5fd4);
-  color: #fffdf8;
-}
 
 .themeLight .blockActionButton,
 .themeLight .dayPortalBlockButton {
@@ -8665,15 +8734,13 @@
 .themeLight .reminderItem,
 .themeLight .dayAgendaItem,
 .themeLight .planInput,
-.themeLight .planControl,
 .themeLight .planNoteInput,
 .themeLight .planItem,
 .themeLight .planItemStatic,
 .themeLight .planItemTime,
 .themeLight .settingsPill,
 .themeLight .settingsList li,
-.themeLight .feedbackSelect,
-.themeLight .feedbackTextarea {
+.themeLight .feedbackSelect {
   background: rgba(252, 249, 245, 0.96);
   color: #1d2a40;
   border-color: rgba(125, 135, 160, 0.14);
@@ -8993,12 +9060,12 @@
 .feedbackSelect,
 .feedbackTextarea {
   width: 100%;
-  border: 1px solid rgba(15, 23, 42, 0.14);
+  border: 1px solid var(--wh-input-border);
   border-radius: 12px;
   padding: 10px 12px;
   font: inherit;
-  background: #ffffff;
-  color: #102033;
+  background: var(--wh-input-bg);
+  color: var(--wh-input-text);
 }
 
 .feedbackSelect {
@@ -9340,9 +9407,9 @@
   .tabRail {
     display: grid;
     gap: 8px;
-    border: 1px solid rgba(15, 23, 42, 0.08);
+    border: 1px solid var(--wh-panel-border);
     border-radius: 22px;
-    background: rgba(255, 255, 255, 0.78);
+    background: var(--wh-panel-bg);
     padding: 10px;
     position: sticky;
     top: 16px;

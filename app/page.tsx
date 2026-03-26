@@ -300,7 +300,7 @@ const NOTE_ATTACHMENT_ACCEPT = [
 type FeedbackCategory = "bug" | "feature" | "other";
 type TrendRange = 7 | 30 | 90;
 type CalendarView = "month" | "day";
-type ThemeMode = "dark" | "light";
+type ThemeMode = "dark" | "light" | "system";
 type DailyRitualBlockDraft = {
   id: string;
   existingBlockId?: string;
@@ -3407,6 +3407,13 @@ export default function HomePage() {
   const [senseiReaction, setSenseiReaction] = useState("");
   const [companionStyle, setCompanionStyle] = useState<SenseiCompanionStyle>("balanced");
   const [themeMode, setThemeMode] = useState<ThemeMode>("dark");
+  const [systemIsDark, setSystemIsDark] = useState<boolean>(() =>
+    typeof window !== "undefined"
+      ? window.matchMedia("(prefers-color-scheme: dark)").matches
+      : true,
+  );
+  const resolvedTheme: "dark" | "light" =
+    themeMode === "system" ? (systemIsDark ? "dark" : "light") : themeMode;
   const [themePromptOpen, setThemePromptOpen] = useState(false);
   const [dailyPlanningOpen, setDailyPlanningOpen] = useState(false);
   const [dailyPlanningStatus, setDailyPlanningStatus] = useState("");
@@ -4618,11 +4625,18 @@ export default function HomePage() {
   }, [claimedBlocksToday, dailyPlanningPromptSeenToday, liveTodayKey, plannedBlocksHydrated, user]);
 
   useEffect(() => {
-    document.body.dataset.theme = themeMode;
+    document.body.dataset.theme = resolvedTheme;
     return () => {
       delete document.body.dataset.theme;
     };
-  }, [themeMode]);
+  }, [resolvedTheme]);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const handler = (event: MediaQueryListEvent) => setSystemIsDark(event.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
 
   useEffect(() => {
     function onOnline() {
@@ -8330,7 +8344,7 @@ export default function HomePage() {
   const backgroundSkinActive =
     isPro && effectiveBackgroundSetting.kind !== "default" && backgroundSkin.mode === "glass";
   const pageShellBackgroundStyle = getPageShellBackgroundStyle(
-    themeMode,
+    resolvedTheme,
     effectiveBackgroundSetting,
     backgroundSkin,
   );
@@ -8359,7 +8373,7 @@ export default function HomePage() {
     <>
       <main
         className={`${styles.pageShell} ${
-          themeMode === "light" ? styles.themeLight : styles.themeDark
+          resolvedTheme === "light" ? styles.themeLight : styles.themeDark
         } ${backgroundSkinActive ? styles.pageShellGlass : ""}`}
         style={pageShellStyle}
       >
@@ -8480,7 +8494,7 @@ export default function HomePage() {
                     title="Focus timer"
                     actionLabel={FOCUS_TIMER.actionLabel}
                     theme={FOCUS_TIMER.theme}
-                    appearance={themeMode}
+                    appearance={resolvedTheme}
                     isPro={isPro}
                     sessionNoteCount={todaySessionNoteCount}
                     onOpenSessionNotes={() => setActiveTab("history")}
@@ -8710,7 +8724,7 @@ export default function HomePage() {
                     title={FOCUS_TIMER.title}
                     actionLabel={FOCUS_TIMER.actionLabel}
                     theme={FOCUS_TIMER.theme}
-                    appearance={themeMode}
+                    appearance={resolvedTheme}
                     isPro={isPro}
                     sessionNoteCount={todaySessionNoteCount}
                     onOpenSessionNotes={() => setActiveTab("history")}
@@ -10913,7 +10927,7 @@ export default function HomePage() {
                     className={styles.mobileNotesEditorCard}
                     ref={notesEditorRef}
                     style={notesShellBackground(
-                      themeMode,
+                      resolvedTheme,
                       selectedNoteSurfaceColor,
                       selectedNotePageColor,
                       xpTierTheme.accent,
@@ -11418,7 +11432,7 @@ export default function HomePage() {
                 <motion.aside
                   className={styles.notesSidebar}
                   style={notesShellBackground(
-                    themeMode,
+                    resolvedTheme,
                     selectedNoteSurfaceColor,
                     selectedNotePageColor,
                     xpTierTheme.accent,
@@ -11535,7 +11549,7 @@ export default function HomePage() {
                 <motion.article
                   className={styles.notesEditorCard}
                   style={notesShellBackground(
-                    themeMode,
+                    resolvedTheme,
                     selectedNoteSurfaceColor,
                     selectedNotePageColor,
                     xpTierTheme.accent,
@@ -13199,7 +13213,7 @@ export default function HomePage() {
                 }
               >
                 <div className={styles.companionStyleRow}>
-                  {(["dark", "light"] as const).map((mode) => (
+                  {(["dark", "light", "system"] as const).map((mode) => (
                     <button
                       key={mode}
                       type="button"
@@ -13208,7 +13222,7 @@ export default function HomePage() {
                       }`}
                       onClick={() => applyThemeMode(mode)}
                     >
-                      {mode === "dark" ? "Dark mode" : "Light mode"}
+                      {mode === "dark" ? "Dark" : mode === "light" ? "Light" : "Auto"}
                     </button>
                   ))}
                 </div>
@@ -13925,7 +13939,7 @@ export default function HomePage() {
                 }`}
                 onClick={() => applyThemeMode("dark")}
               >
-                Dark mode
+                Dark
               </button>
               <button
                 type="button"
@@ -13934,7 +13948,16 @@ export default function HomePage() {
                 }`}
                 onClick={() => applyThemeMode("light")}
               >
-                Light mode
+                Light
+              </button>
+              <button
+                type="button"
+                className={`${styles.companionStyleButton} ${
+                  themeMode === "system" ? styles.companionStyleButtonActive : ""
+                }`}
+                onClick={() => applyThemeMode("system")}
+              >
+                Auto
               </button>
             </div>
           </div>

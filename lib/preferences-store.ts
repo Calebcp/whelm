@@ -2,7 +2,7 @@ import type { User } from "firebase/auth";
 
 import { resolveApiUrl } from "@/lib/api-base";
 
-export type PreferencesThemeMode = "dark" | "light";
+export type PreferencesThemeMode = "dark" | "light" | "system";
 export type PreferencesCompanionStyle = "gentle" | "balanced" | "strict";
 export type PreferencesBackgroundSetting =
   | { kind: "default" }
