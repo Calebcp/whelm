@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ChangeEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ChangeEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useRive } from "@rive-app/react-canvas";
 import { AnimatePresence, motion } from "motion/react";
@@ -21,6 +21,8 @@ import MilestoneReveal from "@/components/MilestoneReveal";
 import WhelmEmote from "@/components/WhelmEmote";
 import WhelmRitualScene from "@/components/WhelmRitualScene";
 import CardsTab from "@/components/CardsTab";
+import XPPopAnimation, { type XPPop } from "@/components/XPPopAnimation";
+import WhelToastContainer, { useToasts } from "@/components/WhelToast";
 import { createCard, loadCards, saveCards } from "@/lib/cards-store";
 import {
   trackAppOpened,
@@ -3508,6 +3510,15 @@ export default function HomePage() {
   const [planDuration, setPlanDuration] = useState(25);
   const [planTime, setPlanTime] = useState("09:00");
   const [planStatus, setPlanStatus] = useState("");
+  const { toasts: whelToasts, showToast, dismissToast } = useToasts();
+  const [xpPops, setXpPops] = useState<XPPop[]>([]);
+  const triggerXPPop = useCallback((amount: number, x?: number, y?: number) => {
+    const id = `xp-${Date.now()}-${Math.random()}`;
+    setXpPops((prev) => [...prev, { id, amount, x, y }]);
+  }, []);
+  const removeXPPop = useCallback((id: string) => {
+    setXpPops((prev) => prev.filter((p) => p.id !== id));
+  }, []);
   const [planConflictWarning, setPlanConflictWarning] = useState<{
     conflictIds: string[];
     message: string;
@@ -4944,6 +4955,10 @@ export default function HomePage() {
   ) {
     if (!user || previousLength === nextLength) return;
 
+    if (nextLength > previousLength) {
+      triggerXPPop(15);
+    }
+
     fireAndForgetTracking(
       trackStreakUpdated(user, {
         streakDate,
@@ -5116,6 +5131,7 @@ export default function HomePage() {
       leveledUp: nextLevel > previousLevel,
       tierUnlocked,
     });
+    triggerXPPop(20);
   }
 
   async function createWorkspaceNote() {
@@ -5211,6 +5227,14 @@ export default function HomePage() {
         : editorHtml || draftBody;
 
     if (nextBody === currentNote.body && !bodyDirtyRef.current) return;
+
+    // Fire XP pop when note crosses 33-word threshold for the first time in this save
+    const countWords = (html: string) => html.replace(/<[^>]+>/g, " ").trim().split(/\s+/).filter(Boolean).length;
+    const prevWordCount = countWords(currentNote.body);
+    const nextWordCount = countWords(nextBody);
+    if (prevWordCount < XP_WRITING_ENTRY_THRESHOLD && nextWordCount >= XP_WRITING_ENTRY_THRESHOLD) {
+      triggerXPPop(5);
+    }
 
     const now = new Date().toISOString();
     bodyDirtyRef.current = false;
@@ -6306,11 +6330,9 @@ export default function HomePage() {
     setPlanNoteExpanded(Boolean(options.note));
     setPlanTime(options.timeOfDay);
     setPlanDuration(options.durationMinutes);
-    setPlanStatus(
-      nextDateKey !== options.dateKey
-        ? "Past dates stay read-only. This block was moved to today."
-        : "",
-    );
+    if (nextDateKey !== options.dateKey) {
+      showToast("Past dates stay read-only. This block was moved to today.", "warning");
+    }
     setPlanConflictWarning(null);
     setActiveTab("calendar");
     setCalendarView("day");
@@ -6329,11 +6351,9 @@ export default function HomePage() {
     setMobileBlockSheetOpen(true);
     setDayPortalComposerOpen(true);
     setPlanAttachmentCount(0);
-    setPlanStatus(
-      nextDateKey !== dateKey
-        ? "Past dates stay read-only. Add the block to today or a future day."
-        : "",
-    );
+    if (nextDateKey !== dateKey) {
+      showToast("Past dates stay read-only. Add the block to today or a future day.", "warning");
+    }
     setPlanConflictWarning(null);
   }
 
@@ -6765,9 +6785,7 @@ export default function HomePage() {
       active: sameDate.filter((item) => item.status === "active" && !isDateKeyBeforeToday(item.dateKey)),
       completed: sameDate.filter((item) => item.status === "completed"),
       incomplete: sameDate.filter((item) => item.status === "active" && isDateKeyBeforeToday(item.dateKey)),
-      visible: sameDate.filter(
-        (item) => item.status === "completed" || !isDateKeyBeforeToday(item.dateKey),
-      ),
+      visible: sameDate,
     };
   }, [isPro, plannedBlocks, selectedDateKey]);
   const selectedDatePlans = selectedDatePlanGroups.active;
@@ -6816,7 +6834,7 @@ export default function HomePage() {
 
     plannedBlocks.forEach((item) => {
       if (!isPro && !isDateKeyWithinRecentWindow(item.dateKey, PRO_HISTORY_FREE_DAYS)) return;
-      if (item.status === "active" && isDateKeyBeforeToday(item.dateKey)) return;
+      // Active past-date blocks are shown as overdue — do not filter them out
       const startMinute = parseTimeToMinutes(item.timeOfDay || "09:00");
       const endMinute = Math.min(24 * 60, startMinute + Math.max(10, item.durationMinutes));
       pushEntry(item.dateKey, {
@@ -6970,24 +6988,51 @@ export default function HomePage() {
       hourTicks.push({ minute, label: `${hour12}:00 ${suffix}` });
     }
 
+    // Compute overlapIds first
+    const itemsWithOverlaps = positionedItems.map((item) => {
+      const overlapIds = positionedItems
+        .filter(
+          (candidate) =>
+            candidate.id !== item.id &&
+            candidate.startMinute < item.endMinute &&
+            candidate.endMinute > item.startMinute,
+        )
+        .map((candidate) => candidate.id);
+      return { ...item, overlapIds };
+    });
+
+    // Assign columns for side-by-side overlap layout
+    const colMap = new Map<string, number>();
+    const totalColsMap = new Map<string, number>();
+    // Sort by startMinute so earlier blocks get lower columns
+    const sorted = [...itemsWithOverlaps].sort(
+      (a, b) => a.startMinute - b.startMinute || a.id.localeCompare(b.id),
+    );
+    sorted.forEach((item) => {
+      const usedCols = new Set(
+        item.overlapIds
+          .map((id) => colMap.get(id))
+          .filter((c): c is number => c !== undefined),
+      );
+      let col = 0;
+      while (usedCols.has(col)) col++;
+      colMap.set(item.id, col);
+    });
+    // totalCols per item = max col among itself + all overlapping items + 1
+    itemsWithOverlaps.forEach((item) => {
+      const allCols = [colMap.get(item.id) ?? 0, ...item.overlapIds.map((id) => colMap.get(id) ?? 0)];
+      totalColsMap.set(item.id, Math.max(...allCols) + 1);
+    });
+
     return {
       startMinute,
       endMinute,
       totalMinutes,
-      items: positionedItems.map((item) => {
-        const overlapIds = positionedItems
-          .filter(
-            (candidate) =>
-              candidate.id !== item.id &&
-              candidate.startMinute < item.endMinute &&
-              candidate.endMinute > item.startMinute,
-          )
-          .map((candidate) => candidate.id);
-        return {
-          ...item,
-          overlapIds,
-        };
-      }),
+      items: itemsWithOverlaps.map((item) => ({
+        ...item,
+        col: colMap.get(item.id) ?? 0,
+        totalCols: totalColsMap.get(item.id) ?? 1,
+      })),
       hourTicks,
     };
   }, [isMobileViewport, selectedDateEntries]);
@@ -7249,19 +7294,19 @@ export default function HomePage() {
   function addPlannedBlock() {
     if (!user) return false;
     if (!selectedDateCanAddBlocks) {
-      setPlanStatus("Past dates stay read-only. Blocks can only be added to today or a future day.");
+      showToast("Past dates stay read-only. Blocks can only be added to today or a future day.", "warning");
       return false;
     }
     const title = planTitle.trim();
     const note = planNote.trim();
     if (!title) {
-      setPlanStatus("Write a task title first.");
+      showToast("Write a task title first.", "warning");
       return false;
     }
 
     const durationError = getPlannedBlockDurationError(planDuration);
     if (durationError) {
-      setPlanStatus(durationError);
+      showToast(durationError, "warning");
       return false;
     }
 
@@ -7316,8 +7361,7 @@ export default function HomePage() {
     setPlanNoteExpanded(false);
     setPlanTone(null);
     setPlanConflictWarning(null);
-    setPlanStatus("Planned block added.");
-    window.setTimeout(() => setPlanStatus(""), 1200);
+    showToast("Planned block added.", "success");
     setSelectedCalendarDate(selectedDateKey);
     setCalendarView("day");
     setActiveTab("calendar");
@@ -7361,7 +7405,7 @@ export default function HomePage() {
     const block = plannedBlocks.find((item) => item.id === id);
     if (!block) return;
     if (isDateKeyBeforeToday(block.dateKey)) {
-      setPlanStatus("Past dates stay read-only. This block can no longer be rescheduled there.");
+      showToast("Past dates stay read-only. This block can no longer be rescheduled there.", "warning");
       return;
     }
     const conflicts = findPlanSpacingConflicts(plannedBlocks, {
@@ -7371,7 +7415,7 @@ export default function HomePage() {
       excludeId: id,
     });
     if (conflicts.length > 0) {
-      setPlanStatus(buildBlockSpacingMessage(conflicts));
+      showToast(buildBlockSpacingMessage(conflicts), "warning");
       return;
     }
     const updatedAtISO = new Date().toISOString();
@@ -7379,7 +7423,6 @@ export default function HomePage() {
       item.id === id ? { ...item, timeOfDay, updatedAtISO } : item,
     );
     void persistPlannedBlocks(updated);
-    setPlanStatus("");
   }
 
   function reorderPlannedBlocks(sourceId: string, targetId: string) {
@@ -7495,8 +7538,8 @@ export default function HomePage() {
         : block,
     );
     void persistPlannedBlocks(updated);
-    setPlanStatus("Session saved from plan.");
-    window.setTimeout(() => setPlanStatus(""), 1200);
+    showToast("Session saved from plan.", "success");
+    triggerXPPop(10);
   }
 
   function selectCalendarDate(dateKey: string) {
@@ -8468,6 +8511,7 @@ export default function HomePage() {
   function handleCardsXPEarned(amount: number) {
     if (amount <= 0) return;
     showMascot("cards_session_done");
+    triggerXPPop(amount);
     // TODO: reconcile cards-earned XP with the derived xpByDay/lifetimeXpSummary flow before mutating parent XP state.
   }
 
@@ -9406,7 +9450,6 @@ export default function HomePage() {
                                   Past days stay read-only. Blocks can only be added to today or a future day.
                                 </p>
                               ) : null}
-                              {planStatus && <p className={styles.accountMeta}>{planStatus}</p>}
                             </div>
                           )}
                         </div>
@@ -9491,6 +9534,9 @@ export default function HomePage() {
                               style={{
                                 top: `${entry.topPct}%`,
                                 height: `${entry.heightPct}%`,
+                                left: entry.totalCols > 1 ? `calc(${(entry.col / entry.totalCols) * 100}% + ${entry.col > 0 ? "2px" : "0px"})` : undefined,
+                                width: entry.totalCols > 1 ? `calc(${(1 / entry.totalCols) * 100}% - ${entry.col > 0 ? "2px" : "0px"})` : undefined,
+                                zIndex: entry.totalCols > 1 ? 10 + entry.col : undefined,
                                 ...getCalendarToneStyle(
                                   entry.source === "plan" ? (entry.tone as CalendarTone) : null,
                                 ),
@@ -9514,6 +9560,18 @@ export default function HomePage() {
                             >
                               <span className={styles.dayViewEventTime}>{entry.timeLabel}</span>
                               <strong>{entry.title}</strong>
+                              {entry.overlapIds.length > 0 && entry.durationMinutes >= 25 && (
+                                <span className={styles.dayViewOverlapWarning}>
+                                  {"⚠ Overlaps with "}
+                                  {(() => {
+                                    const names = entry.overlapIds.slice(0, 2).map((id) => {
+                                      const ov = dayViewTimeline.items.find((it) => it.id === id);
+                                      return ov ? ov.title : null;
+                                    }).filter(Boolean);
+                                    return names.join(", ");
+                                  })()}
+                                </span>
+                              )}
                               {entry.overlapIds.length > 0 && (
                                 <span
                                   className={styles.dayViewOverlapHandle}
@@ -13684,6 +13742,9 @@ export default function HomePage() {
           <SessionRewardToast reward={sessionReward} onDismiss={() => setSessionReward(null)} />
         ) : null}
       </AnimatePresence>
+
+      <XPPopAnimation pops={xpPops} onDone={removeXPPop} />
+      <WhelToastContainer toasts={whelToasts} onDismiss={dismissToast} />
 
       {profileOpen && (
         <div className={styles.feedbackOverlay} onClick={() => setProfileOpen(false)}>
