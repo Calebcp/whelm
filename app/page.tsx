@@ -14,6 +14,7 @@ import {
 } from "firebase/auth";
 import { deleteObject, getDownloadURL, ref as storageRef, uploadBytesResumable } from "firebase/storage";
 
+import BottomNav from "@/components/BottomNav";
 import SenseiFigure, { type SenseiVariant } from "@/components/SenseiFigure";
 import WhelMascot from "@/components/WhelMascot";
 import Timer, { type TimerSessionContext } from "@/components/Timer";
@@ -13804,40 +13805,13 @@ export default function HomePage() {
         </section>
       </div>
 
-      <nav className={styles.bottomTabs}>
-        {MOBILE_PRIMARY_TABS.map((tab) => (
-          <button
-            key={tab.key}
-            type="button"
-            className={`${styles.bottomTabButton} ${
-              tab.key === "leaderboard" ? styles.bottomTabButtonLeaderboard : ""
-            } ${activeTab === tab.key ? styles.bottomTabButtonActive : ""}`}
-            onClick={() => handleMobileTabSelect(tab.key)}
-          >
-            <span
-              className={`${styles.bottomTabIcon} ${
-                tab.key === "leaderboard" ? styles.bottomTabIconLeaderboard : ""
-              }`}
-            >
-              {iconForTab(tab.key)}
-            </span>
-            <span
-              className={tab.key === "leaderboard" ? styles.bottomTabLabelLeaderboard : undefined}
-            >
-              {tab.label}
-            </span>
-          </button>
-        ))}
-      </nav>
-
-      <button
-        type="button"
-        className={`${styles.mobileMoreFab} ${mobileMoreActive || mobileMoreOpen ? styles.mobileMoreFabActive : ""}`}
-        onClick={() => setMobileMoreOpen(true)}
-      >
-        <span className={styles.mobileMoreFabIcon}>{iconForNavKey("more")}</span>
-        <span>More</span>
-      </button>
+      <BottomNav
+        activeTab={activeTab}
+        mobileMoreActive={mobileMoreActive}
+        mobileMoreOpen={mobileMoreOpen}
+        onTabSelect={handleMobileTabSelect}
+        onMoreOpen={() => setMobileMoreOpen(true)}
+      />
 
       <AnimatePresence>
         {!notificationsBlocked && sessionReward ? (
