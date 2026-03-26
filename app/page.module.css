@@ -3750,6 +3750,13 @@ body[data-theme="light"] {
   white-space: nowrap;
 }
 
+.noteSyncIndicator {
+  font-size: 0.72rem;
+  color: var(--wh-text-tertiary, rgba(180, 185, 210, 0.7));
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
 .wordCountChip {
   display: inline-flex;
   align-items: center;

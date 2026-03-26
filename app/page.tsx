@@ -1041,28 +1041,20 @@ function clearLocalNoteDraft(uid: string, noteId: string) {
   window.localStorage.removeItem(noteDraftStorageKey(uid, noteId));
 }
 
-function decodeHtmlEntities(value: string) {
-  const textarea = document.createElement("textarea");
-  textarea.innerHTML = value;
-  return textarea.value;
-}
 
 function normalizeBodyForEditor(body: string) {
   if (!body) return "";
 
-  let next = body;
-  const hasHtmlTags = /<[a-z!/]/i.test(next);
+  const hasHtmlTags = /<[a-z!/]/i.test(body);
   if (!hasHtmlTags) {
-    next = next.replaceAll("\n", "<br/>");
+    // Plain text: convert newlines to br so the editor renders line breaks
+    return body.replaceAll("\n", "<br/>");
   }
 
-  for (let i = 0; i < 3; i += 1) {
-    const decoded = decodeHtmlEntities(next);
-    if (decoded === next) break;
-    next = decoded;
-  }
-
-  return next;
+  // HTML body: return as-is. The browser handles entity decoding when setting innerHTML.
+  // Do NOT run decodeHtmlEntities here — it uses textarea.value which strips all HTML
+  // elements, silently discarding every line after the first <div> or <br>.
+  return body;
 }
 
 function isEffectivelyEmptyEditorHtml(value: string) {
@@ -11468,6 +11460,13 @@ export default function HomePage() {
                         <span className={styles.noteWordCount}>
                           {selectedNoteWordCount} word{selectedNoteWordCount === 1 ? "" : "s"}
                           {selectedNoteWordCount >= 33 ? " · streak writing met" : ""}
+                        </span>
+                        <span className={styles.noteSyncIndicator}>
+                          {notesSyncStatus === "synced"
+                            ? "✓ Saved"
+                            : notesSyncStatus === "syncing"
+                              ? "Saving…"
+                              : "Saved locally"}
                         </span>
                       </div>
                     </div>
