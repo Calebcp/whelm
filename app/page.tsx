@@ -16,6 +16,7 @@ import { deleteObject, getDownloadURL, ref as storageRef, uploadBytesResumable }
 
 import BottomNav from "@/components/BottomNav";
 import TopAppBar from "@/components/TopAppBar";
+import SettingsTab from "@/components/SettingsTab";
 import SenseiFigure, { type SenseiVariant } from "@/components/SenseiFigure";
 import WhelMascot from "@/components/WhelMascot";
 import Timer, { type TimerSessionContext } from "@/components/Timer";
@@ -13256,499 +13257,61 @@ export default function HomePage() {
           )}
 
           {activeTab === "settings" && (
-            <AnimatedTabSection className={styles.settingsGrid} sectionRef={settingsSectionRef}>
-              <CompanionPulse {...companionState.pulses.settings} bandanaColor={bandanaColor} />
-              <article className={`${styles.card} ${styles.settingsHeroCard}`} ref={settingsPrimaryRef}>
-                <div className={styles.settingsHeroHeader}>
-                  <WhelmProfileAvatar
-                    tierColor={streakBandanaTier?.color}
-                    size="compact"
-                    isPro={isPro}
-                    photoUrl={currentUserPhotoUrl}
-                  />
-                  <div>
-                    <p className={styles.sectionLabel}>Account</p>
-                    <h2 className={styles.cardTitle}>{user.displayName || "Whelm user"}</h2>
-                    <p className={styles.accountMeta}>{user.email}</p>
-                  </div>
-                </div>
-                <div className={styles.settingsReadoutGrid}>
-                  <article className={styles.settingsReadoutCard}>
-                    <span>Bandana</span>
-                    <strong>{streakBandanaTier?.label ?? "No tier yet"}</strong>
-                    <small>{profileTierTheme.title}</small>
-                  </article>
-                  <article className={styles.settingsReadoutCard}>
-                    <span>Next ascent</span>
-                    <strong>
-                      {nextBandanaMilestone
-                        ? `${nextBandanaMilestone.remainingDays} day${nextBandanaMilestone.remainingDays === 1 ? "" : "s"} left`
-                        : "Top tier reached"}
-                    </strong>
-                    <small>
-                      {nextBandanaMilestone
-                        ? nextBandanaMilestone.tier.label
-                        : "Keep the run alive."}
-                    </small>
-                  </article>
-                  <article className={styles.settingsReadoutCard}>
-                    <span>System mode</span>
-                    <strong>{companionStyle === "strict" ? "Strict" : companionStyle === "balanced" ? "Balanced" : "Gentle"}</strong>
-                    <small>{themeMode === "dark" ? "Dark shell" : "Light shell"}</small>
-                  </article>
-                </div>
-                <div className={styles.settingsPills}>
-                  <span className={styles.settingsPill}>
-                    Access: {isPro ? "Whelm Pro" : "Whelm Free"}
-                  </span>
-                  <span className={styles.settingsPill}>
-                    Status: {proSource === "preview" ? "Whelm Pro Preview" : isPro ? "Whelm Pro Active" : "Whelm Free"}
-                  </span>
-                  <span className={styles.settingsPill}>Streak: {streak}d</span>
-                </div>
-                <div className={styles.settingsActionGrid}>
-                  <button
-                    type="button"
-                    className={styles.reportButton}
-                    onClick={() => {
-                      setFeedbackOpen(true);
-                      setFeedbackStatus("");
-                    }}
-                  >
-                    Send Whelm feedback
-                  </button>
-                </div>
-                {!isPro ? (
-                  <div className={styles.noteFooterActions}>
-                    <button
-                      type="button"
-                      className={styles.inlineUpgrade}
-                      onClick={() => void handleStartProPreview()}
-                    >
-                      Enter Whelm Pro Preview
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.secondaryPlanButton}
-                      onClick={() => signOut(auth)}
-                    >
-                      Sign out
-                    </button>
-                  </div>
-                ) : (
-                  <div className={styles.noteFooterActions}>
-                    <button
-                      type="button"
-                      className={styles.secondaryPlanButton}
-                      onClick={() => void handleRestoreFreeTier()}
-                    >
-                      Return to Whelm Free
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.secondaryPlanButton}
-                      onClick={() => signOut(auth)}
-                    >
-                      Sign out
-                    </button>
-                  </div>
-                )}
-              </article>
-
-              <CollapsibleSectionCard
-                label="Whelm Identity"
-                title="How this system is running"
-                open={settingsSectionsOpen.identity}
-                onToggle={() =>
-                  setSettingsSectionsOpen((current) => ({ ...current, identity: !current.identity }))
-                }
-              >
-                <ul className={styles.settingsList}>
-                  <li>
-                    <span>Clean Focus Mode</span>
-                    <strong>{isPro ? "Whelm Pro" : "Standard"}</strong>
-                  </li>
-                  <li>
-                    <span>Weekly Report Cards</span>
-                    <strong>On</strong>
-                  </li>
-                  <li>
-                    <span>Command Reports</span>
-                    <strong>{isPro ? "Full System" : "Core Readout"}</strong>
-                  </li>
-                </ul>
-              </CollapsibleSectionCard>
-
-              <CollapsibleSectionCard
-                label="Internal Tools"
-                title="Preview gated flows"
-                description="Open gated flows here without waiting for the live trigger."
-                open={settingsSectionsOpen.internalTools}
-                onToggle={() =>
-                  setSettingsSectionsOpen((current) => ({
-                    ...current,
-                    internalTools: !current.internalTools,
-                  }))
-                }
-              >
-                <div className={styles.settingsActionGrid}>
-                  <button
-                    type="button"
-                    className={styles.reportButton}
-                    onClick={openStreakSaveQuestionnairePreview}
-                  >
-                    Preview Streak Mirror
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.secondaryPlanButton}
-                    onClick={openDailyPlanningPreview}
-                  >
-                    Preview daily commitment
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.secondaryPlanButton}
-                    onClick={openSickDaySavePromptPreview}
-                  >
-                    Preview streak alert
-                  </button>
-                </div>
-              </CollapsibleSectionCard>
-
-              <CollapsibleSectionCard
-                label="Protocol"
-                title="Whelm tone"
-                description="Choose how direct Whelm should feel when keeping you accountable."
-                open={settingsSectionsOpen.protocol}
-                onToggle={() =>
-                  setSettingsSectionsOpen((current) => ({ ...current, protocol: !current.protocol }))
-                }
-              >
-                <div className={styles.companionStyleRow}>
-                  {(["gentle", "balanced", "strict"] as const).map((style) => (
-                    <button
-                      key={style}
-                      type="button"
-                      className={`${styles.companionStyleButton} ${
-                        companionStyle === style ? styles.companionStyleButtonActive : ""
-                      }`}
-                      onClick={() => applyCompanionStyle(style)}
-                    >
-                      {formatSenseiLabel(style)}
-                    </button>
-                  ))}
-                </div>
-              </CollapsibleSectionCard>
-
-              <CollapsibleSectionCard
-                label="Appearance"
-                title="Default theme"
-                description="Choose how Whelm opens."
-                open={settingsSectionsOpen.appearance}
-                onToggle={() =>
-                  setSettingsSectionsOpen((current) => ({ ...current, appearance: !current.appearance }))
-                }
-              >
-                <div className={styles.companionStyleRow}>
-                  {(["dark", "light", "system"] as const).map((mode) => (
-                    <button
-                      key={mode}
-                      type="button"
-                      className={`${styles.companionStyleButton} ${
-                        themeMode === mode ? styles.companionStyleButtonActive : ""
-                      }`}
-                      onClick={() => applyThemeMode(mode)}
-                    >
-                      {mode === "dark" ? "Dark" : mode === "light" ? "Light" : "Auto"}
-                    </button>
-                  ))}
-                </div>
-              </CollapsibleSectionCard>
-
-              <CollapsibleSectionCard
-                label="Whelm Pro"
-                title="App background"
-                description="Pick the shell background and how much it shows through."
-                open={settingsSectionsOpen.background}
-                onToggle={() =>
-                  setSettingsSectionsOpen((current) => ({ ...current, background: !current.background }))
-                }
-              >
-                {isPro ? (
-                  <>
-                    <input
-                      ref={backgroundUploadInputRef}
-                      type="file"
-                      accept="image/*"
-                      className={styles.backgroundUploadInput}
-                      onChange={handleBackgroundUpload}
-                    />
-                    <div className={styles.backgroundPresetGrid}>
-                      <button
-                        type="button"
-                        className={`${styles.backgroundPresetButton} ${
-                          appBackgroundSetting.kind === "default" ? styles.backgroundPresetButtonActive : ""
-                        }`}
-                        onClick={() => applyBackgroundSetting({ kind: "default" })}
-                      >
-                        <span className={styles.backgroundPresetSwatch} />
-                        <strong>Standard shell</strong>
-                      </button>
-                      {PRO_BACKGROUND_PRESETS.map((preset) => (
-                        <button
-                          key={preset.id}
-                          type="button"
-                          className={`${styles.backgroundPresetButton} ${
-                            appBackgroundSetting.kind === "preset" && appBackgroundSetting.value === preset.id
-                              ? styles.backgroundPresetButtonActive
-                              : ""
-                          }`}
-                          onClick={() => applyBackgroundSetting({ kind: "preset", value: preset.id })}
-                        >
-                          <span
-                            className={styles.backgroundPresetSwatch}
-                            style={{ background: preset.background }}
-                          />
-                          <strong>{preset.label}</strong>
-                        </button>
-                      ))}
-                    </div>
-                    <div className={styles.noteFooterActions}>
-                      <button
-                        type="button"
-                        className={styles.reportButton}
-                        onClick={() => backgroundUploadInputRef.current?.click()}
-                      >
-                        Upload backdrop
-                      </button>
-                      {appBackgroundSetting.kind === "upload" ? (
-                        <button
-                          type="button"
-                          className={styles.secondaryPlanButton}
-                          onClick={() => applyBackgroundSetting({ kind: "default" })}
-                        >
-                          Return to standard shell
-                        </button>
-                      ) : null}
-                    </div>
-                    <div className={styles.backgroundSkinPanel}>
-                      <div className={styles.backgroundSkinHeader}>
-                        <div>
-                          <strong>Surface behavior</strong>
-                          <p className={styles.accountMeta}>
-                            Default keeps the standard Whelm shell. Adaptive glass opens the shell so your Whelm Pro background can breathe through.
-                          </p>
-                        </div>
-                      </div>
-                      <div className={styles.companionStyleRow}>
-                        {(
-                          [
-                            { key: "solid", label: "Standard shell" },
-                            { key: "glass", label: "Adaptive glass" },
-                          ] as const
-                        ).map((option) => (
-                          <button
-                            key={option.key}
-                            type="button"
-                            className={`${styles.companionStyleButton} ${
-                              backgroundSkin.mode === option.key
-                                ? styles.companionStyleButtonActive
-                                : ""
-                            }`}
-                            onClick={() => updateBackgroundSkin({ ...backgroundSkin, mode: option.key })}
-                          >
-                            {option.label}
-                          </button>
-                        ))}
-                      </div>
-                      {backgroundSkin.mode === "glass" ? (
-                        <div className={styles.backgroundSkinControls}>
-                          {appBackgroundSetting.kind === "upload" ? (
-                            <div className={styles.companionStyleRow}>
-                              {(
-                                [
-                                  { key: "fit", label: "Fit image" },
-                                  { key: "fill", label: "Fill screen" },
-                                ] as const
-                              ).map((option) => (
-                                <button
-                                  key={option.key}
-                                  type="button"
-                                  className={`${styles.companionStyleButton} ${
-                                    backgroundSkin.imageFit === option.key
-                                      ? styles.companionStyleButtonActive
-                                      : ""
-                                  }`}
-                                  onClick={() =>
-                                    updateBackgroundSkin({
-                                      ...backgroundSkin,
-                                      imageFit: option.key,
-                                    })
-                                  }
-                                >
-                                  {option.label}
-                                </button>
-                              ))}
-                            </div>
-                          ) : null}
-                          <label className={styles.backgroundSkinControl}>
-                            <span>Background prominence</span>
-                            <strong>{Math.round((1 - backgroundSkin.dim) * 100)}%</strong>
-                            <input
-                              type="range"
-                              min="2"
-                              max="96"
-                              step="1"
-                              value={Math.round(backgroundSkin.dim * 100)}
-                              onChange={(event) =>
-                                updateBackgroundSkin({
-                                  ...backgroundSkin,
-                                  dim: Number(event.target.value) / 100,
-                                })
-                              }
-                            />
-                          </label>
-                          <label className={styles.backgroundSkinControl}>
-                            <span>App surface opacity</span>
-                            <strong>{Math.round(backgroundSkin.surfaceOpacity * 100)}%</strong>
-                            <input
-                              type="range"
-                              min="8"
-                              max="98"
-                              step="1"
-                              value={Math.round(backgroundSkin.surfaceOpacity * 100)}
-                              onChange={(event) =>
-                                updateBackgroundSkin({
-                                  ...backgroundSkin,
-                                  surfaceOpacity: Number(event.target.value) / 100,
-                                })
-                              }
-                            />
-                          </label>
-                          <label className={styles.backgroundSkinControl}>
-                            <span>Glass blur</span>
-                            <strong>{backgroundSkin.blur}px</strong>
-                            <input
-                              type="range"
-                              min="0"
-                              max="40"
-                              step="1"
-                              value={backgroundSkin.blur}
-                              onChange={(event) =>
-                                updateBackgroundSkin({
-                                  ...backgroundSkin,
-                                  blur: Number(event.target.value),
-                                })
-                              }
-                            />
-                          </label>
-                        </div>
-                      ) : null}
-                    </div>
-                  </>
-                ) : (
-                  <ProUnlockCard
-                    title="Custom backgrounds and uploads"
-                    body={`${WHELM_PRO_POSITIONING} Whelm Pro includes alternate full-app background designs plus your own uploaded wallpaper.`}
-                    open={proPanelsOpen.background}
-                    onToggle={() =>
-                      setProPanelsOpen((current) => ({ ...current, background: !current.background }))
-                    }
-                    onPreview={() => void handleStartProPreview()}
-                  />
-                )}
-              </CollapsibleSectionCard>
-
-              <CollapsibleSectionCard
-                label="Sync"
-                title="Notes status"
-                open={settingsSectionsOpen.sync}
-                onToggle={() =>
-                  setSettingsSectionsOpen((current) => ({ ...current, sync: !current.sync }))
-                }
-              >
-                <p className={styles.accountMeta}>
-                  {notesSyncStatus === "synced"
-                    ? "Synced"
-                    : notesSyncStatus === "syncing"
-                      ? "Syncing"
-                      : "Local only"}
-                </p>
-                {notesSyncMessage && <p className={styles.accountMeta}>{notesSyncMessage}</p>}
-                {notesSyncStatus !== "synced" && (
-                  <button type="button" className={styles.retrySyncButton} onClick={() => void handleRetrySync()}>
-                    Retry notes sync
-                  </button>
-                )}
-              </CollapsibleSectionCard>
-
-              <CollapsibleSectionCard
-                label="Screen Time"
-                title="Device focus permission"
-                open={settingsSectionsOpen.screenTime}
-                onToggle={() =>
-                  setSettingsSectionsOpen((current) => ({
-                    ...current,
-                    screenTime: !current.screenTime,
-                  }))
-                }
-              >
-                <p className={styles.accountMeta}>
-                  {screenTimeSupported
-                    ? `Authorization status: ${screenTimeStatus}`
-                    : "Screen Time is available only in the iOS native build."}
-                </p>
-                {screenTimeReason && <p className={styles.accountMeta}>{screenTimeReason}</p>}
-                <div className={styles.noteFooterActions}>
-                  {screenTimeSupported && (
-                    <button
-                      type="button"
-                      className={styles.reportButton}
-                      onClick={() => void handleRequestScreenTimeAuth()}
-                      disabled={screenTimeBusy}
-                    >
-                      {screenTimeBusy ? "Working..." : "Enable Screen Time Access"}
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    className={styles.secondaryPlanButton}
-                    onClick={() => void handleOpenScreenTimeSettings()}
-                    disabled={screenTimeBusy}
-                  >
-                    Open iOS Settings
-                  </button>
-                </div>
-                <ul className={styles.commandList}>
-                  <li>This enables Screen Time APIs through Apple&apos;s permission flow.</li>
-                  <li>Detailed per-app charts require the Device Activity report extension.</li>
-                </ul>
-              </CollapsibleSectionCard>
-
-              <CollapsibleSectionCard
-                className={styles.accountDangerCard}
-                label="Account"
-                title="Delete account"
-                description="Permanently delete your Whelm account, notes, sessions, and local app data."
-                open={settingsSectionsOpen.danger}
-                onToggle={() =>
-                  setSettingsSectionsOpen((current) => ({ ...current, danger: !current.danger }))
-                }
-              >
-                <button
-                  type="button"
-                  className={styles.deleteAccountButton}
-                  onClick={() => void handleDeleteAccount()}
-                  disabled={deletingAccount}
-                >
-                  {deletingAccount ? "Deleting account..." : "Delete account permanently"}
-                </button>
-                {accountDangerStatus ? (
-                  <p className={styles.accountDangerStatus}>{accountDangerStatus}</p>
-                ) : null}
-              </CollapsibleSectionCard>
-            </AnimatedTabSection>
+            <SettingsTab
+              companionPulse={companionState.pulses.settings}
+              bandanaColor={bandanaColor}
+              sectionRef={settingsSectionRef}
+              primaryRef={settingsPrimaryRef}
+              streakBandanaTier={streakBandanaTier}
+              isPro={isPro}
+              photoUrl={currentUserPhotoUrl}
+              displayName={user.displayName}
+              email={user.email}
+              profileTierTheme={profileTierTheme}
+              nextBandanaMilestone={nextBandanaMilestone}
+              proSource={proSource}
+              streak={streak}
+              companionStyle={companionStyle}
+              themeMode={themeMode}
+              sectionsOpen={settingsSectionsOpen}
+              onToggleSection={(key) =>
+                setSettingsSectionsOpen((current) => ({ ...current, [key]: !current[key] }))
+              }
+              onFeedbackOpen={() => {
+                setFeedbackOpen(true);
+                setFeedbackStatus("");
+              }}
+              onStartProPreview={() => void handleStartProPreview()}
+              onRestoreFreeTier={() => void handleRestoreFreeTier()}
+              onSignOut={() => signOut(auth)}
+              onApplyCompanionStyle={applyCompanionStyle}
+              onApplyThemeMode={applyThemeMode}
+              appBackgroundSetting={appBackgroundSetting}
+              backgroundSkin={backgroundSkin}
+              backgroundUploadInputRef={backgroundUploadInputRef}
+              onBackgroundUpload={handleBackgroundUpload}
+              onApplyBackgroundSetting={applyBackgroundSetting}
+              onUpdateBackgroundSkin={updateBackgroundSkin}
+              proPanelBackgroundOpen={proPanelsOpen.background}
+              onToggleProBackgroundPanel={() =>
+                setProPanelsOpen((current) => ({ ...current, background: !current.background }))
+              }
+              notesSyncStatus={notesSyncStatus}
+              notesSyncMessage={notesSyncMessage}
+              onRetrySync={() => void handleRetrySync()}
+              screenTimeSupported={screenTimeSupported}
+              screenTimeStatus={screenTimeStatus}
+              screenTimeReason={screenTimeReason}
+              screenTimeBusy={screenTimeBusy}
+              onRequestScreenTimeAuth={() => void handleRequestScreenTimeAuth()}
+              onOpenScreenTimeSettings={() => void handleOpenScreenTimeSettings()}
+              deletingAccount={deletingAccount}
+              onDeleteAccount={() => void handleDeleteAccount()}
+              accountDangerStatus={accountDangerStatus}
+              onPreviewStreakMirror={openStreakSaveQuestionnairePreview}
+              onPreviewDailyCommitment={openDailyPlanningPreview}
+              onPreviewStreakAlert={openSickDaySavePromptPreview}
+            />
           )}
         </section>
       </div>
