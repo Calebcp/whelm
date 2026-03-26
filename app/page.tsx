@@ -15,6 +15,7 @@ import {
 import { deleteObject, getDownloadURL, ref as storageRef, uploadBytesResumable } from "firebase/storage";
 
 import BottomNav from "@/components/BottomNav";
+import TopAppBar from "@/components/TopAppBar";
 import SenseiFigure, { type SenseiVariant } from "@/components/SenseiFigure";
 import WhelMascot from "@/components/WhelMascot";
 import Timer, { type TimerSessionContext } from "@/components/Timer";
@@ -8652,74 +8653,21 @@ export default function HomePage() {
         </nav>
 
         <section className={styles.screen}>
-          <div className={styles.topAppBar}>
-            <div>
-              <p className={styles.topAppBarLabel}>Whelm Flow</p>
-              <h2 className={styles.topAppBarTitle}>{tabTitle(activeTab)}</h2>
-            </div>
-            <div className={styles.topAppBarRight}>
-              <span className={styles.topAppBarDate}>
-                {new Date().toLocaleDateString(undefined, {
-                  weekday: "short",
-                  month: "short",
-                  day: "numeric",
-                })}
-              </span>
-              <motion.div
-                className={styles.xpDock}
-                style={xpDockStyle}
-                aria-label={`Level ${lifetimeXpSummary.currentLevel}. ${formattedLifetimeXp} XP total. ${formattedXpToNextLevel} XP to next level.`}
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-              >
-                <XpBandanaLevelMark
-                  className={styles.xpDockBadge}
-                  tierColor={streakBandanaTier?.color}
-                  level={lifetimeXpSummary.currentLevel}
-                />
-                <div className={styles.xpDockTrack}>
-                  <motion.div
-                    className={styles.xpDockFill}
-                    initial={false}
-                    animate={{ width: `${Math.max(8, lifetimeXpSummary.progressToNextLevel * 100)}%` }}
-                    transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-                  />
-                  <div className={styles.xpDockCopy}>
-                    <strong>{formattedLifetimeXp} XP</strong>
-                    <small>{formattedXpToNextLevel} to level {lifetimeXpSummary.currentLevel + 1}</small>
-                  </div>
-                </div>
-              </motion.div>
-              <button
-                type="button"
-                className={`${styles.profileDockButton} ${
-                  isMobileViewport ? styles.profileDockButtonMobile : styles.profileDockButtonDesktop
-                }`}
-                onClick={() => setProfileOpen(true)}
-              >
-                <WhelmProfileAvatar
-                  tierColor={streakBandanaTier?.color}
-                  size="compact"
-                  isPro={isPro}
-                  photoUrl={currentUserPhotoUrl}
-                />
-                <span className={styles.profileDockCopy}>
-                  {!isMobileViewport ? <small>Profile</small> : null}
-                  <strong>{profileDisplayName}</strong>
-                </span>
-              </button>
-              {!isMobileViewport ? (
-                <button
-                  type="button"
-                  className={styles.topAppBarAction}
-                  onClick={() => setMobileMoreOpen(true)}
-                >
-                  More
-                </button>
-              ) : null}
-            </div>
-          </div>
+          <TopAppBar
+            activeTab={activeTab}
+            xpDockStyle={xpDockStyle}
+            currentLevel={lifetimeXpSummary.currentLevel}
+            progressToNextLevel={lifetimeXpSummary.progressToNextLevel}
+            formattedLifetimeXp={formattedLifetimeXp}
+            formattedXpToNextLevel={formattedXpToNextLevel}
+            tierColor={streakBandanaTier?.color}
+            isPro={isPro}
+            photoUrl={currentUserPhotoUrl}
+            isMobileViewport={isMobileViewport}
+            profileDisplayName={profileDisplayName}
+            onProfileOpen={() => setProfileOpen(true)}
+            onMoreOpen={() => setMobileMoreOpen(true)}
+          />
 
           {activeTab === "today" && (
             <>
