@@ -6189,6 +6189,7 @@ body[data-theme="light"] {
   min-width: 0;
   display: grid;
   gap: 3px;
+  overflow: hidden;
 }
 
 .leaderboardRowUsername {
@@ -6213,9 +6214,10 @@ body[data-theme="light"] {
   align-items: center;
   gap: 8px;
   text-align: right;
-  /* Fixed min-width prevents large XP values from pushing into username column */
-  min-width: 120px;
+  /* Fixed width: movement indicator is now in the meta row, so only XP + streak here */
+  min-width: 80px;
   justify-content: flex-end;
+  overflow: hidden;
 }
 
 .leaderboardRowXp {
@@ -6242,7 +6244,7 @@ body[data-theme="light"] {
   white-space: nowrap;
 }
 
-/* Colored dot representing the bandana tier on the streak tab */
+/* Colored dot representing the bandana tier on the streak tab (legacy — kept for reference) */
 .leaderboardBandanaDotStat {
   display: inline-block;
   width: 9px;
@@ -6250,6 +6252,30 @@ body[data-theme="light"] {
   border-radius: 50%;
   flex-shrink: 0;
   box-shadow: 0 0 6px currentColor;
+}
+
+/* Bandana image in leaderboard row meta (below username) */
+.leaderboardBandanaImg {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+/* Bandana image in streak-tab stat area (small, inline) */
+.leaderboardBandanaImgStat {
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+/* Bandana image in tier section rows */
+.leaderboardBandanaTierImg {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  justify-self: center;
 }
 
 /* Makes clickable rows show pointer cursor */
@@ -6451,7 +6477,7 @@ body[data-theme="light"] {
 
 .leaderboardBandanaRow {
   display: grid;
-  grid-template-columns: 10px minmax(0, 1fr) minmax(0, 1fr) auto;
+  grid-template-columns: 30px minmax(0, 1fr) minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
   min-height: 44px;

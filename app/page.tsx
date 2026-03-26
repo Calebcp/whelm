@@ -17,7 +17,6 @@ import { deleteObject, getDownloadURL, ref as storageRef, uploadBytesResumable }
 import SenseiFigure, { type SenseiVariant } from "@/components/SenseiFigure";
 import WhelMascot from "@/components/WhelMascot";
 import Timer, { type TimerSessionContext } from "@/components/Timer";
-import MilestoneReveal from "@/components/MilestoneReveal";
 import WhelmEmote from "@/components/WhelmEmote";
 import WhelmRitualScene from "@/components/WhelmRitualScene";
 import CardsTab from "@/components/CardsTab";
@@ -981,6 +980,19 @@ function describeAttachmentUploadError(error: unknown, bucketName: string) {
 function bandanaCursorAssetPath(color: string | null | undefined, size: 128 | 256 = 128) {
   const resolved = color ?? "yellow";
   return `/streak/cursor/bandana-${resolved}-${size}.png`;
+}
+
+function bandanaImageGlow(color: string | null | undefined): string {
+  switch (color) {
+    case "yellow": return "rgba(255, 200, 0, 0.5)";
+    case "red":    return "rgba(220, 50, 50, 0.5)";
+    case "green":  return "rgba(50, 200, 100, 0.5)";
+    case "purple": return "rgba(150, 50, 220, 0.5)";
+    case "blue":   return "rgba(50, 120, 255, 0.5)";
+    case "black":  return "rgba(180, 180, 180, 0.4)";
+    case "white":  return "rgba(255, 255, 255, 0.6)";
+    default:       return "transparent";
+  }
 }
 
 function attachmentIndicatorLabel(count: number) {
@@ -2312,8 +2324,18 @@ function LeaderboardRow({
       <div className={styles.leaderboardRowIdentity}>
         <strong className={styles.leaderboardRowUsername}>{displayName}</strong>
         <div className={styles.leaderboardRowMeta}>
-          <span className={styles.leaderboardBandanaChip}>{bandana.shortLabel}</span>
+          {bandana.tier ? (
+            <img
+              src={bandanaCursorAssetPath(bandana.tier.color, 128)}
+              alt={bandana.tier.label}
+              className={styles.leaderboardBandanaImg}
+              style={{ filter: `drop-shadow(0 0 5px ${bandanaImageGlow(bandana.tier.color)})` }}
+            />
+          ) : (
+            <span className={styles.leaderboardBandanaChip}>None</span>
+          )}
           {entry.isCurrentUser ? <span className={styles.leaderboardYouBadge}>You</span> : null}
+          <LeaderboardMovementIndicator movement={movement} tab={tab} />
         </div>
       </div>
       <div className={styles.leaderboardRowStats}>
@@ -2326,15 +2348,15 @@ function LeaderboardRow({
           <span className={styles.leaderboardRowStreakStat}>
             <span>{entry.currentStreak} days</span>
             {bandana.tier ? (
-              <span
-                className={styles.leaderboardBandanaDotStat}
-                style={{ background: bandana.theme.accent }}
-                title={bandana.tier.label}
+              <img
+                src={bandanaCursorAssetPath(bandana.tier.color, 128)}
+                alt={bandana.tier.label}
+                className={styles.leaderboardBandanaImgStat}
+                style={{ filter: `drop-shadow(0 0 4px ${bandanaImageGlow(bandana.tier.color)})` }}
               />
             ) : null}
           </span>
         )}
-        <LeaderboardMovementIndicator movement={movement} tab={tab} />
       </div>
     </motion.article>
   );
@@ -3569,7 +3591,6 @@ export default function HomePage() {
   const [streakMirrorTag, setStreakMirrorTag] = useState<StreakMirrorTag | null>(null);
   const [streakSaveAnswers, setStreakSaveAnswers] = useState<Record<string, string>>({});
   const [streakSaveStatus, setStreakSaveStatus] = useState("");
-  const [milestoneRevealTier, setMilestoneRevealTier] = useState<StreakBandanaTier | null>(null);
   const [sessionReward, setSessionReward] = useState<SessionRewardState | null>(null);
   const [streakCelebration, setStreakCelebration] = useState<StreakCelebrationState | null>(null);
   const [streakNudge, setStreakNudge] = useState<StreakNudgeState | null>(null);
@@ -3658,8 +3679,6 @@ export default function HomePage() {
   const authReadyRef = useRef(false);
   const activatedCalendarEntryTimeoutRef = useRef<number | null>(null);
   const calendarHoverPreviewTimeoutRef = useRef<number | null>(null);
-  const previousStreakTierRef = useRef<StreakBandanaTier | null | undefined>(undefined);
-
   const protectedStreakDateKeys = useMemo(
     () => sickDaySaves.map((save) => save.dateKey),
     [sickDaySaves],
@@ -7868,25 +7887,6 @@ export default function HomePage() {
     user?.displayName?.trim() ||
     user?.email?.split("@")[0]?.trim() ||
     "Whelm user";
-  useEffect(() => {
-    if (!authChecked || !user) return;
-
-    const previousTier = previousStreakTierRef.current;
-    if (previousTier === undefined) {
-      previousStreakTierRef.current = streakBandanaTier;
-      return;
-    }
-
-    const previousThreshold = previousTier?.minDays ?? 0;
-    const nextThreshold = streakBandanaTier?.minDays ?? 0;
-
-    if (streakBandanaTier && nextThreshold > previousThreshold) {
-      setMilestoneRevealTier(streakBandanaTier);
-    }
-
-    previousStreakTierRef.current = streakBandanaTier;
-  }, [authChecked, streakBandanaTier, user]);
-
   const currentUserPhotoUrl = user?.photoURL ?? null;
   const currentUserId = user?.uid ?? "current-user";
   const currentUserCreatedAtISO =
@@ -10756,7 +10756,12 @@ export default function HomePage() {
                   <div className={styles.leaderboardBandanaList}>
                     {leaderboardBandanaHolders.map((holder) => (
                       <div key={holder.color} className={styles.leaderboardBandanaRow}>
-                        <span className={styles.leaderboardBandanaDot} style={{ background: holder.color }} />
+                        <img
+                          src={bandanaCursorAssetPath(holder.color, 128)}
+                          alt={holder.label}
+                          className={styles.leaderboardBandanaTierImg}
+                          style={{ filter: `drop-shadow(0 0 6px ${bandanaImageGlow(holder.color)})` }}
+                        />
                         <span className={styles.leaderboardBandanaName}>{holder.label}</span>
                         <span className={styles.leaderboardBandanaHolder}>{holder.entry?.username ?? "—"}</span>
                         <span className={styles.leaderboardBandanaXp}>
@@ -14252,17 +14257,6 @@ export default function HomePage() {
           </div>
         </div>
       )}
-
-      <MilestoneReveal
-        open={Boolean(milestoneRevealTier)}
-        streak={displayStreak}
-        tier={milestoneRevealTier}
-        onOpenChange={(open) => {
-          if (!open) {
-            setMilestoneRevealTier(null);
-          }
-        }}
-      />
 
       {!notificationsBlocked && sickDaySavePromptOpen && ((rawYesterdayMissed && !yesterdaySave) || sickDaySavePromptPreview) && (
         <div className={styles.feedbackOverlay} onClick={dismissSickDaySavePrompt}>
