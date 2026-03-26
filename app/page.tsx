@@ -3577,6 +3577,7 @@ export default function HomePage() {
   const noteAttachmentInputRef = useRef<HTMLInputElement | null>(null);
   const savedSelectionRef = useRef<Range | null>(null);
   const syncInFlightRef = useRef(false);
+  const bodyDirtyRef = useRef(false);
   const notesRef = useRef<WorkspaceNote[]>([]);
   const selectedNoteIdRef = useRef<string | null>(null);
   const todaySummaryRef = useRef<HTMLElement | null>(null);
@@ -5165,9 +5166,10 @@ export default function HomePage() {
         ? draftBody
         : editorHtml || draftBody;
 
-    if (nextBody === currentNote.body) return;
+    if (nextBody === currentNote.body && !bodyDirtyRef.current) return;
 
     const now = new Date().toISOString();
+    bodyDirtyRef.current = false;
     const nextNotes = notesRef.current.map((note) =>
       note.id === currentSelectedNoteId ? { ...note, body: nextBody, updatedAtISO: now } : note,
     );
@@ -5176,6 +5178,7 @@ export default function HomePage() {
     writeLocalNoteDraft(user.uid, currentSelectedNoteId, nextBody, now);
     setNotesSyncStatus("syncing");
     setNotesSyncMessage("");
+    console.log("[whelm] flush body to Firestore:", { noteId: currentSelectedNoteId, bodyLength: nextBody.length });
     const result = await saveNotes(user, nextNotes);
     setNotesSyncStatus(result.synced ? "synced" : "local-only");
     setNotesSyncMessage(result.message ?? "");
@@ -5202,12 +5205,17 @@ export default function HomePage() {
   }
 
   useEffect(() => {
-    if (!selectedNote) return;
-    if (editorBodyDraft === selectedNote.body) return;
+    if (!selectedNote || !bodyDirtyRef.current) return;
 
     const timeoutId = window.setTimeout(() => {
+      bodyDirtyRef.current = false;
+      console.log("[whelm] autosave body:", {
+        noteId: selectedNote.id,
+        bodyLength: editorBodyDraft.length,
+        preview: editorBodyDraft.slice(0, 80),
+      });
       void updateSelectedNote({ body: editorBodyDraft });
-    }, 500);
+    }, 1000);
 
     return () => window.clearTimeout(timeoutId);
   }, [editorBodyDraft, selectedNote]);
@@ -5240,6 +5248,7 @@ export default function HomePage() {
     if (!currentNote || currentNote.body === nextBody) return;
 
     const now = new Date().toISOString();
+    bodyDirtyRef.current = true;
     const nextNotes = notesRef.current.map((note) =>
       note.id === currentSelectedNoteId ? { ...note, body: nextBody, updatedAtISO: now } : note,
     );
