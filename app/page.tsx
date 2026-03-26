@@ -3642,6 +3642,9 @@ export default function HomePage() {
   const noteAttachmentInputRef = useRef<HTMLInputElement | null>(null);
   const savedSelectionRef = useRef<Range | null>(null);
   const syncInFlightRef = useRef(false);
+  // True once the initial loadSessions sync (localStorage → Firestore) has completed.
+  // Prevents stale onSnapshot cache-fires from overwriting sessions before the sync runs.
+  const sessionsSyncedRef = useRef(false);
   const bodyDirtyRef = useRef(false);
   const notesRef = useRef<WorkspaceNote[]>([]);
   const selectedNoteIdRef = useRef<string | null>(null);
@@ -4595,6 +4598,7 @@ export default function HomePage() {
     const unsub = onAuthStateChanged(auth, (nextUser) => {
       if (!nextUser) {
         appOpenTrackedRef.current = null;
+        sessionsSyncedRef.current = false;
         setUser(null);
         setSessions([]);
         setNotes([]);
@@ -4622,11 +4626,21 @@ export default function HomePage() {
           }),
         );
       }
-      // Unblock the shell immediately after auth.
-      // Real-time onSnapshot listeners (subscribeToUserData) handle all data loading —
-      // no need to also call refresh functions here, which would race with the snapshots
-      // and cause XP/streak/bandana to bounce between old and new values.
       setAuthChecked(true);
+
+      // Seed sessions from localStorage immediately so XP shows at once.
+      try {
+        const raw = window.localStorage.getItem(`whelm:sessions:${nextUser.uid}`);
+        const local = raw ? (JSON.parse(raw) as SessionDoc[]) : [];
+        if (local.length > 0) setSessions(local);
+      } catch { /* ignore */ }
+
+      // loadSessions merges localStorage + Firestore and writes any missing sessions
+      // back to Firestore so all devices see the complete history. Once it resolves,
+      // mark the sync done so onSnapshot callbacks take over going forward.
+      void refreshSessions(nextUser.uid)
+        .then(() => { sessionsSyncedRef.current = true; })
+        .catch(() => { sessionsSyncedRef.current = true; });
     });
 
     return () => unsub();
@@ -4797,7 +4811,9 @@ export default function HomePage() {
         setSickDaySaveDismissals(state.sickDaySaveDismissals);
       },
       onSessions: (sessions) => {
-        setSessions(sessions);
+        if (sessionsSyncedRef.current) {
+          setSessions(sessions);
+        }
       },
       onCards: () => {
         // Cards are handled by CardsTab's own subscription
