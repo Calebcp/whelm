@@ -4635,12 +4635,25 @@ export default function HomePage() {
         if (local.length > 0) setSessions(local);
       } catch { /* ignore */ }
 
+      // Seed notes from localStorage immediately so the notes tab is populated at once.
+      try {
+        const raw = window.localStorage.getItem(`whelm:notes:${nextUser.uid}`);
+        const local = raw ? (JSON.parse(raw) as WorkspaceNote[]) : [];
+        if (local.length > 0) {
+          setNotes(local);
+          setSelectedNoteId((current) => current ?? local[0]?.id ?? null);
+        }
+      } catch { /* ignore */ }
+
       // loadSessions merges localStorage + Firestore and writes any missing sessions
       // back to Firestore so all devices see the complete history. Once it resolves,
       // mark the sync done so onSnapshot callbacks take over going forward.
       void refreshSessions(nextUser.uid)
         .then(() => { sessionsSyncedRef.current = true; })
         .catch(() => { sessionsSyncedRef.current = true; });
+
+      // refreshNotes merges localStorage + cloud notes and selects the first note.
+      void refreshNotes(nextUser.uid).catch(() => { /* keep local notes visible */ });
     });
 
     return () => unsub();
