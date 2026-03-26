@@ -5805,277 +5805,161 @@
   box-shadow: 0 10px 24px rgba(3, 6, 18, 0.18);
 }
 
+/* ── Whelmboard shell ────────────────────────────────────── */
 .leaderboardShell {
   display: grid;
-  gap: 14px;
+  gap: 16px;
 }
 
-.leaderboardHeroCard,
-.leaderboardBoardCard,
-.leaderboardSummaryCard,
-.leaderboardPodiumSection {
-  border: 1px solid rgba(138, 107, 30, 0.2);
-  border-radius: 26px;
+.wbThemeShell {
+  padding: 20px;
+  border-radius: 28px;
   background:
-    radial-gradient(circle at top, rgba(255, 220, 115, 0.2), transparent 34%),
-    linear-gradient(180deg, rgba(27, 20, 10, 0.96), rgba(13, 17, 30, 0.96));
-  box-shadow:
-    inset 0 1px 0 rgba(255, 231, 168, 0.14),
-    0 20px 44px rgba(3, 6, 18, 0.28);
+    radial-gradient(ellipse at top left, rgba(120, 80, 255, 0.22), transparent 52%),
+    radial-gradient(ellipse at bottom right, rgba(80, 160, 255, 0.14), transparent 48%),
+    linear-gradient(160deg, #1a1a4e 0%, #2d1660 50%, #4a1a6e 100%);
+  box-shadow: 0 24px 56px rgba(10, 5, 30, 0.42);
 }
 
-.leaderboardHeroHeader {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+/* ── Compact header ── */
+.wbHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: 14px;
-  align-items: start;
 }
 
-.leaderboardHeroBadge {
-  min-width: 90px;
-  border: 1px solid rgba(255, 212, 97, 0.28);
-  border-radius: 18px;
-  background: linear-gradient(180deg, rgba(255, 191, 73, 0.18), rgba(77, 44, 8, 0.3));
-  padding: 12px 14px;
+.wbTitle {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1.2;
+  margin-top: 4px;
+}
+
+.wbHeaderRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.wbRankBadge {
   display: grid;
-  gap: 4px;
-  justify-items: end;
+  gap: 2px;
+  text-align: right;
+  padding: 10px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(180, 160, 255, 0.24);
+  background: rgba(255, 255, 255, 0.07);
 }
 
-.leaderboardHeroBadge span,
-.leaderboardHeroStat span,
-.leaderboardStat span {
-  font-size: 0.68rem;
+.wbRankBadge span {
+  font-size: 0.64rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: #b7c4e2;
+  color: rgba(200, 185, 255, 0.7);
 }
 
-.leaderboardHeroBadge strong {
-  font-size: 1.6rem;
+.wbRankBadge strong {
+  font-size: 1.4rem;
+  font-weight: 900;
   line-height: 1;
-  color: #fff3c4;
+  color: #fff;
 }
 
+/* ── Toggle ── */
 .leaderboardToggle {
-  margin-top: 16px;
   display: inline-grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
-  padding: 6px;
-  border: 1px solid rgba(123, 138, 184, 0.16);
-  border-radius: 18px;
-  background: rgba(12, 18, 34, 0.8);
+  gap: 5px;
+  padding: 5px;
+  border: 1px solid rgba(180, 160, 255, 0.18);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .leaderboardToggleButton {
   border: 0;
-  border-radius: 14px;
-  padding: 11px 18px;
+  border-radius: 12px;
+  padding: 10px 20px;
   background: transparent;
-  color: #a6b5d4;
+  color: rgba(200, 185, 255, 0.65);
   font-weight: 800;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: color 120ms ease;
 }
 
 .leaderboardToggleButtonActive {
-  background: linear-gradient(180deg, rgba(255, 210, 98, 0.92), rgba(255, 161, 51, 0.9));
-  color: #281502;
-  box-shadow: 0 10px 22px rgba(255, 173, 56, 0.26);
+  background: linear-gradient(180deg, rgba(160, 120, 255, 0.88), rgba(100, 60, 220, 0.92));
+  color: #fff;
+  box-shadow: 0 6px 18px rgba(120, 80, 255, 0.34);
 }
 
-.leaderboardHeroStats {
-  margin-top: 16px;
+/* ── Desktop 2-col grid ── */
+.wbDesktopGrid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  gap: 16px;
 }
 
-.leaderboardHeroStat {
-  border: 1px solid rgba(123, 138, 184, 0.14);
-  border-radius: 18px;
-  background: rgba(12, 18, 34, 0.74);
-  padding: 14px;
+.wbLeaderboardPane,
+.wbBandanaPane {
   display: grid;
-  gap: 4px;
-}
-
-.leaderboardHeroStat strong {
-  color: #f6f8ff;
-  font-size: 1.02rem;
-  line-height: 1.2;
-}
-
-.leaderboardHeroStat small {
-  color: #8ea0c8;
-}
-
-.leaderboardCountPill {
-  border: 1px solid rgba(123, 138, 184, 0.16);
-  border-radius: 999px;
-  padding: 8px 12px;
-  background: rgba(15, 20, 36, 0.86);
-  color: #e6eeff;
-  font-size: 0.8rem;
-  font-weight: 700;
-}
-
-.leaderboardPodiumGrid {
-  margin-top: 14px;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.leaderboardPodiumCard {
-  --leaderboard-accent: #9eb4ff;
-  --leaderboard-accent-strong: #5576ff;
-  --leaderboard-accent-deep: #223079;
-  --leaderboard-accent-glow: rgba(101, 136, 255, 0.24);
-  --leaderboard-shell: rgba(50, 66, 120, 0.24);
-  --leaderboard-text-strong: #f4f7ff;
-  --leaderboard-text-soft: rgba(224, 233, 255, 0.8);
-  position: relative;
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--leaderboard-accent) 42%, rgba(255, 255, 255, 0.14));
-  border-radius: 24px;
-  padding: 16px;
-  background:
-    radial-gradient(circle at top center, color-mix(in srgb, var(--leaderboard-accent) 18%, transparent), transparent 48%),
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--leaderboard-accent-deep) 72%, #070b14),
-      color-mix(in srgb, var(--leaderboard-shell) 82%, rgba(8, 12, 24, 0.96))
-    );
-  box-shadow:
-    inset 0 1px 0 color-mix(in srgb, var(--leaderboard-accent) 18%, white),
-    0 18px 32px rgba(3, 6, 18, 0.2);
-  display: grid;
-  justify-items: center;
-  gap: 12px;
-  text-align: center;
-}
-
-.leaderboardPodiumCardFirst {
-  transform: translateY(-4px);
-  box-shadow:
-    inset 0 1px 0 color-mix(in srgb, var(--leaderboard-accent) 26%, white),
-    0 0 0 1px color-mix(in srgb, var(--leaderboard-accent) 18%, transparent),
-    0 0 24px var(--leaderboard-accent-glow),
-    0 22px 36px rgba(3, 6, 18, 0.24);
-}
-
-.leaderboardPodiumCardCurrentUser {
-  border-color: color-mix(in srgb, var(--leaderboard-accent) 58%, rgba(255, 255, 255, 0.24));
-}
-
-.leaderboardPodiumTopline {
-  width: 100%;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-}
-
-.leaderboardPodiumPlace {
-  border-radius: 999px;
-  padding: 7px 11px;
-  background: color-mix(in srgb, var(--leaderboard-accent-strong) 68%, #0b1020);
-  color: var(--leaderboard-text-strong);
-  font-weight: 900;
-}
-
-.leaderboardPodiumAvatar {
-  display: grid;
-  place-items: center;
-}
-
-.leaderboardPodiumIdentity {
-  display: grid;
-  gap: 4px;
-}
-
-.leaderboardPodiumIdentity strong {
-  color: var(--leaderboard-text-strong);
-  font-size: 1.02rem;
-}
-
-.leaderboardPodiumIdentity span {
-  color: var(--leaderboard-text-soft);
-  font-size: 0.78rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.leaderboardPodiumStats {
-  width: 100%;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 
-.leaderboardPodiumStats div {
-  border-radius: 16px;
-  background: rgba(8, 13, 24, 0.36);
-  padding: 10px;
+.wbPaneHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 4px;
+  margin-bottom: 4px;
+}
+
+.wbAroundSection {
+  margin-top: 8px;
   display: grid;
-  gap: 4px;
+  gap: 8px;
 }
 
-.leaderboardPodiumStats span {
-  font-size: 0.66rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--leaderboard-text-soft);
-}
-
-.leaderboardPodiumStats strong {
-  color: var(--leaderboard-text-strong);
-}
-
+/* ── Slim leaderboard rows ── */
 .leaderboardBoardList {
-  margin-top: 14px;
   display: grid;
-  gap: 12px;
+  gap: 6px;
 }
 
 .leaderboardFooter {
-  margin-top: 14px;
+  margin-top: 10px;
   display: flex;
   justify-content: center;
 }
 
 .leaderboardLoadingList {
-  margin-top: 14px;
   display: grid;
-  gap: 12px;
+  gap: 6px;
 }
 
 .leaderboardLoadingRow {
-  height: 126px;
-  border-radius: 22px;
+  height: 52px;
+  border-radius: 14px;
   background:
-    linear-gradient(90deg, rgba(22, 30, 52, 0.7), rgba(68, 84, 124, 0.4), rgba(22, 30, 52, 0.7));
+    linear-gradient(90deg, rgba(60, 40, 120, 0.5), rgba(120, 80, 200, 0.3), rgba(60, 40, 120, 0.5));
   background-size: 200% 100%;
   animation: leaderboardShimmer 1.4s linear infinite;
 }
 
 @keyframes leaderboardShimmer {
-  0% {
-    background-position: 200% 0;
-  }
-
-  100% {
-    background-position: -200% 0;
-  }
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 .leaderboardEmptyState {
-  margin-top: 14px;
-  border: 1px dashed rgba(134, 150, 196, 0.24);
-  border-radius: 22px;
-  padding: 20px;
-  background: rgba(10, 16, 28, 0.48);
+  border: 1px dashed rgba(180, 160, 255, 0.22);
+  border-radius: 18px;
+  padding: 24px 20px;
+  background: rgba(255, 255, 255, 0.04);
   display: grid;
   gap: 8px;
   justify-items: center;
@@ -6083,175 +5967,142 @@
 }
 
 .leaderboardEmptyState strong {
-  color: #f3f6ff;
+  color: #fff;
   font-size: 1rem;
 }
 
+/* Slim row anatomy */
 .leaderboardRow {
-  --leaderboard-accent: #9eb4ff;
-  --leaderboard-accent-strong: #5576ff;
-  --leaderboard-accent-deep: #223079;
-  --leaderboard-accent-glow: rgba(101, 136, 255, 0.24);
-  --leaderboard-shell: rgba(50, 66, 120, 0.24);
-  --leaderboard-text-strong: #f4f7ff;
-  --leaderboard-text-soft: rgba(224, 233, 255, 0.8);
-  border: 1px solid color-mix(in srgb, var(--leaderboard-accent) 38%, rgba(255, 255, 255, 0.12));
-  border-radius: 22px;
-  background:
-    linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--leaderboard-accent-deep) 78%, #070b14),
-      color-mix(in srgb, var(--leaderboard-shell) 78%, rgba(8, 12, 24, 0.92))
-    );
-  padding: 14px;
-  display: grid;
-  gap: 12px;
-  box-shadow:
-    inset 0 1px 0 color-mix(in srgb, var(--leaderboard-accent) 16%, white),
-    0 14px 28px rgba(3, 6, 18, 0.18);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  padding: 0 12px 0 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(180, 160, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  border-left-width: 3px;
+  border-left-color: transparent;
+  transition: background 140ms ease;
+}
+
+.leaderboardRow:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.leaderboardRowGold {
+  border-left-color: #ffd700;
+}
+
+.leaderboardRowSilver {
+  border-left-color: #c0c0c0;
+}
+
+.leaderboardRowBronze {
+  border-left-color: #cd7f32;
 }
 
 .leaderboardRowCurrentUser {
-  border-color: color-mix(in srgb, var(--leaderboard-accent) 58%, rgba(255, 255, 255, 0.24));
-  background:
-    radial-gradient(circle at top right, color-mix(in srgb, var(--leaderboard-accent) 18%, transparent), transparent 38%),
-    linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--leaderboard-accent-deep) 74%, #050911),
-      color-mix(in srgb, var(--leaderboard-shell) 88%, rgba(8, 12, 24, 0.96))
-    );
+  border-color: rgba(180, 140, 255, 0.52);
+  border-left-color: rgba(200, 160, 255, 0.72);
+  background: rgba(160, 100, 255, 0.1);
   box-shadow:
-    inset 0 1px 0 color-mix(in srgb, var(--leaderboard-accent) 24%, white),
-    0 0 0 2px color-mix(in srgb, var(--leaderboard-accent) 20%, transparent),
-    0 0 28px var(--leaderboard-accent-glow),
-    0 18px 32px rgba(3, 6, 18, 0.22);
+    0 0 0 1px rgba(180, 140, 255, 0.2),
+    0 0 18px rgba(140, 80, 255, 0.18);
 }
 
-.leaderboardRankStack {
-  display: grid;
-  gap: 8px;
-  justify-items: start;
-}
-
-.leaderboardRowTop {
-  display: flex;
-  align-items: start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.leaderboardIdentity {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 12px;
-  align-items: center;
-  min-width: 0;
+.leaderboardRowRank {
+  flex-shrink: 0;
+  width: 34px;
+  font-size: 0.78rem;
+  font-weight: 900;
+  color: rgba(220, 210, 255, 0.7);
+  text-align: center;
 }
 
 .leaderboardAvatarWrap {
-  flex: 0 0 auto;
+  flex-shrink: 0;
 }
 
-.leaderboardRankBadge,
-.leaderboardLevelPill,
+.leaderboardRowIdentity {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.leaderboardRowUsername {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.leaderboardRowMeta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.leaderboardRowStats {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: right;
+}
+
+.leaderboardRowXp {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: rgba(220, 210, 255, 0.9);
+}
+
+.leaderboardRowStreak {
+  font-size: 0.75rem;
+  color: rgba(180, 165, 255, 0.65);
+}
+
+/* Chips & badges */
 .leaderboardBandanaChip,
 .leaderboardYouBadge {
   border-radius: 999px;
   font-weight: 800;
 }
 
-.leaderboardRankBadge {
-  min-width: 48px;
-  padding: 10px 12px;
-  background: color-mix(in srgb, var(--leaderboard-accent-strong) 68%, #0b1020);
-  color: var(--leaderboard-text-strong);
-  text-align: center;
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--leaderboard-accent) 18%, white);
-}
-
-.leaderboardIdentityCopy {
-  min-width: 0;
-  display: grid;
-  gap: 6px;
-}
-
-.leaderboardMetaRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-}
-
-.leaderboardNameLine {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-}
-
-.leaderboardNameLine strong {
-  max-width: 100%;
-  color: var(--leaderboard-text-strong);
-  font-size: 1rem;
-  overflow-wrap: anywhere;
-}
-
 .leaderboardBandanaChip {
-  width: fit-content;
-  padding: 6px 10px;
-  background: color-mix(in srgb, var(--leaderboard-accent) 18%, rgba(255, 255, 255, 0.04));
-  color: var(--leaderboard-text-soft);
-  font-size: 0.76rem;
+  padding: 3px 8px;
+  background: rgba(255, 255, 255, 0.09);
+  color: rgba(200, 185, 255, 0.8);
+  font-size: 0.68rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
 .leaderboardYouBadge {
-  padding: 4px 8px;
+  padding: 3px 7px;
   background: linear-gradient(180deg, rgba(255, 215, 111, 0.96), rgba(255, 174, 67, 0.92));
   color: #261102;
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
-.leaderboardCurrentUserAura {
+/* Count pill */
+.leaderboardCountPill {
+  border: 1px solid rgba(180, 160, 255, 0.18);
   border-radius: 999px;
-  padding: 5px 9px;
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--leaderboard-text-soft);
-  font-size: 0.72rem;
+  padding: 5px 11px;
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(210, 195, 255, 0.8);
+  font-size: 0.74rem;
   font-weight: 700;
-  letter-spacing: 0.04em;
 }
 
-.leaderboardLevelPill {
-  padding: 8px 12px;
-  border: 1px solid color-mix(in srgb, var(--leaderboard-accent) 26%, rgba(255, 255, 255, 0.08));
-  background: rgba(7, 11, 22, 0.5);
-  color: var(--leaderboard-text-strong);
-}
-
-.leaderboardStatsGrid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.leaderboardStat {
-  border-radius: 16px;
-  background: rgba(8, 13, 24, 0.36);
-  padding: 12px;
-  display: grid;
-  gap: 5px;
-}
-
-.leaderboardStat strong {
-  color: var(--leaderboard-text-strong);
-  font-size: 0.92rem;
-  line-height: 1.35;
-}
-
+/* Movement indicators */
 .leaderboardMovementBadge,
 .leaderboardMovementSubtle {
   border-radius: 999px;
@@ -6261,92 +6112,88 @@
 .leaderboardMovementBadge {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  background: rgba(7, 11, 22, 0.64);
+  gap: 4px;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.08);
   color: #eef4ff;
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   letter-spacing: 0.04em;
 }
 
 .leaderboardMovementArrow {
-  font-size: 0.7rem;
+  font-size: 0.66rem;
 }
 
 .leaderboardMovementSubtle {
   display: inline-flex;
   align-items: center;
-  padding: 4px 8px;
-  background: rgba(255, 255, 255, 0.12);
-  color: var(--leaderboard-text-soft);
-  font-size: 0.68rem;
+  padding: 3px 7px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(200, 185, 255, 0.7);
+  font-size: 0.64rem;
   letter-spacing: 0.04em;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.leaderboardMovementUp {
-  color: #8cf0b3;
-}
-
-.leaderboardMovementDown {
-  color: #ff9b9b;
-}
-
-.leaderboardMovementSame {
-  color: #d7e1f8;
-}
-
-.leaderboardMovementNew {
-  color: #ffe08a;
-}
+.leaderboardMovementUp { color: #8cf0b3; }
+.leaderboardMovementDown { color: #ff9b9b; }
+.leaderboardMovementSame { color: rgba(200, 185, 255, 0.6); }
+.leaderboardMovementNew { color: #ffe08a; }
 
 .leaderboardHeroMovement {
   display: inline-flex;
   align-items: center;
 }
 
-.leaderboardBandanaGrid {
-  margin-top: 14px;
+/* ── Slim bandana tier rows ── */
+.leaderboardBandanaList {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 0;
 }
 
-.leaderboardBandanaCard {
-  border: 1px solid color-mix(in srgb, var(--leaderboard-accent) 26%, rgba(255, 255, 255, 0.12));
-  border-radius: 18px;
-  background:
-    linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--leaderboard-accent-deep) 62%, #0a1020),
-      rgba(9, 14, 28, 0.92)
-    );
-  padding: 14px;
+.leaderboardBandanaRow {
   display: grid;
-  gap: 5px;
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--leaderboard-accent) 16%, white);
-}
-
-.leaderboardBandanaCard span {
-  font-size: 0.66rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: #9fb0d3;
-}
-
-.leaderboardBandanaCard strong {
-  color: #f5f8ff;
-  line-height: 1.2;
-}
-
-.leaderboardBandanaIdentity {
-  display: flex;
+  grid-template-columns: 10px minmax(0, 1fr) minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
+  min-height: 44px;
+  padding: 0 10px;
+  border-bottom: 1px solid rgba(180, 160, 255, 0.1);
 }
 
-.leaderboardBandanaCard small {
-  color: #b9c8e6;
+.leaderboardBandanaRow:last-child {
+  border-bottom: none;
+}
+
+.leaderboardBandanaDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.leaderboardBandanaName {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: rgba(210, 195, 255, 0.85);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.leaderboardBandanaHolder {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.leaderboardBandanaXp {
+  font-size: 0.74rem;
+  color: rgba(180, 165, 255, 0.65);
+  white-space: nowrap;
+  text-align: right;
 }
 
 .bottomTabs {
@@ -6660,6 +6507,32 @@
   background: rgba(16, 21, 38, 0.92);
   padding: 16px;
   box-shadow: 0 16px 36px rgba(3, 6, 18, 0.24);
+  animation: notesEditorSlideIn 260ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+@keyframes notesEditorSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 979px) {
+  .mobileNotesEditorCard {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    border: none;
+    border-radius: 0;
+    background: rgba(10, 14, 28, 0.98);
+    padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+    overflow-y: auto;
+    box-shadow: none;
+  }
 }
 
 .mobileNotesStartHeader {
@@ -7900,14 +7773,7 @@
   filter: brightness(0.99);
 }
 
-.themeLight .leaderboardHeroCard,
-.themeLight .leaderboardBoardCard,
-.themeLight .leaderboardSummaryCard {
-  background:
-    radial-gradient(circle at top, rgba(255, 222, 140, 0.26), transparent 34%),
-    linear-gradient(180deg, rgba(255, 250, 242, 0.98), rgba(242, 236, 226, 0.96));
-  border-color: rgba(179, 141, 63, 0.2);
-}
+/* leaderboardHeroCard / BoardCard / SummaryCard removed — Whelmboard uses wbThemeShell */
 
 .themeLight .proUnlockCard {
   background:
@@ -7922,66 +7788,7 @@
   border-color: rgba(205, 165, 70, 0.16);
 }
 
-.themeLight .leaderboardHeroBadge {
-  background: linear-gradient(180deg, rgba(255, 224, 147, 0.48), rgba(255, 192, 91, 0.24));
-  border-color: rgba(189, 145, 56, 0.24);
-}
-
-.themeLight .leaderboardHeroBadge strong,
-.themeLight .leaderboardHeroStat strong,
-.themeLight .leaderboardNameLine strong,
-.themeLight .leaderboardLevelPill,
-.themeLight .leaderboardStat strong {
-  color: #1e293b;
-}
-
-.themeLight .leaderboardHeroBadge span,
-.themeLight .leaderboardHeroStat span,
-.themeLight .leaderboardHeroStat small,
-.themeLight .leaderboardStat span,
-.themeLight .leaderboardBandanaChip {
-  color: #66748f;
-}
-
-.themeLight .leaderboardHeroStat,
-.themeLight .leaderboardStat {
-  background: rgba(255, 255, 255, 0.66);
-}
-
-.themeLight .leaderboardMovementBadge {
-  background: rgba(255, 255, 255, 0.88);
-  color: #33425f;
-}
-
-.themeLight .leaderboardMovementSubtle,
-.themeLight .leaderboardCurrentUserAura {
-  background: rgba(34, 51, 84, 0.12);
-  color: #42506c;
-  border-color: rgba(101, 116, 155, 0.12);
-}
-
-.themeLight .leaderboardBandanaCard {
-  background:
-    linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--leaderboard-accent) 10%, white),
-      rgba(255, 255, 255, 0.82)
-    );
-}
-
-.themeLight .leaderboardBandanaCard strong,
-.themeLight .leaderboardEmptyState strong {
-  color: #1e293b;
-}
-
-.themeLight .leaderboardBandanaCard span,
-.themeLight .leaderboardBandanaCard small {
-  color: #66748f;
-}
-
-.themeLight .leaderboardEmptyState {
-  background: rgba(255, 255, 255, 0.54);
-}
+/* Whelmboard always uses its own dark theme — no light-mode overrides needed */
 
 .themeLight .topAppBarAction,
 .themeLight .inlineUpgrade,
@@ -9635,7 +9442,9 @@
     grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
   }
 
-  .notesWorkspace > .companionPulse {
+  .notesWorkspace > .companionPulse,
+  .notesWorkspace > .cardsHeader,
+  .notesWorkspace > .cardsTabShell {
     grid-column: 1 / -1;
   }
 
@@ -9649,6 +9458,16 @@
 
   .mobileMoreFab {
     display: none;
+  }
+
+  /* Whelmboard 2-col on desktop */
+  .wbDesktopGrid {
+    grid-template-columns: minmax(0, 1fr) 280px;
+    align-items: start;
+  }
+
+  .wbThemeShell {
+    max-width: 880px;
   }
 }
 
@@ -10116,54 +9935,13 @@
     padding: 16px;
   }
 
-  .leaderboardHeroHeader {
-    grid-template-columns: 1fr;
+  /* Whelmboard: wider rows and avatars at 768px+ */
+  .leaderboardRow {
+    min-height: 64px;
   }
 
-  .leaderboardRowTop {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .leaderboardHeroBadge {
-    justify-items: start;
-  }
-
-  .leaderboardHeroStats,
-  .leaderboardStatsGrid {
-    grid-template-columns: 1fr;
-  }
-
-  .leaderboardPodiumGrid {
-    grid-template-columns: 1fr;
-    gap: 10px;
-  }
-
-  .leaderboardPodiumCard,
-  .leaderboardPodiumCardFirst {
-    transform: none;
-  }
-
-  .leaderboardPodiumCard {
-    padding: 14px;
-    gap: 10px;
-  }
-
-  .leaderboardPodiumIdentity strong {
-    font-size: 0.94rem;
-    overflow-wrap: anywhere;
-  }
-
-  .leaderboardPodiumIdentity span {
-    font-size: 0.72rem;
-  }
-
-  .leaderboardBandanaGrid {
-    grid-template-columns: 1fr;
-  }
-
-  .leaderboardIdentity {
-    align-items: start;
+  .leaderboardRowRank {
+    width: 40px;
   }
 
   .streakRulesList {
@@ -10413,17 +10191,12 @@
   }
 
   .leaderboardRow {
-    padding: 12px;
+    gap: 8px;
+    padding: 0 8px 0 8px;
   }
 
-  .leaderboardIdentity {
-    grid-template-columns: 1fr;
-    gap: 10px;
-  }
-
-  .leaderboardRankBadge {
-    min-width: 0;
-    width: fit-content;
+  .leaderboardRowStreak {
+    display: none;
   }
 }
 
@@ -10433,7 +10206,6 @@
 }
 
 .cardsBoardStack,
-.cardsReviewShell,
 .cardsEditorCard,
 .cardsSummaryCard {
   display: grid;
@@ -10573,4 +10345,138 @@
   .cardsOutcomeRow {
     grid-template-columns: 1fr;
   }
+}
+
+/* ── Full-screen review overlay ───────────────────────────── */
+.cardsReviewOverlay {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 24px;
+  border-radius: 24px;
+  border: 1px solid rgba(136, 153, 208, 0.16);
+  background: rgba(10, 14, 26, 0.92);
+  min-height: 520px;
+  animation: cardsOverlayIn 260ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+@media (max-width: 979px) {
+  .cardsReviewOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    border: none;
+    border-radius: 0;
+    background: rgba(7, 10, 22, 0.97);
+    padding:
+      max(16px, env(safe-area-inset-top))
+      max(20px, env(safe-area-inset-right))
+      max(20px, env(safe-area-inset-bottom))
+      max(20px, env(safe-area-inset-left));
+    min-height: unset;
+  }
+}
+
+@keyframes cardsOverlayIn {
+  from {
+    opacity: 0;
+    transform: translateY(32px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.cardsOverlayTopBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.cardsOverlayProgress {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: rgba(180, 195, 240, 0.55);
+  text-transform: uppercase;
+}
+
+.cardsOverlayExitBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 1px solid rgba(136, 153, 208, 0.22);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(200, 215, 255, 0.75);
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease;
+}
+
+.cardsOverlayExitBtn:hover {
+  background: rgba(255, 255, 255, 0.11);
+  color: #e8eefc;
+}
+
+.cardsReviewCenterStage {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin-top: 20px;
+}
+
+@media (max-width: 979px) {
+  .cardsReviewCenterStage {
+    flex: 1;
+    justify-content: center;
+    max-width: 680px;
+    width: 100%;
+    margin: 0 auto;
+  }
+}
+
+.cardsOverlayFront {
+  font-size: clamp(1.25rem, 4vw, 1.75rem);
+  font-weight: 700;
+  color: #f0f4ff;
+  line-height: 1.35;
+}
+
+.cardsOverlayAnswerPanel {
+  padding: 20px;
+  border-radius: 20px;
+  border: 1px solid rgba(136, 153, 208, 0.14);
+  background: rgba(11, 16, 34, 0.82);
+  color: #e8eefc;
+  font-size: 1rem;
+  line-height: 1.55;
+  animation: cardsAnswerReveal 200ms ease both;
+}
+
+@keyframes cardsAnswerReveal {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.cardsOverlayRevealBtn {
+  align-self: center;
+  padding: 14px 36px;
+  border: 0;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(88, 101, 242, 0.9), rgba(60, 72, 210, 0.95));
+  color: #fff;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 140ms ease;
+}
+
+.cardsOverlayRevealBtn:hover {
+  opacity: 0.88;
 }

@@ -2272,71 +2272,45 @@ function LeaderboardRow({
   tab: LeaderboardMetricTab;
 }) {
   const bandana = getLeaderboardBandanaMeta(entry.currentStreak);
-  const rowStyle = {
-    "--leaderboard-accent": bandana.theme.accent,
-    "--leaderboard-accent-strong": bandana.theme.accentStrong,
-    "--leaderboard-accent-deep": bandana.theme.accentDeep,
-    "--leaderboard-accent-glow": bandana.theme.accentGlow,
-    "--leaderboard-shell": bandana.theme.shell,
-    "--leaderboard-text-strong": bandana.theme.textStrong,
-    "--leaderboard-text-soft": bandana.theme.textSoft,
-  } as CSSProperties;
+  const rankAccent =
+    rank === 1 ? styles.leaderboardRowGold
+    : rank === 2 ? styles.leaderboardRowSilver
+    : rank === 3 ? styles.leaderboardRowBronze
+    : "";
 
   return (
     <motion.article
-      className={`${styles.leaderboardRow} ${
+      className={`${styles.leaderboardRow} ${rankAccent} ${
         entry.isCurrentUser ? styles.leaderboardRowCurrentUser : ""
       }`}
-      style={rowStyle}
-      initial={{ opacity: 0, y: 14, scale: 0.985 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
       transition={{
-        duration: 0.34,
-        delay: Math.min((rank - 1) * 0.045, 0.24),
+        duration: 0.26,
+        delay: Math.min((rank - 1) * 0.035, 0.18),
         ease: [0.22, 1, 0.36, 1],
       }}
     >
-      <div className={styles.leaderboardRowTop}>
-        <div className={styles.leaderboardIdentity}>
-          <div className={styles.leaderboardRankStack}>
-            <div className={styles.leaderboardRankBadge}>#{rank}</div>
-            <LeaderboardMovementIndicator movement={movement} tab={tab} />
-          </div>
-          <div className={styles.leaderboardIdentityCopy}>
-            <div className={styles.leaderboardNameLine}>
-              <WhelmProfileAvatar
-                tierColor={bandana.tier?.color}
-                size="mini"
-                isPro={entry.isProStyle}
-                photoUrl={entry.avatarUrl}
-              />
-              <strong>{entry.username}</strong>
-              {entry.isCurrentUser ? <span className={styles.leaderboardYouBadge}>You</span> : null}
-            </div>
-            <div className={styles.leaderboardMetaRow}>
-              <span className={styles.leaderboardBandanaChip}>{bandana.shortLabel}</span>
-              {entry.isCurrentUser ? (
-                <span className={styles.leaderboardCurrentUserAura}>Current account</span>
-              ) : null}
-            </div>
-          </div>
-        </div>
-        <div className={styles.leaderboardLevelPill}>Lv {entry.level}</div>
+      <span className={styles.leaderboardRowRank}>#{rank}</span>
+      <div className={styles.leaderboardAvatarWrap}>
+        <WhelmProfileAvatar
+          tierColor={bandana.tier?.color}
+          size="mini"
+          isPro={entry.isProStyle}
+          photoUrl={entry.avatarUrl}
+        />
       </div>
-
-      <div className={styles.leaderboardStatsGrid}>
-        <div className={styles.leaderboardStat}>
-          <span>Bandana</span>
-          <strong>{bandana.label}</strong>
+      <div className={styles.leaderboardRowIdentity}>
+        <strong className={styles.leaderboardRowUsername}>{entry.username}</strong>
+        <div className={styles.leaderboardRowMeta}>
+          <span className={styles.leaderboardBandanaChip}>{bandana.shortLabel}</span>
+          {entry.isCurrentUser ? <span className={styles.leaderboardYouBadge}>You</span> : null}
         </div>
-        <div className={styles.leaderboardStat}>
-          <span>Total XP</span>
-          <strong>{formatLeaderboardXp(entry.totalXp)}</strong>
-        </div>
-        <div className={styles.leaderboardStat}>
-          <span>Current streak</span>
-          <strong>{entry.currentStreak}d</strong>
-        </div>
+      </div>
+      <div className={styles.leaderboardRowStats}>
+        <span className={styles.leaderboardRowXp}>{formatLeaderboardXp(entry.totalXp)}</span>
+        <span className={styles.leaderboardRowStreak}>{entry.currentStreak}d</span>
+        <LeaderboardMovementIndicator movement={movement} tab={tab} />
       </div>
     </motion.article>
   );
@@ -10464,248 +10438,158 @@ export default function HomePage() {
           )}
 
           {activeTab === "leaderboard" && (
-            <AnimatedTabSection className={styles.leaderboardShell} sectionRef={leaderboardSectionRef}>
-              <article
-                className={`${styles.card} ${styles.leaderboardHeroCard}`}
-                ref={leaderboardPrimaryRef}
-              >
-                <div className={styles.leaderboardHeroHeader}>
-                  <div>
-                    <p className={styles.sectionLabel}>Whelmboard</p>
-                    <h2 className={styles.cardTitle}>Global Whelm rank</h2>
-                    <p className={styles.accountMeta}>
-                      Switch between XP and streak standings. Whelmboard updates use deterministic tie-breakers for a clean board.
-                    </p>
-                  </div>
-                  <div className={styles.leaderboardHeroBadge}>
-                    <span>{leaderboardMetricTab === "xp" ? "XP ladder" : "Streak ladder"}</span>
+            <AnimatedTabSection className={`${styles.leaderboardShell} ${styles.wbThemeShell}`} sectionRef={leaderboardSectionRef}>
+
+              {/* Compact header */}
+              <div className={styles.wbHeader} ref={leaderboardPrimaryRef as React.RefObject<HTMLDivElement>}>
+                <div>
+                  <p className={styles.sectionLabel}>Whelmboard</p>
+                  <h2 className={styles.wbTitle}>Global Whelm rank</h2>
+                </div>
+                <div className={styles.wbHeaderRight}>
+                  <div className={styles.wbRankBadge}>
+                    <span>{leaderboardMetricTab === "xp" ? "XP" : "Streak"}</span>
                     <strong>#{leaderboardCurrentUserRank || "--"}</strong>
                   </div>
+                  <LeaderboardMovementIndicator movement={leaderboardCurrentUserMovement} tab={leaderboardMetricTab} />
                 </div>
+              </div>
 
-                <div className={styles.leaderboardToggle} role="tablist" aria-label="Whelmboard views">
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={leaderboardMetricTab === "xp"}
-                    className={`${styles.leaderboardToggleButton} ${
-                      leaderboardMetricTab === "xp" ? styles.leaderboardToggleButtonActive : ""
-                    }`}
-                    onClick={() => {
-                      if (leaderboardMetricTab === "xp") return;
-                      void trackLeaderboardTabSwitched(user, {
-                        fromMetric: leaderboardMetricTab,
-                        toMetric: "xp",
-                      }).catch(() => undefined);
-                      setLeaderboardMetricTab("xp");
-                    }}
-                  >
-                    XP
-                  </button>
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={leaderboardMetricTab === "streak"}
-                    className={`${styles.leaderboardToggleButton} ${
-                      leaderboardMetricTab === "streak" ? styles.leaderboardToggleButtonActive : ""
-                    }`}
-                    onClick={() => {
-                      if (leaderboardMetricTab === "streak") return;
-                      void trackLeaderboardTabSwitched(user, {
-                        fromMetric: leaderboardMetricTab,
-                        toMetric: "streak",
-                      }).catch(() => undefined);
-                      setLeaderboardMetricTab("streak");
-                    }}
-                  >
-                    Streak
-                  </button>
-                </div>
+              {/* XP / Streak toggle */}
+              <div className={styles.leaderboardToggle} role="tablist" aria-label="Whelmboard views">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={leaderboardMetricTab === "xp"}
+                  className={`${styles.leaderboardToggleButton} ${
+                    leaderboardMetricTab === "xp" ? styles.leaderboardToggleButtonActive : ""
+                  }`}
+                  onClick={() => {
+                    if (leaderboardMetricTab === "xp") return;
+                    void trackLeaderboardTabSwitched(user, {
+                      fromMetric: leaderboardMetricTab,
+                      toMetric: "xp",
+                    }).catch(() => undefined);
+                    setLeaderboardMetricTab("xp");
+                  }}
+                >
+                  XP
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={leaderboardMetricTab === "streak"}
+                  className={`${styles.leaderboardToggleButton} ${
+                    leaderboardMetricTab === "streak" ? styles.leaderboardToggleButtonActive : ""
+                  }`}
+                  onClick={() => {
+                    if (leaderboardMetricTab === "streak") return;
+                    void trackLeaderboardTabSwitched(user, {
+                      fromMetric: leaderboardMetricTab,
+                      toMetric: "streak",
+                    }).catch(() => undefined);
+                    setLeaderboardMetricTab("streak");
+                  }}
+                >
+                  Streak
+                </button>
+              </div>
 
-                <div className={styles.leaderboardHeroStats}>
-                  <article className={styles.leaderboardHeroStat}>
-                    <span>Your standing</span>
-                    <strong>#{leaderboardCurrentUserRank || "--"}</strong>
-                    <small className={styles.leaderboardHeroMovement}>
-                      <LeaderboardMovementIndicator
-                        movement={leaderboardCurrentUserMovement}
-                        tab={leaderboardMetricTab}
-                      />
-                    </small>
-                  </article>
-                  <article className={styles.leaderboardHeroStat}>
-                    <span>Current leader</span>
-                    <strong>{leaderboardLeader?.username ?? "No leader yet"}</strong>
-                    <small>
-                      {leaderboardMetricTab === "xp"
-                        ? leaderboardLeader
-                          ? formatLeaderboardXp(leaderboardLeader.totalXp)
-                          : "Loading"
-                        : leaderboardLeader
-                          ? `${leaderboardLeader.currentStreak}d streak`
-                          : "Loading"}
-                    </small>
-                  </article>
-                  <article className={styles.leaderboardHeroStat}>
-                    <span>Top bandana</span>
-                    <strong>{leaderboardLeaderBandana?.shortLabel ?? "None"}</strong>
-                    <small>
-                      {leaderboardSnapshotDate
-                        ? `Snapshot ${leaderboardSnapshotDate}`
-                        : leaderboardLeaderBandana?.label ?? "No streak yet"}
-                    </small>
-                  </article>
-                </div>
-              </article>
+              {/* Desktop 2-col: leaderboard list | bandana tiers */}
+              <div className={styles.wbDesktopGrid}>
 
-              {leaderboardPodiumRows.length > 0 ? (
-                <article className={`${styles.card} ${styles.leaderboardPodiumSection}`}>
-                  <div className={styles.cardHeader}>
-                    <div>
-                      <p className={styles.sectionLabel}>Podium</p>
-                      <h2 className={styles.cardTitle}>Top Whelm holders</h2>
-                    </div>
+                {/* ── Main leaderboard + around-you ── */}
+                <div className={styles.wbLeaderboardPane}>
+                  <div className={styles.wbPaneHeader}>
+                    <span className={styles.sectionLabel}>Standings</span>
                     <span className={styles.leaderboardCountPill}>
-                      {leaderboardMetricTab === "xp" ? "Prestige by XP" : "Prestige by streak"}
+                      {(leaderboardSource === "snapshot" ? leaderboardTotalEntries : leaderboardRows.length)} players
                     </span>
                   </div>
-                  <div className={styles.leaderboardPodiumGrid}>
-                    {leaderboardPodiumRows.map((row) => (
-                      <LeaderboardPodiumCard
-                        key={`podium-${row.entry.id}`}
-                        row={row}
-                        tab={leaderboardMetricTab}
-                      />
-                    ))}
-                  </div>
-                </article>
-              ) : null}
 
-              <article className={`${styles.card} ${styles.leaderboardSummaryCard}`}>
-                <div className={styles.cardHeader}>
-                  <div>
-                    <p className={styles.sectionLabel}>Bandana holders</p>
-                    <h2 className={styles.cardTitle}>Top holders by bandana tier</h2>
-                  </div>
-                  <span className={styles.leaderboardCountPill}>Global Whelmboard</span>
-                </div>
+                  {leaderboardError ? (
+                    <p className={styles.analyticsEmptyState}>{leaderboardError}</p>
+                  ) : null}
 
-                <div className={styles.leaderboardBandanaGrid}>
-                  {leaderboardBandanaHolders.map((holder) => {
-                    const meta = getLeaderboardBandanaMeta(holder.entry?.currentStreak ?? 0);
-                    const holderStyle = {
-                      "--leaderboard-accent": meta.theme.accent,
-                      "--leaderboard-accent-strong": meta.theme.accentStrong,
-                      "--leaderboard-accent-deep": meta.theme.accentDeep,
-                    } as CSSProperties;
-
-                    return (
-                      <article
-                        key={holder.color}
-                        className={styles.leaderboardBandanaCard}
-                        style={holderStyle}
-                      >
-                        <span>{holder.label}</span>
-                        <div className={styles.leaderboardBandanaIdentity}>
-                          {holder.entry ? (
-                            <WhelmProfileAvatar
-                              tierColor={meta.tier?.color}
-                              size="row"
-                              isPro={holder.entry.isProStyle}
-                              photoUrl={holder.entry.avatarUrl}
-                            />
-                          ) : null}
-                          <strong>{holder.entry?.username ?? "No holder yet"}</strong>
-                        </div>
-                        <small>
-                          {holder.entry
-                            ? `${formatLeaderboardXp(holder.entry.totalXp)} • ${holder.entry.currentStreak}d`
-                            : "No qualifying streak yet"}
-                        </small>
-                      </article>
-                    );
-                  })}
-                </div>
-              </article>
-
-              <article className={`${styles.card} ${styles.leaderboardBoardCard}`}>
-                <div className={styles.cardHeader}>
-                  <div>
-                    <p className={styles.sectionLabel}>Standings</p>
-                    <h2 className={styles.cardTitle}>
-                      {leaderboardMetricTab === "xp" ? "XP ranking" : "Current streak ranking"}
-                    </h2>
-                  </div>
-                  <span className={styles.leaderboardCountPill}>
-                    {(leaderboardSource === "snapshot" ? leaderboardTotalEntries : leaderboardRows.length)} players
-                  </span>
-                </div>
-
-                {leaderboardError ? (
-                  <p className={styles.analyticsEmptyState}>{leaderboardError}</p>
-                ) : null}
-
-                {leaderboardLoading ? (
-                  <div className={styles.leaderboardLoadingList}>
-                    {Array.from({ length: 5 }).map((_, index) => (
-                      <div key={index} className={styles.leaderboardLoadingRow} aria-hidden="true" />
-                    ))}
-                  </div>
-                ) : !leaderboardHasEntries ? (
-                  <div className={styles.leaderboardEmptyState}>
-                    <strong>No Whelmboard data yet</strong>
-                    <p className={styles.accountMeta}>
-                      Once competitive data is available, the global Whelmboard will populate here.
-                    </p>
-                  </div>
-                ) : (
-                  <div className={styles.leaderboardBoardList}>
-                    {leaderboardRows.map((row) => (
-                      <LeaderboardRow
-                        key={row.entry.id}
-                        entry={row.entry}
-                        rank={row.rank}
-                        movement={row.movement}
-                        tab={leaderboardMetricTab}
-                      />
-                    ))}
-                  </div>
-                )}
-
-                {!leaderboardLoading && leaderboardHasMore ? (
-                  <div className={styles.leaderboardFooter}>
-                    <button
-                      type="button"
-                      className={styles.secondaryPlanButton}
-                      onClick={() => void handleLeaderboardLoadMore()}
-                    >
-                      Load more
-                    </button>
-                  </div>
-                ) : null}
-              </article>
-
-              {!leaderboardLoading && leaderboardAroundRows.length > 0 ? (
-                <article className={`${styles.card} ${styles.leaderboardAroundCard}`}>
-                  <div className={styles.cardHeader}>
-                    <div>
-                      <p className={styles.sectionLabel}>Around you</p>
-                      <h2 className={styles.cardTitle}>Your local slice of the Whelmboard</h2>
+                  {leaderboardLoading ? (
+                    <div className={styles.leaderboardLoadingList}>
+                      {Array.from({ length: 5 }).map((_, index) => (
+                        <div key={index} className={styles.leaderboardLoadingRow} aria-hidden="true" />
+                      ))}
                     </div>
+                  ) : !leaderboardHasEntries ? (
+                    <div className={styles.leaderboardEmptyState}>
+                      <strong>No Whelmboard data yet</strong>
+                      <p className={styles.accountMeta}>
+                        Once competitive data is available, the global Whelmboard will populate here.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className={styles.leaderboardBoardList}>
+                      {leaderboardRows.map((row) => (
+                        <LeaderboardRow
+                          key={row.entry.id}
+                          entry={row.entry}
+                          rank={row.rank}
+                          movement={row.movement}
+                          tab={leaderboardMetricTab}
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  {!leaderboardLoading && leaderboardHasMore ? (
+                    <div className={styles.leaderboardFooter}>
+                      <button
+                        type="button"
+                        className={styles.secondaryPlanButton}
+                        onClick={() => void handleLeaderboardLoadMore()}
+                      >
+                        Load more
+                      </button>
+                    </div>
+                  ) : null}
+
+                  {!leaderboardLoading && leaderboardAroundRows.length > 0 ? (
+                    <div className={styles.wbAroundSection}>
+                      <div className={styles.wbPaneHeader}>
+                        <span className={styles.sectionLabel}>Around you</span>
+                      </div>
+                      <div className={styles.leaderboardBoardList}>
+                        {leaderboardAroundRows.map((row) => (
+                          <LeaderboardRow
+                            key={`around-${row.entry.id}-${row.rank}`}
+                            entry={row.entry}
+                            rank={row.rank}
+                            movement={row.movement}
+                            tab={leaderboardMetricTab}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+
+                {/* ── Bandana tier list ── */}
+                <div className={styles.wbBandanaPane}>
+                  <div className={styles.wbPaneHeader}>
+                    <span className={styles.sectionLabel}>Bandana tiers</span>
                   </div>
-                  <div className={styles.leaderboardBoardList}>
-                    {leaderboardAroundRows.map((row) => (
-                      <LeaderboardRow
-                        key={`around-${row.entry.id}-${row.rank}`}
-                        entry={row.entry}
-                        rank={row.rank}
-                        movement={row.movement}
-                        tab={leaderboardMetricTab}
-                      />
+                  <div className={styles.leaderboardBandanaList}>
+                    {leaderboardBandanaHolders.map((holder) => (
+                      <div key={holder.color} className={styles.leaderboardBandanaRow}>
+                        <span className={styles.leaderboardBandanaDot} style={{ background: holder.color }} />
+                        <span className={styles.leaderboardBandanaName}>{holder.label}</span>
+                        <span className={styles.leaderboardBandanaHolder}>{holder.entry?.username ?? "—"}</span>
+                        <span className={styles.leaderboardBandanaXp}>
+                          {holder.entry ? formatLeaderboardXp(holder.entry.totalXp) : ""}
+                        </span>
+                      </div>
                     ))}
                   </div>
-                </article>
-              ) : null}
+                </div>
+
+              </div>
             </AnimatedTabSection>
           )}
 
