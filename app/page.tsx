@@ -3502,6 +3502,7 @@ export default function HomePage() {
   const [leaderboardTotalEntries, setLeaderboardTotalEntries] = useState(0);
   const [leaderboardError, setLeaderboardError] = useState("");
   const [selectedLbProfile, setSelectedLbProfile] = useState<{ entry: LeaderboardEntry; rank: number } | null>(null);
+  const [seenChallengerIds, setSeenChallengerIds] = useState<Set<string>>(new Set());
   const [insightRange, setInsightRange] = useState<TrendRange>(30);
   const [insightMetric, setInsightMetric] = useState<InsightMetric>("focus");
   const [calendarView, setCalendarView] = useState<CalendarView>("month");
@@ -4663,6 +4664,14 @@ export default function HomePage() {
   useEffect(() => {
     if (!user) return;
     setMonthTones(loadMonthTones(user.uid));
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    try {
+      const raw = window.localStorage.getItem(`whelm:seen-challengers:${user.uid}`);
+      if (raw) setSeenChallengerIds(new Set(JSON.parse(raw) as string[]));
+    } catch { /* ignore */ }
   }, [user]);
 
   useEffect(() => {
@@ -7994,47 +8003,61 @@ export default function HomePage() {
       })),
     [leaderboardMetricTab, leaderboardPreviousRankMaps, leaderboardSortedEntries],
   );
+  const myBestStreak = useMemo(
+    () => Math.max(0, ...Array.from(historicalStreaksByDay.values())),
+    [historicalStreaksByDay],
+  );
+  const myTotalFocusHours = useMemo(
+    () => Math.round(sessions.reduce((sum, s) => sum + s.minutes, 0) / 60),
+    [sessions],
+  );
   const leaderboardRemoteRows = useMemo(
     () =>
-      leaderboardPageItems.map((entry) => ({
-        entry: {
-          id: entry.userId,
-          username: entry.username,
-          createdAtISO: entry.createdAtISO,
-          totalXp: entry.totalXp,
-          currentStreak: entry.currentStreak,
-          level: entry.level,
-          bestStreak: entry.bestStreak ?? 0,
-          totalFocusHours: entry.totalFocusHours ?? 0,
-          avatarUrl: entry.userId === currentUserId ? currentUserPhotoUrl : null,
-          isProStyle: entry.userId === currentUserId ? isPro : false,
-          isCurrentUser: entry.userId === currentUserId,
-        },
-        rank: entry.rank,
-        movement: movementFromSnapshot(entry),
-      })),
-    [currentUserId, currentUserPhotoUrl, isPro, leaderboardPageItems],
+      leaderboardPageItems.map((entry) => {
+        const isMe = entry.userId === currentUserId;
+        return {
+          entry: {
+            id: entry.userId,
+            username: isMe ? profileDisplayName : entry.username,
+            createdAtISO: entry.createdAtISO,
+            totalXp: isMe ? lifetimeXpSummary.totalXp : entry.totalXp,
+            currentStreak: isMe ? displayStreak : entry.currentStreak,
+            level: isMe ? lifetimeXpSummary.currentLevel : entry.level,
+            bestStreak: isMe ? myBestStreak : (entry.bestStreak ?? 0),
+            totalFocusHours: isMe ? myTotalFocusHours : (entry.totalFocusHours ?? 0),
+            avatarUrl: isMe ? currentUserPhotoUrl : null,
+            isProStyle: isMe ? isPro : false,
+            isCurrentUser: isMe,
+          },
+          rank: entry.rank,
+          movement: movementFromSnapshot(entry),
+        };
+      }),
+    [currentUserId, currentUserPhotoUrl, displayStreak, isPro, leaderboardPageItems, lifetimeXpSummary.currentLevel, lifetimeXpSummary.totalXp, myBestStreak, myTotalFocusHours, profileDisplayName],
   );
   const leaderboardAroundRows = useMemo(
     () =>
-      leaderboardAroundMeItems.map((entry) => ({
-        entry: {
-          id: entry.userId,
-          username: entry.username,
-          createdAtISO: entry.createdAtISO,
-          totalXp: entry.totalXp,
-          currentStreak: entry.currentStreak,
-          level: entry.level,
-          bestStreak: entry.bestStreak ?? 0,
-          totalFocusHours: entry.totalFocusHours ?? 0,
-          avatarUrl: entry.userId === currentUserId ? currentUserPhotoUrl : null,
-          isProStyle: entry.userId === currentUserId ? isPro : false,
-          isCurrentUser: entry.userId === currentUserId,
-        },
-        rank: entry.rank,
-        movement: movementFromSnapshot(entry),
-      })),
-    [currentUserId, currentUserPhotoUrl, isPro, leaderboardAroundMeItems],
+      leaderboardAroundMeItems.map((entry) => {
+        const isMe = entry.userId === currentUserId;
+        return {
+          entry: {
+            id: entry.userId,
+            username: isMe ? profileDisplayName : entry.username,
+            createdAtISO: entry.createdAtISO,
+            totalXp: isMe ? lifetimeXpSummary.totalXp : entry.totalXp,
+            currentStreak: isMe ? displayStreak : entry.currentStreak,
+            level: isMe ? lifetimeXpSummary.currentLevel : entry.level,
+            bestStreak: isMe ? myBestStreak : (entry.bestStreak ?? 0),
+            totalFocusHours: isMe ? myTotalFocusHours : (entry.totalFocusHours ?? 0),
+            avatarUrl: isMe ? currentUserPhotoUrl : null,
+            isProStyle: isMe ? isPro : false,
+            isCurrentUser: isMe,
+          },
+          rank: entry.rank,
+          movement: movementFromSnapshot(entry),
+        };
+      }),
+    [currentUserId, currentUserPhotoUrl, displayStreak, isPro, leaderboardAroundMeItems, lifetimeXpSummary.currentLevel, lifetimeXpSummary.totalXp, myBestStreak, myTotalFocusHours, profileDisplayName],
   );
   const leaderboardRows =
     leaderboardSource === "snapshot" && leaderboardRemoteRows.length > 0
@@ -8061,16 +8084,19 @@ export default function HomePage() {
   const leaderboardBandanaHolders = useMemo<LeaderboardBandanaHolder[]>(() => {
     const sourceEntries =
       leaderboardSource === "snapshot" && leaderboardPageItems.length > 0
-        ? leaderboardPageItems.map((entry) => ({
-            id: entry.userId,
-            username: entry.username,
-            createdAtISO: entry.createdAtISO,
-            totalXp: entry.totalXp,
-            currentStreak: entry.currentStreak,
-            level: entry.level,
-            avatarUrl: entry.userId === currentUserId ? currentUserPhotoUrl : null,
-            isProStyle: entry.userId === currentUserId ? isPro : false,
-          }))
+        ? leaderboardPageItems.map((entry) => {
+            const isMe = entry.userId === currentUserId;
+            return {
+              id: entry.userId,
+              username: isMe ? profileDisplayName : entry.username,
+              createdAtISO: entry.createdAtISO,
+              totalXp: isMe ? lifetimeXpSummary.totalXp : entry.totalXp,
+              currentStreak: isMe ? displayStreak : entry.currentStreak,
+              level: isMe ? lifetimeXpSummary.currentLevel : entry.level,
+              avatarUrl: isMe ? currentUserPhotoUrl : null,
+              isProStyle: isMe ? isPro : false,
+            };
+          })
         : leaderboardEntries;
 
     return STREAK_BANDANA_TIERS.map((tier) => {
@@ -8085,7 +8111,7 @@ export default function HomePage() {
         entry: topEntry,
       };
     });
-  }, [currentUserId, currentUserPhotoUrl, isPro, leaderboardEntries, leaderboardPageItems, leaderboardSource]);
+  }, [currentUserId, currentUserPhotoUrl, displayStreak, isPro, leaderboardEntries, leaderboardPageItems, leaderboardSource, lifetimeXpSummary.currentLevel, lifetimeXpSummary.totalXp, profileDisplayName]);
   const leaderboardHasEntries = leaderboardRows.length > 0;
   const selectedDateAgendaStateSummary = useMemo(() => {
     const plans = selectedDateEntries.filter((entry) => entry.source === "plan");
@@ -8248,6 +8274,22 @@ export default function HomePage() {
       snapshotDate: leaderboardSnapshotDate,
     }).catch(() => undefined);
   }, [activeTab, leaderboardMetricTab, leaderboardSnapshotDate, user]);
+
+  // Mark new challengers as seen so the "New challenger" badge only shows once.
+  useEffect(() => {
+    if (!user || leaderboardRows.length === 0) return;
+    const newIds = leaderboardRows
+      .filter((row) => row.movement.direction === "new" && !seenChallengerIds.has(row.entry.id))
+      .map((row) => row.entry.id);
+    if (newIds.length === 0) return;
+    setSeenChallengerIds((prev) => {
+      const next = new Set([...prev, ...newIds]);
+      try {
+        window.localStorage.setItem(`whelm:seen-challengers:${user.uid}`, JSON.stringify([...next]));
+      } catch { /* ignore */ }
+      return next;
+    });
+  }, [leaderboardRows, seenChallengerIds, user]);
 
   const formattedLifetimeXp = lifetimeXpSummary.totalXp.toLocaleString();
   const formattedXpToNextLevel = Math.max(
@@ -10731,7 +10773,11 @@ export default function HomePage() {
                           key={row.entry.id}
                           entry={row.entry}
                           rank={row.rank}
-                          movement={row.movement}
+                          movement={
+                            row.movement.direction === "new" && seenChallengerIds.has(row.entry.id)
+                              ? { ...row.movement, direction: "same" as const }
+                              : row.movement
+                          }
                           tab={leaderboardMetricTab}
                           onClick={() => setSelectedLbProfile({ entry: row.entry, rank: row.rank })}
                         />
@@ -10762,7 +10808,11 @@ export default function HomePage() {
                             key={`around-${row.entry.id}-${row.rank}`}
                             entry={row.entry}
                             rank={row.rank}
-                            movement={row.movement}
+                            movement={
+                              row.movement.direction === "new" && seenChallengerIds.has(row.entry.id)
+                                ? { ...row.movement, direction: "same" as const }
+                                : row.movement
+                            }
                             tab={leaderboardMetricTab}
                             onClick={() => setSelectedLbProfile({ entry: row.entry, rank: row.rank })}
                           />
