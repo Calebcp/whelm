@@ -107,10 +107,16 @@ test("card XP events are accepted without throwing", () => {
       streakDays: 0,
     }),
   );
+  assert.doesNotThrow(() =>
+    calculateXP("card_session_cleared", {
+      currentDailyXP: 0,
+      streakDays: 0,
+    }),
+  );
 
   assert.equal(
     calculateXP("card_correct", { currentDailyXP: 0, streakDays: 0 }).awarded,
-    0,
+    5,
   );
   assert.equal(
     calculateXP("card_fast_recall", { currentDailyXP: 0, streakDays: 0 }).awarded,

@@ -16,7 +16,7 @@ const XP_WRITING_ENTRY_THRESHOLD = 33;
 const XP_WRITING_BONUS_THRESHOLD = 100;
 const XP_WRITING_DAILY_CAP = 20;
 const STREAK_MILESTONE_BONUSES: Record<number, number> = { 7: 40, 30: 120, 100: 350 };
-export type XPEvent = "session_complete" | "deep_work" | "note_written" | "combo" | "card_correct" | "card_fast_recall";
+export type XPEvent = "session_complete" | "deep_work" | "note_written" | "combo" | "card_correct" | "card_fast_recall" | "card_session_cleared";
 export interface XPResult { awarded: number; reason: string; cappedAt?: number }
 export type DayXpSummary = { dateKey: string; streakLength: number; multiplier: number; baseActionXp: number; completedBlocksXp: number; focusXp: number; writingXp: number; multipliedBaseXp: number; streakDailyXp: number; streakMilestoneXp: number; deepWorkXp: number; comboXp: number; totalXp: number };
 export type LifetimeXpSummary = { totalXp: number; todayXp: number; todayTarget: number; dailyCap: number; currentLevel: number; currentLevelFloorXp: number; nextLevelXp: number; progressInLevel: number; progressToNextLevel: number };
@@ -69,9 +69,15 @@ export function calculateXP(
       reason = "combo";
       break;
     case "card_correct":
-      return { awarded: 0, reason: "card correct" };
+      awarded = 5;
+      reason = "card_correct";
+      break;
     case "card_fast_recall":
       return { awarded: 0, reason: "card fast recall" };
+    case "card_session_cleared":
+      awarded = 20;
+      reason = "card_session_cleared";
+      break;
   }
 
   const cappedAward = Math.min(remaining, awarded);

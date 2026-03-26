@@ -28,6 +28,16 @@ type ReviewSummary = {
 
 const ZONE_ORDER = ["learning", "practice", "mastery", "weak"] as const;
 
+function formatDueDate(timestamp: number): string {
+  const diff = timestamp - Date.now();
+  if (diff <= 0) return "Due now";
+  const hours = diff / (1000 * 60 * 60);
+  if (hours < 24) return `Due in ${Math.ceil(hours)}h`;
+  const days = diff / (1000 * 60 * 60 * 24);
+  if (days < 2) return "Due tomorrow";
+  return `Due in ${Math.floor(days)}d`;
+}
+
 export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
   const [view, setView] = useState<CardsView>("board");
   const [cards, setCards] = useState<WhelCard[]>([]);
@@ -127,13 +137,10 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
 
     const updatedCard = applyReview(currentReviewCard, outcome);
     const nextCards = cards.map((card) => (card.id === currentReviewCard.id ? updatedCard : card));
-    const correctXp =
-      outcome === "easy"
-        ? calculateXP("card_correct", {
-            currentDailyXP: sessionXp,
-            streakDays: 0,
-          }).awarded
-        : 0;
+    const correctXp = calculateXP("card_correct", {
+      currentDailyXP: sessionXp,
+      streakDays: 0,
+    }).awarded;
     const fastRecallXp =
       outcome === "easy" && answerOpenedAt !== null && Date.now() - answerOpenedAt <= 5000
         ? calculateXP("card_fast_recall", {
@@ -141,7 +148,15 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
             streakDays: 0,
           }).awarded
         : 0;
-    const earned = correctXp + fastRecallXp;
+    const nextIndex = reviewIndex + 1;
+    const sessionDone = nextIndex >= cardsDue.length;
+    const sessionBonusXp = sessionDone
+      ? calculateXP("card_session_cleared", {
+          currentDailyXP: sessionXp + correctXp + fastRecallXp,
+          streakDays: 0,
+        }).awarded
+      : 0;
+    const earned = correctXp + fastRecallXp + sessionBonusXp;
 
     if (earned > 0) {
       onXPEarned(earned);
@@ -154,10 +169,7 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
     setAnswerVisible(false);
     setAnswerOpenedAt(null);
 
-    const remainingDue = getCardsForReview(nextCards);
-    const nextIndex = reviewIndex + 1;
-
-    if (nextIndex >= remainingDue.length) {
+    if (sessionDone) {
       setReviewSummary({
         reviewed: sessionReviewed + 1,
         xpEarned: sessionXp + earned,
@@ -190,6 +202,9 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
                 disabled={cardsDue.length === 0}
               >
                 Start Review Session
+                {cardsDue.length > 0 ? (
+                  <span className={styles.cardsDueBadge}>{cardsDue.length}</span>
+                ) : null}
               </button>
               <button type="button" className={styles.secondaryPlanButton} onClick={() => setView("editor")}>
                 Add Card
@@ -236,6 +251,7 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
                           <span className={styles.accountMeta}>
                             Lv {card.level} · {card.reviewCount} review{card.reviewCount === 1 ? "" : "s"}
                           </span>
+                          <span className={styles.cardsDueDate}>{formatDueDate(card.dueDate)}</span>
                         </article>
                       ))
                     )}
@@ -275,10 +291,13 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
               {answerVisible ? (
                 <div className={styles.cardsOutcomeRow}>
                   <button type="button" className={styles.cardsOutcomeForgot} onClick={() => void handleOutcome("forgot")}>
-                    Forgot
+                    Again
                   </button>
                   <button type="button" className={styles.cardsOutcomeHard} onClick={() => void handleOutcome("hard")}>
                     Hard
+                  </button>
+                  <button type="button" className={styles.cardsOutcomeGood} onClick={() => void handleOutcome("good")}>
+                    Good
                   </button>
                   <button type="button" className={styles.cardsOutcomeEasy} onClick={() => void handleOutcome("easy")}>
                     Easy

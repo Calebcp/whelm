@@ -5,20 +5,15 @@ import type { WhelCard, ReviewOutcome } from "@/lib/cards-store";
 // Mock browser globals needed by saveCards at call time.
 const mockStorage = new Map<string, string>();
 
-// @ts-expect-error browser globals mock for Node test environment
-globalThis.window = {
+(globalThis as Record<string, unknown>).window = {
   localStorage: {
     getItem: (key: string) => mockStorage.get(key) ?? null,
-    setItem: (key: string, value: string) => {
-      mockStorage.set(key, value);
-    },
-    removeItem: (key: string) => {
-      mockStorage.delete(key);
-    },
+    setItem: (key: string, value: string) => { mockStorage.set(key, value); },
+    removeItem: (key: string) => { mockStorage.delete(key); },
     clear: () => mockStorage.clear(),
   },
-  setTimeout: (fn: () => void, ms: number) => setTimeout(fn, ms),
-  clearTimeout: (id: ReturnType<typeof setTimeout>) => clearTimeout(id),
+  setTimeout: setTimeout,
+  clearTimeout: clearTimeout,
 };
 
 // Lazily populated in `before` — env vars must be set before firebase.ts initializes.
@@ -54,6 +49,12 @@ test("createCard returns a valid WhelCard with level 1 and zone learning", () =>
   assert.equal(card.correctCount, 0);
   assert.equal(card.lastReviewedAt, null);
   assert.ok(typeof card.id === "string" && card.id.length > 0);
+  // SM-2 defaults
+  assert.equal(card.easeFactor, 2.5);
+  assert.equal(card.interval, 1);
+  assert.equal(card.repetitions, 0);
+  assert.equal(card.lastReviewed, null);
+  assert.ok(Number.isFinite(card.dueDate));
 });
 
 test("applyReview with easy increases level and updates nextReviewAt", () => {
@@ -66,6 +67,22 @@ test("applyReview with easy increases level and updates nextReviewAt", () => {
   assert.ok(reviewed.nextReviewAt > reviewed.lastReviewedAt!);
   assert.equal(reviewed.reviewCount, 1);
   assert.equal(reviewed.correctCount, 1);
+  // SM-2: first easy review → repetitions=1, interval=1 day
+  assert.equal(reviewed.repetitions, 1);
+  assert.equal(reviewed.interval, 1);
+  assert.ok(reviewed.easeFactor > 2.5); // easy boosts easeFactor
+  assert.ok(reviewed.dueDate > before);
+  assert.ok(reviewed.lastReviewed !== null && reviewed.lastReviewed >= before);
+});
+
+test("applyReview with good keeps level and advances SM-2 correctly", () => {
+  const card = createCard("note-1", "Q", "A");
+  const reviewed = applyReview(card, "good");
+  assert.equal(reviewed.level, 1); // good does not change level
+  assert.equal(reviewed.lastOutcome, "good");
+  assert.equal(reviewed.repetitions, 1);
+  assert.equal(reviewed.interval, 1);
+  assert.ok(Math.abs(reviewed.easeFactor - 2.5) < 0.001); // good keeps easeFactor stable
 });
 
 test("applyReview with forgot decreases level and sets zone to weak", () => {
@@ -76,6 +93,9 @@ test("applyReview with forgot decreases level and sets zone to weak", () => {
   assert.equal(reviewed.lastOutcome, "forgot");
   assert.equal(reviewed.zone, "weak");
   assert.equal(reviewed.correctCount, 0);
+  // SM-2: forgot resets repetitions and interval
+  assert.equal(reviewed.repetitions, 0);
+  assert.equal(reviewed.interval, 1);
 });
 
 test("applyReview never sets level below 1 or above 4", () => {

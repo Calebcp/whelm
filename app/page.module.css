@@ -10515,12 +10515,13 @@
 
 .cardsOutcomeRow {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
 }
 
 .cardsOutcomeForgot,
 .cardsOutcomeHard,
+.cardsOutcomeGood,
 .cardsOutcomeEasy {
   min-height: 44px;
   border: 0;
@@ -10538,8 +10539,34 @@
   background: linear-gradient(180deg, rgba(178, 108, 24, 0.94), rgba(142, 78, 11, 0.96));
 }
 
+.cardsOutcomeGood {
+  background: linear-gradient(180deg, rgba(24, 128, 152, 0.94), rgba(11, 96, 120, 0.96));
+}
+
 .cardsOutcomeEasy {
   background: linear-gradient(180deg, rgba(33, 128, 70, 0.94), rgba(18, 99, 51, 0.96));
+}
+
+.cardsDueBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 8px;
+  padding: 0 7px;
+  height: 20px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.22);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #fff;
+  vertical-align: middle;
+}
+
+.cardsDueDate {
+  display: block;
+  margin-top: 3px;
+  font-size: 0.72rem;
+  color: rgba(200, 210, 240, 0.55);
 }
 
 @media (max-width: 720px) {

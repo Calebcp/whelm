@@ -3,7 +3,7 @@ import { resolveApiUrl } from "@/lib/api-base";
 
 export type CardZone = "learning" | "practice" | "mastery" | "weak";
 export type CardLevel = 1 | 2 | 3 | 4;
-export type ReviewOutcome = "forgot" | "hard" | "easy";
+export type ReviewOutcome = "forgot" | "hard" | "good" | "easy";
 
 export interface WhelCard {
   id: string;
@@ -18,14 +18,48 @@ export interface WhelCard {
   reviewCount: number;
   correctCount: number;
   lastOutcome: ReviewOutcome | null;
+  easeFactor: number;
+  interval: number;
+  repetitions: number;
+  dueDate: number;
+  lastReviewed: number | null;
 }
 
-const INTERVALS: Record<CardLevel, Record<ReviewOutcome, number>> = {
-  1: { forgot: 0, hard: 1, easy: 24 },
-  2: { forgot: 0, hard: 6, easy: 72 },
-  3: { forgot: 1, hard: 24, easy: 168 },
-  4: { forgot: 6, hard: 72, easy: 336 },
+
+const SM2_RATING: Record<ReviewOutcome, number> = {
+  forgot: 1,
+  hard: 2,
+  good: 4,
+  easy: 5,
 };
+
+function applySM2(
+  card: WhelCard,
+  outcome: ReviewOutcome,
+): Pick<WhelCard, "easeFactor" | "interval" | "repetitions" | "dueDate" | "lastReviewed"> {
+  const now = Date.now();
+  const rating = SM2_RATING[outcome];
+  let { easeFactor, interval, repetitions } = card;
+
+  if (rating < 3) {
+    repetitions = 0;
+    interval = 1;
+  } else {
+    if (repetitions === 0) {
+      interval = 1;
+    } else if (repetitions === 1) {
+      interval = 6;
+    } else {
+      interval = Math.round(interval * easeFactor);
+    }
+    repetitions += 1;
+    easeFactor = easeFactor + 0.1 - (5 - rating) * (0.08 + (5 - rating) * 0.02);
+    easeFactor = Math.max(1.3, easeFactor);
+  }
+
+  const dueDate = now + interval * 24 * 60 * 60 * 1000;
+  return { easeFactor, interval, repetitions, dueDate, lastReviewed: now };
+}
 
 function storageKey(uid: string) {
   return `whelm_cards_${uid}`;
@@ -42,9 +76,15 @@ function cardTimestamp(card: WhelCard) {
 function normalizeCard(input: WhelCard): WhelCard {
   const level = clampLevel(input.level);
   const lastOutcome =
-    input.lastOutcome === "forgot" || input.lastOutcome === "hard" || input.lastOutcome === "easy"
+    input.lastOutcome === "forgot" ||
+    input.lastOutcome === "hard" ||
+    input.lastOutcome === "good" ||
+    input.lastOutcome === "easy"
       ? input.lastOutcome
       : null;
+
+  const raw = input as unknown as Record<string, unknown>;
+  const nextReviewAt = Number.isFinite(input.nextReviewAt) ? input.nextReviewAt : Date.now();
 
   const normalized = {
     id: String(input.id ?? ""),
@@ -58,10 +98,15 @@ function normalizeCard(input: WhelCard): WhelCard {
       input.lastReviewedAt === null || Number.isFinite(input.lastReviewedAt)
         ? input.lastReviewedAt
         : null,
-    nextReviewAt: Number.isFinite(input.nextReviewAt) ? input.nextReviewAt : Date.now(),
+    nextReviewAt,
     reviewCount: Math.max(0, Math.round(Number(input.reviewCount) || 0)),
     correctCount: Math.max(0, Math.round(Number(input.correctCount) || 0)),
     lastOutcome,
+    easeFactor: Number.isFinite(Number(raw.easeFactor)) && Number(raw.easeFactor) >= 1.3 ? Number(raw.easeFactor) : 2.5,
+    interval: Number.isFinite(Number(raw.interval)) && Number(raw.interval) >= 1 ? Math.round(Number(raw.interval)) : 1,
+    repetitions: Number.isFinite(Number(raw.repetitions)) ? Math.max(0, Math.round(Number(raw.repetitions))) : 0,
+    dueDate: Number.isFinite(Number(raw.dueDate)) ? Number(raw.dueDate) : nextReviewAt,
+    lastReviewed: raw.lastReviewed === null || Number.isFinite(Number(raw.lastReviewed)) ? (raw.lastReviewed as number | null) : null,
   };
 
   return {
@@ -152,13 +197,14 @@ export function applyReview(card: WhelCard, outcome: ReviewOutcome): WhelCard {
       : outcome === "forgot"
         ? clampLevel(card.level - 1)
         : card.level;
-  const intervalHours = INTERVALS[level][outcome];
+  const sm2 = applySM2(card, outcome);
   const next = {
     ...card,
+    ...sm2,
     level,
     lastOutcome: outcome,
     lastReviewedAt: now,
-    nextReviewAt: now + intervalHours * 60 * 60 * 1000,
+    nextReviewAt: sm2.dueDate,
     reviewCount: card.reviewCount + 1,
     correctCount: card.correctCount + (outcome === "forgot" ? 0 : 1),
   };
@@ -201,6 +247,11 @@ export function createCard(noteId: string, front: string, back: string): WhelCar
     reviewCount: 0,
     correctCount: 0,
     lastOutcome: null,
+    easeFactor: 2.5,
+    interval: 1,
+    repetitions: 0,
+    dueDate: now,
+    lastReviewed: null,
   };
 }
 
