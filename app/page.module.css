@@ -3750,6 +3750,19 @@ body[data-theme="light"] {
   white-space: nowrap;
 }
 
+.wordCountChip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: rgba(120, 120, 140, 0.10);
+  color: var(--note-item-meta, #6d7c8f);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
 .noteListMeta {
   font-size: 0.74rem;
   color: var(--note-item-meta, #6d7c8f);
@@ -4614,6 +4627,31 @@ body[data-theme="light"] {
   background: color-mix(in srgb, var(--note-page-tone, #fffaf0) 76%, rgba(91, 122, 220, 0.16) 24%);
   color: var(--note-footer-strong, #42546b);
   font-weight: 700;
+}
+
+.selectionCardPopup {
+  position: fixed;
+  transform: translate(-50%, -100%);
+  z-index: 950;
+  padding: 6px 13px;
+  border-radius: 999px;
+  background: var(--wh-surface-bg, rgba(22, 24, 38, 0.96));
+  border: 1px solid var(--wh-surface-border, rgba(255, 255, 255, 0.12));
+  color: var(--wh-text-primary, #e8eaf6);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.32);
+  white-space: nowrap;
+  pointer-events: auto;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  margin-top: -4px;
+}
+
+.selectionCardPopup:hover {
+  background: var(--wh-accent, #5b7adc);
+  border-color: transparent;
 }
 
 .noteFooterActions {

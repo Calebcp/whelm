@@ -21,6 +21,7 @@ import MilestoneReveal from "@/components/MilestoneReveal";
 import WhelmEmote from "@/components/WhelmEmote";
 import WhelmRitualScene from "@/components/WhelmRitualScene";
 import CardsTab from "@/components/CardsTab";
+import { createCard, loadCards, saveCards } from "@/lib/cards-store";
 import {
   trackAppOpened,
   trackLeaderboardAroundMeLoaded,
@@ -980,6 +981,10 @@ function bandanaCursorAssetPath(color: string | null | undefined, size: 128 | 25
 
 function attachmentIndicatorLabel(count: number) {
   return `📎 ${count}`;
+}
+
+function noteWordCount(body: string): number {
+  return body.trim() === "" ? 0 : body.trim().split(/\s+/).length;
 }
 
 function streakNudgeStorageKey(uid: string, dateKey: string) {
@@ -2146,7 +2151,7 @@ function tabTitle(tab: AppTab) {
     case "mirror":
       return "Streak Mirror";
     case "notes":
-      return "Notes";
+      return "Notes+";
     case "streaks":
       return "Streaks";
     case "history":
@@ -2801,14 +2806,14 @@ function syncDailyRitualDrafts(
 const DESKTOP_PRIMARY_TABS: Array<{ key: AppTab; label: string }> = [
   { key: "calendar", label: "Schedule" },
   { key: "today", label: "Today" },
-  { key: "notes", label: "Notes" },
+  { key: "notes", label: "Notes+" },
   { key: "leaderboard", label: "Whelmboard" },
 ];
 
 const MOBILE_PRIMARY_TABS: Array<{ key: AppTab; label: string }> = [
   { key: "calendar", label: "Schedule" },
   { key: "today", label: "Today" },
-  { key: "notes", label: "Notes" },
+  { key: "notes", label: "Notes+" },
   { key: "leaderboard", label: "Whelmboard" },
 ];
 
@@ -3554,6 +3559,8 @@ export default function HomePage() {
   const [dailyPlanningPreviewOpen, setDailyPlanningPreviewOpen] = useState(false);
   const [mobileNotesRecentOpen, setMobileNotesRecentOpen] = useState(false);
   const [mobileNotesEditorOpen, setMobileNotesEditorOpen] = useState(false);
+  const [selectionPopup, setSelectionPopup] = useState<{ text: string; x: number; y: number } | null>(null);
+  const [quickCardForm, setQuickCardForm] = useState<{ front: string; back: string } | null>(null);
   const [mobileNotesToolsOpen, setMobileNotesToolsOpen] = useState<
     "format" | "type" | "color" | null
   >(null);
@@ -5279,6 +5286,43 @@ export default function HomePage() {
     }
 
     savedSelectionRef.current = range.cloneRange();
+  }
+
+  function checkEditorSelection() {
+    const editor = editorRef.current;
+    const selection = window.getSelection();
+    if (!editor || !selection || selection.isCollapsed || selection.rangeCount === 0) {
+      setSelectionPopup(null);
+      return;
+    }
+    const range = selection.getRangeAt(0);
+    if (!editor.contains(range.startContainer) || !editor.contains(range.endContainer)) {
+      setSelectionPopup(null);
+      return;
+    }
+    const text = selection.toString().trim();
+    if (text.length < 2) {
+      setSelectionPopup(null);
+      return;
+    }
+    const rect = range.getBoundingClientRect();
+    setSelectionPopup({
+      text,
+      x: rect.left + rect.width / 2,
+      y: rect.top - 8,
+    });
+  }
+
+  async function handleQuickCardSave() {
+    if (!user || !quickCardForm) return;
+    const trimmedFront = quickCardForm.front.trim();
+    const trimmedBack = quickCardForm.back.trim();
+    if (!trimmedFront || !trimmedBack) return;
+    const newCard = createCard(selectedNoteId ?? "notes-tab", trimmedFront, trimmedBack);
+    const existing = await loadCards(user.uid);
+    await saveCards(user.uid, [...existing, newCard]);
+    setQuickCardForm(null);
+    setSelectionPopup(null);
   }
 
   function updateEditorBandanaCaret() {
@@ -10927,6 +10971,11 @@ export default function HomePage() {
                                   {attachmentIndicatorLabel(note.attachments.length)}
                                 </span>
                               ) : null}
+                              {noteWordCount(note.body) > 0 ? (
+                                <span className={styles.wordCountChip}>
+                                  {noteWordCount(note.body)}w
+                                </span>
+                              ) : null}
                             </strong>
                             <span>
                               {new Date(note.updatedAtISO).toLocaleDateString()}
@@ -11363,6 +11412,7 @@ export default function HomePage() {
                           captureEditorDraft();
                           saveEditorSelection();
                           updateEditorBandanaCaret();
+                          checkEditorSelection();
                         }}
                         onPaste={() => {
                           window.setTimeout(() => {
@@ -11385,6 +11435,7 @@ export default function HomePage() {
                         onMouseUp={() => {
                           saveEditorSelection();
                           updateEditorBandanaCaret();
+                          checkEditorSelection();
                         }}
                         onFocus={() => {
                           saveEditorSelection();
@@ -11532,6 +11583,11 @@ export default function HomePage() {
                           {note.attachments.length > 0 ? (
                             <span className={styles.attachmentIndicatorChip}>
                               {attachmentIndicatorLabel(note.attachments.length)}
+                            </span>
+                          ) : null}
+                          {noteWordCount(note.body) > 0 ? (
+                            <span className={styles.wordCountChip}>
+                              {noteWordCount(note.body)}w
                             </span>
                           ) : null}
                         </span>
@@ -12088,6 +12144,7 @@ export default function HomePage() {
                           captureEditorDraft();
                           saveEditorSelection();
                           updateEditorBandanaCaret();
+                          checkEditorSelection();
                         }}
                         onPaste={() => {
                           window.setTimeout(() => {
@@ -12110,6 +12167,7 @@ export default function HomePage() {
                         onMouseUp={() => {
                           saveEditorSelection();
                           updateEditorBandanaCaret();
+                          checkEditorSelection();
                         }}
                         onFocus={() => {
                           saveEditorSelection();
@@ -14311,6 +14369,63 @@ export default function HomePage() {
         </div>
       )}
       </main>
+
+      {selectionPopup && !quickCardForm ? (
+        <button
+          type="button"
+          className={styles.selectionCardPopup}
+          style={{ left: selectionPopup.x, top: selectionPopup.y }}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => {
+            setQuickCardForm({ front: "", back: selectionPopup.text });
+            setSelectionPopup(null);
+          }}
+        >
+          📇 Create Card
+        </button>
+      ) : null}
+
+      {quickCardForm ? (
+        <div className={styles.feedbackOverlay} onClick={() => setQuickCardForm(null)}>
+          <div className={styles.feedbackModal} onClick={(event) => event.stopPropagation()}>
+            <div className={styles.feedbackHeader}>
+              <h2 className={styles.feedbackTitle}>Create Card from Note</h2>
+              <button type="button" className={styles.feedbackClose} onClick={() => setQuickCardForm(null)}>
+                ✕
+              </button>
+            </div>
+            <label className={styles.planLabel}>
+              Front (question)
+              <input
+                autoFocus
+                value={quickCardForm.front}
+                onChange={(event) => setQuickCardForm((current) => current ? { ...current, front: event.target.value } : null)}
+                className={styles.planControl}
+                placeholder="What does this text answer?"
+              />
+            </label>
+            <label className={styles.planLabel}>
+              Back (answer)
+              <textarea
+                value={quickCardForm.back}
+                onChange={(event) => setQuickCardForm((current) => current ? { ...current, back: event.target.value } : null)}
+                className={styles.feedbackTextarea}
+                rows={5}
+              />
+            </label>
+            <div className={styles.feedbackFooter}>
+              <button
+                type="button"
+                className={styles.feedbackSubmit}
+                onClick={() => void handleQuickCardSave()}
+                disabled={!quickCardForm.front.trim() || !quickCardForm.back.trim()}
+              >
+                Save Card
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {mascot.visible ? (
         <WhelMascot

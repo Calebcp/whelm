@@ -264,22 +264,34 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
       ) : null}
 
       {view === "review" ? (
-        <div className={styles.cardsReviewShell}>
+        <div className={styles.cardsReviewOverlay}>
+          <div className={styles.cardsOverlayTopBar}>
+            <span className={styles.cardsOverlayProgress}>
+              {currentReviewCard
+                ? `${reviewIndex + 1} / ${cardsDue.length}`
+                : "Done"}
+            </span>
+            <button
+              type="button"
+              className={styles.cardsOverlayExitBtn}
+              onClick={() => setView("board")}
+            >
+              ← Exit
+            </button>
+          </div>
+
           {currentReviewCard ? (
-            <article className={styles.cardsReviewCard}>
-              <p className={styles.sectionLabel}>Review Session</p>
-              <h3 className={styles.cardTitle}>{currentReviewCard.front}</h3>
-              <p className={styles.accountMeta}>
-                Card {reviewIndex + 1} of {cardsDue.length}
-              </p>
+            <div className={styles.cardsReviewCenterStage}>
+              <p className={styles.cardsOverlayFront}>{currentReviewCard.front}</p>
+
               {answerVisible ? (
-                <div className={styles.cardsAnswerPanel}>
-                  <p>{currentReviewCard.back}</p>
+                <div className={styles.cardsOverlayAnswerPanel}>
+                  {currentReviewCard.back}
                 </div>
               ) : (
                 <button
                   type="button"
-                  className={styles.reportButton}
+                  className={styles.cardsOverlayRevealBtn}
                   onClick={() => {
                     setAnswerVisible(true);
                     setAnswerOpenedAt(Date.now());
@@ -288,6 +300,7 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
                   Reveal Answer
                 </button>
               )}
+
               {answerVisible ? (
                 <div className={styles.cardsOutcomeRow}>
                   <button type="button" className={styles.cardsOutcomeForgot} onClick={() => void handleOutcome("forgot")}>
@@ -304,15 +317,14 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
                   </button>
                 </div>
               ) : null}
-            </article>
+            </div>
           ) : (
-            <article className={styles.cardsSummaryCard}>
-              <p className={styles.sectionLabel}>Review Session</p>
-              <strong>No cards are due right now.</strong>
+            <div className={styles.cardsReviewCenterStage} style={{ alignItems: "center" }}>
+              <strong style={{ color: "#f0f4ff", fontSize: "1.1rem" }}>No cards are due right now.</strong>
               <button type="button" className={styles.secondaryPlanButton} onClick={() => setView("board")}>
                 Return to board
               </button>
-            </article>
+            </div>
           )}
         </div>
       ) : null}
@@ -321,9 +333,6 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
         <article className={styles.cardsEditorCard}>
           <p className={styles.sectionLabel}>Card Editor</p>
           <h3 className={styles.cardTitle}>Create a new card</h3>
-          <p className={styles.accountMeta}>
-            // TODO Phase 2: on text highlight, show popup with &quot;Create Card&quot; option
-          </p>
           <label className={styles.planLabel}>
             Front
             <input
