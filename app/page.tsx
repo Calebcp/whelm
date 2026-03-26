@@ -4622,17 +4622,11 @@ export default function HomePage() {
           }),
         );
       }
-      // Unblock the shell immediately after auth; sync data in the background.
+      // Unblock the shell immediately after auth.
+      // Real-time onSnapshot listeners (subscribeToUserData) handle all data loading —
+      // no need to also call refresh functions here, which would race with the snapshots
+      // and cause XP/streak/bandana to bounce between old and new values.
       setAuthChecked(true);
-      void Promise.all([
-        refreshSessions(nextUser.uid),
-        refreshNotes(nextUser.uid),
-        refreshPlannedBlocks(nextUser.uid),
-        refreshReflectionState(nextUser.uid),
-        refreshPreferencesState(nextUser.uid),
-      ]).catch(() => {
-        // Keep existing local UI visible even if initial cloud sync is slow/unavailable.
-      });
     });
 
     return () => unsub();
