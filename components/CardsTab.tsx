@@ -1,16 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { doc, onSnapshot } from "firebase/firestore";
 
 import {
   applyReview,
   createCard,
   getCardsForReview,
-  loadCards,
   saveCards,
   type ReviewOutcome,
   type WhelCard,
 } from "@/lib/cards-store";
+import { db } from "@/lib/firebase";
 import { calculateXP } from "@/lib/xp-store";
 import styles from "@/app/page.module.css";
 
@@ -54,31 +55,36 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
   const [reviewSummary, setReviewSummary] = useState<ReviewSummary | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function hydrate() {
-      setLoading(true);
-      try {
-        const nextCards = await loadCards(uid);
-        if (!cancelled) {
-          setCards(nextCards);
-          setStatus("");
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setStatus(error instanceof Error ? error.message : "Failed to load cards.");
-        }
-      } finally {
-        if (!cancelled) {
+    setLoading(true);
+    const unsub = onSnapshot(
+      doc(db, "userCards", uid),
+      (snap) => {
+        if (!snap.exists()) {
           setLoading(false);
+          return;
         }
-      }
-    }
-
-    void hydrate();
-    return () => {
-      cancelled = true;
-    };
+        const json = snap.data()?.cardsJson;
+        if (typeof json !== "string") {
+          setLoading(false);
+          return;
+        }
+        try {
+          const parsed = JSON.parse(json) as WhelCard[];
+          if (Array.isArray(parsed)) {
+            setCards(parsed);
+            setStatus("");
+          }
+        } catch {
+          // ignore parse errors
+        }
+        setLoading(false);
+      },
+      (err) => {
+        setStatus(err.message);
+        setLoading(false);
+      },
+    );
+    return unsub;
   }, [uid]);
 
   const cardsDue = useMemo(() => getCardsForReview(cards), [cards]);

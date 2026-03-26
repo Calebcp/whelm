@@ -92,6 +92,7 @@ import type { LeaderboardPageResponse, LeaderboardSnapshotEntry } from "@/lib/le
 import type { WhelmEmoteId } from "@/lib/whelm-emotes";
 import { bandanaColorFromStreak } from "@/lib/whelm-mascot";
 import { useMascot } from "@/hooks/useMascot";
+import { subscribeToUserData } from "@/lib/firestore-sync";
 import styles from "./page.module.css";
 
 const FOCUS_TIMER = {
@@ -4747,41 +4748,9 @@ export default function HomePage() {
   }, [sessions, sickDaySaveDismissals, sickDaySaves, user]);
 
   useEffect(() => {
-    async function pullLatest() {
-      if (!user || syncInFlightRef.current) return;
-      if (notesSyncStatus !== "synced") return;
-      if (selectedNote && editorBodyDraft !== selectedNote.body) return;
-
-      syncInFlightRef.current = true;
-      try {
-        await Promise.all([
-          refreshSessions(user.uid),
-          refreshNotes(user.uid),
-          refreshPlannedBlocks(user.uid),
-          refreshReflectionState(user.uid),
-          refreshPreferencesState(user.uid),
-        ]);
-      } finally {
-        syncInFlightRef.current = false;
-      }
-    }
-
-    const intervalId = window.setInterval(() => {
-      void pullLatest();
-    }, 15000);
-
-    function onFocus() {
-      void pullLatest();
-    }
-
     function onVisibilityChange() {
       if (document.visibilityState === "hidden") {
         void flushSelectedNoteDraft();
-        return;
-      }
-
-      if (document.visibilityState === "visible") {
-        void pullLatest();
       }
     }
 
@@ -4789,17 +4758,57 @@ export default function HomePage() {
       void flushSelectedNoteDraft();
     }
 
-    window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVisibilityChange);
     window.addEventListener("pagehide", onPageHide);
 
+    if (!user) {
+      return () => {
+        document.removeEventListener("visibilitychange", onVisibilityChange);
+        window.removeEventListener("pagehide", onPageHide);
+      };
+    }
+
+    const unsub = subscribeToUserData(user.uid, {
+      onNotes: (notes) => {
+        setNotes(notes);
+        setSelectedNoteId((current) => current ?? notes[0]?.id ?? null);
+        setNotesSyncStatus("synced");
+        setNotesSyncMessage("");
+      },
+      onBlocks: (blocks) => {
+        setPlannedBlocks(blocks as PlannedBlock[]);
+        setPlannedBlocksHydrated(true);
+      },
+      onPreferences: (prefs) => {
+        setCompanionStyle(prefs.companionStyle as SenseiCompanionStyle);
+        setThemeMode(prefs.themeMode);
+        setThemePromptOpen(false);
+        setAppBackgroundSetting(prefs.backgroundSetting as AppBackgroundSetting);
+        setBackgroundSkin(prefs.backgroundSkin as BackgroundSkinSetting);
+      },
+      onReflection: (state) => {
+        setStreakMirrorEntries(state.mirrorEntries as StreakMirrorEntry[]);
+        setSelectedStreakMirrorId((current) => current ?? state.mirrorEntries[0]?.id ?? null);
+        setSickDaySaves(state.sickDaySaves as SickDaySave[]);
+        setSickDaySaveDismissals(state.sickDaySaveDismissals);
+      },
+      onSessions: (sessions) => {
+        setSessions(sessions);
+      },
+      onCards: () => {
+        // Cards are handled by CardsTab's own subscription
+      },
+      isEditingNote: () => bodyDirtyRef.current,
+      editingNoteId: () => selectedNoteIdRef.current,
+      localNote: (id) => notesRef.current.find((n) => n.id === id),
+    });
+
     return () => {
-      window.clearInterval(intervalId);
-      window.removeEventListener("focus", onFocus);
+      unsub();
       document.removeEventListener("visibilitychange", onVisibilityChange);
       window.removeEventListener("pagehide", onPageHide);
     };
-  }, [editorBodyDraft, notesSyncStatus, selectedNote, user]);
+  }, [user]);
 
   useEffect(() => {
     setColorPickerOpen(false);
@@ -8575,6 +8584,14 @@ export default function HomePage() {
                   day: "numeric",
                 })}
               </span>
+              {user && (
+                <span
+                  className={`${styles.syncPill} ${notesSyncStatus === "synced" ? styles.syncPillLive : ""}`}
+                  aria-label={notesSyncStatus === "synced" ? "Live sync active" : "Connecting…"}
+                >
+                  {notesSyncStatus === "synced" ? "● Live" : "○ …"}
+                </span>
+              )}
               <motion.div
                 className={styles.xpDock}
                 style={xpDockStyle}
