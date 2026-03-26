@@ -533,18 +533,6 @@ body[data-theme="light"] {
   font-size: 0.8rem;
 }
 
-.syncPill {
-  font-size: 0.68rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  color: rgba(155, 168, 199, 0.5);
-  user-select: none;
-  transition: color 0.4s ease, opacity 0.4s ease;
-}
-
-.syncPillLive {
-  color: rgba(72, 210, 140, 0.75);
-}
 
 .topAppBarAction {
   border: 1px solid rgba(123, 138, 184, 0.18);

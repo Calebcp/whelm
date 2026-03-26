@@ -37,7 +37,8 @@ import {
   trackTaskCreated,
 } from "@/lib/analytics-tracker";
 import { resolveApiUrl } from "@/lib/api-base";
-import { auth, storage } from "@/lib/firebase";
+import { doc, setDoc } from "firebase/firestore";
+import { auth, db, storage } from "@/lib/firebase";
 import {
   loadNotes,
   retryNotesSync,
@@ -4960,12 +4961,26 @@ export default function HomePage() {
     setAppBackgroundSetting(nextState.backgroundSetting);
     setBackgroundSkin(nextState.backgroundSkin);
 
-    await savePreferences(user, {
+    const payload = {
       companionStyle: nextState.companionStyle,
       themeMode: nextState.themeMode,
       backgroundSetting: nextState.backgroundSetting,
       backgroundSkin: nextState.backgroundSkin,
-    });
+    };
+
+    // Write directly to Firestore so onSnapshot fires on all open devices immediately.
+    void setDoc(
+      doc(db, "userPreferences", user.uid),
+      {
+        uid: user.uid,
+        preferencesJson: JSON.stringify(payload),
+        updatedAtISO: new Date().toISOString(),
+      },
+      { merge: true },
+    );
+
+    // Also write via REST API for local-storage caching / server-side audit.
+    await savePreferences(user, payload);
   }
 
   function fireAndForgetTracking(work: Promise<unknown>) {
@@ -8584,14 +8599,6 @@ export default function HomePage() {
                   day: "numeric",
                 })}
               </span>
-              {user && (
-                <span
-                  className={`${styles.syncPill} ${notesSyncStatus === "synced" ? styles.syncPillLive : ""}`}
-                  aria-label={notesSyncStatus === "synced" ? "Live sync active" : "Connecting…"}
-                >
-                  {notesSyncStatus === "synced" ? "● Live" : "○ …"}
-                </span>
-              )}
               <motion.div
                 className={styles.xpDock}
                 style={xpDockStyle}
