@@ -332,6 +332,8 @@ type LeaderboardEntry = {
   level: number;
   totalXp: number;
   currentStreak: number;
+  bestStreak?: number;
+  totalFocusHours?: number;
   avatarUrl?: string | null;
   isProStyle?: boolean;
   isCurrentUser?: boolean;
@@ -2265,11 +2267,13 @@ function LeaderboardRow({
   rank,
   movement,
   tab,
+  onClick,
 }: {
   entry: LeaderboardEntry;
   rank: number;
   movement: LeaderboardMovement;
   tab: LeaderboardMetricTab;
+  onClick?: () => void;
 }) {
   const bandana = getLeaderboardBandanaMeta(entry.currentStreak);
   const rankAccent =
@@ -2277,12 +2281,15 @@ function LeaderboardRow({
     : rank === 2 ? styles.leaderboardRowSilver
     : rank === 3 ? styles.leaderboardRowBronze
     : "";
+  // Enforce 16-char display limit (existing users may have longer stored names)
+  const displayName = entry.username.slice(0, 16);
 
   return (
     <motion.article
       className={`${styles.leaderboardRow} ${rankAccent} ${
         entry.isCurrentUser ? styles.leaderboardRowCurrentUser : ""
-      }`}
+      } ${onClick ? styles.leaderboardRowClickable : ""}`}
+      onClick={onClick}
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{
@@ -2301,15 +2308,30 @@ function LeaderboardRow({
         />
       </div>
       <div className={styles.leaderboardRowIdentity}>
-        <strong className={styles.leaderboardRowUsername}>{entry.username}</strong>
+        <strong className={styles.leaderboardRowUsername}>{displayName}</strong>
         <div className={styles.leaderboardRowMeta}>
           <span className={styles.leaderboardBandanaChip}>{bandana.shortLabel}</span>
           {entry.isCurrentUser ? <span className={styles.leaderboardYouBadge}>You</span> : null}
         </div>
       </div>
       <div className={styles.leaderboardRowStats}>
-        <span className={styles.leaderboardRowXp}>{formatLeaderboardXp(entry.totalXp)}</span>
-        <span className={styles.leaderboardRowStreak}>{entry.currentStreak}d</span>
+        {tab === "xp" ? (
+          <>
+            <span className={styles.leaderboardRowXp}>{formatLeaderboardXp(entry.totalXp)}</span>
+            <span className={styles.leaderboardRowStreak}>{entry.currentStreak}d</span>
+          </>
+        ) : (
+          <span className={styles.leaderboardRowStreakStat}>
+            <span>{entry.currentStreak} days</span>
+            {bandana.tier ? (
+              <span
+                className={styles.leaderboardBandanaDotStat}
+                style={{ background: bandana.theme.accent }}
+                title={bandana.tier.label}
+              />
+            ) : null}
+          </span>
+        )}
         <LeaderboardMovementIndicator movement={movement} tab={tab} />
       </div>
     </motion.article>
@@ -3453,6 +3475,7 @@ export default function HomePage() {
   const [leaderboardSource, setLeaderboardSource] = useState<LeaderboardPageResponse["source"]>("fallback");
   const [leaderboardTotalEntries, setLeaderboardTotalEntries] = useState(0);
   const [leaderboardError, setLeaderboardError] = useState("");
+  const [selectedLbProfile, setSelectedLbProfile] = useState<{ entry: LeaderboardEntry; rank: number } | null>(null);
   const [insightRange, setInsightRange] = useState<TrendRange>(30);
   const [insightMetric, setInsightMetric] = useState<InsightMetric>("focus");
   const [calendarView, setCalendarView] = useState<CalendarView>("month");
@@ -7842,13 +7865,15 @@ export default function HomePage() {
       level: lifetimeXpSummary.currentLevel,
       totalXp: lifetimeXpSummary.totalXp,
       currentStreak: displayStreak,
+      bestStreak: Math.max(0, ...Array.from(historicalStreaksByDay.values())),
+      totalFocusHours: Math.round(sessions.reduce((sum, s) => sum + s.minutes, 0) / 60),
       avatarUrl: currentUserPhotoUrl,
       isProStyle: isPro,
       isCurrentUser: true,
     };
 
     return [...seeded, currentEntry];
-  }, [currentUserCreatedAtISO, currentUserId, currentUserPhotoUrl, displayStreak, isPro, lifetimeXpSummary.currentLevel, lifetimeXpSummary.totalXp, profileDisplayName]);
+  }, [currentUserCreatedAtISO, currentUserId, currentUserPhotoUrl, displayStreak, historicalStreaksByDay, isPro, lifetimeXpSummary.currentLevel, lifetimeXpSummary.totalXp, profileDisplayName, sessions]);
   const leaderboardPreviousSnapshotEntries = useMemo<LeaderboardEntry[]>(() => {
     const seeded = LEADERBOARD_PREVIOUS_SNAPSHOT.map((entry) => ({
       id: entry.id,
@@ -7912,6 +7937,8 @@ export default function HomePage() {
           totalXp: entry.totalXp,
           currentStreak: entry.currentStreak,
           level: entry.level,
+          bestStreak: entry.bestStreak ?? 0,
+          totalFocusHours: entry.totalFocusHours ?? 0,
           avatarUrl: entry.userId === currentUserId ? currentUserPhotoUrl : null,
           isProStyle: entry.userId === currentUserId ? isPro : false,
           isCurrentUser: entry.userId === currentUserId,
@@ -7931,6 +7958,8 @@ export default function HomePage() {
           totalXp: entry.totalXp,
           currentStreak: entry.currentStreak,
           level: entry.level,
+          bestStreak: entry.bestStreak ?? 0,
+          totalFocusHours: entry.totalFocusHours ?? 0,
           avatarUrl: entry.userId === currentUserId ? currentUserPhotoUrl : null,
           isProStyle: entry.userId === currentUserId ? isPro : false,
           isCurrentUser: entry.userId === currentUserId,
@@ -8040,6 +8069,8 @@ export default function HomePage() {
             createdAtISO: authedUser.metadata.creationTime
               ? new Date(authedUser.metadata.creationTime).toISOString()
               : new Date().toISOString(),
+            bestStreak: Math.max(0, ...Array.from(historicalStreaksByDay.values())),
+            totalFocusHours: Math.round(sessions.reduce((sum, s) => sum + s.minutes, 0) / 60),
           }),
           signal: controller.signal,
         });
@@ -8052,9 +8083,11 @@ export default function HomePage() {
     return () => controller.abort();
   }, [
     displayStreak,
+    historicalStreaksByDay,
     lifetimeXpSummary.currentLevel,
     lifetimeXpSummary.totalXp,
     profileDisplayName,
+    sessions,
     user,
   ]);
 
@@ -10618,6 +10651,7 @@ export default function HomePage() {
                           rank={row.rank}
                           movement={row.movement}
                           tab={leaderboardMetricTab}
+                          onClick={() => setSelectedLbProfile({ entry: row.entry, rank: row.rank })}
                         />
                       ))}
                     </div>
@@ -10648,6 +10682,7 @@ export default function HomePage() {
                             rank={row.rank}
                             movement={row.movement}
                             tab={leaderboardMetricTab}
+                            onClick={() => setSelectedLbProfile({ entry: row.entry, rank: row.rank })}
                           />
                         ))}
                       </div>
@@ -14447,6 +14482,109 @@ export default function HomePage() {
           onDismiss={dismissMascot}
         />
       ) : null}
+
+      {/* ── Leaderboard player profile modal ── */}
+      {selectedLbProfile ? (() => {
+        const { entry, rank } = selectedLbProfile;
+        const profileBandana = getLeaderboardBandanaMeta(entry.currentStreak);
+        const joinDate = (() => {
+          try {
+            return new Date(entry.createdAtISO).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+          } catch {
+            return null;
+          }
+        })();
+        return (
+          <div
+            className={styles.feedbackOverlay}
+            onClick={() => setSelectedLbProfile(null)}
+          >
+            <div
+              className={styles.lbProfileSheet}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className={styles.lbProfileHeader}>
+                <span className={styles.sectionLabel}>Player Profile</span>
+                <button
+                  type="button"
+                  className={styles.feedbackClose}
+                  onClick={() => setSelectedLbProfile(null)}
+                  aria-label="Close profile"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className={styles.lbProfileHero}>
+                <WhelmProfileAvatar
+                  tierColor={profileBandana.tier?.color}
+                  size="compact"
+                  isPro={entry.isProStyle}
+                  photoUrl={entry.avatarUrl}
+                />
+                <div className={styles.lbProfileHeroMeta}>
+                  <div className={styles.lbProfileNameRow}>
+                    <strong className={styles.lbProfileUsername}>
+                      {entry.username.slice(0, 16)}
+                    </strong>
+                    {entry.isCurrentUser ? (
+                      <span className={styles.leaderboardYouBadge}>You</span>
+                    ) : null}
+                  </div>
+                  <p className={styles.lbProfileRank}>Rank #{rank}</p>
+                  {profileBandana.tier ? (
+                    <span
+                      className={styles.lbProfileBandanaBadge}
+                      style={{
+                        background: profileBandana.theme.shell,
+                        color: profileBandana.theme.accent,
+                        borderColor: profileBandana.theme.accent,
+                      }}
+                    >
+                      {profileBandana.tier.label}
+                    </span>
+                  ) : (
+                    <span className={styles.lbProfileBandanaBadge} style={{ opacity: 0.5 }}>
+                      No bandana yet
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className={styles.lbProfileStatsGrid}>
+                <div className={styles.lbProfileStat}>
+                  <span className={styles.lbProfileStatValue}>{entry.totalXp.toLocaleString()}</span>
+                  <span className={styles.lbProfileStatLabel}>Total XP</span>
+                </div>
+                <div className={styles.lbProfileStat}>
+                  <span className={styles.lbProfileStatValue}>Lv {entry.level}</span>
+                  <span className={styles.lbProfileStatLabel}>Level</span>
+                </div>
+                <div className={styles.lbProfileStat}>
+                  <span className={styles.lbProfileStatValue}>{entry.currentStreak}</span>
+                  <span className={styles.lbProfileStatLabel}>Streak days</span>
+                </div>
+                {(entry.bestStreak ?? 0) > 0 ? (
+                  <div className={styles.lbProfileStat}>
+                    <span className={styles.lbProfileStatValue}>{entry.bestStreak}</span>
+                    <span className={styles.lbProfileStatLabel}>Best streak</span>
+                  </div>
+                ) : null}
+                {(entry.totalFocusHours ?? 0) > 0 ? (
+                  <div className={styles.lbProfileStat}>
+                    <span className={styles.lbProfileStatValue}>{entry.totalFocusHours}h</span>
+                    <span className={styles.lbProfileStatLabel}>Focus hours</span>
+                  </div>
+                ) : null}
+              </div>
+
+              {joinDate ? (
+                <p className={styles.lbProfileJoinDate}>Member since {joinDate}</p>
+              ) : null}
+            </div>
+          </div>
+        );
+      })() : null}
     </>
   );
 }

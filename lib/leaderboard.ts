@@ -13,6 +13,10 @@ export type LeaderboardProfile = {
   updatedAtISO: string;
   bandanaColor: string | null;
   bandanaLabel: string | null;
+  /** Longest streak ever achieved — used in public profile cards. */
+  bestStreak: number;
+  /** Lifetime focus minutes ÷ 60, rounded — used in public profile cards. */
+  totalFocusHours: number;
 };
 
 export type LeaderboardMovementDirection = "up" | "down" | "same" | "new";
@@ -72,6 +76,8 @@ export function buildLeaderboardProfile(input: {
   level: number;
   createdAtISO: string;
   updatedAtISO?: string;
+  bestStreak?: number;
+  totalFocusHours?: number;
 }): LeaderboardProfile {
   const bandana = getStreakBandanaTier(input.currentStreak);
 
@@ -86,6 +92,8 @@ export function buildLeaderboardProfile(input: {
     updatedAtISO: input.updatedAtISO ?? new Date().toISOString(),
     bandanaColor: bandana?.color ?? null,
     bandanaLabel: bandana?.label ?? null,
+    bestStreak: Math.max(0, Math.round(input.bestStreak ?? 0)),
+    totalFocusHours: Math.max(0, Math.round(input.totalFocusHours ?? 0)),
   };
 }
 

@@ -171,6 +171,8 @@ function decodeProfile(document: FirestoreDocument): LeaderboardProfile | null {
     level: Number(decodeFirestoreValue(fields.level) ?? 1),
     createdAtISO: String(decodeFirestoreValue(fields.createdAtISO) ?? new Date().toISOString()),
     updatedAtISO: String(decodeFirestoreValue(fields.updatedAtISO) ?? new Date().toISOString()),
+    bestStreak: Number(decodeFirestoreValue(fields.bestStreak) ?? 0),
+    totalFocusHours: Number(decodeFirestoreValue(fields.totalFocusHours) ?? 0),
   });
 }
 
@@ -189,6 +191,8 @@ function decodeSnapshotEntry(document: FirestoreDocument): LeaderboardSnapshotEn
     updatedAtISO: String(decodeFirestoreValue(fields.updatedAtISO) ?? ""),
     bandanaColor: (decodeFirestoreValue(fields.bandanaColor) as string | null) ?? null,
     bandanaLabel: (decodeFirestoreValue(fields.bandanaLabel) as string | null) ?? null,
+    bestStreak: Number(decodeFirestoreValue(fields.bestStreak) ?? 0),
+    totalFocusHours: Number(decodeFirestoreValue(fields.totalFocusHours) ?? 0),
     snapshotDate: String(decodeFirestoreValue(fields.snapshotDate) ?? ""),
     metric: (decodeFirestoreValue(fields.metric) as LeaderboardMetric) ?? "xp",
     rank: Number(decodeFirestoreValue(fields.rank) ?? 0),

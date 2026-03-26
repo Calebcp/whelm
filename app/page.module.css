@@ -6193,17 +6193,48 @@ body[data-theme="light"] {
   align-items: center;
   gap: 8px;
   text-align: right;
+  /* Fixed min-width prevents large XP values from pushing into username column */
+  min-width: 120px;
+  justify-content: flex-end;
 }
 
 .leaderboardRowXp {
   font-size: 0.82rem;
   font-weight: 700;
   color: rgba(220, 210, 255, 0.9);
+  white-space: nowrap;
 }
 
 .leaderboardRowStreak {
   font-size: 0.75rem;
   color: rgba(180, 165, 255, 0.65);
+  white-space: nowrap;
+}
+
+/* Streak tab: primary stat display */
+.leaderboardRowStreakStat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: rgba(220, 210, 255, 0.9);
+  white-space: nowrap;
+}
+
+/* Colored dot representing the bandana tier on the streak tab */
+.leaderboardBandanaDotStat {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 6px currentColor;
+}
+
+/* Makes clickable rows show pointer cursor */
+.leaderboardRowClickable {
+  cursor: pointer;
 }
 
 /* Chips & badges */
@@ -6279,6 +6310,113 @@ body[data-theme="light"] {
 .leaderboardMovementDown { color: #ff9b9b; }
 .leaderboardMovementSame { color: rgba(200, 185, 255, 0.6); }
 .leaderboardMovementNew { color: #ffe08a; }
+
+/* ── Player profile modal ── */
+.lbProfileSheet {
+  width: min(400px, calc(100vw - 32px));
+  background: rgba(14, 16, 32, 0.97);
+  border: 1px solid rgba(160, 130, 255, 0.22);
+  border-radius: 24px;
+  padding: 20px;
+  box-shadow: 0 8px 48px rgba(0, 0, 0, 0.54), 0 0 0 1px rgba(180, 140, 255, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  animation: lbProfileSlideUp 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes lbProfileSlideUp {
+  from { opacity: 0; transform: translateY(24px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0)   scale(1);    }
+}
+
+.lbProfileHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.lbProfileHero {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.lbProfileHeroMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.lbProfileNameRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.lbProfileUsername {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #fff;
+}
+
+.lbProfileRank {
+  margin: 0;
+  font-size: 0.8rem;
+  color: rgba(200, 185, 255, 0.65);
+}
+
+.lbProfileBandanaBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  width: fit-content;
+}
+
+.lbProfileStatsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 10px;
+}
+
+.lbProfileStat {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(180, 160, 255, 0.1);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.lbProfileStatValue {
+  font-size: 1rem;
+  font-weight: 800;
+  color: rgba(230, 220, 255, 0.95);
+  white-space: nowrap;
+}
+
+.lbProfileStatLabel {
+  font-size: 0.68rem;
+  color: rgba(180, 165, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.lbProfileJoinDate {
+  margin: 0;
+  font-size: 0.76rem;
+  color: rgba(180, 165, 255, 0.5);
+  text-align: center;
+}
 
 .leaderboardHeroMovement {
   display: inline-flex;

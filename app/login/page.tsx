@@ -47,6 +47,11 @@ export default function LoginPage() {
       return;
     }
 
+    if (mode === "signup" && trimmedUsername.length > 16) {
+      setStatus("Username must be 16 characters or less.");
+      return;
+    }
+
     if (!password.trim()) {
       setStatus("Enter your password.");
       return;
