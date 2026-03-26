@@ -3673,10 +3673,22 @@ export default function HomePage() {
 
     return [...qualifyingDays].sort();
   }, [completedBlocksByDay, noteWordsByDay, protectedStreakDateKeys, sessionMinutesByDay]);
-  const streak = useMemo(
-    () => computeStreak([], streakQualifiedDateKeys),
-    [streakQualifiedDateKeys],
-  );
+  // Defensive: preserve the last non-zero streak value so a partial data load
+  // (sessions resolved before plannedBlocks) never briefly flashes streak to 0.
+  const lastGoodStreakRef = useRef<number>(0);
+  const streak = useMemo(() => {
+    const computed = computeStreak([], streakQualifiedDateKeys);
+    if (computed > 0) {
+      lastGoodStreakRef.current = computed;
+      return computed;
+    }
+    // If blocks haven't finished loading yet, hold the last known good value
+    // rather than resetting to 0 due to missing completedBlocksByDay data.
+    if (!plannedBlocksHydrated && lastGoodStreakRef.current > 0) {
+      return lastGoodStreakRef.current;
+    }
+    return computed;
+  }, [streakQualifiedDateKeys, plannedBlocksHydrated]);
   const bandanaColor = bandanaColorFromStreak(streak);
   const { mascot, show: showMascot, dismiss: dismissMascot } = useMascot(bandanaColor);
 
@@ -8001,7 +8013,9 @@ export default function HomePage() {
   }, [selectedDateEntries, selectedDateFocusedMinutes, selectedDateKey]);
 
   useEffect(() => {
-    if (activeTab !== "leaderboard") return;
+    // Sync profile whenever XP, streak, level, or user identity changes —
+    // not only on leaderboard tab visit — so every user has a profile document
+    // from first login and the leaderboard always reflects live values.
     const currentUser = user;
     if (!currentUser) return;
     const authedUser = currentUser;
@@ -8037,7 +8051,6 @@ export default function HomePage() {
     void syncLeaderboardProfile();
     return () => controller.abort();
   }, [
-    activeTab,
     displayStreak,
     lifetimeXpSummary.currentLevel,
     lifetimeXpSummary.totalXp,

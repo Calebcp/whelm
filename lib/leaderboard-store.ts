@@ -340,8 +340,11 @@ export async function getLeaderboardPage(authHeader: string, input: {
   userId?: string | null;
   aroundWindow?: number;
 }): Promise<LeaderboardPageResponse> {
-  const snapshotDate = await latestSnapshotDate(authHeader, input.metric);
-  if (!snapshotDate) {
+  // Read live from leaderboardProfiles so every registered user appears
+  // immediately with their current XP/streak, no daily rebuild required.
+  const profiles = await listAllProfiles(authHeader);
+
+  if (profiles.length === 0) {
     return {
       metric: input.metric,
       snapshotDate: null,
@@ -354,39 +357,52 @@ export async function getLeaderboardPage(authHeader: string, input: {
     };
   }
 
-  const startRankExclusive = decodeCursor(input.cursor ?? null);
-  const startRank = Math.max(1, startRankExclusive + 1);
-  const endRank = startRank + input.limit - 1;
-  const items = await querySnapshotWindow(authHeader, snapshotDate, input.metric, startRank, endRank);
-  const totalEntries = await totalEntriesForSnapshot(authHeader, snapshotDate, input.metric);
-  const lastRank = items.length > 0 ? items[items.length - 1].rank : null;
-  let aroundMe: LeaderboardSnapshotEntry[] = [];
+  const today = new Date().toISOString().slice(0, 10);
+  const sorted = [...profiles].sort((left, right) =>
+    compareLeaderboardProfiles(left, right, input.metric),
+  );
 
+  function toEntry(profile: LeaderboardProfile, rank: number): LeaderboardSnapshotEntry {
+    return {
+      ...profile,
+      snapshotDate: today,
+      metric: input.metric,
+      rank,
+      previousRank: null,
+      movement: 0,
+      movementDirection: "new",
+    };
+  }
+
+  // Cursor encodes the last rank seen; next page starts at rank + 1.
+  const startRankExclusive = decodeCursor(input.cursor ?? null);
+  const startIndex = startRankExclusive; // 0-based; rank = index + 1
+  const pageProfiles = sorted.slice(startIndex, startIndex + input.limit);
+  const items = pageProfiles.map((profile, i) => toEntry(profile, startIndex + i + 1));
+  const lastRank = items.length > 0 ? items[items.length - 1].rank : null;
+
+  let aroundMe: LeaderboardSnapshotEntry[] = [];
   if (input.userId) {
-    const anchorDoc = await getDocument(
-      authHeader,
-      `leaderboardDailySnapshots/${snapshotEntryDocId(snapshotDate, input.metric, input.userId)}`,
-    );
-    const anchor = anchorDoc ? decodeSnapshotEntry(anchorDoc) : null;
-    if (anchor) {
-      aroundMe = await querySnapshotWindow(
-        authHeader,
-        snapshotDate,
-        input.metric,
-        Math.max(1, anchor.rank - Math.max(1, input.aroundWindow ?? 2)),
-        anchor.rank + Math.max(1, input.aroundWindow ?? 2),
-      );
+    const userIndex = sorted.findIndex((p) => p.userId === input.userId);
+    if (userIndex >= 0) {
+      const window = Math.max(1, input.aroundWindow ?? 2);
+      const rangeStart = Math.max(0, userIndex - window);
+      const rangeEnd = Math.min(sorted.length - 1, userIndex + window);
+      aroundMe = sorted
+        .slice(rangeStart, rangeEnd + 1)
+        .map((profile, i) => toEntry(profile, rangeStart + i + 1));
     }
   }
 
   return {
     metric: input.metric,
-    snapshotDate,
+    snapshotDate: today,
     items,
     aroundMe,
-    nextCursor: items.length === input.limit && lastRank !== null ? encodeCursor(lastRank) : null,
-    hasMore: endRank < totalEntries,
-    totalEntries,
+    nextCursor:
+      items.length === input.limit && lastRank !== null ? encodeCursor(lastRank) : null,
+    hasMore: startIndex + input.limit < sorted.length,
+    totalEntries: sorted.length,
     source: "snapshot",
   };
 }

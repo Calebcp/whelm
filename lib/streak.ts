@@ -29,6 +29,39 @@ function sortedActivityDays(sessions: SessionDoc[], protectedDateKeys: string[] 
     .sort();
 }
 
+/**
+ * Computes the current active streak (count of consecutive qualifying days
+ * ending today or yesterday).
+ *
+ * HOW THE STREAK IS BUILT (two-phase rule system):
+ *
+ * 1. Activity days are assembled from two sources:
+ *    a. Session dates derived from `sessions[].completedAtISO`.
+ *    b. `protectedDateKeys` — sick-day saves granted by the user; these count
+ *       as qualifying days regardless of session activity.
+ *
+ * 2. Rule tier (controlled by STREAK_RULE_V2_START_DATE = "2026-03-22"):
+ *    • Pre-v2 (dateKey < "2026-03-22"): any positive focus minutes qualifies.
+ *    • v2 (dateKey >= "2026-03-22"): needs ≥1 completed block AND
+ *      (≥30 focus minutes OR ≥33 note words written that day).
+ *    The caller (page.tsx streakQualifiedDateKeys memo) applies these rules
+ *    before calling computeStreak; this function receives an already-filtered
+ *    list of qualifying date keys (passed as `protectedDateKeys`).
+ *
+ * 3. Date arithmetic uses LOCAL timezone throughout (`ymdLocal` via
+ *    `getFullYear/getMonth/getDate`), so midnight rollover matches the user's
+ *    wall clock, not UTC. Future dates are excluded.
+ *
+ * 4. The streak counts backward from today: if today qualifies, count it then
+ *    step back one day and repeat. Stop at the first missing day.
+ *    displayStreak in the UI extends this with yesterday's run so the streak
+ *    survives into the next calendar day before the user has re-qualified.
+ *
+ * RACE-CONDITION PROTECTION (page.tsx):
+ *    plannedBlocks (needed for v2 rule) loads asynchronously in parallel with
+ *    sessions. Until plannedBlocksHydrated is true, the caller preserves the
+ *    last non-zero streak to avoid a transient flash to 0.
+ */
 export function computeStreak(sessions: SessionDoc[], protectedDateKeys: string[] = []) {
   const days = new Set(sortedActivityDays(sessions, protectedDateKeys));
 
