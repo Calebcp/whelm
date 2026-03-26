@@ -15,6 +15,7 @@ import {
 import { deleteObject, getDownloadURL, ref as storageRef, uploadBytesResumable } from "firebase/storage";
 
 import SenseiFigure, { type SenseiVariant } from "@/components/SenseiFigure";
+import WhelMascot from "@/components/WhelMascot";
 import Timer, { type TimerSessionContext } from "@/components/Timer";
 import MilestoneReveal from "@/components/MilestoneReveal";
 import WhelmEmote from "@/components/WhelmEmote";
@@ -87,6 +88,8 @@ import {
 import { buildPerformanceNotificationPlan } from "@/lib/performance-notifications";
 import type { LeaderboardPageResponse, LeaderboardSnapshotEntry } from "@/lib/leaderboard";
 import type { WhelmEmoteId } from "@/lib/whelm-emotes";
+import { bandanaColorFromStreak } from "@/lib/whelm-mascot";
+import { useMascot } from "@/hooks/useMascot";
 import styles from "./page.module.css";
 
 const FOCUS_TIMER = {
@@ -2969,12 +2972,14 @@ function IntroSplash({ onComplete }: { onComplete: () => void }) {
 function SenseiAvatar({
   message,
   variant,
+  bandanaColor = "yellow",
   compact = false,
   emoteVideoSrc,
   autoPlayEmote = false,
 }: {
   message: string;
   variant: SenseiVariant;
+  bandanaColor?: import("@/lib/whelm-mascot").WhelBandanaColor;
   compact?: boolean;
   emoteVideoSrc?: string;
   autoPlayEmote?: boolean;
@@ -2982,6 +2987,7 @@ function SenseiAvatar({
   return (
     <SenseiFigure
       variant={variant}
+      bandanaColor={bandanaColor}
       size={compact ? "inline" : "card"}
       message={message}
       className={compact ? styles.senseiAvatarCompact : styles.senseiAvatarPlacement}
@@ -2997,16 +3003,18 @@ function CompanionPulse({
   title,
   body,
   variant,
+  bandanaColor = "yellow",
 }: {
   eyebrow: string;
   title: string;
   body: string;
   variant: SenseiVariant;
+  bandanaColor?: import("@/lib/whelm-mascot").WhelBandanaColor;
 }) {
   return (
     <article className={styles.companionPulse}>
       <div className={styles.companionPulseFigureWrap}>
-        <SenseiFigure variant={variant} size="badge" className={styles.companionPulseFigure} />
+        <SenseiFigure variant={variant} bandanaColor={bandanaColor} size="badge" className={styles.companionPulseFigure} />
       </div>
       <div className={styles.companionPulseSpeech}>
         <div className={styles.companionPulseCopy}>
@@ -3670,6 +3678,8 @@ export default function HomePage() {
     () => computeStreak([], streakQualifiedDateKeys),
     [streakQualifiedDateKeys],
   );
+  const bandanaColor = bandanaColorFromStreak(streak);
+  const { mascot, show: showMascot, dismiss: dismissMascot } = useMascot(bandanaColor);
 
   const focusMetrics = useMemo(() => {
     const now = new Date();
@@ -8375,6 +8385,7 @@ export default function HomePage() {
 
   function handleCardsXPEarned(amount: number) {
     if (amount <= 0) return;
+    showMascot("cards_session_done");
     // TODO: reconcile cards-earned XP with the derived xpByDay/lifetimeXpSummary flow before mutating parent XP state.
   }
 
@@ -8674,6 +8685,7 @@ export default function HomePage() {
                     <SenseiAvatar
                       message={todayHeroCopy.eyebrow}
                       variant="neutral"
+                      bandanaColor={bandanaColor}
                       emoteVideoSrc="/emotes/welcomeemoting.mp4"
                       autoPlayEmote
                     />
@@ -9327,6 +9339,7 @@ export default function HomePage() {
                               entries: selectedDateEntries,
                               focusedMinutes: selectedDateFocusedMinutes,
                             })}
+                            bandanaColor={bandanaColor}
                             compact
                           />
                         )}
@@ -9794,7 +9807,7 @@ export default function HomePage() {
 
                 {calendarAuxPanel === "guide" && (
                   <div ref={calendarHeroRef}>
-                    <CompanionPulse {...companionState.pulses.calendar} />
+                    <CompanionPulse {...companionState.pulses.calendar} bandanaColor={bandanaColor} />
                   </div>
                 )}
 
@@ -11574,6 +11587,7 @@ export default function HomePage() {
                   <div className={styles.notesEmptyEditor}>
                     <SenseiFigure
                       variant="scholar"
+                      bandanaColor={bandanaColor}
                       size="inline"
                       message="Start with one idea worth keeping."
                       className={styles.notesEmptySensei}
@@ -12167,7 +12181,7 @@ export default function HomePage() {
 
           {activeTab === "history" && (
             <AnimatedTabSection className={styles.historyShell} sectionRef={historySectionRef}>
-              <CompanionPulse {...companionState.pulses.history} />
+              <CompanionPulse {...companionState.pulses.history} bandanaColor={bandanaColor} />
               <article className={styles.card} ref={historyPrimaryRef}>
                 <p className={styles.sectionLabel}>Block History</p>
                 <h2 className={styles.cardTitle}>Completed and incomplete blocks</h2>
@@ -12277,6 +12291,7 @@ export default function HomePage() {
                   <div className={styles.historyEmptyState}>
                     <SenseiFigure
                       variant="wave"
+                      bandanaColor={bandanaColor}
                       size="inline"
                       message="Your first session will start the record."
                       className={styles.historyEmptySensei}
@@ -12416,7 +12431,7 @@ export default function HomePage() {
 
           {activeTab === "reports" && (
             <AnimatedTabSection className={styles.reportsGrid} sectionRef={reportsSectionRef}>
-              <CompanionPulse {...companionState.pulses.reports} />
+              <CompanionPulse {...companionState.pulses.reports} bandanaColor={bandanaColor} />
               {!isPro ? (
                 <>
                   <article className={`${styles.card} ${styles.analyticsHeroCard}`} ref={reportsPrimaryRef}>
@@ -13028,7 +13043,7 @@ export default function HomePage() {
 
           {activeTab === "settings" && (
             <AnimatedTabSection className={styles.settingsGrid} sectionRef={settingsSectionRef}>
-              <CompanionPulse {...companionState.pulses.settings} />
+              <CompanionPulse {...companionState.pulses.settings} bandanaColor={bandanaColor} />
               <article className={`${styles.card} ${styles.settingsHeroCard}`} ref={settingsPrimaryRef}>
                 <div className={styles.settingsHeroHeader}>
                   <WhelmProfileAvatar
@@ -14296,6 +14311,15 @@ export default function HomePage() {
         </div>
       )}
       </main>
+
+      {mascot.visible ? (
+        <WhelMascot
+          pose={mascot.pose}
+          bandanaColor={mascot.bandanaColor}
+          message={mascot.message}
+          onDismiss={dismissMascot}
+        />
+      ) : null}
     </>
   );
 }

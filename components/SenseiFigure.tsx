@@ -2,6 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import {
+  type WhelBandanaColor,
+  type WhelPose,
+  VARIANT_TO_POSE,
+  getWhelImagePath,
+} from "@/lib/whelm-mascot";
 import styles from "./SenseiFigure.module.css";
 
 export type SenseiVariant =
@@ -21,6 +27,7 @@ type SenseiAlign = "center" | "left" | "right";
 
 type SenseiFigureProps = {
   variant: SenseiVariant;
+  bandanaColor?: WhelBandanaColor;
   size?: SenseiSize;
   align?: SenseiAlign;
   message?: string;
@@ -32,59 +39,24 @@ type SenseiFigureProps = {
 
 const SENSEI_VARIANTS: Record<
   SenseiVariant,
-  { src: string; alt: string; motion: "float" | "calm" | "celebrate" | "wave" | "still" }
+  { alt: string; motion: "float" | "calm" | "celebrate" | "wave" | "still" }
 > = {
-  stressed: {
-    src: "/sensei/stressed.png",
-    alt: "Whelm wiping stress away",
-    motion: "float",
-  },
-  scholar: {
-    src: "/sensei/scholar.png",
-    alt: "Whelm holding coffee and a book",
-    motion: "float",
-  },
-  victory: {
-    src: "/sensei/victory.png",
-    alt: "Whelm celebrating with raised fists",
-    motion: "celebrate",
-  },
-  neutral: {
-    src: "/sensei/neutral.png",
-    alt: "Whelm standing ready",
-    motion: "still",
-  },
-  anchor: {
-    src: "/sensei/anchor.png",
-    alt: "Whelm standing with hands on hips",
-    motion: "float",
-  },
-  bowed: {
-    src: "/sensei/bowed.png",
-    alt: "Whelm hanging their head",
-    motion: "still",
-  },
-  meditate: {
-    src: "/sensei/meditate.png",
-    alt: "Whelm meditating",
-    motion: "calm",
-  },
-  rest: {
-    src: "/sensei/rest.png",
-    alt: "Whelm holding a pillow",
-    motion: "calm",
-  },
-  wave: {
-    src: "/sensei/betterwave.png",
-    alt: "Whelm waving hello",
-    motion: "wave",
-  },
-  applause: {
-    src: "/sensei/applause.png",
-    alt: "Whelm clapping",
-    motion: "celebrate",
-  },
+  stressed: { alt: "Whelm wiping stress away", motion: "float" },
+  scholar: { alt: "Whelm holding coffee and a book", motion: "float" },
+  victory: { alt: "Whelm celebrating with raised fists", motion: "celebrate" },
+  neutral: { alt: "Whelm standing ready", motion: "still" },
+  anchor: { alt: "Whelm standing with hands on hips", motion: "float" },
+  bowed: { alt: "Whelm hanging their head", motion: "still" },
+  meditate: { alt: "Whelm meditating", motion: "calm" },
+  rest: { alt: "Whelm holding a pillow", motion: "calm" },
+  wave: { alt: "Whelm waving hello", motion: "wave" },
+  applause: { alt: "Whelm clapping", motion: "celebrate" },
 };
+
+function resolveImageSrc(variant: SenseiVariant, bandanaColor: WhelBandanaColor): string {
+  const pose: WhelPose = VARIANT_TO_POSE[variant] ?? "ready_idle";
+  return getWhelImagePath(pose, bandanaColor);
+}
 
 function cx(...values: Array<string | false | null | undefined>) {
   return values.filter(Boolean).join(" ");
@@ -92,6 +64,7 @@ function cx(...values: Array<string | false | null | undefined>) {
 
 export default function SenseiFigure({
   variant,
+  bandanaColor = "yellow",
   size = "card",
   align = "center",
   message,
@@ -104,6 +77,7 @@ export default function SenseiFigure({
   const [showEmote, setShowEmote] = useState(Boolean(emoteVideoSrc && autoPlayEmote));
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const asset = SENSEI_VARIANTS[variant];
+  const imageSrc = resolveImageSrc(variant, bandanaColor);
   const motionClass =
     asset.motion === "calm"
       ? styles.motionCalm
@@ -174,7 +148,7 @@ export default function SenseiFigure({
         ) : (
           <>
             <img
-              src={asset.src}
+              src={imageSrc}
               alt={alt ?? asset.alt}
               className={styles.image}
               onError={() => setImageFailed(true)}
