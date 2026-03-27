@@ -35,10 +35,6 @@ import WhelToastContainer, { useToasts } from "@/components/WhelToast";
 import { createCard, loadCards, saveCards } from "@/lib/cards-store";
 import {
   trackAppOpened,
-  trackLeaderboardAroundMeLoaded,
-  trackLeaderboardPageLoaded,
-  trackLeaderboardTabSwitched,
-  trackLeaderboardViewed,
   trackSessionAbandoned,
   trackSessionCompleted,
   trackSessionStarted,
@@ -90,7 +86,6 @@ import {
   type StreakBandanaTier,
 } from "@/lib/streak-bandanas";
 import { buildPerformanceNotificationPlan } from "@/lib/performance-notifications";
-import type { LeaderboardPageResponse, LeaderboardSnapshotEntry } from "@/lib/leaderboard";
 import type { WhelmEmoteId } from "@/lib/whelm-emotes";
 import { subscribeToUserData } from "@/lib/firestore-sync";
 import type { AppTab } from "@/lib/app-tabs";
@@ -120,6 +115,7 @@ import {
   type StreakNudgeState,
 } from "@/lib/xp-engine";
 import { useNotes } from "@/hooks/useNotes";
+import { useLeaderboard } from "@/hooks/useLeaderboard";
 import { usePlannedBlocks } from "@/hooks/usePlannedBlocks";
 import { useUserData } from "@/hooks/useUserData";
 import styles from "./page.module.css";
@@ -2040,14 +2036,6 @@ function movementForRanks(currentRank: number, previousRank: number | null): Lea
   return { delta: 0, previousRank, direction: "same" };
 }
 
-function movementFromSnapshot(entry: LeaderboardSnapshotEntry): LeaderboardMovement {
-  return {
-    delta: entry.movement,
-    previousRank: entry.previousRank,
-    direction: entry.movementDirection,
-  };
-}
-
 function leaderboardMovementLabel(movement: LeaderboardMovement, tab: LeaderboardMetricTab) {
   if (movement.direction === "new") return tab === "xp" ? "New challenger" : "New";
   if (movement.direction === "same") return tab === "xp" ? "No movement" : "Flat";
@@ -2685,44 +2673,6 @@ const MOBILE_MORE_TABS: AppTab[] = [
   "settings",
 ];
 
-const LEADERBOARD_SEED_DATA: ReadonlyArray<{
-  id: string;
-  username: string;
-  totalXp: number;
-  currentStreak: number;
-  createdAtISO: string;
-}> = [
-  { id: "seed-1", username: "Astra Vale", totalXp: 28640, currentStreak: 123, createdAtISO: "2024-01-04T08:30:00.000Z" },
-  { id: "seed-2", username: "Soren Pike", totalXp: 21480, currentStreak: 74, createdAtISO: "2024-01-12T12:15:00.000Z" },
-  { id: "seed-3", username: "Mira Sol", totalXp: 18420, currentStreak: 33, createdAtISO: "2024-02-09T10:20:00.000Z" },
-  { id: "seed-4", username: "Kael Mercer", totalXp: 15110, currentStreak: 18, createdAtISO: "2024-02-21T07:10:00.000Z" },
-  { id: "seed-5", username: "Talia Reed", totalXp: 12340, currentStreak: 8, createdAtISO: "2024-03-03T09:45:00.000Z" },
-  { id: "seed-6", username: "Juno Hart", totalXp: 9780, currentStreak: 4, createdAtISO: "2024-03-18T14:05:00.000Z" },
-  { id: "seed-7", username: "Ren Kade", totalXp: 8325, currentStreak: 2, createdAtISO: "2024-04-06T16:25:00.000Z" },
-  { id: "seed-8", username: "Ivo Lane", totalXp: 6940, currentStreak: 1, createdAtISO: "2024-04-19T11:50:00.000Z" },
-  { id: "seed-9", username: "Nova Chen", totalXp: 5420, currentStreak: 57, createdAtISO: "2024-05-08T13:30:00.000Z" },
-  { id: "seed-10", username: "Eden Cross", totalXp: 11960, currentStreak: 21, createdAtISO: "2024-05-12T15:40:00.000Z" },
-] as const;
-
-const LEADERBOARD_PREVIOUS_SNAPSHOT: ReadonlyArray<{
-  id: string;
-  username: string;
-  totalXp: number;
-  currentStreak: number;
-  createdAtISO: string;
-}> = [
-  { id: "seed-1", username: "Astra Vale", totalXp: 27880, currentStreak: 121, createdAtISO: "2024-01-04T08:30:00.000Z" },
-  { id: "seed-2", username: "Soren Pike", totalXp: 21310, currentStreak: 73, createdAtISO: "2024-01-12T12:15:00.000Z" },
-  { id: "seed-3", username: "Mira Sol", totalXp: 18340, currentStreak: 31, createdAtISO: "2024-02-09T10:20:00.000Z" },
-  { id: "seed-4", username: "Kael Mercer", totalXp: 14810, currentStreak: 17, createdAtISO: "2024-02-21T07:10:00.000Z" },
-  { id: "seed-5", username: "Talia Reed", totalXp: 12180, currentStreak: 8, createdAtISO: "2024-03-03T09:45:00.000Z" },
-  { id: "seed-6", username: "Juno Hart", totalXp: 9610, currentStreak: 4, createdAtISO: "2024-03-18T14:05:00.000Z" },
-  { id: "seed-7", username: "Ren Kade", totalXp: 8250, currentStreak: 2, createdAtISO: "2024-04-06T16:25:00.000Z" },
-  { id: "seed-8", username: "Ivo Lane", totalXp: 6895, currentStreak: 1, createdAtISO: "2024-04-19T11:50:00.000Z" },
-  { id: "seed-9", username: "Nova Chen", totalXp: 5210, currentStreak: 54, createdAtISO: "2024-05-08T13:30:00.000Z" },
-  { id: "seed-10", username: "Eden Cross", totalXp: 12040, currentStreak: 19, createdAtISO: "2024-05-12T15:40:00.000Z" },
-] as const;
-
 const INTRO_SPLASH_MIN_MS = 1500;
 const INTRO_SPLASH_MAX_MS = 2200;
 function StreakBandana({
@@ -3286,18 +3236,7 @@ export default function HomePage() {
   });
   const [trendRange, setTrendRange] = useState<TrendRange>(7);
   const [activeTab, setActiveTab] = useState<AppTab>("calendar");
-  const [leaderboardMetricTab, setLeaderboardMetricTab] = useState<LeaderboardMetricTab>("xp");
-  const [leaderboardLoading, setLeaderboardLoading] = useState(false);
-  const [leaderboardPageItems, setLeaderboardPageItems] = useState<LeaderboardSnapshotEntry[]>([]);
-  const [leaderboardAroundMeItems, setLeaderboardAroundMeItems] = useState<LeaderboardSnapshotEntry[]>([]);
-  const [leaderboardCursor, setLeaderboardCursor] = useState<string | null>(null);
-  const [leaderboardHasMore, setLeaderboardHasMore] = useState(false);
-  const [leaderboardSnapshotDate, setLeaderboardSnapshotDate] = useState<string | null>(null);
-  const [leaderboardSource, setLeaderboardSource] = useState<LeaderboardPageResponse["source"]>("fallback");
-  const [leaderboardTotalEntries, setLeaderboardTotalEntries] = useState(0);
-  const [leaderboardError, setLeaderboardError] = useState("");
   const [selectedLbProfile, setSelectedLbProfile] = useState<{ entry: LeaderboardEntry; rank: number } | null>(null);
-  const [seenChallengerIds, setSeenChallengerIds] = useState<Set<string>>(new Set());
   const [insightRange, setInsightRange] = useState<TrendRange>(30);
   const [insightMetric, setInsightMetric] = useState<InsightMetric>("focus");
   const [calendarView, setCalendarView] = useState<CalendarView>("month");
@@ -4413,14 +4352,6 @@ export default function HomePage() {
   useEffect(() => {
     if (!user) return;
     setMonthTones(loadMonthTones(user.uid));
-  }, [user]);
-
-  useEffect(() => {
-    if (!user) return;
-    try {
-      const raw = window.localStorage.getItem(`whelm:seen-challengers:${user.uid}`);
-      if (raw) setSeenChallengerIds(new Set(JSON.parse(raw) as string[]));
-    } catch { /* ignore */ }
   }, [user]);
 
   useEffect(() => {
@@ -5615,53 +5546,6 @@ export default function HomePage() {
     handleTabSelect(tab);
   }
 
-  async function handleLeaderboardLoadMore() {
-    if (!user || !leaderboardHasMore || !leaderboardCursor) return;
-    setLeaderboardLoading(true);
-    setLeaderboardError("");
-
-    try {
-      const token = await user.getIdToken();
-      const url = new URL(resolveApiUrl("/api/leaderboard"), window.location.origin);
-      url.searchParams.set("metric", leaderboardMetricTab);
-      url.searchParams.set("limit", "20");
-      url.searchParams.set("userId", user.uid);
-      url.searchParams.set("cursor", leaderboardCursor);
-      url.searchParams.set("aroundWindow", "2");
-
-      const response = await fetch(url.toString(), {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const body = (await response.json()) as LeaderboardPageResponse | { error?: string };
-      if (!response.ok) {
-        throw new Error(("error" in body && body.error) || "Failed to load more leaderboard entries.");
-      }
-
-      const payload = body as LeaderboardPageResponse;
-      setLeaderboardPageItems((current) => [...current, ...payload.items]);
-      setLeaderboardCursor(payload.nextCursor);
-      setLeaderboardHasMore(payload.hasMore);
-      setLeaderboardSnapshotDate(payload.snapshotDate);
-      setLeaderboardSource(payload.source);
-      setLeaderboardTotalEntries(payload.totalEntries);
-
-      void trackLeaderboardPageLoaded(user, {
-        metric: leaderboardMetricTab,
-        pageSize: payload.items.length,
-        cursor: leaderboardCursor,
-        snapshotDate: payload.snapshotDate,
-      }).catch(() => undefined);
-    } catch (error: unknown) {
-      setLeaderboardError(
-        error instanceof Error ? error.message : "Failed to load more leaderboard entries.",
-      );
-    } finally {
-      setLeaderboardLoading(false);
-    }
-  }
-
   function convertNoteToPlannedBlock(note: WorkspaceNote) {
     const reminderDate = note.reminderAtISO ? new Date(note.reminderAtISO) : null;
     const rawDateKey = reminderDate ? dayKeyLocal(reminderDate) : selectedDateKey;
@@ -6615,195 +6499,35 @@ export default function HomePage() {
     "--mobile-streak-text": xpTierTheme.textStrong,
   } as CSSProperties;
   const profileTierTheme = getProfileTierTheme(streakBandanaTier?.color, isPro);
-  const leaderboardEntries = useMemo<LeaderboardEntry[]>(() => {
-    const seeded = LEADERBOARD_SEED_DATA.map((entry) => ({
-      id: entry.id,
-      username: entry.username,
-      createdAtISO: entry.createdAtISO,
-      totalXp: entry.totalXp,
-      currentStreak: entry.currentStreak,
-      level: getLifetimeXpSummary(entry.totalXp, 0).currentLevel,
-    }));
-
-    const currentEntry: LeaderboardEntry = {
-      id: currentUserId,
-      username: profileDisplayName,
-      createdAtISO: currentUserCreatedAtISO,
-      level: lifetimeXpSummary.currentLevel,
-      totalXp: lifetimeXpSummary.totalXp,
-      currentStreak: displayStreak,
-      bestStreak: Math.max(0, ...Array.from(historicalStreaksByDay.values())),
-      totalFocusHours: Math.round(sessions.reduce((sum, s) => sum + s.minutes, 0) / 60),
-      avatarUrl: currentUserPhotoUrl,
-      isProStyle: isPro,
-      isCurrentUser: true,
-    };
-
-    return [...seeded, currentEntry];
-  }, [currentUserCreatedAtISO, currentUserId, currentUserPhotoUrl, displayStreak, historicalStreaksByDay, isPro, lifetimeXpSummary.currentLevel, lifetimeXpSummary.totalXp, profileDisplayName, sessions]);
-  const leaderboardPreviousSnapshotEntries = useMemo<LeaderboardEntry[]>(() => {
-    const seeded = LEADERBOARD_PREVIOUS_SNAPSHOT.map((entry) => ({
-      id: entry.id,
-      username: entry.username,
-      createdAtISO: entry.createdAtISO,
-      totalXp: entry.totalXp,
-      currentStreak: entry.currentStreak,
-      level: getLifetimeXpSummary(entry.totalXp, 0).currentLevel,
-    }));
-
-    const currentEntry: LeaderboardEntry = {
-      id: currentUserId,
-      username: profileDisplayName,
-      createdAtISO: currentUserCreatedAtISO,
-      level: getLifetimeXpSummary(Math.max(0, lifetimeXpSummary.totalXp - 420), 0).currentLevel,
-      totalXp: Math.max(0, lifetimeXpSummary.totalXp - 420),
-      currentStreak: Math.max(0, displayStreak - 1),
-      avatarUrl: currentUserPhotoUrl,
-      isProStyle: isPro,
-      isCurrentUser: true,
-    };
-
-    return [...seeded, currentEntry];
-  }, [currentUserCreatedAtISO, currentUserId, currentUserPhotoUrl, displayStreak, isPro, lifetimeXpSummary.totalXp, profileDisplayName]);
-  const leaderboardSortedEntries = useMemo(
-    () => [...leaderboardEntries].sort((left, right) => compareLeaderboardEntries(left, right, leaderboardMetricTab)),
-    [leaderboardEntries, leaderboardMetricTab],
-  );
-  const leaderboardPreviousRankMaps = useMemo(() => {
-    const xp = new Map<string, number>();
-    [...leaderboardPreviousSnapshotEntries]
-      .sort((left, right) => compareLeaderboardEntries(left, right, "xp"))
-      .forEach((entry, index) => xp.set(entry.id, index + 1));
-
-    const streak = new Map<string, number>();
-    [...leaderboardPreviousSnapshotEntries]
-      .sort((left, right) => compareLeaderboardEntries(left, right, "streak"))
-      .forEach((entry, index) => streak.set(entry.id, index + 1));
-
-    return { xp, streak };
-  }, [leaderboardPreviousSnapshotEntries]);
-  const leaderboardFallbackRows = useMemo(
-    () =>
-      leaderboardSortedEntries.map((entry, index) => ({
-        entry,
-        rank: index + 1,
-        movement: movementForRanks(
-          index + 1,
-          leaderboardPreviousRankMaps[leaderboardMetricTab].get(entry.id) ?? null,
-        ),
-      })),
-    [leaderboardMetricTab, leaderboardPreviousRankMaps, leaderboardSortedEntries],
-  );
-  const myBestStreak = useMemo(
-    () => Math.max(0, ...Array.from(historicalStreaksByDay.values())),
-    [historicalStreaksByDay],
-  );
-  const myTotalFocusHours = useMemo(
-    () => Math.round(sessions.reduce((sum, s) => sum + s.minutes, 0) / 60),
-    [sessions],
-  );
-  const leaderboardRemoteRows = useMemo(
-    () =>
-      leaderboardPageItems.map((entry) => {
-        const isMe = entry.userId === currentUserId;
-        return {
-          entry: {
-            id: entry.userId,
-            username: isMe ? profileDisplayName : entry.username,
-            createdAtISO: entry.createdAtISO,
-            totalXp: isMe ? lifetimeXpSummary.totalXp : entry.totalXp,
-            currentStreak: isMe ? displayStreak : entry.currentStreak,
-            level: isMe ? lifetimeXpSummary.currentLevel : entry.level,
-            bestStreak: isMe ? myBestStreak : (entry.bestStreak ?? 0),
-            totalFocusHours: isMe ? myTotalFocusHours : (entry.totalFocusHours ?? 0),
-            avatarUrl: isMe ? currentUserPhotoUrl : null,
-            isProStyle: isMe ? isPro : false,
-            isCurrentUser: isMe,
-          },
-          rank: entry.rank,
-          movement: movementFromSnapshot(entry),
-        };
-      }),
-    [currentUserId, currentUserPhotoUrl, displayStreak, isPro, leaderboardPageItems, lifetimeXpSummary.currentLevel, lifetimeXpSummary.totalXp, myBestStreak, myTotalFocusHours, profileDisplayName],
-  );
-  const leaderboardAroundRows = useMemo(
-    () =>
-      leaderboardAroundMeItems.map((entry) => {
-        const isMe = entry.userId === currentUserId;
-        return {
-          entry: {
-            id: entry.userId,
-            username: isMe ? profileDisplayName : entry.username,
-            createdAtISO: entry.createdAtISO,
-            totalXp: isMe ? lifetimeXpSummary.totalXp : entry.totalXp,
-            currentStreak: isMe ? displayStreak : entry.currentStreak,
-            level: isMe ? lifetimeXpSummary.currentLevel : entry.level,
-            bestStreak: isMe ? myBestStreak : (entry.bestStreak ?? 0),
-            totalFocusHours: isMe ? myTotalFocusHours : (entry.totalFocusHours ?? 0),
-            avatarUrl: isMe ? currentUserPhotoUrl : null,
-            isProStyle: isMe ? isPro : false,
-            isCurrentUser: isMe,
-          },
-          rank: entry.rank,
-          movement: movementFromSnapshot(entry),
-        };
-      }),
-    [currentUserId, currentUserPhotoUrl, displayStreak, isPro, leaderboardAroundMeItems, lifetimeXpSummary.currentLevel, lifetimeXpSummary.totalXp, myBestStreak, myTotalFocusHours, profileDisplayName],
-  );
-  const leaderboardRows =
-    leaderboardSource === "snapshot" && leaderboardRemoteRows.length > 0
-      ? leaderboardRemoteRows
-      : leaderboardFallbackRows;
-  const leaderboardCurrentUserRank =
-    (leaderboardSource === "snapshot" && leaderboardAroundRows.find((row) => row.entry.isCurrentUser)?.rank) ??
-    leaderboardRows.find((row) => row.entry.isCurrentUser)?.rank ??
-    0;
-  const leaderboardCurrentUserMovement =
-    (leaderboardSource === "snapshot"
-      ? leaderboardAroundRows.find((row) => row.entry.isCurrentUser)?.movement
-      : undefined) ??
-    leaderboardRows.find((row) => row.entry.isCurrentUser)?.movement ?? {
-      delta: 0,
-      previousRank: null,
-      direction: "same" as const,
-    };
-  const leaderboardLeader = leaderboardRows[0]?.entry ?? null;
-  const leaderboardLeaderBandana = leaderboardLeader
-    ? getLeaderboardBandanaMeta(leaderboardLeader.currentStreak)
-    : null;
-  const leaderboardPodiumRows = leaderboardRows.slice(0, 3);
-  const leaderboardBandanaHolders = useMemo<LeaderboardBandanaHolder[]>(() => {
-    const sourceEntries =
-      leaderboardSource === "snapshot" && leaderboardPageItems.length > 0
-        ? leaderboardPageItems.map((entry) => {
-            const isMe = entry.userId === currentUserId;
-            return {
-              id: entry.userId,
-              username: isMe ? profileDisplayName : entry.username,
-              createdAtISO: entry.createdAtISO,
-              totalXp: isMe ? lifetimeXpSummary.totalXp : entry.totalXp,
-              currentStreak: isMe ? displayStreak : entry.currentStreak,
-              level: isMe ? lifetimeXpSummary.currentLevel : entry.level,
-              avatarUrl: isMe ? currentUserPhotoUrl : null,
-              isProStyle: isMe ? isPro : false,
-            };
-          })
-        : leaderboardEntries;
-
-    return STREAK_BANDANA_TIERS.map((tier) => {
-      const topEntry =
-        [...sourceEntries]
-          .filter((entry) => getStreakBandanaTier(entry.currentStreak)?.color === tier.color)
-          .sort((left, right) => compareLeaderboardEntries(left, right, "xp"))[0] ?? null;
-
-      return {
-        color: tier.color,
-        label: `Top ${tier.label.replace(" Bandana", "")}`,
-        entry: topEntry,
-      };
-    });
-  }, [currentUserId, currentUserPhotoUrl, displayStreak, isPro, leaderboardEntries, leaderboardPageItems, leaderboardSource, lifetimeXpSummary.currentLevel, lifetimeXpSummary.totalXp, profileDisplayName]);
-  const leaderboardHasEntries = leaderboardRows.length > 0;
+  const {
+    leaderboardMetricTab,
+    setLeaderboardMetricTab,
+    leaderboardCurrentUserRank,
+    leaderboardCurrentUserMovement,
+    leaderboardSource,
+    leaderboardTotalEntries,
+    leaderboardRows,
+    leaderboardAroundRows,
+    leaderboardBandanaHolders,
+    leaderboardError,
+    leaderboardLoading,
+    leaderboardHasEntries,
+    leaderboardHasMore,
+    seenChallengerIds,
+    handleLeaderboardLoadMore,
+  } = useLeaderboard({
+    activeTab,
+    user,
+    currentUserId,
+    currentUserPhotoUrl,
+    currentUserCreatedAtISO,
+    profileDisplayName,
+    displayStreak,
+    isPro,
+    lifetimeXpSummary,
+    historicalStreaksByDay,
+    sessions,
+  });
   const selectedDateAgendaStateSummary = useMemo(() => {
     const plans = selectedDateEntries.filter((entry) => entry.source === "plan");
     const activeNow = plans.find(
@@ -6824,163 +6548,6 @@ export default function HomePage() {
       focusMinutes: selectedDateFocusedMinutes,
     };
   }, [selectedDateEntries, selectedDateFocusedMinutes, selectedDateKey]);
-
-  useEffect(() => {
-    // Sync profile whenever XP, streak, level, or user identity changes —
-    // not only on leaderboard tab visit — so every user has a profile document
-    // from first login and the leaderboard always reflects live values.
-    const currentUser = user;
-    if (!currentUser) return;
-    const authedUser = currentUser;
-
-    const controller = new AbortController();
-
-    async function syncLeaderboardProfile() {
-      try {
-        const token = await authedUser.getIdToken();
-        await fetch(resolveApiUrl("/api/leaderboard/profile"), {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            userId: authedUser.uid,
-            username: profileDisplayName,
-            totalXp: lifetimeXpSummary.totalXp,
-            currentStreak: displayStreak,
-            level: lifetimeXpSummary.currentLevel,
-            createdAtISO: authedUser.metadata.creationTime
-              ? new Date(authedUser.metadata.creationTime).toISOString()
-              : new Date().toISOString(),
-            bestStreak: Math.max(0, ...Array.from(historicalStreaksByDay.values())),
-            totalFocusHours: Math.round(sessions.reduce((sum, s) => sum + s.minutes, 0) / 60),
-          }),
-          signal: controller.signal,
-        });
-      } catch {
-        // Ignore sync failures and keep the current leaderboard UI available.
-      }
-    }
-
-    void syncLeaderboardProfile();
-    return () => controller.abort();
-  }, [
-    displayStreak,
-    historicalStreaksByDay,
-    lifetimeXpSummary.currentLevel,
-    lifetimeXpSummary.totalXp,
-    profileDisplayName,
-    sessions,
-    user,
-  ]);
-
-  useEffect(() => {
-    if (activeTab !== "leaderboard") return;
-    const currentUser = user;
-    if (!currentUser) return;
-    const authedUser = currentUser;
-
-    let cancelled = false;
-
-    async function loadLeaderboard() {
-      setLeaderboardLoading(true);
-      setLeaderboardError("");
-
-      try {
-        const token = await authedUser.getIdToken();
-        const url = new URL(resolveApiUrl("/api/leaderboard"), window.location.origin);
-        url.searchParams.set("metric", leaderboardMetricTab);
-        url.searchParams.set("limit", "20");
-        url.searchParams.set("userId", authedUser.uid);
-        url.searchParams.set("aroundWindow", "2");
-
-        const response = await fetch(url.toString(), {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        const body = (await response.json()) as LeaderboardPageResponse | { error?: string };
-        if (!response.ok) {
-          throw new Error(("error" in body && body.error) || "Failed to load leaderboard.");
-        }
-
-        if (cancelled) return;
-        const payload = body as LeaderboardPageResponse;
-        setLeaderboardPageItems(payload.items);
-        setLeaderboardAroundMeItems(payload.aroundMe);
-        setLeaderboardCursor(payload.nextCursor);
-        setLeaderboardHasMore(payload.hasMore);
-        setLeaderboardSnapshotDate(payload.snapshotDate);
-        setLeaderboardSource(payload.source);
-        setLeaderboardTotalEntries(payload.totalEntries);
-
-        void trackLeaderboardPageLoaded(authedUser, {
-          metric: leaderboardMetricTab,
-          pageSize: payload.items.length,
-          cursor: null,
-          snapshotDate: payload.snapshotDate,
-        }).catch(() => undefined);
-
-        if (payload.aroundMe.length > 0) {
-          void trackLeaderboardAroundMeLoaded(authedUser, {
-            metric: leaderboardMetricTab,
-            anchorRank:
-              payload.aroundMe.find((entry) => entry.userId === authedUser.uid)?.rank ??
-              payload.aroundMe[0].rank,
-            resultCount: payload.aroundMe.length,
-            snapshotDate: payload.snapshotDate,
-          }).catch(() => undefined);
-        }
-      } catch (error: unknown) {
-        if (cancelled) return;
-        setLeaderboardPageItems([]);
-        setLeaderboardAroundMeItems([]);
-        setLeaderboardCursor(null);
-        setLeaderboardHasMore(false);
-        setLeaderboardSnapshotDate(null);
-        setLeaderboardSource("fallback");
-        setLeaderboardTotalEntries(0);
-        setLeaderboardError(error instanceof Error ? error.message : "Failed to load leaderboard.");
-      } finally {
-        if (!cancelled) {
-          setLeaderboardLoading(false);
-        }
-      }
-    }
-
-    void loadLeaderboard();
-    return () => {
-      cancelled = true;
-    };
-  }, [activeTab, leaderboardMetricTab, user]);
-
-  useEffect(() => {
-    if (activeTab !== "leaderboard") return;
-    const currentUser = user;
-    if (!currentUser) return;
-    void trackLeaderboardViewed(currentUser, {
-      metric: leaderboardMetricTab,
-      snapshotDate: leaderboardSnapshotDate,
-    }).catch(() => undefined);
-  }, [activeTab, leaderboardMetricTab, leaderboardSnapshotDate, user]);
-
-  // Mark new challengers as seen so the "New challenger" badge only shows once.
-  useEffect(() => {
-    if (!user || leaderboardRows.length === 0) return;
-    const newIds = leaderboardRows
-      .filter((row) => row.movement.direction === "new" && !seenChallengerIds.has(row.entry.id))
-      .map((row) => row.entry.id);
-    if (newIds.length === 0) return;
-    setSeenChallengerIds((prev) => {
-      const next = new Set([...prev, ...newIds]);
-      try {
-        window.localStorage.setItem(`whelm:seen-challengers:${user.uid}`, JSON.stringify([...next]));
-      } catch { /* ignore */ }
-      return next;
-    });
-  }, [leaderboardRows, seenChallengerIds, user]);
 
   const formattedLifetimeXp = lifetimeXpSummary.totalXp.toLocaleString();
   const formattedXpToNextLevel = Math.max(
@@ -7510,13 +7077,7 @@ export default function HomePage() {
               sectionRef={leaderboardSectionRef}
               primaryRef={leaderboardPrimaryRef}
               leaderboardMetricTab={leaderboardMetricTab}
-              onSetMetricTab={(tab) => {
-                void trackLeaderboardTabSwitched(user, {
-                  fromMetric: leaderboardMetricTab,
-                  toMetric: tab,
-                }).catch(() => undefined);
-                setLeaderboardMetricTab(tab);
-              }}
+              onSetMetricTab={setLeaderboardMetricTab}
               leaderboardCurrentUserRank={leaderboardCurrentUserRank}
               leaderboardCurrentUserMovement={leaderboardCurrentUserMovement}
               leaderboardSource={leaderboardSource}
