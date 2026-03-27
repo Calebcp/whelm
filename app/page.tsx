@@ -106,6 +106,7 @@ import { useNotes } from "@/hooks/useNotes";
 import { useLeaderboard } from "@/hooks/useLeaderboard";
 import { usePlannedBlocks } from "@/hooks/usePlannedBlocks";
 import { usePreferences } from "@/hooks/usePreferences";
+import { useCalendarInteractions } from "@/hooks/useCalendarInteractions";
 import { useReflection } from "@/hooks/useReflection";
 import { useSessions } from "@/hooks/useSessions";
 import { useStreak } from "@/hooks/useStreak";
@@ -3107,8 +3108,6 @@ export default function HomePage() {
   const settingsSectionRef = useRef<HTMLElement | null>(null);
   const settingsPrimaryRef = useRef<HTMLElement | null>(null);
   const mobileDayTimelineScrollRef = useRef<HTMLDivElement | null>(null);
-  const activatedCalendarEntryTimeoutRef = useRef<number | null>(null);
-  const calendarHoverPreviewTimeoutRef = useRef<number | null>(null);
   const {
     plannedBlocks,
     setPlannedBlocks,
@@ -4871,14 +4870,6 @@ export default function HomePage() {
     () => new Map(plannedBlocks.map((item) => [item.id, item])),
     [plannedBlocks],
   );
-  const selectedPlanDetail = selectedPlanDetailId
-    ? plannedBlockById.get(selectedPlanDetailId) ?? null
-    : null;
-  useEffect(() => {
-    if (selectedPlanDetailId && !plannedBlockById.has(selectedPlanDetailId)) {
-      setSelectedPlanDetailId(null);
-    }
-  }, [plannedBlockById, selectedPlanDetailId]);
   const plannedBlockHistory = useMemo(() => {
     const sorted = [...plannedBlocks]
       .filter((item) => isPro || isDateKeyWithinRecentWindow(item.dateKey, PRO_HISTORY_FREE_DAYS))
@@ -5183,104 +5174,52 @@ export default function HomePage() {
     });
     return byId;
   }, [calendarEntriesByDate]);
-  const activeCalendarPreview = useMemo(() => {
-    const id =
-      calendarView === "day"
-        ? calendarPinnedEntryId ?? (!isMobileViewport ? calendarHoverEntryId : null)
-        : calendarPinnedEntryId ?? calendarHoverEntryId;
-    if (!id) return null;
-    return calendarEntryById.get(id) ?? null;
-  }, [calendarEntryById, calendarHoverEntryId, calendarPinnedEntryId, calendarView, isMobileViewport]);
-  const activeDayViewPreviewItem = useMemo(() => {
-    if (calendarView !== "day" || !activeCalendarPreview) return null;
-    return dayViewTimeline.items.find((entry) => entry.id === activeCalendarPreview.id) ?? null;
-  }, [activeCalendarPreview, calendarView, dayViewTimeline.items]);
-  const activeOverlapPickerItem = useMemo(() => {
-    if (calendarView !== "day" || !overlapPickerEntryId) return null;
-    return dayViewTimeline.items.find((entry) => entry.id === overlapPickerEntryId) ?? null;
-  }, [calendarView, dayViewTimeline.items, overlapPickerEntryId]);
-
-  function clearCalendarHoverPreviewDelay() {
-    if (calendarHoverPreviewTimeoutRef.current !== null) {
-      window.clearTimeout(calendarHoverPreviewTimeoutRef.current);
-      calendarHoverPreviewTimeoutRef.current = null;
-    }
-  }
-
-  function showCalendarHoverPreview(entryId: string) {
-    if (isMobileViewport || calendarPinnedEntryId) return;
-    clearCalendarHoverPreviewDelay();
-    setCalendarHoverEntryId(entryId);
-  }
-
-  function scheduleCalendarHoverPreviewClear(entryId?: string) {
-    if (isMobileViewport || calendarPinnedEntryId) return;
-    clearCalendarHoverPreviewDelay();
-    calendarHoverPreviewTimeoutRef.current = window.setTimeout(() => {
-      setCalendarHoverEntryId((current) => (entryId && current !== entryId ? current : null));
-      calendarHoverPreviewTimeoutRef.current = null;
-    }, 120);
-  }
-
-  useEffect(() => {
-    setCalendarJumpDate(selectedDateKey);
-  }, [selectedDateKey]);
-
-  useEffect(() => {
-    setPlanConflictWarning(null);
-  }, [planDuration, planTime, planTitle, planNote, selectedDateKey]);
-
-  useEffect(() => {
-    if (calendarPinnedEntryId && !calendarEntryById.has(calendarPinnedEntryId)) {
-      setCalendarPinnedEntryId(null);
-    }
-    if (calendarHoverEntryId && !calendarEntryById.has(calendarHoverEntryId)) {
-      setCalendarHoverEntryId(null);
-    }
-  }, [calendarEntryById, calendarHoverEntryId, calendarPinnedEntryId]);
-
-  useEffect(() => {
-    if (!pendingCalendarEntryFocusId || calendarView !== "day") return;
-    const entry = calendarEntryById.get(pendingCalendarEntryFocusId);
-    if (!entry) return;
-
-    const frame = window.requestAnimationFrame(() => {
-      const target = document.querySelector<HTMLElement>(
-        `[data-calendar-entry-id="${pendingCalendarEntryFocusId}"]`,
-      );
-      if (!target) return;
-      setCalendarPinnedEntryId(pendingCalendarEntryFocusId);
-      target.scrollIntoView({ behavior: "smooth", block: "center" });
-      if (activatedCalendarEntryTimeoutRef.current !== null) {
-        window.clearTimeout(activatedCalendarEntryTimeoutRef.current);
-      }
-      setActivatedCalendarEntryId(pendingCalendarEntryFocusId);
-      const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      activatedCalendarEntryTimeoutRef.current = window.setTimeout(
-        () => {
-          setActivatedCalendarEntryId((current) =>
-            current === pendingCalendarEntryFocusId ? null : current,
-          );
-          activatedCalendarEntryTimeoutRef.current = null;
-        },
-        prefersReducedMotion ? 900 : 1800,
-      );
-      setPendingCalendarEntryFocusId(null);
-    });
-
-    return () => window.cancelAnimationFrame(frame);
-  }, [calendarEntryById, calendarView, pendingCalendarEntryFocusId]);
-
-  useEffect(() => {
-    return () => {
-      if (activatedCalendarEntryTimeoutRef.current !== null) {
-        window.clearTimeout(activatedCalendarEntryTimeoutRef.current);
-      }
-      if (calendarHoverPreviewTimeoutRef.current !== null) {
-        window.clearTimeout(calendarHoverPreviewTimeoutRef.current);
-      }
-    };
-  }, []);
+  const {
+    selectedPlanDetail,
+    activeCalendarPreview,
+    activeDayViewPreviewItem,
+    activeOverlapPickerItem,
+    clearCalendarHoverPreviewDelay,
+    showCalendarHoverPreview,
+    scheduleCalendarHoverPreviewClear,
+    jumpToCalendarSection,
+    openPlannedBlockDetail,
+    closePlannedBlockDetail,
+    applyDayTone,
+    applyMonthTone,
+  } = useCalendarInteractions({
+    user,
+    isPro,
+    calendarView,
+    isMobileViewport,
+    selectedDateKey,
+    selectedPlanDetailId,
+    setSelectedPlanDetailId,
+    plannedBlocks,
+    dayTones,
+    setDayTones,
+    monthTones,
+    setMonthTones,
+    calendarEntryById,
+    calendarHoverEntryId,
+    setCalendarHoverEntryId,
+    calendarPinnedEntryId,
+    setCalendarPinnedEntryId,
+    overlapPickerEntryId,
+    dayViewTimelineItems: dayViewTimeline.items,
+    pendingCalendarEntryFocusId,
+    setPendingCalendarEntryFocusId,
+    setActivatedCalendarEntryId,
+    setCalendarJumpDate,
+    setPlanConflictWarning,
+    planDuration,
+    planTime,
+    planTitle,
+    planNote,
+    openCalendarBlockComposer,
+    persistDayTones: saveDayTones,
+    persistMonthTones: saveMonthTones,
+  });
 
   const kpiDetailContent = useMemo<
     Record<KpiDetailKey, { title: string; summary: string; bullets: string[] }>
@@ -5334,48 +5273,6 @@ export default function HomePage() {
     }),
     [reportMetrics],
   );
-
-  function jumpToCalendarSection(sectionId: string) {
-    if (sectionId === "calendar-planner" && calendarView === "day") {
-      openCalendarBlockComposer();
-      sectionId = "calendar-day-chamber";
-    }
-    const target = document.getElementById(sectionId);
-    if (!target) return;
-    target.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-
-  function openPlannedBlockDetail(blockId: string) {
-    setSelectedPlanDetailId(blockId);
-  }
-
-  function closePlannedBlockDetail() {
-    setSelectedPlanDetailId(null);
-  }
-
-  function applyDayTone(dateKey: string, tone: CalendarTone | null) {
-    if (!user || !isPro) return;
-    const next = { ...dayTones };
-    if (tone) {
-      next[dateKey] = tone;
-    } else {
-      delete next[dateKey];
-    }
-    setDayTones(next);
-    saveDayTones(user.uid, next);
-  }
-
-  function applyMonthTone(monthKey: string, tone: CalendarTone | null) {
-    if (!user || !isPro) return;
-    const next = { ...monthTones };
-    if (tone) {
-      next[monthKey] = tone;
-    } else {
-      delete next[monthKey];
-    }
-    setMonthTones(next);
-    saveMonthTones(user.uid, next);
-  }
 
   useEffect(() => {
     if (!authChecked || user) return;
