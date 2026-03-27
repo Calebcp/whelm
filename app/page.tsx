@@ -57,7 +57,6 @@ import {
   type StreakBandanaTier,
 } from "@/lib/streak-bandanas";
 import { buildPerformanceNotificationPlan } from "@/lib/performance-notifications";
-import type { WhelmEmoteId } from "@/lib/whelm-emotes";
 import { subscribeToUserData } from "@/lib/firestore-sync";
 import type { AppTab } from "@/lib/app-tabs";
 import {
@@ -87,6 +86,7 @@ import {
 } from "@/lib/xp-engine";
 import { useNotes } from "@/hooks/useNotes";
 import { useLeaderboard } from "@/hooks/useLeaderboard";
+import { usePageShellViewModel } from "@/hooks/usePageShellViewModel";
 import { usePlannedBlocks } from "@/hooks/usePlannedBlocks";
 import { useAccountSettings } from "@/hooks/useAccountSettings";
 import { useCalendarAgenda } from "@/hooks/useCalendarAgenda";
@@ -3896,15 +3896,6 @@ export default function HomePage() {
     [reportMetrics],
   );
 
-  const lastSession = sessions[0];
-  const latestNote = orderedNotes[0] ?? null;
-  const nextPlannedBlock = todayActivePlannedBlocks[0] ?? null;
-  const mobileMoreActive = MOBILE_MORE_TABS.includes(activeTab);
-  const recentNotes = filteredNotes.slice(0, 4);
-  const todaySessionNoteCount = sessions.filter((session) => {
-    return dayKeyLocal(session.completedAtISO) === todayKey && Boolean(session.note?.trim());
-  }).length;
-  const profileTierTheme = getProfileTierTheme(streakBandanaTier?.color, isPro);
   const {
     leaderboardMetricTab,
     setLeaderboardMetricTab,
@@ -3934,7 +3925,6 @@ export default function HomePage() {
     historicalStreaksByDay,
     sessions,
   });
-  const lifetimeFocusMinutes = sessions.reduce((sum, session) => sum + session.minutes, 0);
   const notificationsBlocked = dailyPlanningLocked || dailyPlanningOpen || dailyPlanningPreviewOpen;
   const {
     showIntroSplash,
@@ -3957,6 +3947,38 @@ export default function HomePage() {
     setStreakNudge,
     setSessionReward: () => setSessionReward(null),
     setStreakCelebration,
+  });
+  const {
+    trendPath,
+    streakHeroEmoteId,
+    pageShellStyle,
+    lastSession,
+    latestNote,
+    nextPlannedBlock,
+    mobileMoreActive,
+    recentNotes,
+    todaySessionNoteCount,
+    profileTierTheme,
+    lifetimeFocusMinutes,
+  } = usePageShellViewModel({
+    trendPoints,
+    streak,
+    resolvedTheme,
+    themeMode,
+    effectiveBackgroundSetting,
+    backgroundSkin,
+    backgroundSkinActive,
+    activeTab,
+    mobileMoreTabs: MOBILE_MORE_TABS,
+    filteredNotes,
+    sessions,
+    todayKey,
+    todayActivePlannedBlocks,
+    orderedNotes,
+    streakBandanaColor: streakBandanaTier?.color,
+    isPro,
+    getPageShellBackgroundStyle,
+    getProfileTierTheme,
   });
 
   if (showIntroSplash) {
@@ -3996,37 +4018,6 @@ export default function HomePage() {
       </main>
     );
   }
-
-  const maxTrendMinutes = Math.max(30, ...trendPoints.map((point) => point.minutes));
-  const trendPath = trendPoints
-    .map((point, index) => {
-      const x = (index / Math.max(1, trendPoints.length - 1)) * 100;
-      const y = 100 - (point.minutes / maxTrendMinutes) * 100;
-      return `${x},${y}`;
-    })
-    .join(" ");
-  const streakHeroEmoteId: WhelmEmoteId =
-    streak >= 100 ? "whelm.proud" : streak >= 50 ? "whelm.ready" : "whelm.encourage";
-  const pageShellBackgroundStyle = getPageShellBackgroundStyle(
-    resolvedTheme,
-    effectiveBackgroundSetting,
-    backgroundSkin,
-  );
-  const pageShellStyle = {
-    ...pageShellBackgroundStyle,
-    ...(backgroundSkinActive
-      ? {
-          ["--glass-surface-opacity" as const]: String(backgroundSkin.surfaceOpacity),
-          ["--glass-surface-opacity-strong" as const]: String(
-            Math.min(0.99, backgroundSkin.surfaceOpacity + 0.08),
-          ),
-          ["--glass-blur" as const]: `${backgroundSkin.blur}px`,
-          ["--glass-border-alpha" as const]: themeMode === "light" ? "0.18" : "0.24",
-          ["--glass-highlight-alpha" as const]: themeMode === "light" ? "0.5" : "0.08",
-          ["--glass-shadow-alpha" as const]: themeMode === "light" ? "0.16" : "0.34",
-        }
-      : {}),
-  } as CSSProperties;
 
   function handleCardsXPEarned(amount: number) {
     if (amount <= 0) return;
