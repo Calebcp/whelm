@@ -8,12 +8,15 @@ import { type User } from "firebase/auth";
 import { ref as storageRef } from "firebase/storage";
 
 import BottomNav from "@/components/BottomNav";
+import BlockDetailModal from "@/components/BlockDetailModal";
 import FeedbackModal from "@/components/FeedbackModal";
 import KpiDetailModal from "@/components/KpiDetailModal";
 import LeaderboardProfileModal from "@/components/LeaderboardProfileModal";
+import MobileMoreSheet from "@/components/MobileMoreSheet";
 import PaywallModal from "@/components/PaywallModal";
 import ProfileSheet from "@/components/ProfileSheet";
 import QuickCardModal from "@/components/QuickCardModal";
+import ThemePromptModal from "@/components/ThemePromptModal";
 import StreakOverlayCluster from "@/components/StreakOverlayCluster";
 import TopAppBar from "@/components/TopAppBar";
 import SettingsTab from "@/components/SettingsTab";
@@ -4609,118 +4612,49 @@ export default function HomePage() {
         }}
       />
 
-      {mobileMoreOpen && (
-        <div className={styles.feedbackOverlay} onClick={() => setMobileMoreOpen(false)}>
-          <div className={styles.mobileMoreSheet} onClick={(event) => event.stopPropagation()}>
-            <div className={styles.feedbackHeader}>
-              <h2 className={styles.feedbackTitle}>Quick links</h2>
-              <button
-                type="button"
-                className={styles.feedbackClose}
-                onClick={() => setMobileMoreOpen(false)}
-              >
-                Close
-              </button>
-            </div>
-            <div className={styles.mobileMoreGrid}>
-              {MOBILE_MORE_TABS.map((tab) => (
-                <button
-                  key={tab}
-                  type="button"
-                  className={styles.mobileMoreButton}
-                  onClick={() => handleTabSelect(tab)}
-                >
-                  <span className={styles.bottomTabIcon}>{iconForTab(tab)}</span>
-                  <strong>{tabTitle(tab)}</strong>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
+      <MobileMoreSheet
+        open={mobileMoreOpen}
+        onClose={() => setMobileMoreOpen(false)}
+        tabs={MOBILE_MORE_TABS}
+        onSelectTab={(tab) => handleTabSelect(tab as AppTab)}
+        renderIcon={(tab) => iconForTab(tab as AppTab)}
+        getTitle={(tab) => tabTitle(tab as AppTab)}
+      />
 
-      {selectedPlanDetail && (
-        <div className={styles.feedbackOverlay} onClick={closePlannedBlockDetail}>
-          <div className={styles.feedbackModal} onClick={(event) => event.stopPropagation()}>
-            <div className={styles.feedbackHeader}>
-              <div>
-                <p className={styles.sectionLabel}>Block Detail</p>
-                <h2 className={styles.feedbackTitle}>{selectedPlanDetail.title}</h2>
-              </div>
-              <button
-                type="button"
-                className={styles.feedbackClose}
-                onClick={closePlannedBlockDetail}
-              >
-                Close
-              </button>
-            </div>
-            <p className={styles.feedbackMeta}>
-              {new Date(`${selectedPlanDetail.dateKey}T00:00:00`).toLocaleDateString(undefined, {
-                weekday: "long",
-                month: "long",
-                day: "numeric",
-              })}{" "}
-              • {normalizeTimeLabel(selectedPlanDetail.timeOfDay)} • {selectedPlanDetail.durationMinutes}m
-              {selectedPlanDetail.attachmentCount
-                ? ` • ${attachmentIndicatorLabel(selectedPlanDetail.attachmentCount)}`
-                : ""}
-            </p>
-            {selectedPlanDetail.note.trim() ? (
-              <div className={styles.blockDetailNote}>
-                <strong>Block note</strong>
-                <p>{selectedPlanDetail.note}</p>
-              </div>
-            ) : (
-              <p className={styles.accountMeta}>No block note was added yet.</p>
-            )}
-            <div className={styles.calendarTonePanel}>
-              <CalendarTonePicker
-                label="Block tone"
-                selectedTone={visiblePlanTone(selectedPlanDetail.tone)}
-                onSelectTone={(tone) => updatePlannedBlockTone(selectedPlanDetail.id, tone)}
-                isPro={isPro}
-                onUpgrade={openUpgradeFlow}
-              />
-            </div>
-            <div className={styles.noteFooterActions}>
-              {selectedPlanDetail.status !== "completed" ? (
-                <button
-                  type="button"
-                  className={styles.planCompleteButton}
-                  onClick={() => void completePlannedBlock(selectedPlanDetail)}
-                >
-                  Complete block
-                </button>
-              ) : null}
-              <button
-                type="button"
-                className={styles.secondaryPlanButton}
-                onClick={() => {
-                  setSelectedCalendarDate(selectedPlanDetail.dateKey);
-                  setCalendarView("day");
-                  setActiveTab("calendar");
-                  closePlannedBlockDetail();
-                }}
-              >
-                Open in day view
-              </button>
-              {selectedPlanDetail.status !== "completed" ? (
-                <button
-                  type="button"
-                  className={styles.planDeleteButton}
-                  onClick={() => {
-                    deletePlannedBlock(selectedPlanDetail.id);
-                    closePlannedBlockDetail();
-                  }}
-                >
-                  Remove
-                </button>
-              ) : null}
-            </div>
-          </div>
-        </div>
-      )}
+      <BlockDetailModal
+        open={Boolean(selectedPlanDetail)}
+        selectedPlanDetail={selectedPlanDetail}
+        onClose={closePlannedBlockDetail}
+        normalizeTimeLabel={normalizeTimeLabel}
+        attachmentIndicatorLabel={attachmentIndicatorLabel}
+        tonePicker={
+          selectedPlanDetail ? (
+            <CalendarTonePicker
+              label="Block tone"
+              selectedTone={visiblePlanTone(selectedPlanDetail.tone)}
+              onSelectTone={(tone) => updatePlannedBlockTone(selectedPlanDetail.id, tone)}
+              isPro={isPro}
+              onUpgrade={openUpgradeFlow}
+            />
+          ) : null
+        }
+        onComplete={() => {
+          if (!selectedPlanDetail) return;
+          void completePlannedBlock(selectedPlanDetail);
+        }}
+        onOpenDayView={() => {
+          if (!selectedPlanDetail) return;
+          setSelectedCalendarDate(selectedPlanDetail.dateKey);
+          setCalendarView("day");
+          setActiveTab("calendar");
+          closePlannedBlockDetail();
+        }}
+        onRemove={() => {
+          if (!selectedPlanDetail) return;
+          deletePlannedBlock(selectedPlanDetail.id);
+          closePlannedBlockDetail();
+        }}
+      />
 
 
       {dailyPlanningOpen && dailyPlanningPreviewOpen && (
@@ -4867,54 +4801,12 @@ export default function HomePage() {
         </div>
       )}
 
-      {themePromptOpen && (
-        <div className={styles.feedbackOverlay} onClick={() => setThemePromptOpen(false)}>
-          <div className={styles.feedbackModal} onClick={(event) => event.stopPropagation()}>
-            <div className={styles.feedbackHeader}>
-              <h2 className={styles.feedbackTitle}>Choose your theme</h2>
-              <button
-                type="button"
-                className={styles.feedbackClose}
-                onClick={() => setThemePromptOpen(false)}
-              >
-                Later
-              </button>
-            </div>
-            <p className={styles.feedbackMeta}>
-              Pick how Whelm should look when you return. You can change this later in Settings.
-            </p>
-            <div className={styles.companionStyleRow}>
-              <button
-                type="button"
-                className={`${styles.companionStyleButton} ${
-                  themeMode === "dark" ? styles.companionStyleButtonActive : ""
-                }`}
-                onClick={() => applyThemeMode("dark")}
-              >
-                Dark
-              </button>
-              <button
-                type="button"
-                className={`${styles.companionStyleButton} ${
-                  themeMode === "light" ? styles.companionStyleButtonActive : ""
-                }`}
-                onClick={() => applyThemeMode("light")}
-              >
-                Light
-              </button>
-              <button
-                type="button"
-                className={`${styles.companionStyleButton} ${
-                  themeMode === "system" ? styles.companionStyleButtonActive : ""
-                }`}
-                onClick={() => applyThemeMode("system")}
-              >
-                Auto
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ThemePromptModal
+        open={themePromptOpen}
+        themeMode={themeMode}
+        onClose={() => setThemePromptOpen(false)}
+        onApplyThemeMode={applyThemeMode}
+      />
 
       <StreakOverlayCluster
         notificationsBlocked={notificationsBlocked}
