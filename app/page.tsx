@@ -91,6 +91,7 @@ import { usePlannedBlocks } from "@/hooks/usePlannedBlocks";
 import { useAccountSettings } from "@/hooks/useAccountSettings";
 import { usePreferences } from "@/hooks/usePreferences";
 import { useCalendarInteractions } from "@/hooks/useCalendarInteractions";
+import { useCompanionMetrics } from "@/hooks/useCompanionMetrics";
 import { useModalFlows } from "@/hooks/useModalFlows";
 import { useReflection } from "@/hooks/useReflection";
 import { useReportsAnalytics } from "@/hooks/useReportsAnalytics";
@@ -1050,8 +1051,9 @@ function dayKeyLocal(dateInput: string | Date) {
   return `${year}-${month}-${day}`;
 }
 
-function startOfDayLocal(dateInput: string | Date) {
-  const value = typeof dateInput === "string" ? new Date(dateInput) : new Date(dateInput);
+function startOfDayLocal(dateInput?: string | Date) {
+  const value =
+    typeof dateInput === "string" ? new Date(dateInput) : dateInput ? new Date(dateInput) : new Date();
   return new Date(value.getFullYear(), value.getMonth(), value.getDate());
 }
 
@@ -3485,150 +3487,6 @@ export default function HomePage() {
     clearPendingXpPop();
   }, [clearPendingXpPop, pendingXpPop, triggerXPPop]);
 
-  const focusMetrics = useMemo(() => {
-    const now = new Date();
-    const todayKey = dayKeyLocal(now);
-    const todayStart = startOfDayLocal(now);
-    const weekStart = new Date(todayStart);
-    weekStart.setDate(weekStart.getDate() - 6);
-    const monthStart = new Date(todayStart);
-    monthStart.setDate(monthStart.getDate() - 29);
-    const thisMonthStart = new Date(todayStart.getFullYear(), todayStart.getMonth(), 1);
-    const daysInMonth = new Date(
-      todayStart.getFullYear(),
-      todayStart.getMonth() + 1,
-      0,
-    ).getDate();
-
-    let todayMinutes = 0;
-    let todaySessions = 0;
-    let weekMinutes = 0;
-    let monthMinutes = 0;
-    const byDay = new Map<string, number>();
-
-    for (const session of sessions) {
-      const sessionDate = new Date(session.completedAtISO);
-      const dayKey = dayKeyLocal(sessionDate);
-      byDay.set(dayKey, (byDay.get(dayKey) ?? 0) + session.minutes);
-
-      if (dayKey === todayKey) {
-        todayMinutes += session.minutes;
-        todaySessions += 1;
-      }
-
-      if (sessionDate >= weekStart && sessionDate <= now) {
-        weekMinutes += session.minutes;
-      }
-
-      if (sessionDate >= monthStart && sessionDate <= now) {
-        monthMinutes += session.minutes;
-      }
-    }
-
-    let activeDaysInMonth = 0;
-    for (let i = 0; i < 30; i += 1) {
-      const day = new Date(monthStart);
-      day.setDate(monthStart.getDate() + i);
-      if ((byDay.get(dayKeyLocal(day)) ?? 0) > 0) {
-        activeDaysInMonth += 1;
-      }
-    }
-
-    const calendar: CalendarDay[] = [];
-    for (let i = 27; i >= 0; i -= 1) {
-      const day = new Date(todayStart);
-      day.setDate(todayStart.getDate() - i);
-      const dateKey = dayKeyLocal(day);
-      const minutes = byDay.get(dateKey) ?? 0;
-      const level: CalendarDay["level"] = focusLevel(minutes);
-      calendar.push({
-        label: day.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
-        dateKey,
-        minutes,
-        level,
-      });
-    }
-
-    const monthCalendar: MonthCell[] = [];
-    const leadingSpaces = thisMonthStart.getDay();
-    for (let i = 0; i < leadingSpaces; i += 1) {
-      monthCalendar.push({
-        key: `leading-${i}`,
-        dayNumber: null,
-        minutes: 0,
-        level: 0,
-        isCurrentMonth: false,
-      });
-    }
-
-    for (let dayNumber = 1; dayNumber <= daysInMonth; dayNumber += 1) {
-      const day = new Date(todayStart.getFullYear(), todayStart.getMonth(), dayNumber);
-      const dateKey = dayKeyLocal(day);
-      const minutes = byDay.get(dateKey) ?? 0;
-      monthCalendar.push({
-        key: dateKey,
-        dayNumber,
-        minutes,
-        level: focusLevel(minutes),
-        isCurrentMonth: true,
-      });
-    }
-
-    while (monthCalendar.length < 42) {
-      monthCalendar.push({
-        key: `trailing-${monthCalendar.length}`,
-        dayNumber: null,
-        minutes: 0,
-        level: 0,
-        isCurrentMonth: false,
-      });
-    }
-
-    function buildTrendPoints(days: number): TrendPoint[] {
-      const points: TrendPoint[] = [];
-      for (let i = days - 1; i >= 0; i -= 1) {
-        const day = new Date(todayStart);
-        day.setDate(todayStart.getDate() - i);
-        const dateKey = dayKeyLocal(day);
-        points.push({
-          label:
-            days <= 7
-              ? day.toLocaleDateString(undefined, { weekday: "short" })
-              : day.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
-          minutes: byDay.get(dateKey) ?? 0,
-        });
-      }
-      return points;
-    }
-
-    const disciplineScore = summarizeDisciplineScore({
-      todayMinutes,
-      todaySessions,
-      streak,
-      weekMinutes,
-    });
-
-    return {
-      todayMinutes,
-      todaySessions,
-      weekMinutes,
-      monthMinutes,
-      activeDaysInMonth,
-      disciplineScore,
-      calendar,
-      monthCalendar,
-      trendPoints7: buildTrendPoints(7),
-      trendPoints30: buildTrendPoints(30),
-      trendPoints90: buildTrendPoints(90),
-    };
-  }, [sessions, streak]);
-
-  const trendPoints = useMemo(() => {
-    if (trendRange === 30) return focusMetrics.trendPoints30;
-    if (trendRange === 90) return focusMetrics.trendPoints90;
-    return focusMetrics.trendPoints7;
-  }, [focusMetrics, trendRange]);
-
   const sessionHistoryGroups = useMemo<SessionHistoryMonthGroup[]>(() => {
     const grouped = new Map<
       string,
@@ -3759,6 +3617,36 @@ export default function HomePage() {
   }, [sessionHistoryGroups]);
 
   const {
+    focusMetrics,
+    trendPoints,
+    lastSessionHoursAgo,
+    nextSenseiMilestone,
+    companionState,
+    senseiGuidance,
+    todayHeroCopy,
+  } = useCompanionMetrics({
+    sessions,
+    streak,
+    trendRange,
+    dueReminderCount: dueReminderNotes.length,
+    todayActivePlannedBlocksCount: todayActivePlannedBlocks.length,
+    notesCount: notes.length,
+    notesUpdated7d: notes.filter((note) => {
+      const updated = new Date(note.updatedAtISO);
+      const now = new Date();
+      return now.getTime() - updated.getTime() <= 7 * 24 * 60 * 60 * 1000;
+    }).length,
+    activeTab,
+    companionStyle,
+    landingWisdomMinute,
+    focusLevel,
+    summarizeDisciplineScore,
+    milestoneForStreak,
+    startOfDayLocal,
+    landingWisdomRotation: LANDING_WISDOM_ROTATION,
+  });
+
+  const {
     reportCopyStatus,
     analyticsLoading,
     analyticsError,
@@ -3791,108 +3679,6 @@ export default function HomePage() {
     streak,
     setSenseiReaction,
   });
-
-  const averageSessionStartHour = useMemo(() => {
-    const recentSessions = sessions.slice(0, 14);
-    if (recentSessions.length === 0) return null;
-    const total = recentSessions.reduce((sum, session) => {
-      const date = new Date(session.completedAtISO);
-      return sum + date.getHours() + date.getMinutes() / 60;
-    }, 0);
-    return total / recentSessions.length;
-  }, [sessions]);
-
-  const lastSessionHoursAgo = useMemo(() => {
-    const iso = sessions[0]?.completedAtISO;
-    if (!iso) return null;
-    const ms = Date.now() - new Date(iso).getTime();
-    return Math.max(0, ms / (1000 * 60 * 60));
-  }, [sessions]);
-
-  const comebackDaysAway = useMemo(() => {
-    const todayKey = dayKeyLocal(new Date());
-    const previousDayKeys = [...new Set(sessions.map((session) => dayKeyLocal(session.completedAtISO)))].filter(
-      (key) => key !== todayKey,
-    );
-    if (focusMetrics.todaySessions === 0 || previousDayKeys.length === 0) return 0;
-    const previous = previousDayKeys[0];
-    const today = startOfDayLocal(new Date());
-    const prior = startOfDayLocal(new Date(`${previous}T00:00:00`));
-    const days = Math.round((today.getTime() - prior.getTime()) / (1000 * 60 * 60 * 24)) - 1;
-    return Math.max(0, days);
-  }, [focusMetrics.todaySessions, sessions]);
-
-  const missedYesterday = useMemo(
-    () => focusMetrics.todaySessions === 0 && lastSessionHoursAgo !== null && lastSessionHoursAgo >= 24,
-    [focusMetrics.todaySessions, lastSessionHoursAgo],
-  );
-
-  const nextSenseiMilestone = useMemo(() => milestoneForStreak(streak), [streak]);
-  const senseiActiveTab =
-    activeTab === "streaks" || activeTab === "leaderboard"
-      ? "reports"
-      : activeTab === "mirror"
-        ? "notes"
-        : activeTab;
-
-  const companionState = useMemo(
-    () =>
-      buildSenseiCompanionState({
-        now: new Date(),
-        activeTab: senseiActiveTab,
-        totalSessions: reportMetrics.sessionCount,
-        totalMinutes: reportMetrics.totalMinutes,
-        todaySessions: focusMetrics.todaySessions,
-        todayMinutes: focusMetrics.todayMinutes,
-        weekMinutes: focusMetrics.weekMinutes,
-        streak,
-        dueReminders: dueReminderNotes.length,
-        plannedTodayCount: todayActivePlannedBlocks.length,
-        notesCount: notes.length,
-        notesUpdated7d: reportMetrics.notesUpdated7d,
-        nextMilestone: nextSenseiMilestone.next,
-        nextMilestoneRemaining: nextSenseiMilestone.remaining,
-        averageStartHour: averageSessionStartHour,
-        lastSessionHoursAgo,
-        comebackDaysAway,
-        missedYesterday,
-        companionStyle,
-      }),
-    [
-      averageSessionStartHour,
-      comebackDaysAway,
-      companionStyle,
-      dueReminderNotes.length,
-      focusMetrics.weekMinutes,
-      focusMetrics.todayMinutes,
-      focusMetrics.todaySessions,
-      lastSessionHoursAgo,
-      missedYesterday,
-      nextSenseiMilestone.next,
-      nextSenseiMilestone.remaining,
-      notes.length,
-      reportMetrics.notesUpdated7d,
-      reportMetrics.sessionCount,
-      reportMetrics.totalMinutes,
-      senseiActiveTab,
-      streak,
-      todayActivePlannedBlocks.length,
-    ],
-  );
-
-  const senseiGuidance = companionState.hero;
-  const landingWisdom = useMemo(() => {
-    return LANDING_WISDOM_ROTATION[landingWisdomMinute % LANDING_WISDOM_ROTATION.length];
-  }, [landingWisdomMinute]);
-  const todayHeroCopy =
-    activeTab === "today"
-      ? {
-          ...senseiGuidance,
-          title: landingWisdom.title,
-          body: landingWisdom.body,
-          signatureLine: landingWisdom.signatureLine,
-        }
-      : senseiGuidance;
 
   useEffect(() => {
     const media = window.matchMedia("(max-width: 760px)");
