@@ -92,6 +92,7 @@ import { useAccountSettings } from "@/hooks/useAccountSettings";
 import { usePreferences } from "@/hooks/usePreferences";
 import { useCalendarInteractions } from "@/hooks/useCalendarInteractions";
 import { useReflection } from "@/hooks/useReflection";
+import { useReportsAnalytics } from "@/hooks/useReportsAnalytics";
 import { useSessions } from "@/hooks/useSessions";
 import { useStreak } from "@/hooks/useStreak";
 import { useTabNavigation } from "@/hooks/useTabNavigation";
@@ -2985,37 +2986,16 @@ export default function HomePage() {
   const [introFinished, setIntroFinished] = useState(false);
   const [introMinElapsed, setIntroMinElapsed] = useState(false);
   const [landingWisdomMinute, setLandingWisdomMinute] = useState(() => Math.floor(Date.now() / 60000));
-  const [reportCopyStatus, setReportCopyStatus] = useState("");
-  const [analyticsLoading, setAnalyticsLoading] = useState(false);
-  const [analyticsError, setAnalyticsError] = useState("");
-  const [analyticsWeeklySummary, setAnalyticsWeeklySummary] = useState<AnalyticsWeeklySummary | null>(null);
-  const [analyticsDailySummary, setAnalyticsDailySummary] = useState<AnalyticsDailySummary | null>(null);
-  const [analyticsInsights, setAnalyticsInsights] = useState<AnalyticsInsight[]>([]);
-  const [analyticsBestHours, setAnalyticsBestHours] = useState<BestFocusHoursSummary | null>(null);
-  const [analyticsScoreHistory, setAnalyticsScoreHistory] = useState<
-    Array<{
-      date: string;
-      score: number;
-      band: "high" | "steady" | "recovery";
-      focusMinutes: number;
-      completionRate: number;
-    }>
-  >([]);
   const [mobileTodayOverviewOpen, setMobileTodayOverviewOpen] = useState(false);
   const [senseiReaction, setSenseiReaction] = useState("");
   const [trendRange, setTrendRange] = useState<TrendRange>(7);
   const [activeTab, setActiveTab] = useState<AppTab>("calendar");
   const [selectedLbProfile, setSelectedLbProfile] = useState<{ entry: LeaderboardEntry; rank: number } | null>(null);
-  const [insightRange, setInsightRange] = useState<TrendRange>(30);
   const [insightMetric, setInsightMetric] = useState<InsightMetric>("focus");
   const [calendarView, setCalendarView] = useState<CalendarView>("month");
-  const [selectedInsightCategory, setSelectedInsightCategory] = useState<NoteCategory | null>(
-    null,
-  );
   const [dayTones, setDayTones] = useState<DayToneMap>({});
   const [monthTones, setMonthTones] = useState<MonthToneMap>({});
   const { toasts: whelToasts, showToast, dismissToast } = useToasts();
-  const [kpiDetailOpen, setKpiDetailOpen] = useState<KpiDetailKey | null>(null);
   const [historySectionsOpen, setHistorySectionsOpen] = useState({
     completed: false,
     incomplete: false,
@@ -3040,7 +3020,6 @@ export default function HomePage() {
     subjects: false,
     notifications: false,
   });
-  const reportsInsightToastRef = useRef<string | null>(null);
   const backgroundUploadInputRef = useRef<HTMLInputElement | null>(null);
   const [mobileCalendarControlsOpen, setMobileCalendarControlsOpen] = useState(false);
   const [mobileAgendaEntriesOpen, setMobileAgendaEntriesOpen] = useState(false);
@@ -3778,156 +3757,39 @@ export default function HomePage() {
     return totalDays > 0;
   }, [sessionHistoryGroups]);
 
-  const reportMetrics = useMemo(() => {
-    const sessionCount = sessions.length;
-    const totalMinutes = sessions.reduce((sum, session) => sum + session.minutes, 0);
-    const averageSession = sessionCount === 0 ? 0 : Math.round(totalMinutes / sessionCount);
-    const bestTrend = [...trendPoints].sort((a, b) => b.minutes - a.minutes)[0];
-    const weeklyTarget = 420;
-    const weeklyProgress = Math.min(
-      100,
-      Math.round((focusMetrics.weekMinutes / weeklyTarget) * 100),
-    );
-    const plannedCompletionCount = sessions.filter((session) =>
-      (session.note || "").startsWith("Planned block completed:"),
-    ).length;
-    const notesUpdated7d = notes.filter((note) => {
-      const updated = new Date(note.updatedAtISO);
-      const now = new Date();
-      const ms = now.getTime() - updated.getTime();
-      return ms <= 7 * 24 * 60 * 60 * 1000;
-    }).length;
-    const notesWithReminders = notes.filter((note) => Boolean(note.reminderAtISO)).length;
-
-    return {
-      sessionCount,
-      totalMinutes,
-      averageSession,
-      bestTrendLabel: bestTrend?.label ?? "N/A",
-      bestTrendMinutes: bestTrend?.minutes ?? 0,
-      weeklyProgress,
-      plannedCompletionCount,
-      notesUpdated7d,
-      notesWithReminders,
-    };
-  }, [focusMetrics.weekMinutes, notes, sessions, trendPoints]);
-
-  const analyticsDateRange = useMemo(() => {
-    const endDate = dayKeyLocal(new Date());
-    const startDate = dayKeyLocal(addDaysLocal(new Date(), -(insightRange - 1)));
-    return { startDate, endDate };
-  }, [insightRange]);
-
-  const analyticsNotificationPlan = useMemo(() => {
-    if (!analyticsDailySummary) return null;
-    return buildPerformanceNotificationPlan({
-      dailyPerformanceScore: analyticsDailySummary.dailyPerformanceScore,
-      dailyPerformanceBand: analyticsDailySummary.dailyPerformanceBand,
-      sessionCompletionRate: analyticsDailySummary.sessionCompletionRate,
-      sessionsAbandoned: analyticsDailySummary.sessionsAbandoned,
-      taskCompletedCount: analyticsDailySummary.taskCompletedCount,
-      focusMinutes: analyticsDailySummary.focusMinutes,
-      averageSessionQualityScore: analyticsDailySummary.averageSessionQualityScore,
-    });
-  }, [analyticsDailySummary]);
-
-  useEffect(() => {
-    if (!user || activeTab !== "reports") return;
-
-    let cancelled = false;
-    const currentUser = user;
-
-    async function fetchAnalyticsJson<T>(path: string) {
-      const token = await currentUser.getIdToken();
-      const response = await fetch(resolveApiUrl(path), {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const body = (await response.json().catch(() => null)) as T | { error?: string } | null;
-      if (!response.ok) {
-        throw new Error((body as { error?: string } | null)?.error || "Failed to load analytics.");
-      }
-
-      return body as T;
-    }
-
-    async function loadAnalytics() {
-      setAnalyticsLoading(true);
-      setAnalyticsError("");
-
-      try {
-        const todayKey = dayKeyLocal(new Date());
-        const weekStart = weekStartKeyLocal(new Date());
-
-        const [weeklyPayload, dailyPayload, insightsPayload, bestHoursPayload, scoreHistoryPayload] =
-          await Promise.all([
-            fetchAnalyticsJson<{ summary: AnalyticsWeeklySummary }>(
-              `/api/analytics/weekly-summary?uid=${encodeURIComponent(currentUser.uid)}&weekStart=${encodeURIComponent(weekStart)}`,
-            ),
-            fetchAnalyticsJson<{ summary: AnalyticsDailySummary | null }>(
-              `/api/analytics/daily-summary?uid=${encodeURIComponent(currentUser.uid)}&date=${encodeURIComponent(todayKey)}`,
-            ),
-            fetchAnalyticsJson<{ insights: AnalyticsInsight[] }>(
-              `/api/analytics/insights?uid=${encodeURIComponent(currentUser.uid)}&startDate=${encodeURIComponent(
-                analyticsDateRange.startDate,
-              )}&endDate=${encodeURIComponent(analyticsDateRange.endDate)}&limit=6`,
-            ),
-            fetchAnalyticsJson<BestFocusHoursSummary>(
-              `/api/analytics/best-focus-hours?uid=${encodeURIComponent(currentUser.uid)}&startDate=${encodeURIComponent(
-                analyticsDateRange.startDate,
-              )}&endDate=${encodeURIComponent(analyticsDateRange.endDate)}`,
-            ),
-            fetchAnalyticsJson<{
-              history: Array<{
-                date: string;
-                score: number;
-                band: "high" | "steady" | "recovery";
-                focusMinutes: number;
-                completionRate: number;
-              }>;
-            }>(
-              `/api/analytics/performance-score-history?uid=${encodeURIComponent(
-                currentUser.uid,
-              )}&startDate=${encodeURIComponent(analyticsDateRange.startDate)}&endDate=${encodeURIComponent(
-                analyticsDateRange.endDate,
-              )}`,
-            ),
-          ]);
-
-        if (cancelled) return;
-
-        setAnalyticsWeeklySummary(weeklyPayload.summary);
-        setAnalyticsDailySummary(dailyPayload.summary);
-        setAnalyticsInsights(insightsPayload.insights);
-        setAnalyticsBestHours(bestHoursPayload);
-        setAnalyticsScoreHistory(scoreHistoryPayload.history);
-      } catch (error: unknown) {
-        if (cancelled) return;
-        setAnalyticsError(error instanceof Error ? error.message : "Failed to load reports.");
-      } finally {
-        if (!cancelled) {
-          setAnalyticsLoading(false);
-        }
-      }
-    }
-
-    void loadAnalytics();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activeTab, analyticsDateRange.endDate, analyticsDateRange.startDate, user]);
-
-  useEffect(() => {
-    if (activeTab !== "reports") return;
-    const topInsight = analyticsInsights[0];
-    if (!topInsight) return;
-    if (reportsInsightToastRef.current === topInsight.title) return;
-    reportsInsightToastRef.current = topInsight.title;
-    setSenseiReaction(topInsight.body);
-  }, [activeTab, analyticsInsights]);
+  const {
+    reportCopyStatus,
+    analyticsLoading,
+    analyticsError,
+    analyticsWeeklySummary,
+    analyticsBestHours,
+    analyticsScoreHistory,
+    analyticsInsights,
+    insightRange,
+    setInsightRange,
+    kpiDetailOpen,
+    setKpiDetailOpen,
+    reportMetrics,
+    analyticsDateRange,
+    analyticsNotificationPlan,
+    copyWeeklyReport,
+    analyticsScorePath,
+    analyticsTopHours,
+    analyticsTopSubjects,
+    analyticsTopSubjectMinutes,
+    analyticsLeadInsight,
+    analyticsLeadSubject,
+    analyticsLeadNotification,
+  } = useReportsAnalytics({
+    user,
+    activeTab,
+    focusMetrics,
+    notes,
+    sessions,
+    trendPoints,
+    streak,
+    setSenseiReaction,
+  });
 
   const averageSessionStartHour = useMemo(() => {
     const recentSessions = sessions.slice(0, 14);
@@ -4030,133 +3892,6 @@ export default function HomePage() {
           signatureLine: landingWisdom.signatureLine,
         }
       : senseiGuidance;
-
-  const insightsChart = useMemo(() => {
-    const windowDays = insightRange;
-    const end = new Date();
-    const start = new Date();
-    start.setDate(end.getDate() - (windowDays - 1));
-
-    const values: Record<NoteCategory, number> = {
-      personal: 0,
-      school: 0,
-      work: 0,
-    };
-    const colorWeights: Record<NoteCategory, Record<string, number>> = {
-      personal: {},
-      school: {},
-      work: {},
-    };
-
-    const inRange = (iso: string) => {
-      if (!iso) return false;
-      const value = new Date(iso);
-      return value >= start && value <= end;
-    };
-
-    const addColorWeight = (category: NoteCategory, color: string, weight = 1) => {
-      const fallback = INSIGHT_CATEGORY_META[category].color;
-      const next = isHexColor(color) ? color : fallback;
-      colorWeights[category][next] = (colorWeights[category][next] || 0) + weight;
-    };
-
-    notes.forEach((note) => {
-      const category = note.category || "personal";
-      const colorSourceDate = insightMetric === "reminders" ? note.reminderAtISO : note.updatedAtISO;
-      if (!inRange(colorSourceDate)) return;
-      addColorWeight(category, note.color || INSIGHT_CATEGORY_META[category].color);
-    });
-
-    if (insightMetric === "notes") {
-      notes.forEach((note) => {
-        if (!inRange(note.updatedAtISO)) return;
-        const category = note.category || "personal";
-        values[category] += 1;
-      });
-    } else if (insightMetric === "focus") {
-      sessions.forEach((session) => {
-        if (!inRange(session.completedAtISO)) return;
-        const category = inferCategoryFromText(session.note || "");
-        values[category] += session.minutes;
-      });
-    } else if (insightMetric === "planned") {
-      plannedBlocks.forEach((item) => {
-        if (!inRange(item.createdAtISO)) return;
-        const category = inferCategoryFromText(item.title);
-        values[category] += item.durationMinutes;
-      });
-    } else {
-      notes.forEach((note) => {
-        if (!note.reminderAtISO || !inRange(note.reminderAtISO)) return;
-        const category = note.category || "personal";
-        values[category] += 1;
-      });
-    }
-
-    const dominantColor = (category: NoteCategory) => {
-      const entries = Object.entries(colorWeights[category]);
-      if (entries.length === 0) return INSIGHT_CATEGORY_META[category].color;
-      return entries.sort((a, b) => b[1] - a[1])[0]?.[0] || INSIGHT_CATEGORY_META[category].color;
-    };
-
-    const segments = (Object.keys(INSIGHT_CATEGORY_META) as NoteCategory[]).map((key) => ({
-      key,
-      label: INSIGHT_CATEGORY_META[key].label,
-      color: dominantColor(key),
-      description: INSIGHT_CATEGORY_META[key].description,
-      value: values[key],
-    }));
-
-    const total = segments.reduce((sum, segment) => sum + segment.value, 0);
-    const ranked = [...segments].sort((a, b) => b.value - a.value);
-
-    let cumulative = 0;
-    const activeSegments = ranked.filter((segment) => segment.value > 0);
-    const donutGradient =
-      total === 0 || activeSegments.length === 0
-        ? "conic-gradient(#dbeafe 0 100%)"
-        : `conic-gradient(${activeSegments
-            .map((segment) => {
-              const startPct = (cumulative / total) * 100;
-              cumulative += segment.value;
-              const endPct = (cumulative / total) * 100;
-              return `${segment.color} ${startPct}% ${endPct}%`;
-            })
-            .join(", ")})`;
-
-    const topCategory = ranked[0];
-
-    return {
-      total,
-      segments,
-      ranked,
-      donutGradient,
-      topCategory,
-      windowLabel: `${windowDays} day window`,
-      metricLabel:
-        insightMetric === "focus"
-          ? "Focus Minutes"
-          : insightMetric === "notes"
-            ? "Notes Updated"
-            : insightMetric === "planned"
-              ? "Planned Minutes"
-              : "Reminder Count",
-      unitSuffix: insightMetric === "focus" || insightMetric === "planned" ? "m" : "",
-    };
-  }, [insightMetric, insightRange, notes, plannedBlocks, sessions]);
-
-  useEffect(() => {
-    if (!selectedInsightCategory) {
-      setSelectedInsightCategory(insightsChart.ranked[0]?.key ?? "personal");
-      return;
-    }
-    const stillExists = insightsChart.segments.some(
-      (segment) => segment.key === selectedInsightCategory,
-    );
-    if (!stillExists) {
-      setSelectedInsightCategory(insightsChart.ranked[0]?.key ?? "personal");
-    }
-  }, [insightsChart.ranked, insightsChart.segments, selectedInsightCategory]);
 
   useEffect(() => {
     const media = window.matchMedia("(max-width: 760px)");
@@ -4362,29 +4097,6 @@ export default function HomePage() {
     }, 4200);
     return () => window.clearTimeout(timeoutId);
   }, [streakCelebration]);
-
-  async function copyWeeklyReport() {
-    const userLabel = user?.displayName || user?.email || "Whelm user";
-    const report = [
-      "Whelm Weekly Report",
-      `Focus today: ${focusMetrics.todayMinutes}m`,
-      `Focus this week: ${focusMetrics.weekMinutes}m`,
-      `Sessions today: ${focusMetrics.todaySessions}`,
-      `Discipline score: ${focusMetrics.disciplineScore}/100`,
-      `Current streak: ${streak} day${streak === 1 ? "" : "s"}`,
-      `Active days (30d): ${focusMetrics.activeDaysInMonth}/30`,
-      `User: ${userLabel}`,
-    ].join("\n");
-
-    try {
-      await navigator.clipboard.writeText(report);
-      setReportCopyStatus("Copied");
-    } catch {
-      setReportCopyStatus("Copy failed");
-    } finally {
-      window.setTimeout(() => setReportCopyStatus(""), 1200);
-    }
-  }
 
   function openMobileNoteEditor(noteId: string) {
     setSelectedNoteId(noteId);
@@ -5170,36 +4882,6 @@ export default function HomePage() {
       return `${x},${y}`;
     })
     .join(" ");
-  const maxAnalyticsScore = Math.max(100, ...analyticsScoreHistory.map((entry) => entry.score));
-  const analyticsScorePath = analyticsScoreHistory
-    .map((entry, index) => {
-      const x = (index / Math.max(1, analyticsScoreHistory.length - 1)) * 100;
-      const y = 100 - (entry.score / maxAnalyticsScore) * 100;
-      return `${x},${y}`;
-    })
-    .join(" ");
-  const analyticsTopHours = analyticsBestHours?.hours.slice(0, 4) ?? [];
-  const analyticsTopSubjects = analyticsWeeklySummary
-    ? (Object.entries(analyticsWeeklySummary.subjectBreakdown) as Array<
-        [
-          "language" | "school" | "work" | "general",
-          { focusMinutes: number; sessionsCompleted: number; tasksCompleted: number },
-        ]
-      >)
-        .map(([key, value]) => ({
-          key,
-          label:
-            key === "general"
-              ? "General"
-              : key.charAt(0).toUpperCase() + key.slice(1),
-          ...value,
-        }))
-        .sort((a, b) => b.focusMinutes - a.focusMinutes)
-    : [];
-  const analyticsTopSubjectMinutes = Math.max(1, ...analyticsTopSubjects.map((subject) => subject.focusMinutes));
-  const analyticsLeadInsight = analyticsInsights[0] ?? null;
-  const analyticsLeadSubject = analyticsTopSubjects.find((subject) => subject.focusMinutes > 0) ?? null;
-  const analyticsLeadNotification = analyticsNotificationPlan?.notifications[0] ?? null;
   const streakHeroEmoteId: WhelmEmoteId =
     streak >= 100 ? "whelm.proud" : streak >= 50 ? "whelm.ready" : "whelm.encourage";
   const pageShellBackgroundStyle = getPageShellBackgroundStyle(
