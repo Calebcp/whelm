@@ -1,0 +1,124 @@
+"use client";
+
+import styles from "@/app/page.module.css";
+import WhelmProfileAvatar from "@/components/WhelmProfileAvatar";
+
+type LeaderboardBandanaMeta = {
+  tier: {
+    color: string;
+    label: string;
+  } | null;
+  theme: {
+    shell: string;
+    accent: string;
+  };
+};
+
+type LeaderboardEntry = {
+  username: string;
+  avatarUrl?: string | null;
+  isProStyle?: boolean;
+  isCurrentUser?: boolean;
+  currentStreak: number;
+  totalXp: number;
+  level: number;
+  bestStreak?: number | null;
+  totalFocusHours?: number | null;
+  createdAtISO: string;
+};
+
+export default function LeaderboardProfileModal({
+  selected,
+  onClose,
+  getLeaderboardBandanaMeta,
+}: {
+  selected: { entry: LeaderboardEntry; rank: number } | null;
+  onClose: () => void;
+  getLeaderboardBandanaMeta: (streak: number) => LeaderboardBandanaMeta;
+}) {
+  if (!selected) return null;
+
+  const { entry, rank } = selected;
+  const profileBandana = getLeaderboardBandanaMeta(entry.currentStreak);
+  const joinDate = (() => {
+    try {
+      return new Date(entry.createdAtISO).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+    } catch {
+      return null;
+    }
+  })();
+
+  return (
+    <div className={styles.feedbackOverlay} onClick={onClose}>
+      <div className={styles.lbProfileSheet} onClick={(event) => event.stopPropagation()}>
+        <div className={styles.lbProfileHeader}>
+          <span className={styles.sectionLabel}>Player Profile</span>
+          <button type="button" className={styles.feedbackClose} onClick={onClose} aria-label="Close profile">
+            ✕
+          </button>
+        </div>
+
+        <div className={styles.lbProfileHero}>
+          <WhelmProfileAvatar
+            tierColor={profileBandana.tier?.color}
+            size="compact"
+            isPro={entry.isProStyle}
+            photoUrl={entry.avatarUrl}
+          />
+          <div className={styles.lbProfileHeroMeta}>
+            <div className={styles.lbProfileNameRow}>
+              <strong className={styles.lbProfileUsername}>{entry.username.slice(0, 16)}</strong>
+              {entry.isCurrentUser ? <span className={styles.leaderboardYouBadge}>You</span> : null}
+            </div>
+            <p className={styles.lbProfileRank}>Rank #{rank}</p>
+            {profileBandana.tier ? (
+              <span
+                className={styles.lbProfileBandanaBadge}
+                style={{
+                  background: profileBandana.theme.shell,
+                  color: profileBandana.theme.accent,
+                  borderColor: profileBandana.theme.accent,
+                }}
+              >
+                {profileBandana.tier.label}
+              </span>
+            ) : (
+              <span className={styles.lbProfileBandanaBadge} style={{ opacity: 0.5 }}>
+                No bandana yet
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className={styles.lbProfileStatsGrid}>
+          <div className={styles.lbProfileStat}>
+            <span className={styles.lbProfileStatValue}>{entry.totalXp.toLocaleString()}</span>
+            <span className={styles.lbProfileStatLabel}>Total XP</span>
+          </div>
+          <div className={styles.lbProfileStat}>
+            <span className={styles.lbProfileStatValue}>Lv {entry.level}</span>
+            <span className={styles.lbProfileStatLabel}>Level</span>
+          </div>
+          <div className={styles.lbProfileStat}>
+            <span className={styles.lbProfileStatValue}>{entry.currentStreak}</span>
+            <span className={styles.lbProfileStatLabel}>Streak days</span>
+          </div>
+          {(entry.bestStreak ?? 0) > 0 ? (
+            <div className={styles.lbProfileStat}>
+              <span className={styles.lbProfileStatValue}>{entry.bestStreak}</span>
+              <span className={styles.lbProfileStatLabel}>Best streak</span>
+            </div>
+          ) : null}
+          {(entry.totalFocusHours ?? 0) > 0 ? (
+            <div className={styles.lbProfileStat}>
+              <span className={styles.lbProfileStatValue}>{entry.totalFocusHours}h</span>
+              <span className={styles.lbProfileStatLabel}>Focus hours</span>
+            </div>
+          ) : null}
+        </div>
+
+        {joinDate ? <p className={styles.lbProfileJoinDate}>Member since {joinDate}</p> : null}
+      </div>
+    </div>
+  );
+}

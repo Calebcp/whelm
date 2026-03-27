@@ -8,6 +8,8 @@ import { type User } from "firebase/auth";
 import { ref as storageRef } from "firebase/storage";
 
 import BottomNav from "@/components/BottomNav";
+import LeaderboardProfileModal from "@/components/LeaderboardProfileModal";
+import ProfileSheet from "@/components/ProfileSheet";
 import TopAppBar from "@/components/TopAppBar";
 import SettingsTab from "@/components/SettingsTab";
 import HistoryTab from "@/components/HistoryTab";
@@ -4576,106 +4578,31 @@ export default function HomePage() {
       <XPPopAnimation pops={xpPops} onDone={removeXPPop} />
       <WhelToastContainer toasts={whelToasts} onDismiss={dismissToast} />
 
-      {profileOpen && (
-        <div className={styles.feedbackOverlay} onClick={() => setProfileOpen(false)}>
-          <div className={styles.profileSheet} onClick={(event) => event.stopPropagation()}>
-            <div className={styles.feedbackHeader}>
-              <h2 className={styles.feedbackTitle}>Profile</h2>
-              <button
-                type="button"
-                className={styles.feedbackClose}
-                onClick={() => setProfileOpen(false)}
-              >
-                Close
-              </button>
-            </div>
-
-            <article className={styles.profileHero}>
-              <WhelmProfileAvatar
-                tierColor={streakBandanaTier?.color}
-                size="hero"
-                isPro={isPro}
-                photoUrl={currentUserPhotoUrl}
-              />
-              <div className={styles.profileHeroCopy}>
-                <p className={styles.sectionLabel}>Whelm Identity</p>
-                <h3 className={styles.profileHeroTitle}>{profileDisplayName}</h3>
-                <p className={styles.accountMeta}>
-                  {profileTierTheme.title} · {streakBandanaTier?.label ?? "No bandana yet"}
-                </p>
-              </div>
-            </article>
-
-            <article className={styles.profileCommandCard}>
-              <span>Current directive</span>
-              <strong>{nextPlannedBlock?.title ?? "No active block queued"}</strong>
-              <small>
-                {nextPlannedBlock
-                  ? `${normalizeTimeLabel(nextPlannedBlock.timeOfDay)} · ${nextPlannedBlock.durationMinutes}m`
-                  : "Open Schedule or Today and place the next deliberate move."}
-              </small>
-            </article>
-
-            <div className={styles.profileStatsGrid}>
-              <article className={styles.profileStatCard}>
-                <span>Current streak</span>
-                <strong>{displayStreak}d</strong>
-              </article>
-              <article className={styles.profileStatCard}>
-                <span>Longest streak</span>
-                <strong>{longestStreak}d</strong>
-              </article>
-              <article className={styles.profileStatCard}>
-                <span>Lifetime focus</span>
-                <strong>{lifetimeFocusMinutes}m</strong>
-              </article>
-              <article className={styles.profileStatCard}>
-                <span>Total sessions</span>
-                <strong>{sessions.length}</strong>
-              </article>
-            </div>
-
-            <article className={styles.profileProgressCard}>
-              <p className={styles.sectionLabel}>Next ascent</p>
-              <h3 className={styles.cardTitle}>
-                {nextBandanaMilestone
-                  ? `${nextBandanaMilestone.tier.label} at ${nextBandanaMilestone.tier.minDays} days`
-                  : "White Bandana reached"}
-              </h3>
-              <p className={styles.accountMeta}>
-                {nextBandanaMilestone
-                  ? `${nextBandanaMilestone.remainingDays} more day${
-                      nextBandanaMilestone.remainingDays === 1 ? "" : "s"
-                    } to level up the profile.`
-                  : "Top tier achieved. Keep the run alive."}
-              </p>
-            </article>
-
-            <div className={styles.noteFooterActions}>
-              <button
-                type="button"
-                className={styles.reportButton}
-                onClick={() => {
-                  setProfileOpen(false);
-                  setActiveTab("streaks");
-                }}
-              >
-                Open Streaks
-              </button>
-              <button
-                type="button"
-                className={styles.secondaryPlanButton}
-                onClick={() => {
-                  setProfileOpen(false);
-                  setMobileMoreOpen(true);
-                }}
-              >
-                More tabs
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ProfileSheet
+        open={profileOpen}
+        onClose={() => setProfileOpen(false)}
+        tierColor={streakBandanaTier?.color}
+        isPro={isPro}
+        photoUrl={currentUserPhotoUrl}
+        profileDisplayName={profileDisplayName}
+        profileTierTheme={profileTierTheme}
+        streakBandanaTier={streakBandanaTier}
+        nextPlannedBlock={nextPlannedBlock}
+        normalizeTimeLabel={normalizeTimeLabel}
+        displayStreak={displayStreak}
+        longestStreak={longestStreak}
+        lifetimeFocusMinutes={lifetimeFocusMinutes}
+        sessionsCount={sessions.length}
+        nextBandanaMilestone={nextBandanaMilestone}
+        onOpenStreaks={() => {
+          setProfileOpen(false);
+          setActiveTab("streaks");
+        }}
+        onOpenMoreTabs={() => {
+          setProfileOpen(false);
+          setMobileMoreOpen(true);
+        }}
+      />
 
       {mobileMoreOpen && (
         <div className={styles.feedbackOverlay} onClick={() => setMobileMoreOpen(false)}>
@@ -5374,108 +5301,11 @@ export default function HomePage() {
         />
       ) : null}
 
-      {/* ── Leaderboard player profile modal ── */}
-      {selectedLbProfile ? (() => {
-        const { entry, rank } = selectedLbProfile;
-        const profileBandana = getLeaderboardBandanaMeta(entry.currentStreak);
-        const joinDate = (() => {
-          try {
-            return new Date(entry.createdAtISO).toLocaleDateString("en-US", { month: "long", year: "numeric" });
-          } catch {
-            return null;
-          }
-        })();
-        return (
-          <div
-            className={styles.feedbackOverlay}
-            onClick={() => setSelectedLbProfile(null)}
-          >
-            <div
-              className={styles.lbProfileSheet}
-              onClick={(event) => event.stopPropagation()}
-            >
-              <div className={styles.lbProfileHeader}>
-                <span className={styles.sectionLabel}>Player Profile</span>
-                <button
-                  type="button"
-                  className={styles.feedbackClose}
-                  onClick={() => setSelectedLbProfile(null)}
-                  aria-label="Close profile"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div className={styles.lbProfileHero}>
-                <WhelmProfileAvatar
-                  tierColor={profileBandana.tier?.color}
-                  size="compact"
-                  isPro={entry.isProStyle}
-                  photoUrl={entry.avatarUrl}
-                />
-                <div className={styles.lbProfileHeroMeta}>
-                  <div className={styles.lbProfileNameRow}>
-                    <strong className={styles.lbProfileUsername}>
-                      {entry.username.slice(0, 16)}
-                    </strong>
-                    {entry.isCurrentUser ? (
-                      <span className={styles.leaderboardYouBadge}>You</span>
-                    ) : null}
-                  </div>
-                  <p className={styles.lbProfileRank}>Rank #{rank}</p>
-                  {profileBandana.tier ? (
-                    <span
-                      className={styles.lbProfileBandanaBadge}
-                      style={{
-                        background: profileBandana.theme.shell,
-                        color: profileBandana.theme.accent,
-                        borderColor: profileBandana.theme.accent,
-                      }}
-                    >
-                      {profileBandana.tier.label}
-                    </span>
-                  ) : (
-                    <span className={styles.lbProfileBandanaBadge} style={{ opacity: 0.5 }}>
-                      No bandana yet
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <div className={styles.lbProfileStatsGrid}>
-                <div className={styles.lbProfileStat}>
-                  <span className={styles.lbProfileStatValue}>{entry.totalXp.toLocaleString()}</span>
-                  <span className={styles.lbProfileStatLabel}>Total XP</span>
-                </div>
-                <div className={styles.lbProfileStat}>
-                  <span className={styles.lbProfileStatValue}>Lv {entry.level}</span>
-                  <span className={styles.lbProfileStatLabel}>Level</span>
-                </div>
-                <div className={styles.lbProfileStat}>
-                  <span className={styles.lbProfileStatValue}>{entry.currentStreak}</span>
-                  <span className={styles.lbProfileStatLabel}>Streak days</span>
-                </div>
-                {(entry.bestStreak ?? 0) > 0 ? (
-                  <div className={styles.lbProfileStat}>
-                    <span className={styles.lbProfileStatValue}>{entry.bestStreak}</span>
-                    <span className={styles.lbProfileStatLabel}>Best streak</span>
-                  </div>
-                ) : null}
-                {(entry.totalFocusHours ?? 0) > 0 ? (
-                  <div className={styles.lbProfileStat}>
-                    <span className={styles.lbProfileStatValue}>{entry.totalFocusHours}h</span>
-                    <span className={styles.lbProfileStatLabel}>Focus hours</span>
-                  </div>
-                ) : null}
-              </div>
-
-              {joinDate ? (
-                <p className={styles.lbProfileJoinDate}>Member since {joinDate}</p>
-              ) : null}
-            </div>
-          </div>
-        );
-      })() : null}
+      <LeaderboardProfileModal
+        selected={selectedLbProfile}
+        onClose={() => setSelectedLbProfile(null)}
+        getLeaderboardBandanaMeta={getLeaderboardBandanaMeta}
+      />
     </>
   );
 }
