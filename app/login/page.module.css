@@ -313,6 +313,23 @@
   letter-spacing: 0.01em;
 }
 
+.secondaryAction {
+  align-self: flex-start;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: #365ea8;
+  font-size: 0.84rem;
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 0.14em;
+}
+
+.secondaryAction:disabled {
+  opacity: 0.6;
+}
+
 .submitButton:hover {
   filter: brightness(1.02);
 }
@@ -594,6 +611,10 @@
     min-height: 50px;
     margin-top: 2px;
     padding: 13px 18px;
+  }
+
+  .secondaryAction {
+    font-size: 0.8rem;
   }
 
   .loginMode .helperText {

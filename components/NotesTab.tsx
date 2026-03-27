@@ -647,7 +647,7 @@ export default function NotesTab({
                     className={styles.notesSearchInput}
                   />
                   <div className={styles.mobileRecentList}>
-                    {recentNotes.map((note) => (
+                    {filteredNotes.map((note) => (
                       <button
                         key={note.id}
                         type="button"
@@ -679,7 +679,7 @@ export default function NotesTab({
                         </span>
                       </button>
                     ))}
-                    {recentNotes.length === 0 && (
+                    {filteredNotes.length === 0 && (
                       <p className={sharedStyles.emptyText}>No notes yet. Start your first one.</p>
                     )}
                   </div>

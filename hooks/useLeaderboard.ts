@@ -12,6 +12,7 @@ import {
 import type { AppTab } from "@/lib/app-tabs";
 import { resolveApiUrl } from "@/lib/api-base";
 import {
+  type LeaderboardMetric,
   type LeaderboardPageResponse,
   type LeaderboardSnapshotEntry,
 } from "@/lib/leaderboard";
@@ -150,6 +151,10 @@ function seenChallengersStorageKey(uid: string) {
   return `whelm:seen-challengers:${uid}`;
 }
 
+function previousRanksStorageKey(uid: string, metric: LeaderboardMetric) {
+  return `whelm:leaderboard-prev-ranks:${uid}:${metric}`;
+}
+
 export function useLeaderboard({
   activeTab,
   user,
@@ -174,6 +179,7 @@ export function useLeaderboard({
   const [leaderboardTotalEntries, setLeaderboardTotalEntries] = useState(0);
   const [leaderboardError, setLeaderboardError] = useState("");
   const [seenChallengerIds, setSeenChallengerIds] = useState<Set<string>>(new Set());
+  const [cachedPreviousRanks, setCachedPreviousRanks] = useState<Map<string, number>>(new Map());
 
   const myBestStreak = useMemo(
     () => Math.max(0, ...Array.from(historicalStreaksByDay.values())),
@@ -291,6 +297,7 @@ export function useLeaderboard({
     () =>
       leaderboardPageItems.map((entry) => {
         const isMe = entry.userId === currentUserId;
+        const previousRank = entry.previousRank ?? cachedPreviousRanks.get(entry.userId) ?? null;
         return {
           entry: {
             id: entry.userId,
@@ -306,10 +313,14 @@ export function useLeaderboard({
             isCurrentUser: isMe,
           },
           rank: entry.rank,
-          movement: movementFromSnapshot(entry),
+          movement:
+            previousRank !== null
+              ? movementForRanks(entry.rank, previousRank)
+              : movementFromSnapshot(entry),
         };
       }),
     [
+      cachedPreviousRanks,
       currentUserId,
       currentUserPhotoUrl,
       displayStreak,
@@ -327,6 +338,7 @@ export function useLeaderboard({
     () =>
       leaderboardAroundMeItems.map((entry) => {
         const isMe = entry.userId === currentUserId;
+        const previousRank = entry.previousRank ?? cachedPreviousRanks.get(entry.userId) ?? null;
         return {
           entry: {
             id: entry.userId,
@@ -342,10 +354,14 @@ export function useLeaderboard({
             isCurrentUser: isMe,
           },
           rank: entry.rank,
-          movement: movementFromSnapshot(entry),
+          movement:
+            previousRank !== null
+              ? movementForRanks(entry.rank, previousRank)
+              : movementFromSnapshot(entry),
         };
       }),
     [
+      cachedPreviousRanks,
       currentUserId,
       currentUserPhotoUrl,
       displayStreak,
@@ -496,6 +512,22 @@ export function useLeaderboard({
       setSeenChallengerIds(new Set());
     }
   }, [user]);
+
+  useEffect(() => {
+    if (!user) {
+      setCachedPreviousRanks(new Map());
+      return;
+    }
+    try {
+      const raw = window.localStorage.getItem(previousRanksStorageKey(user.uid, leaderboardMetricTab));
+      const parsed = raw ? (JSON.parse(raw) as Record<string, number>) : {};
+      setCachedPreviousRanks(
+        new Map(Object.entries(parsed).map(([id, rank]) => [id, Number(rank) || 0])),
+      );
+    } catch {
+      setCachedPreviousRanks(new Map());
+    }
+  }, [leaderboardMetricTab, user]);
 
   useEffect(() => {
     const currentUser = user;
@@ -651,6 +683,22 @@ export function useLeaderboard({
       return next;
     });
   }, [leaderboardRows, seenChallengerIds, user]);
+
+  useEffect(() => {
+    if (!user) return;
+    const rankMap = new Map<string, number>();
+    leaderboardPageItems.forEach((entry) => rankMap.set(entry.userId, entry.rank));
+    leaderboardAroundMeItems.forEach((entry) => rankMap.set(entry.userId, entry.rank));
+    if (rankMap.size === 0) return;
+    try {
+      window.localStorage.setItem(
+        previousRanksStorageKey(user.uid, leaderboardMetricTab),
+        JSON.stringify(Object.fromEntries(rankMap)),
+      );
+    } catch {
+      // Ignore local storage errors.
+    }
+  }, [leaderboardAroundMeItems, leaderboardMetricTab, leaderboardPageItems, user]);
 
   return {
     leaderboardMetricTab,

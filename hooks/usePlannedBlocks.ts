@@ -463,6 +463,10 @@ export function usePlannedBlocks({
   }, [selectCalendarDate]);
 
   const openCalendarBlockComposer = useCallback(() => {
+    if (!selectedDateCanAddBlocks) {
+      showToast("Past dates stay read-only. Blocks can only be added to today or a future day.", "warning");
+      return;
+    }
     setDayPortalComposerOpen(true);
     setPlanTitle("");
     setPlanNote("");
@@ -473,7 +477,7 @@ export function usePlannedBlocks({
     setPlanDuration(25);
     setPlanStatus("");
     setPlanConflictWarning(null);
-  }, []);
+  }, [selectedDateCanAddBlocks, showToast]);
 
   const openPrefilledBlockComposer = useCallback((options: {
     dateKey: string;

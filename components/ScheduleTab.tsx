@@ -624,8 +624,7 @@ export default function ScheduleTab({
                     : day.tone;
 
                 return (
-                <motion.button
-                  type="button"
+                <motion.div
                   key={day.key}
                   className={`${styles.monthDayCell} ${
                     effectiveDayTone ? "" : styles[`streakLevel${day.level}`]
@@ -639,7 +638,9 @@ export default function ScheduleTab({
                       : ""
                   }`}
                   style={getCalendarToneStyle(effectiveDayTone)}
-                  disabled={!day.dayNumber}
+                  role={day.dayNumber ? "button" : undefined}
+                  tabIndex={day.dayNumber ? 0 : -1}
+                  aria-disabled={!day.dayNumber}
                   title={
                     day.dayNumber
                       ? `${day.dayNumber}: ${day.minutes}m focus, ${
@@ -650,6 +651,14 @@ export default function ScheduleTab({
                   onClick={() => {
                     if (!day.dayNumber) return;
                     onSelectCalendarDate(day.key);
+                    onSetCalendarView("day");
+                  }}
+                  onKeyDown={(event) => {
+                    if (!day.dayNumber) return;
+                    if (event.key !== "Enter" && event.key !== " ") return;
+                    event.preventDefault();
+                    onSelectCalendarDate(day.key);
+                    onSetCalendarView("day");
                   }}
                   initial={{ opacity: 0, y: 8, scale: 0.98 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -685,6 +694,7 @@ export default function ScheduleTab({
                               event.preventDefault();
                               event.stopPropagation();
                               onSelectCalendarDate(day.key);
+                              onSetCalendarView("day");
                               if (entry.source === "plan" && entry.planId) {
                                 onOpenPlannedBlockDetail(entry.planId);
                                 return;
@@ -705,7 +715,7 @@ export default function ScheduleTab({
                       </div>
                     </>
                   )}
-                </motion.button>
+                </motion.div>
                 );
               })}
             </div>
@@ -731,7 +741,11 @@ export default function ScheduleTab({
                       <button
                         type="button"
                         className={`${styles.planAddButton} ${styles.dayPortalBlockButton}`}
-                        onClick={onOpenCalendarBlockComposer}
+                        disabled={!selectedDateCanAddBlocks}
+                        onClick={() => {
+                          if (!selectedDateCanAddBlocks) return;
+                          onOpenCalendarBlockComposer();
+                        }}
                       >
                         + Block
                       </button>

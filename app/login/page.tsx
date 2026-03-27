@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   createUserWithEmailAndPassword,
   onAuthStateChanged,
+  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   updateProfile,
 } from "firebase/auth";
@@ -106,6 +107,26 @@ export default function LoginPage() {
       const message =
         error instanceof Error ? error.message : "Authentication failed.";
       setStatus(message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handlePasswordReset() {
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      setStatus("Enter your email first, then use password reset.");
+      return;
+    }
+
+    setSubmitting(true);
+    setStatus("Sending reset email...");
+
+    try {
+      await sendPasswordResetEmail(auth, trimmedEmail);
+      setStatus(`Password reset sent to ${trimmedEmail}. Check inbox and spam.`);
+    } catch (error: unknown) {
+      setStatus(error instanceof Error ? error.message : "Failed to send password reset email.");
     } finally {
       setSubmitting(false);
     }
@@ -284,6 +305,17 @@ export default function LoginPage() {
                 className={styles.input}
                 autoComplete={mode === "signup" ? "new-password" : "current-password"}
               />
+
+              {mode === "login" ? (
+                <button
+                  type="button"
+                  className={styles.secondaryAction}
+                  onClick={handlePasswordReset}
+                  disabled={submitting}
+                >
+                  Forgot password?
+                </button>
+              ) : null}
 
               <button
                 onClick={handleSubmit}

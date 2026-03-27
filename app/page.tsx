@@ -1736,6 +1736,7 @@ export default function HomePage() {
     user,
     isPro,
     defaultBackgroundSkin: DEFAULT_BACKGROUND_SKIN,
+    showToast,
   });
 
   const {

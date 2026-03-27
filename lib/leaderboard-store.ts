@@ -337,6 +337,35 @@ async function querySnapshotWindow(
     .filter((entry): entry is LeaderboardSnapshotEntry => Boolean(entry));
 }
 
+async function previousRanksForUsers(
+  authHeader: string,
+  snapshotDate: string,
+  metric: LeaderboardMetric,
+  userIds: string[],
+) {
+  const uniqueIds = [...new Set(userIds.filter(Boolean))];
+  if (uniqueIds.length === 0) return new Map<string, number>();
+
+  const docs = await Promise.all(
+    uniqueIds.map((userId) =>
+      getDocument(authHeader, `leaderboardDailySnapshots/${snapshotEntryDocId(snapshotDate, metric, userId)}`),
+    ),
+  );
+
+  const map = new Map<string, number>();
+  docs.forEach((document, index) => {
+    const entry = document ? decodeSnapshotEntry(document) : null;
+    if (entry?.userId && entry.rank > 0) {
+      map.set(entry.userId, entry.rank);
+      return;
+    }
+    const fallbackUserId = uniqueIds[index];
+    if (fallbackUserId) map.set(fallbackUserId, 0);
+  });
+
+  return map;
+}
+
 export async function getLeaderboardPage(authHeader: string, input: {
   metric: LeaderboardMetric;
   limit: number;
@@ -366,37 +395,55 @@ export async function getLeaderboardPage(authHeader: string, input: {
     compareLeaderboardProfiles(left, right, input.metric),
   );
 
-  function toEntry(profile: LeaderboardProfile, rank: number): LeaderboardSnapshotEntry {
-    return {
-      ...profile,
-      snapshotDate: today,
-      metric: input.metric,
-      rank,
-      previousRank: null,
-      movement: 0,
-      movementDirection: "new",
-    };
-  }
-
   // Cursor encodes the last rank seen; next page starts at rank + 1.
   const startRankExclusive = decodeCursor(input.cursor ?? null);
   const startIndex = startRankExclusive; // 0-based; rank = index + 1
   const pageProfiles = sorted.slice(startIndex, startIndex + input.limit);
-  const items = pageProfiles.map((profile, i) => toEntry(profile, startIndex + i + 1));
-  const lastRank = items.length > 0 ? items[items.length - 1].rank : null;
 
-  let aroundMe: LeaderboardSnapshotEntry[] = [];
+  let aroundProfiles: Array<{ profile: LeaderboardProfile; rank: number }> = [];
   if (input.userId) {
     const userIndex = sorted.findIndex((p) => p.userId === input.userId);
     if (userIndex >= 0) {
       const window = Math.max(1, input.aroundWindow ?? 2);
       const rangeStart = Math.max(0, userIndex - window);
       const rangeEnd = Math.min(sorted.length - 1, userIndex + window);
-      aroundMe = sorted
+      aroundProfiles = sorted
         .slice(rangeStart, rangeEnd + 1)
-        .map((profile, i) => toEntry(profile, rangeStart + i + 1));
+        .map((profile, i) => ({ profile, rank: rangeStart + i + 1 }));
     }
   }
+
+  const previousSnapshotDate = await latestSnapshotDate(authHeader, input.metric);
+  const previousRankMap =
+    previousSnapshotDate && previousSnapshotDate !== today
+      ? await previousRanksForUsers(
+          authHeader,
+          previousSnapshotDate,
+          input.metric,
+          [
+            ...pageProfiles.map((profile) => profile.userId),
+            ...aroundProfiles.map(({ profile }) => profile.userId),
+          ],
+        )
+      : new Map<string, number>();
+
+  function toEntry(profile: LeaderboardProfile, rank: number): LeaderboardSnapshotEntry {
+    const previousRankRaw = previousRankMap.get(profile.userId) ?? null;
+    const previousRank = previousRankRaw && previousRankRaw > 0 ? previousRankRaw : null;
+    return {
+      ...profile,
+      snapshotDate: today,
+      metric: input.metric,
+      rank,
+      previousRank,
+      movement: previousRank === null ? 0 : previousRank - rank,
+      movementDirection: movementDirection(rank, previousRank),
+    };
+  }
+
+  const items = pageProfiles.map((profile, i) => toEntry(profile, startIndex + i + 1));
+  const aroundMe = aroundProfiles.map(({ profile, rank }) => toEntry(profile, rank));
+  const lastRank = items.length > 0 ? items[items.length - 1].rank : null;
 
   return {
     metric: input.metric,

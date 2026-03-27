@@ -19,12 +19,14 @@ type UsePreferencesOptions = {
   user: User | null;
   isPro: boolean;
   defaultBackgroundSkin: PreferencesBackgroundSkin;
+  showToast?: (message: string, tone?: "success" | "warning" | "error" | "info") => void;
 };
 
 export function usePreferences({
   user,
   isPro,
   defaultBackgroundSkin,
+  showToast,
 }: UsePreferencesOptions) {
   const [companionStyle, setCompanionStyle] = useState<PreferencesCompanionStyle>("balanced");
   const [themeMode, setThemeMode] = useState<PreferencesThemeMode>("dark");
@@ -123,20 +125,31 @@ export function usePreferences({
     event.target.value = "";
     if (!file || !isPro || !user) return;
 
-    const extension = file.name.includes(".")
-      ? file.name.slice(file.name.lastIndexOf(".")).toLowerCase()
-      : "";
-    const objectPath = `users/${user.uid}/preferences/background${extension}`;
-    const backgroundRef = storageRef(storage, objectPath);
+    try {
+      const extension = file.name.includes(".")
+        ? file.name.slice(file.name.lastIndexOf(".")).toLowerCase()
+        : "";
+      // Storage rules currently allow authenticated writes under users/{uid}/notes/**.
+      const objectPath = `users/${user.uid}/notes/backgrounds/app-background${extension}`;
+      const backgroundRef = storageRef(storage, objectPath);
 
-    await uploadBytes(backgroundRef, file, {
-      contentType: file.type || "application/octet-stream",
-      cacheControl: "public,max-age=31536000,immutable",
-    });
+      await uploadBytes(backgroundRef, file, {
+        contentType: file.type || "application/octet-stream",
+        cacheControl: "public,max-age=31536000,immutable",
+      });
 
-    const downloadUrl = await getDownloadURL(backgroundRef);
-    applyBackgroundSetting({ kind: "upload", value: downloadUrl });
-  }, [applyBackgroundSetting, isPro, user]);
+      const downloadUrl = await getDownloadURL(backgroundRef);
+      applyBackgroundSetting({ kind: "upload", value: downloadUrl });
+      showToast?.("Background updated across your account.", "success");
+    } catch (error: unknown) {
+      showToast?.(
+        error instanceof Error
+          ? error.message
+          : "Background upload failed. Your current background was kept.",
+        "error",
+      );
+    }
+  }, [applyBackgroundSetting, isPro, showToast, user]);
 
   const effectiveBackgroundSetting = useMemo(
     () => (isPro ? appBackgroundSetting : { kind: "default" as const }),
