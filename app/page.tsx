@@ -98,6 +98,7 @@ import { useModalFlows } from "@/hooks/useModalFlows";
 import { useReflection } from "@/hooks/useReflection";
 import { useReportsAnalytics } from "@/hooks/useReportsAnalytics";
 import { useSessions } from "@/hooks/useSessions";
+import { useShellLifecycle } from "@/hooks/useShellLifecycle";
 import { useStreak } from "@/hooks/useStreak";
 import { useTabNavigation } from "@/hooks/useTabNavigation";
 import { useUserData } from "@/hooks/useUserData";
@@ -909,26 +910,6 @@ function attachmentIndicatorLabel(count: number) {
 
 function noteWordCount(body: string): number {
   return body.trim() === "" ? 0 : body.trim().split(/\s+/).length;
-}
-
-function streakNudgeStorageKey(uid: string, dateKey: string) {
-  return `whelm:streak-nudges:${uid}:${dateKey}`;
-}
-
-function readStreakNudgeSeen(uid: string, dateKey: string) {
-  try {
-    const raw = window.localStorage.getItem(streakNudgeStorageKey(uid, dateKey));
-    const parsed = raw ? (JSON.parse(raw) as string[]) : [];
-    return new Set(Array.isArray(parsed) ? parsed.filter((value) => typeof value === "string") : []);
-  } catch {
-    return new Set<string>();
-  }
-}
-
-function markStreakNudgeSeen(uid: string, dateKey: string, slot: string) {
-  const next = readStreakNudgeSeen(uid, dateKey);
-  next.add(slot);
-  window.localStorage.setItem(streakNudgeStorageKey(uid, dateKey), JSON.stringify([...next]));
 }
 
 type LocalNoteDraft = {
@@ -2366,8 +2347,6 @@ const MOBILE_MORE_TABS: AppTab[] = [
   "settings",
 ];
 
-const INTRO_SPLASH_MIN_MS = 1500;
-const INTRO_SPLASH_MAX_MS = 2200;
 function StreakBandana({
   streakDays,
   className,
@@ -2873,12 +2852,9 @@ export default function HomePage() {
   const router = useRouter();
   const liveTodayKey = dayKeyLocal(new Date());
 
-  const [showIntroSplash, setShowIntroSplash] = useState(true);
-  const [introFinished, setIntroFinished] = useState(false);
-  const [introMinElapsed, setIntroMinElapsed] = useState(false);
-  const [landingWisdomMinute, setLandingWisdomMinute] = useState(() => Math.floor(Date.now() / 60000));
   const [mobileTodayOverviewOpen, setMobileTodayOverviewOpen] = useState(false);
   const [senseiReaction, setSenseiReaction] = useState("");
+  const [landingWisdomMinute, setLandingWisdomMinute] = useState(() => Math.floor(Date.now() / 60000));
   const [trendRange, setTrendRange] = useState<TrendRange>(7);
   const [activeTab, setActiveTab] = useState<AppTab>("calendar");
   const [selectedLbProfile, setSelectedLbProfile] = useState<{ entry: LeaderboardEntry; rank: number } | null>(null);
@@ -3493,36 +3469,6 @@ export default function HomePage() {
   }, [isMobileViewport, mobileNotesEditorOpen, selectedNoteId]);
 
   useEffect(() => {
-    if (!showIntroSplash) return;
-    const timeoutId = window.setTimeout(() => {
-      setIntroMinElapsed(true);
-    }, INTRO_SPLASH_MIN_MS);
-    return () => window.clearTimeout(timeoutId);
-  }, [showIntroSplash]);
-
-  useEffect(() => {
-    if (!showIntroSplash) return;
-    if (!introMinElapsed || !introFinished || !authChecked) return;
-    setShowIntroSplash(false);
-  }, [authChecked, introFinished, introMinElapsed, showIntroSplash]);
-
-  useEffect(() => {
-    if (!showIntroSplash) return;
-    const timeoutId = window.setTimeout(() => {
-      setIntroFinished(true);
-    }, INTRO_SPLASH_MAX_MS);
-    return () => window.clearTimeout(timeoutId);
-  }, [showIntroSplash]);
-
-  useEffect(() => {
-    if (!senseiReaction) return;
-    const timeoutId = window.setTimeout(() => {
-      setSenseiReaction("");
-    }, 5000);
-    return () => window.clearTimeout(timeoutId);
-  }, [senseiReaction]);
-
-  useEffect(() => {
     const updateMinute = () => setLandingWisdomMinute(Math.floor(Date.now() / 60000));
     let intervalId: number | null = null;
     const timeoutId = window.setTimeout(() => {
@@ -3950,29 +3896,11 @@ export default function HomePage() {
     [reportMetrics],
   );
 
-  useEffect(() => {
-    if (!authChecked || user) return;
-
-    router.replace("/login");
-
-    const timeoutId = window.setTimeout(() => {
-      if (window.location.pathname !== "/login") {
-        window.location.assign("/login");
-      }
-    }, 300);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [authChecked, router, user]);
-
   const lastSession = sessions[0];
   const latestNote = orderedNotes[0] ?? null;
   const nextPlannedBlock = todayActivePlannedBlocks[0] ?? null;
   const mobileMoreActive = MOBILE_MORE_TABS.includes(activeTab);
   const recentNotes = filteredNotes.slice(0, 4);
-  const todayLabel = new Date().toLocaleDateString(undefined, {
-    month: "long",
-    day: "numeric",
-  });
   const todaySessionNoteCount = sessions.filter((session) => {
     return dayKeyLocal(session.completedAtISO) === todayKey && Boolean(session.note?.trim());
   }).length;
@@ -4008,79 +3936,28 @@ export default function HomePage() {
   });
   const lifetimeFocusMinutes = sessions.reduce((sum, session) => sum + session.minutes, 0);
   const notificationsBlocked = dailyPlanningLocked || dailyPlanningOpen || dailyPlanningPreviewOpen;
-  const previousStreakProtectedTodayRef = useRef<boolean | null>(null);
-
-  useEffect(() => {
-    if (streakProtectedToday) {
-      setStreakNudge(null);
-    }
-  }, [streakProtectedToday]);
-
-  useEffect(() => {
-    if (!notificationsBlocked) return;
-    setStreakNudge(null);
-    setSessionReward(null);
-    setStreakCelebration(null);
-  }, [notificationsBlocked]);
-
-  useEffect(() => {
-    if (!authChecked || !user) {
-      previousStreakProtectedTodayRef.current = streakProtectedToday;
-      return;
-    }
-
-    const previousProtected = previousStreakProtectedTodayRef.current;
-    previousStreakProtectedTodayRef.current = streakProtectedToday;
-
-    if (previousProtected === null) return;
-    if (notificationsBlocked || !streakRuleV2ActiveToday) return;
-    if (previousProtected || !streakProtectedToday) return;
-
-    setStreakCelebration({
-      id: `${todayKey}-${Date.now()}`,
-      streakAfter: displayStreak,
-      todayLabel,
-      tier: getStreakBandanaTier(displayStreak),
-    });
-  }, [
+  const {
+    showIntroSplash,
+    setIntroFinished,
+    todayLabel,
+  } = useShellLifecycle({
     authChecked,
-    displayStreak,
+    user,
+    router,
+    senseiReaction,
+    clearSenseiReaction: () => setSenseiReaction(""),
     notificationsBlocked,
     streakProtectedToday,
     streakRuleV2ActiveToday,
+    displayStreak,
     todayKey,
-    todayLabel,
-    user,
-  ]);
-
-  useEffect(() => {
-    if (notificationsBlocked) return;
-    if (!user || !authChecked || !plannedBlocksHydrated || !streakNudgeDraft) return;
-    if (streakNudge) return;
-
-    const now = new Date();
-    const hour = now.getHours();
-    const slot = hour >= 19 ? "evening" : hour >= 13 ? "midday" : hour >= 9 ? "morning" : null;
-    if (!slot) return;
-
-    const seen = readStreakNudgeSeen(user.uid, todayKey);
-    if (seen.has(slot)) return;
-
-    setStreakNudge({
-      id: `${todayKey}-${slot}`,
-      ...streakNudgeDraft,
-    });
-    markStreakNudgeSeen(user.uid, todayKey, slot);
-  }, [
-    authChecked,
-    landingWisdomMinute,
-    notificationsBlocked,
     plannedBlocksHydrated,
     streakNudge,
     streakNudgeDraft,
-    todayKey,
-    user,
-  ]);
+    setStreakNudge,
+    setSessionReward: () => setSessionReward(null),
+    setStreakCelebration,
+  });
 
   if (showIntroSplash) {
     return <IntroSplash onComplete={() => setIntroFinished(true)} />;
