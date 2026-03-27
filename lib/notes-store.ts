@@ -149,6 +149,10 @@ function writeLocalNotes(uid: string, notes: WorkspaceNote[]) {
   window.localStorage.setItem(storageKey(uid), JSON.stringify(normalizeNotes(notes)));
 }
 
+function notesMatch(a: WorkspaceNote[], b: WorkspaceNote[]) {
+  return JSON.stringify(normalizeNotes(a)) === JSON.stringify(normalizeNotes(b));
+}
+
 export function mergeNotesPreferNewest(localNotes: WorkspaceNote[], cloudNotes: WorkspaceNote[]) {
   const merged = new Map<string, WorkspaceNote>();
 
@@ -227,6 +231,18 @@ export async function loadNotes(user: User) {
     const cloudNotes = Array.isArray(body.notes) ? normalizeNotes(body.notes) : [];
     const mergedNotes = mergeNotesPreferNewest(localNotes, cloudNotes);
     writeLocalNotes(user.uid, mergedNotes);
+
+    if (!notesMatch(mergedNotes, cloudNotes)) {
+      try {
+        await pushNotesToCloud(user, mergedNotes);
+      } catch {
+        return {
+          notes: mergedNotes,
+          synced: false,
+          message: "Recovered newer local notes. Cloud sync is still catching up.",
+        } as NotesSyncResult;
+      }
+    }
 
     return {
       notes: mergedNotes,
