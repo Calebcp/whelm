@@ -57,27 +57,21 @@ function warn(area: string, err: Error) {
 export function subscribeToUserData(uid: string, cb: FirestoreSyncCallbacks): () => void {
   const unsubs: (() => void)[] = [];
 
-  // ── Notes ────────────────────────────────────────────────────
+  // ── Notes (subcollection — each note is its own document) ────
   unsubs.push(
     onSnapshot(
-      doc(db, "userNotes", uid),
+      collection(db, "userNotes", uid, "notes"),
       (snap) => {
-        if (!snap.exists()) return;
-        const json = snap.data()?.notesJson;
-        if (typeof json !== "string") return;
-        try {
-          const remote = JSON.parse(json) as WorkspaceNote[];
-          if (!Array.isArray(remote)) return;
+        const remote = snap.docs.map((d) => d.data() as WorkspaceNote);
 
-          // Preserve in-flight edit: keep the local version of the note currently
-          // being typed on this device so remote updates don't discard the draft.
-          const editingId = cb.isEditingNote() ? cb.editingNoteId() : null;
-          const merged = editingId
-            ? remote.map((n) => (n.id === editingId ? (cb.localNote(editingId) ?? n) : n))
-            : remote;
+        // Preserve in-flight edit: keep the local version of the note currently
+        // being typed on this device so remote updates don't discard the draft.
+        const editingId = cb.isEditingNote() ? cb.editingNoteId() : null;
+        const merged = editingId
+          ? remote.map((n) => (n.id === editingId ? (cb.localNote(editingId) ?? n) : n))
+          : remote;
 
-          cb.onNotes(merged);
-        } catch { /* ignore parse errors */ }
+        cb.onNotes(merged);
       },
       (err) => warn("notes", err),
     ),

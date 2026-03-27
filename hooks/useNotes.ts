@@ -4,11 +4,12 @@ import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } f
 import { deleteObject, getDownloadURL, ref as storageRef, uploadBytesResumable } from "firebase/storage";
 import { auth, storage } from "@/lib/firebase";
 import {
+  deleteNoteFromFirestore,
   loadNotes,
   mergeNotesPreferNewest,
   readLocalNotes,
   retryNotesSync,
-  saveNotes,
+  saveNoteToFirestore,
   saveNotesLocally,
   type NoteAttachment,
   type WorkspaceNote,
@@ -521,7 +522,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     onNavigateToNotes?.();
     setNotesSyncStatus("syncing");
     setNotesSyncMessage("");
-    const result = await saveNotes(currentUser, nextNotes);
+    const result = await saveNoteToFirestore(currentUser.uid, nextNote);
     setNotesSyncStatus(result.synced ? "synced" : "local-only");
     setNotesSyncMessage(result.message ?? "");
     return nextNote.id;
@@ -557,7 +558,10 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     setNotes(nextNotes);
     setNotesSyncStatus("syncing");
     setNotesSyncMessage("");
-    const result = await saveNotes(currentUser, nextNotes);
+    const updatedNote = nextNotes.find((n) => n.id === noteId);
+    const result = updatedNote
+      ? await saveNoteToFirestore(currentUser.uid, updatedNote)
+      : { synced: false, notes: [], message: "Note not found." };
     setNotesSyncStatus(result.synced ? "synced" : "local-only");
     setNotesSyncMessage(result.message ?? "");
   }
@@ -631,7 +635,10 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     setNotesSyncStatus("syncing");
     setNotesSyncMessage("");
     console.log("[whelm] flush body to Firestore:", { noteId: currentSelectedNoteId, bodyLength: nextBody.length });
-    const result = await saveNotes(currentUser, nextNotes);
+    const flushedNote = nextNotes.find((n) => n.id === currentSelectedNoteId);
+    const result = flushedNote
+      ? await saveNoteToFirestore(currentUser.uid, flushedNote)
+      : { synced: false, notes: [], message: "Note not found." };
     setNotesSyncStatus(result.synced ? "synced" : "local-only");
     setNotesSyncMessage(result.message ?? "");
   }
@@ -652,7 +659,10 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     setNotes(nextNotes);
     setNotesSyncStatus("syncing");
     setNotesSyncMessage("");
-    const result = await saveNotes(currentUser, nextNotes);
+    const pinnedNote = nextNotes.find((n) => n.id === noteId);
+    const result = pinnedNote
+      ? await saveNoteToFirestore(currentUser.uid, pinnedNote)
+      : { synced: false, notes: [], message: "Note not found." };
     setNotesSyncStatus(result.synced ? "synced" : "local-only");
     setNotesSyncMessage(result.message ?? "");
   }
@@ -824,9 +834,14 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     clearLocalNoteDraft(currentUser.uid, noteId);
     setNotesSyncStatus("syncing");
     setNotesSyncMessage("");
-    const result = await saveNotes(currentUser, nextNotes);
-    setNotesSyncStatus(result.synced ? "synced" : "local-only");
-    setNotesSyncMessage(result.message ?? "");
+    try {
+      await deleteNoteFromFirestore(currentUser.uid, noteId);
+      setNotesSyncStatus("synced");
+      setNotesSyncMessage("");
+    } catch {
+      setNotesSyncStatus("local-only");
+      setNotesSyncMessage("Deleted locally. Cloud sync is currently unavailable.");
+    }
     setNoteUndoItem(deleted);
     window.setTimeout(() => setNoteUndoItem(null), 5000);
   }
@@ -840,7 +855,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     setSelectedNoteId(noteUndoItem.id);
     setNotesSyncStatus("syncing");
     setNotesSyncMessage("");
-    const result = await saveNotes(currentUser, restored);
+    const result = await saveNoteToFirestore(currentUser.uid, noteUndoItem);
     setNotesSyncStatus(result.synced ? "synced" : "local-only");
     setNotesSyncMessage(result.message ?? "");
     setNoteUndoItem(null);
