@@ -108,14 +108,6 @@ export default function StreaksTab({
   const activeMonthDays = streakMonthCalendar.filter((cell) => cell.dateKey && cell.streakLength > 0).length;
   const protectedMonthDays = streakMonthCalendar.filter((cell) => cell.dateKey && cell.isSaved).length;
   const monthLabelShort = streakMonthLabel.split(" ")[0] ?? streakMonthLabel;
-  const weekRows = useMemo(() => {
-    const rows: StreakMonthCell[][] = [];
-    for (let index = 0; index < streakMonthCalendar.length; index += 7) {
-      rows.push(streakMonthCalendar.slice(index, index + 7));
-    }
-    return rows;
-  }, [streakMonthCalendar]);
-
   return (
     <AnimatedTabSection className={styles.streaksShell} sectionRef={sectionRef}>
       <motion.article
@@ -152,10 +144,8 @@ export default function StreaksTab({
           <span>F</span>
           <span>S</span>
         </div>
-        <div className={styles.streakMonthRows}>
-          {weekRows.map((row, rowIndex) => (
-            <div key={`week-${rowIndex}`} className={styles.streakMonthRow}>
-              {row.map((cell) => {
+        <div className={styles.streakMonthGrid}>
+          {streakMonthCalendar.map((cell) => {
             const cellFocusMinutes = cell.dateKey ? sessionMinutesByDay.get(cell.dateKey) ?? 0 : 0;
             const cellCompletedBlocks = cell.dateKey ? completedBlocksByDay.get(cell.dateKey) ?? 0 : 0;
             const cellNoteWords = cell.dateKey ? noteWordsByDay.get(cell.dateKey) ?? 0 : 0;
@@ -177,41 +167,40 @@ export default function StreaksTab({
                 }`
               : "Outside current month";
 
-                return (
-                  <div
-                    key={cell.key}
-                    className={[
-                      styles.streakMonthCell,
-                      cell.dayNumber ? "" : styles.streakMonthCellEmpty,
-                      cell.streakLength > 0 ? styles.streakMonthCellActive : "",
-                      cell.streakTierColor
-                        ? styles[`streakMonthCellTier${cell.streakTierColor.charAt(0).toUpperCase()}${cell.streakTierColor.slice(1)}`]
-                        : "",
-                      cell.isSaved ? styles.streakMonthCellSaved : "",
-                      cell.isToday ? styles.streakMonthCellToday : "",
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}
-                    title={title}
-                  >
-                    {cell.dayNumber ? (
-                      <>
-                        <span className={styles.streakMonthDayNumber}>{cell.dayNumber}</span>
-                        {cell.streakLength > 0 ? (
-                          <StreakBandana
-                            streakDays={cell.streakLength}
-                            className={styles.streakMonthBandana}
-                          />
-                        ) : (
-                          <span className={styles.streakMonthCellDot} />
-                        )}
-                      </>
-                    ) : null}
-                  </div>
-                );
-              })}
-            </div>
-          ))}
+            return (
+              <div
+                key={cell.key}
+                className={[
+                  styles.streakMonthCell,
+                  cell.dayNumber ? "" : styles.streakMonthCellEmpty,
+                  cell.streakLength > 0 ? styles.streakMonthCellActive : "",
+                  cell.streakTierColor
+                    ? styles[`streakMonthCellTier${cell.streakTierColor.charAt(0).toUpperCase()}${cell.streakTierColor.slice(1)}`]
+                    : "",
+                  cell.isSaved ? styles.streakMonthCellSaved : "",
+                  cell.isToday ? styles.streakMonthCellToday : "",
+                  !cell.isCurrentMonth ? styles.streakMonthCellOutside : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                title={title}
+              >
+                {cell.dayNumber ? (
+                  <>
+                    <span className={styles.streakMonthDayNumber}>{cell.dayNumber}</span>
+                    {cell.streakLength > 0 ? (
+                      <StreakBandana
+                        streakDays={cell.streakLength}
+                        className={styles.streakMonthBandana}
+                      />
+                    ) : (
+                      <span className={styles.streakMonthCellDot} />
+                    )}
+                  </>
+                ) : null}
+              </div>
+            );
+          })}
         </div>
         <div className={styles.streakCalendarFooter}>
           <div className={styles.streakCalendarFooterCopy}>
