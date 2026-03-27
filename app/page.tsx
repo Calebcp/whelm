@@ -54,11 +54,6 @@ import {
   type WorkspaceNote,
 } from "@/lib/notes-store";
 import {
-  loadPlannedBlocks as loadSyncedPlannedBlocks,
-  savePlannedBlocks as saveSyncedPlannedBlocks,
-  savePlannedBlocksLocally,
-} from "@/lib/planned-blocks-store";
-import {
   loadPreferences,
   savePreferences,
 } from "@/lib/preferences-store";
@@ -125,6 +120,7 @@ import {
   type StreakNudgeState,
 } from "@/lib/xp-engine";
 import { useNotes } from "@/hooks/useNotes";
+import { usePlannedBlocks } from "@/hooks/usePlannedBlocks";
 import { useUserData } from "@/hooks/useUserData";
 import styles from "./page.module.css";
 
@@ -3274,13 +3270,6 @@ export default function HomePage() {
   const resolvedTheme: "dark" | "light" =
     themeMode === "system" ? (systemIsDark ? "dark" : "light") : themeMode;
   const [themePromptOpen, setThemePromptOpen] = useState(false);
-  const [dailyPlanningOpen, setDailyPlanningOpen] = useState(false);
-  const [dailyPlanningStatus, setDailyPlanningStatus] = useState("");
-  const [dailyPlanningPromptSeenToday, setDailyPlanningPromptSeenToday] = useState<boolean | null>(null);
-  const [dailyRitualDrafts, setDailyRitualDrafts] = useState<DailyRitualBlockDraft[]>(() =>
-    createDailyRitualDrafts([]),
-  );
-  const [dailyRitualExpandedId, setDailyRitualExpandedId] = useState<string | null>(null);
   const [isPro, setIsPro] = useState(true);
   const [proSource, setProSource] = useState<"preview" | "store" | "none">("preview");
   const [appBackgroundSetting, setAppBackgroundSetting] = useState<AppBackgroundSetting>({
@@ -3315,54 +3304,19 @@ export default function HomePage() {
   const [selectedInsightCategory, setSelectedInsightCategory] = useState<NoteCategory | null>(
     null,
   );
-  const [plannedBlocks, setPlannedBlocks] = useState<PlannedBlock[]>([]);
-  const [plannedBlocksHydrated, setPlannedBlocksHydrated] = useState(false);
   const [dayTones, setDayTones] = useState<DayToneMap>({});
   const [monthTones, setMonthTones] = useState<MonthToneMap>({});
-  const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
-  const [calendarCursor, setCalendarCursor] = useState<Date>(() => {
-    const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), 1);
-  });
   const [streakCalendarCursor, setStreakCalendarCursor] = useState<Date>(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
-  const [calendarHoverEntryId, setCalendarHoverEntryId] = useState<string | null>(null);
-  const [calendarPinnedEntryId, setCalendarPinnedEntryId] = useState<string | null>(null);
-  const [calendarAuxPanel, setCalendarAuxPanel] = useState<"agenda" | "streak" | "guide">("agenda");
-  const [planTitle, setPlanTitle] = useState("");
-  const [planNote, setPlanNote] = useState("");
-  const [planAttachmentCount, setPlanAttachmentCount] = useState(0);
-  const [planNoteExpanded, setPlanNoteExpanded] = useState(false);
-  const [planTone, setPlanTone] = useState<CalendarTone | null>(null);
-  const [planDuration, setPlanDuration] = useState(25);
-  const [planTime, setPlanTime] = useState("09:00");
-  const [planStatus, setPlanStatus] = useState("");
   const { toasts: whelToasts, showToast, dismissToast } = useToasts();
-  const [planConflictWarning, setPlanConflictWarning] = useState<{
-    conflictIds: string[];
-    message: string;
-  } | null>(null);
-  const [calendarJumpDate, setCalendarJumpDate] = useState<string>(() => dayKeyLocal(new Date()));
   const [kpiDetailOpen, setKpiDetailOpen] = useState<KpiDetailKey | null>(null);
-  const [draggedPlanId, setDraggedPlanId] = useState<string | null>(null);
-  const [pendingCalendarEntryFocusId, setPendingCalendarEntryFocusId] = useState<string | null>(null);
-  const [activatedCalendarEntryId, setActivatedCalendarEntryId] = useState<string | null>(null);
-  const [overlapPickerEntryId, setOverlapPickerEntryId] = useState<string | null>(null);
-  const [dayPortalComposerOpen, setDayPortalComposerOpen] = useState(false);
-  const [selectedPlanDetailId, setSelectedPlanDetailId] = useState<string | null>(null);
-  const [plannerSectionsOpen, setPlannerSectionsOpen] = useState({
-    active: false,
-    completed: false,
-    incomplete: false,
-  });
   const [historySectionsOpen, setHistorySectionsOpen] = useState({
     completed: false,
     incomplete: false,
   });
   const [historyGroupsOpen, setHistoryGroupsOpen] = useState<Record<string, boolean>>({});
-  const [deletedPlanUndo, setDeletedPlanUndo] = useState<PlannedBlock | null>(null);
   const [screenTimeStatus, setScreenTimeStatus] =
     useState<ScreenTimeAuthorizationStatus>("unsupported");
   const [screenTimeSupported, setScreenTimeSupported] = useState(false);
@@ -3389,8 +3343,6 @@ export default function HomePage() {
   const [streakMirrorTag, setStreakMirrorTag] = useState<StreakMirrorTag | null>(null);
   const [streakSaveAnswers, setStreakSaveAnswers] = useState<Record<string, string>>({});
   const [streakSaveStatus, setStreakSaveStatus] = useState("");
-  const [dailyPlanningPreviewOpen, setDailyPlanningPreviewOpen] = useState(false);
-  const [mobileBlockSheetOpen, setMobileBlockSheetOpen] = useState(false);
   const [settingsSectionsOpen, setSettingsSectionsOpen] = useState({
     identity: false,
     internalTools: false,
@@ -3448,14 +3400,112 @@ export default function HomePage() {
     () => sickDaySaves.map((save) => save.dateKey),
     [sickDaySaves],
   );
-  const completedBlocksByDay = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const block of plannedBlocks) {
-      if (block.status !== "completed") continue;
-      map.set(block.dateKey, (map.get(block.dateKey) ?? 0) + 1);
-    }
-    return map;
-  }, [plannedBlocks]);
+  const {
+    plannedBlocks,
+    setPlannedBlocks,
+    plannedBlocksHydrated,
+    setPlannedBlocksHydrated,
+    completedBlocksByDay,
+    todayPlannedBlocks,
+    todayActivePlannedBlocks,
+    claimedBlocksToday,
+    dailyPlanningLocked,
+    dailyPlanningOpen,
+    setDailyPlanningOpen,
+    dailyPlanningStatus,
+    setDailyPlanningStatus,
+    dailyRitualDrafts,
+    dailyRitualExpandedId,
+    setDailyRitualExpandedId,
+    selectedCalendarDate,
+    setSelectedCalendarDate,
+    calendarCursor,
+    setCalendarCursor,
+    calendarHoverEntryId,
+    setCalendarHoverEntryId,
+    calendarPinnedEntryId,
+    setCalendarPinnedEntryId,
+    calendarAuxPanel,
+    setCalendarAuxPanel,
+    planTitle,
+    setPlanTitle,
+    planNote,
+    setPlanNote,
+    planAttachmentCount,
+    setPlanAttachmentCount,
+    planNoteExpanded,
+    setPlanNoteExpanded,
+    planTone,
+    setPlanTone,
+    planDuration,
+    setPlanDuration,
+    planTime,
+    setPlanTime,
+    planStatus,
+    setPlanStatus,
+    planConflictWarning,
+    setPlanConflictWarning,
+    calendarJumpDate,
+    setCalendarJumpDate,
+    draggedPlanId,
+    setDraggedPlanId,
+    pendingCalendarEntryFocusId,
+    setPendingCalendarEntryFocusId,
+    activatedCalendarEntryId,
+    setActivatedCalendarEntryId,
+    overlapPickerEntryId,
+    setOverlapPickerEntryId,
+    dayPortalComposerOpen,
+    setDayPortalComposerOpen,
+    selectedPlanDetailId,
+    setSelectedPlanDetailId,
+    plannerSectionsOpen,
+    setPlannerSectionsOpen,
+    deletedPlanUndo,
+    dailyPlanningPreviewOpen,
+    setDailyPlanningPreviewOpen,
+    mobileBlockSheetOpen,
+    setMobileBlockSheetOpen,
+    selectedDateKey,
+    selectedDateCanAddBlocks,
+    selectedDatePlans,
+    handleBlocksSnapshot,
+    handleUserSignedOut: handlePlannedBlocksSignedOut,
+    persistPlannedBlocks,
+    selectCalendarDate,
+    jumpToToday,
+    openCalendarBlockComposer,
+    openPrefilledBlockComposer,
+    closeDailyPlanningPreview,
+    addPlannedBlock,
+    deletePlannedBlock,
+    undoDeletePlannedBlock,
+    updatePlannedBlockTime,
+    reorderPlannedBlocks,
+    updatePlannedBlockTone,
+    updateDailyRitualDraft,
+    submitDailyRitual,
+  } = usePlannedBlocks({
+    isPro,
+    liveTodayKey,
+    showToast,
+    onNavigateToCalendarDay: () => {
+      setActiveTab("calendar");
+      setCalendarView("day");
+    },
+    onTrackTaskCreated: (block, source) => {
+      if (!user) return;
+      fireAndForgetTracking(
+        trackTaskCreated(user, {
+          taskId: block.id,
+          scheduledDate: block.dateKey,
+          durationMinutes: block.durationMinutes,
+          subjectMode: analyticsSubjectModeFromText(`${block.title} ${block.note}`),
+          source,
+        }),
+      );
+    },
+  });
 
   const {
     notes,
@@ -3544,14 +3594,12 @@ export default function HomePage() {
 
   // ── useUserData: auth, sessions, XP, streak, bandana, mascot ───────────────
   const onSignOut = useCallback(() => {
-    setPlannedBlocks([]);
-    setPlannedBlocksHydrated(false);
     setSickDaySaves([]);
     setSickDaySaveDismissals([]);
     setSickDaySavePromptOpen(false);
-    setSelectedCalendarDate(null);
+    handlePlannedBlocksSignedOut();
     handleUserSignedOut();
-  }, [handleUserSignedOut]);
+  }, [handlePlannedBlocksSignedOut, handleUserSignedOut]);
 
   const {
     user,
@@ -4021,20 +4069,6 @@ export default function HomePage() {
     setSenseiReaction(topInsight.body);
   }, [activeTab, analyticsInsights]);
 
-  const todayPlannedBlocks = useMemo(
-    () => plannedBlocks.filter((item) => item.dateKey === dayKeyLocal(new Date())),
-    [plannedBlocks],
-  );
-  const todayActivePlannedBlocks = useMemo(
-    () => todayPlannedBlocks.filter((item) => item.status === "active"),
-    [todayPlannedBlocks],
-  );
-  const claimedBlocksToday = useMemo(
-    () => todayPlannedBlocks.filter((item) => item.durationMinutes >= 15),
-    [todayPlannedBlocks],
-  );
-  const dailyPlanningLocked = plannedBlocksHydrated && claimedBlocksToday.length < 3;
-
   const averageSessionStartHour = useMemo(() => {
     const recentSessions = sessions.slice(0, 14);
     if (recentSessions.length === 0) return null;
@@ -4401,31 +4435,6 @@ export default function HomePage() {
   }, [isPro, selectedStreakMirrorId, streakMirrorEntries]);
 
   useEffect(() => {
-    if (!user) {
-      setDailyPlanningPromptSeenToday(null);
-      return;
-    }
-
-    setDailyPlanningPromptSeenToday(readDailyPlanningPromptSeen(user.uid, liveTodayKey));
-  }, [liveTodayKey, user]);
-
-  useEffect(() => {
-    if (!user || !plannedBlocksHydrated || dailyPlanningPromptSeenToday === null) return;
-    setDailyRitualDrafts((current) => syncDailyRitualDrafts(claimedBlocksToday, current));
-    setDailyPlanningStatus("");
-    if (claimedBlocksToday.length < 3 && !dailyPlanningPromptSeenToday) {
-      markDailyPlanningPromptSeen(user.uid, liveTodayKey);
-      setDailyPlanningPromptSeenToday(true);
-      setDailyPlanningOpen(true);
-      setActiveTab("calendar");
-      setSelectedCalendarDate(liveTodayKey);
-      setCalendarView("day");
-    } else if (claimedBlocksToday.length >= 3) {
-      setDailyPlanningOpen(false);
-    }
-  }, [claimedBlocksToday, dailyPlanningPromptSeenToday, liveTodayKey, plannedBlocksHydrated, user]);
-
-  useEffect(() => {
     document.body.dataset.theme = resolvedTheme;
     return () => {
       delete document.body.dataset.theme;
@@ -4501,8 +4510,7 @@ export default function HomePage() {
         setNotesSyncMessage("");
       },
       onBlocks: (blocks) => {
-        setPlannedBlocks(blocks as PlannedBlock[]);
-        setPlannedBlocksHydrated(true);
+        handleBlocksSnapshot(blocks as PlannedBlock[]);
       },
       onPreferences: (prefs) => {
         setCompanionStyle(prefs.companionStyle as SenseiCompanionStyle);
@@ -4537,17 +4545,6 @@ export default function HomePage() {
     };
   }, [user]);
 
-  async function refreshPlannedBlocks(uid: string) {
-    const currentUser = auth.currentUser;
-    if (!currentUser || currentUser.uid !== uid) {
-      throw new Error("Your login session is missing. Sign in again.");
-    }
-
-    const result = await loadSyncedPlannedBlocks(currentUser);
-    setPlannedBlocks(result.blocks as PlannedBlock[]);
-    setPlannedBlocksHydrated(true);
-  }
-
   async function refreshReflectionState(uid: string) {
     const currentUser = auth.currentUser;
     if (!currentUser || currentUser.uid !== uid) {
@@ -4573,16 +4570,6 @@ export default function HomePage() {
     setThemePromptOpen(false);
     setAppBackgroundSetting(result.backgroundSetting as AppBackgroundSetting);
     setBackgroundSkin(result.backgroundSkin as BackgroundSkinSetting);
-  }
-
-  async function persistPlannedBlocks(nextBlocks: PlannedBlock[]) {
-    if (!user) return;
-
-    setPlannedBlocks(nextBlocks);
-    savePlannedBlocksLocally(user.uid, nextBlocks);
-
-    const result = await saveSyncedPlannedBlocks(user, nextBlocks);
-    setPlannedBlocks(result.blocks as PlannedBlock[]);
   }
 
   async function persistReflectionState(nextState: {
@@ -5463,48 +5450,6 @@ export default function HomePage() {
     setPlanStatus("");
   }
 
-  function openCalendarBlockComposer() {
-    setPlanStatus("");
-    setPlanConflictWarning(null);
-    setPlanAttachmentCount(0);
-    setActiveTab("calendar");
-    setCalendarView("day");
-    if (isMobileViewport) {
-      setMobileBlockSheetOpen(true);
-      return;
-    }
-    setDayPortalComposerOpen(true);
-  }
-
-  function openPrefilledBlockComposer(options: {
-    dateKey: string;
-    title: string;
-    note: string;
-    timeOfDay: string;
-    durationMinutes: number;
-    attachmentCount?: number;
-  }) {
-    const nextDateKey = normalizePlannableDateKey(options.dateKey);
-    setSelectedCalendarDate(nextDateKey);
-    setPlanTitle(options.title);
-    setPlanNote(options.note);
-    setPlanAttachmentCount(Math.max(0, options.attachmentCount ?? 0));
-    setPlanNoteExpanded(Boolean(options.note));
-    setPlanTime(options.timeOfDay);
-    setPlanDuration(options.durationMinutes);
-    if (nextDateKey !== options.dateKey) {
-      showToast("Past dates stay read-only. This block was moved to today.", "warning");
-    }
-    setPlanConflictWarning(null);
-    setActiveTab("calendar");
-    setCalendarView("day");
-    if (isMobileViewport) {
-      setMobileBlockSheetOpen(true);
-      return;
-    }
-    setDayPortalComposerOpen(true);
-  }
-
   function openTimeBlockFlow(dateKey: string) {
     const nextDateKey = normalizePlannableDateKey(dateKey);
     setSelectedCalendarDate(nextDateKey);
@@ -5577,12 +5522,6 @@ export default function HomePage() {
     setDailyPlanningStatus("");
     setDailyPlanningPreviewOpen(true);
     setDailyPlanningOpen(true);
-  }
-
-  function closeDailyPlanningPreview() {
-    setDailyPlanningPreviewOpen(false);
-    setDailyPlanningOpen(false);
-    setDailyPlanningStatus("");
   }
 
   function claimSickDaySave() {
@@ -5743,8 +5682,6 @@ export default function HomePage() {
     });
   }
 
-  const selectedDateKey = selectedCalendarDate || dayKeyLocal(new Date());
-  const selectedDateCanAddBlocks = !isDateKeyBeforeToday(selectedDateKey);
   const selectedCalendarMonthKey = monthKeyLocal(calendarCursor);
   const selectedMonthTone = isPro ? (monthTones[selectedCalendarMonthKey] ?? null) : null;
   const calendarMonthLabel = calendarCursor.toLocaleDateString(undefined, {
@@ -5910,7 +5847,6 @@ export default function HomePage() {
       visible: sameDate,
     };
   }, [isPro, plannedBlocks, selectedDateKey]);
-  const selectedDatePlans = selectedDatePlanGroups.active;
   const selectedDateDayTone = isPro ? (dayTones[selectedDateKey] ?? null) : null;
   const visiblePlanTone = (tone: CalendarTone | null | undefined) => (isPro ? (tone ?? null) : null);
   const plannedBlockById = useMemo(
@@ -6413,167 +6349,6 @@ export default function HomePage() {
     [reportMetrics],
   );
 
-  function addPlannedBlock() {
-    if (!user) return false;
-    if (!selectedDateCanAddBlocks) {
-      showToast("Past dates stay read-only. Blocks can only be added to today or a future day.", "warning");
-      return false;
-    }
-    const title = planTitle.trim();
-    const note = planNote.trim();
-    if (!title) {
-      showToast("Write a task title first.", "warning");
-      return false;
-    }
-
-    const durationError = getPlannedBlockDurationError(planDuration);
-    if (durationError) {
-      showToast(durationError, "warning");
-      return false;
-    }
-
-    const nextDuration = planDuration;
-    const nextTime = planTime || "09:00";
-    const conflicts = findPlanSpacingConflicts(selectedDatePlans, {
-      dateKey: selectedDateKey,
-      timeOfDay: nextTime,
-      durationMinutes: nextDuration,
-    });
-    if (conflicts.length > 0) {
-      setPlanConflictWarning({
-        conflictIds: conflicts.map((item) => item.id),
-        message: buildBlockSpacingMessage(conflicts),
-      });
-      setPlanStatus("");
-      return false;
-    }
-
-    const now = new Date().toISOString();
-    const next: PlannedBlock = {
-      id: typeof crypto !== "undefined" ? crypto.randomUUID() : `${Date.now()}`,
-      dateKey: selectedDateKey,
-      title,
-      note,
-      attachmentCount: planAttachmentCount > 0 ? planAttachmentCount : undefined,
-      tone: isPro ? planTone ?? undefined : undefined,
-      durationMinutes: nextDuration,
-      timeOfDay: nextTime,
-      sortOrder:
-        selectedDatePlans.length === 0
-          ? 0
-          : Math.max(...selectedDatePlans.map((item) => item.sortOrder)) + 1,
-      createdAtISO: now,
-      updatedAtISO: now,
-      status: "active",
-    };
-    const updated = [...plannedBlocks, next];
-    void persistPlannedBlocks(updated);
-    fireAndForgetTracking(
-      trackTaskCreated(user, {
-        taskId: next.id,
-        scheduledDate: next.dateKey,
-        durationMinutes: next.durationMinutes,
-        subjectMode: analyticsSubjectModeFromText(`${next.title} ${next.note}`),
-        source: "manual",
-      }),
-    );
-    setPlanTitle("");
-    setPlanNote("");
-    setPlanAttachmentCount(0);
-    setPlanNoteExpanded(false);
-    setPlanTone(null);
-    setPlanConflictWarning(null);
-    showToast("Planned block added.", "success");
-    setSelectedCalendarDate(selectedDateKey);
-    setCalendarView("day");
-    setActiveTab("calendar");
-    setPendingCalendarEntryFocusId(`plan-${next.id}`);
-    return true;
-  }
-
-  function deletePlannedBlock(id: string) {
-    if (!user) return;
-    const removed = plannedBlocks.find((item) => item.id === id) || null;
-    if (!removed) return;
-    const nextClaimedCount = claimedBlocksToday.filter((item) => item.id !== id).length;
-    if (
-      removed.dateKey === dayKeyLocal(new Date()) &&
-      removed.durationMinutes >= 15 &&
-      nextClaimedCount < 3
-    ) {
-      const confirmed = window.confirm(
-        "Removing this block will reopen today's lock because you will fall below 3 required blocks. Continue?",
-      );
-      if (!confirmed) return;
-      setDailyPlanningOpen(true);
-      setDailyPlanningStatus("Today needs 3 active blocks. Replace the removed block to unlock the workspace again.");
-    }
-    const updated = plannedBlocks.filter((item) => item.id !== id);
-    void persistPlannedBlocks(updated);
-    setDeletedPlanUndo(removed);
-    window.setTimeout(() => setDeletedPlanUndo(null), 5000);
-  }
-
-  function undoDeletePlannedBlock() {
-    if (!user || !deletedPlanUndo) return;
-    const restoredAt = new Date().toISOString();
-    const updated = [...plannedBlocks, { ...deletedPlanUndo, updatedAtISO: restoredAt }];
-    void persistPlannedBlocks(updated);
-    setDeletedPlanUndo(null);
-  }
-
-  function updatePlannedBlockTime(id: string, timeOfDay: string) {
-    if (!user) return;
-    const block = plannedBlocks.find((item) => item.id === id);
-    if (!block) return;
-    if (isDateKeyBeforeToday(block.dateKey)) {
-      showToast("Past dates stay read-only. This block can no longer be rescheduled there.", "warning");
-      return;
-    }
-    const conflicts = findPlanSpacingConflicts(plannedBlocks, {
-      dateKey: block.dateKey,
-      timeOfDay,
-      durationMinutes: block.durationMinutes,
-      excludeId: id,
-    });
-    if (conflicts.length > 0) {
-      showToast(buildBlockSpacingMessage(conflicts), "warning");
-      return;
-    }
-    const updatedAtISO = new Date().toISOString();
-    const updated = plannedBlocks.map((item) =>
-      item.id === id ? { ...item, timeOfDay, updatedAtISO } : item,
-    );
-    void persistPlannedBlocks(updated);
-  }
-
-  function reorderPlannedBlocks(sourceId: string, targetId: string) {
-    if (!user || sourceId === targetId) return;
-
-    const sameDate = plannedBlocks
-      .filter((item) => item.dateKey === selectedDateKey)
-      .sort((a, b) => a.sortOrder - b.sortOrder || a.timeOfDay.localeCompare(b.timeOfDay));
-
-    const sourceIndex = sameDate.findIndex((item) => item.id === sourceId);
-    const targetIndex = sameDate.findIndex((item) => item.id === targetId);
-    if (sourceIndex < 0 || targetIndex < 0) return;
-
-    const reordered = [...sameDate];
-    const [moved] = reordered.splice(sourceIndex, 1);
-    reordered.splice(targetIndex, 0, moved);
-
-    const updatedAtISO = new Date().toISOString();
-    const withOrder = reordered.map((item, index) => ({
-      ...item,
-      sortOrder: index,
-      updatedAtISO,
-    }));
-
-    const untouched = plannedBlocks.filter((item) => item.dateKey !== selectedDateKey);
-    const updated = [...untouched, ...withOrder];
-    void persistPlannedBlocks(updated);
-  }
-
   async function completePlannedBlock(item: PlannedBlock) {
     if (!user) return;
 
@@ -6664,30 +6439,6 @@ export default function HomePage() {
     triggerXPPop(10);
   }
 
-  function selectCalendarDate(dateKey: string) {
-    const parsed = new Date(`${dateKey}T00:00:00`);
-    if (Number.isNaN(parsed.getTime())) return;
-    setCalendarHoverEntryId(null);
-    setCalendarPinnedEntryId(null);
-    setSelectedCalendarDate(dateKey);
-    setCalendarJumpDate(dateKey);
-    setCalendarCursor(new Date(parsed.getFullYear(), parsed.getMonth(), 1));
-    setCalendarView("day");
-    setDayPortalComposerOpen(false);
-    setOverlapPickerEntryId(null);
-  }
-
-  useEffect(() => {
-    setPlanTone(null);
-    setPlanAttachmentCount(0);
-  }, [selectedDateKey]);
-
-  function jumpToToday() {
-    const today = new Date();
-    const key = dayKeyLocal(today);
-    selectCalendarDate(key);
-  }
-
   function jumpToCalendarSection(sectionId: string) {
     if (sectionId === "calendar-planner" && calendarView === "day") {
       openCalendarBlockComposer();
@@ -6766,15 +6517,6 @@ export default function HomePage() {
     saveMonthTones(user.uid, next);
   }
 
-  function updatePlannedBlockTone(id: string, tone: CalendarTone | null) {
-    if (!user || !isPro) return;
-    const updatedAtISO = new Date().toISOString();
-    const updated = plannedBlocks.map((item) =>
-      item.id === id ? { ...item, tone: tone ?? undefined, updatedAtISO } : item,
-    );
-    void persistPlannedBlocks(updated);
-  }
-
   function handleBackgroundUpload(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file || !isPro) return;
@@ -6787,119 +6529,6 @@ export default function HomePage() {
     reader.readAsDataURL(file);
     event.target.value = "";
   }
-
-  function updateDailyRitualDraft(
-    draftId: string,
-    patch: Partial<
-      Pick<DailyRitualBlockDraft, "title" | "note" | "tone" | "timeOfDay" | "durationMinutes">
-    >,
-  ) {
-    setDailyRitualDrafts((current) =>
-      current.map((draft) => (draft.id === draftId ? { ...draft, ...patch } : draft)),
-    );
-  }
-
-  function submitDailyRitual() {
-    if (dailyPlanningPreviewOpen) {
-      closeDailyPlanningPreview();
-      return;
-    }
-    if (!user) return;
-    const todayKey = dayKeyLocal(new Date());
-    const invalidDraft = dailyRitualDrafts.find((draft) => {
-      if (draft.existingBlockId) return false;
-      return (
-        !draft.title.trim() ||
-        !draft.timeOfDay ||
-        getPlannedBlockDurationError(draft.durationMinutes) !== null
-      );
-    });
-
-    if (invalidDraft) {
-      setDailyPlanningStatus(
-        "Place 3 real commitments for today. Each one needs a title, time, and a reasonable duration.",
-      );
-      return;
-    }
-
-    const newBlocks = dailyRitualDrafts
-      .filter((draft) => !draft.existingBlockId)
-      .map((draft, index) => {
-        const createdAtISO = new Date().toISOString();
-        return {
-          id: typeof crypto !== "undefined" ? crypto.randomUUID() : `${Date.now()}-${index}`,
-          dateKey: todayKey,
-          title: draft.title.trim(),
-          note: draft.note.trim(),
-          attachmentCount: undefined,
-          tone: isPro ? draft.tone ?? undefined : undefined,
-          durationMinutes: draft.durationMinutes,
-          timeOfDay: draft.timeOfDay,
-          sortOrder: claimedBlocksToday.length + index,
-          createdAtISO,
-          updatedAtISO: createdAtISO,
-          status: "active" as const,
-        };
-      });
-
-    const spacingConflicts: PlannedBlock[] = [];
-    const candidatePool = plannedBlocks.filter(
-      (item) => item.dateKey === todayKey && item.status === "active",
-    );
-    for (const block of newBlocks) {
-      const conflicts = findPlanSpacingConflicts([...candidatePool, ...newBlocks], {
-        dateKey: block.dateKey,
-        timeOfDay: block.timeOfDay,
-        durationMinutes: block.durationMinutes,
-        excludeId: block.id,
-      });
-      if (conflicts.length > 0) {
-        spacingConflicts.push(...conflicts);
-        break;
-      }
-    }
-
-    if (spacingConflicts.length > 0) {
-      setDailyPlanningStatus(buildBlockSpacingMessage(spacingConflicts));
-      return;
-    }
-
-    if (claimedBlocksToday.length + newBlocks.length < 3) {
-      setDailyPlanningStatus("Three commitments are required before Whelm unlocks.");
-      return;
-    }
-
-    const updated = [...plannedBlocks, ...newBlocks];
-    void persistPlannedBlocks(updated);
-    newBlocks.forEach((block) => {
-      fireAndForgetTracking(
-        trackTaskCreated(user, {
-          taskId: block.id,
-          scheduledDate: block.dateKey,
-          durationMinutes: block.durationMinutes,
-          subjectMode: analyticsSubjectModeFromText(`${block.title} ${block.note}`),
-          source: "daily_ritual",
-        }),
-      );
-    });
-    setDailyPlanningStatus("");
-    setDailyPlanningOpen(false);
-    setActiveTab("calendar");
-    setSelectedCalendarDate(todayKey);
-    setCalendarView("day");
-  }
-
-  useEffect(() => {
-    if (dailyRitualDrafts.length === 0) {
-      setDailyRitualExpandedId(null);
-      return;
-    }
-    setDailyRitualExpandedId((current) => {
-      if (current && dailyRitualDrafts.some((draft) => draft.id === current)) return current;
-      const firstOpen = dailyRitualDrafts.find((draft) => !draft.existingBlockId)?.id;
-      return firstOpen ?? dailyRitualDrafts[0]?.id ?? null;
-    });
-  }, [dailyRitualDrafts]);
 
   useEffect(() => {
     return () => {
