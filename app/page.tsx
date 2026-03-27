@@ -75,6 +75,7 @@ import {
 import { buildPerformanceNotificationPlan } from "@/lib/performance-notifications";
 import { subscribeToUserData } from "@/lib/firestore-sync";
 import type { AppTab } from "@/lib/app-tabs";
+import { monthKeyLocal } from "@/lib/date-utils";
 import {
   buildDayXpSummaryForDate,
   doesDateQualifyForStreak,
@@ -471,11 +472,6 @@ type KpiDetailKey =
   | "averageSession"
   | "bestDay"
   | "weeklyProgress";
-
-function monthKeyLocal(input: Date | string) {
-  const value = typeof input === "string" ? new Date(input) : input;
-  return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}`;
-}
 
 const INSIGHT_CATEGORY_META: Record<
   NoteCategory,
@@ -959,16 +955,6 @@ function focusLevel(minutes: number): 0 | 1 | 2 | 3 {
 
 function isHexColor(value: string) {
   return /^#([0-9a-f]{6}|[0-9a-f]{3})$/i.test(value.trim());
-}
-
-function countWords(value: string) {
-  const plainText = value
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/gi, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  return plainText ? plainText.split(" ").length : 0;
 }
 
 function inferCategoryFromText(text: string): NoteCategory {
