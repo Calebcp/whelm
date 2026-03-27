@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ChangeEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { type User } from "firebase/auth";
@@ -35,7 +35,6 @@ import NotesTab from "@/components/NotesTab";
 import ReportsTab from "@/components/ReportsTab";
 import ScheduleTab from "@/components/ScheduleTab";
 import TodayTab from "@/components/TodayTab";
-import SenseiFigure, { type SenseiVariant } from "@/components/SenseiFigure";
 import WhelMascot from "@/components/WhelMascot";
 import WhelmEmote from "@/components/WhelmEmote";
 import WhelmRitualScene from "@/components/WhelmRitualScene";
@@ -2127,110 +2126,6 @@ const MOBILE_MORE_TABS: AppTab[] = [
   "reports",
   "settings",
 ];
-
-function SenseiAvatar({
-  message,
-  variant,
-  bandanaColor = "yellow",
-  compact = false,
-  emoteVideoSrc,
-  autoPlayEmote = false,
-}: {
-  message: string;
-  variant: SenseiVariant;
-  bandanaColor?: import("@/lib/whelm-mascot").WhelBandanaColor;
-  compact?: boolean;
-  emoteVideoSrc?: string;
-  autoPlayEmote?: boolean;
-}) {
-  return (
-    <SenseiFigure
-      variant={variant}
-      bandanaColor={bandanaColor}
-      size={compact ? "inline" : "card"}
-      message={message}
-      className={compact ? styles.senseiAvatarCompact : styles.senseiAvatarPlacement}
-      align={compact ? "right" : "center"}
-      emoteVideoSrc={emoteVideoSrc}
-      autoPlayEmote={autoPlayEmote}
-    />
-  );
-}
-
-function CompanionPulse({
-  eyebrow,
-  title,
-  body,
-  variant,
-  bandanaColor = "yellow",
-}: {
-  eyebrow: string;
-  title: string;
-  body: string;
-  variant: SenseiVariant;
-  bandanaColor?: import("@/lib/whelm-mascot").WhelBandanaColor;
-}) {
-  return (
-    <article className={styles.companionPulse}>
-      <div className={styles.companionPulseFigureWrap}>
-        <SenseiFigure variant={variant} bandanaColor={bandanaColor} size="badge" className={styles.companionPulseFigure} />
-      </div>
-      <div className={styles.companionPulseSpeech}>
-        <div className={styles.companionPulseCopy}>
-          <p className={styles.sectionLabel}>{eyebrow}</p>
-          <h3 className={styles.companionPulseTitle}>{title}</h3>
-          <p className={styles.companionPulseBody}>{body}</p>
-        </div>
-      </div>
-    </article>
-  );
-}
-
-function ProUnlockCard({
-  title,
-  body,
-  open,
-  onToggle,
-  onPreview,
-  preview,
-}: {
-  title: string;
-  body: string;
-  open: boolean;
-  onToggle: () => void;
-  onPreview: () => void;
-  preview?: ReactNode;
-}) {
-  return (
-    <div className={styles.proUnlockCard}>
-      <button type="button" className={styles.proUnlockToggle} onClick={onToggle}>
-        <div>
-          <p className={styles.sectionLabel}>Whelm Pro Available</p>
-          <strong>{title}</strong>
-          <p className={styles.proUnlockMeta}>Premium surface, deeper system.</p>
-        </div>
-        <span>{open ? "Hide" : "Open"}</span>
-      </button>
-      {open ? (
-        <div className={styles.proUnlockBody}>
-          {preview ? <div className={styles.proUnlockPreview}>{preview}</div> : null}
-          <p className={styles.accountMeta}>{body}</p>
-          <div className={styles.proUnlockValueRow}>
-            <span>Sharper visuals</span>
-            <span>Deeper memory</span>
-            <span>Full command reports</span>
-          </div>
-          <div className={styles.noteFooterActions}>
-            <button type="button" className={styles.inlineUpgrade} onClick={onPreview}>
-              Enter Whelm Pro Preview
-            </button>
-          </div>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 
 export default function HomePage() {
   "use no memo";
