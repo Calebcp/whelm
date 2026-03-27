@@ -1,6 +1,16 @@
-import type { User } from "firebase/auth";
+"use client";
 
-import { resolveApiUrl } from "@/lib/api-base";
+import type { User } from "firebase/auth";
+import {
+  collection,
+  deleteDoc,
+  doc as firestoreDoc,
+  getDoc,
+  getDocs,
+  setDoc,
+} from "firebase/firestore";
+
+import { db } from "@/lib/firebase";
 
 export type WorkspaceNote = {
   id: string;
@@ -174,80 +184,57 @@ export function saveNotesLocally(uid: string, notes: WorkspaceNote[]) {
   writeLocalNotes(uid, notes);
 }
 
-async function authorizedRequest(
-  user: User,
-  input: string,
-  init: RequestInit,
-  timeoutMs = 12000,
-) {
-  const controller = new AbortController();
-  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
-  const token = await user.getIdToken();
+// ── Individual document writes ────────────────────────────────────────────────
 
+/**
+ * Write a single note to its own Firestore document at
+ * `userNotes/{uid}/notes/{noteId}` using merge semantics.
+ * Concurrent writes from different devices can never overwrite each other.
+ */
+export async function saveNoteToFirestore(uid: string, note: WorkspaceNote): Promise<NotesSyncResult> {
+  const normalized = normalizeNotes([note]);
+  const target = normalized[0];
+  if (!target) return { notes: [note], synced: false };
   try {
-    const response = await fetch(input, {
-      ...init,
-      signal: controller.signal,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-        ...init.headers,
-      },
-    });
-
-    if (!response.ok) {
-      const body = (await response.json().catch(() => null)) as
-        | { error?: string }
-        | null;
-      throw new Error(body?.error || response.statusText || "Notes request failed.");
-    }
-
-    return response;
-  } finally {
-    window.clearTimeout(timeoutId);
+    await setDoc(firestoreDoc(db, "userNotes", uid, "notes", target.id), target, { merge: true });
+    return { notes: [target], synced: true };
+  } catch {
+    return { notes: [target], synced: false, message: "Saved locally. Cloud sync is currently unavailable." };
   }
 }
 
-async function pushNotesToCloud(user: User, notes: WorkspaceNote[]) {
-  await authorizedRequest(user, resolveApiUrl("/api/notes"), {
-    method: "POST",
-    body: JSON.stringify({
-      uid: user.uid,
-      notes: normalizeNotes(notes),
-    }),
-  });
+/**
+ * Delete a single note document from `userNotes/{uid}/notes/{noteId}`.
+ * Throws on failure so the caller can handle the sync-status update.
+ */
+export async function deleteNoteFromFirestore(uid: string, noteId: string): Promise<void> {
+  await deleteDoc(firestoreDoc(db, "userNotes", uid, "notes", noteId));
 }
 
-export async function loadNotes(user: User) {
+// ── Bulk helpers (used for initial load and retry sync) ───────────────────────
+
+export async function loadNotes(user: User): Promise<NotesSyncResult> {
   const localNotes = readLocalNotes(user.uid);
 
   try {
-    const response = await authorizedRequest(
-      user,
-      resolveApiUrl(`/api/notes?uid=${encodeURIComponent(user.uid)}`),
-      { method: "GET" },
-    );
-    const body = (await response.json()) as { notes?: WorkspaceNote[] };
-    const cloudNotes = Array.isArray(body.notes) ? normalizeNotes(body.notes) : [];
+    const snap = await getDocs(collection(db, "userNotes", user.uid, "notes"));
+    const cloudNotes = normalizeNotes(snap.docs.map((d) => d.data() as WorkspaceNote));
     const mergedNotes = mergeNotesPreferNewest(localNotes, cloudNotes);
     writeLocalNotes(user.uid, mergedNotes);
 
+    // Push any local-only or newer-local notes up to Firestore.
     if (!notesMatch(mergedNotes, cloudNotes)) {
-      try {
-        await pushNotesToCloud(user, mergedNotes);
-      } catch {
-        return {
-          notes: mergedNotes,
-          synced: false,
-          message: "Recovered newer local notes. Cloud sync is still catching up.",
-        } as NotesSyncResult;
-      }
+      const toSync = mergedNotes.filter(
+        (n) => !cloudNotes.some((c) => c.id === n.id && c.updatedAtISO >= n.updatedAtISO),
+      );
+      await Promise.allSettled(
+        toSync.map((n) =>
+          setDoc(firestoreDoc(db, "userNotes", user.uid, "notes", n.id), n, { merge: true }),
+        ),
+      );
     }
 
-    return {
-      notes: mergedNotes,
-      synced: true,
-    } as NotesSyncResult;
+    return { notes: mergedNotes, synced: true };
   } catch (error: unknown) {
     return {
       notes: localNotes,
@@ -256,44 +243,70 @@ export async function loadNotes(user: User) {
         error instanceof Error
           ? error.message
           : "Cloud sync unavailable. Local notes are still saved.",
-    } as NotesSyncResult;
+    };
   }
 }
 
-export async function saveNotes(user: User, notes: WorkspaceNote[]) {
+export async function saveNotes(user: User, notes: WorkspaceNote[]): Promise<NotesSyncResult> {
   const normalized = normalizeNotes(notes);
   writeLocalNotes(user.uid, normalized);
 
   try {
-    await pushNotesToCloud(user, normalized);
-    return {
-      notes: normalized,
-      synced: true,
-    } as NotesSyncResult;
+    await Promise.all(
+      normalized.map((note) =>
+        setDoc(firestoreDoc(db, "userNotes", user.uid, "notes", note.id), note, { merge: true }),
+      ),
+    );
+    return { notes: normalized, synced: true };
   } catch {
     return {
       notes: normalized,
       synced: false,
       message: "Saved locally. Cloud sync is currently unavailable.",
-    } as NotesSyncResult;
+    };
   }
 }
 
 export async function retryNotesSync(user: User, notes: WorkspaceNote[]) {
-  const normalized = normalizeNotes(notes);
+  const result = await saveNotes(user, notes);
+  return { synced: result.synced, message: result.message };
+}
 
-  try {
-    await pushNotesToCloud(user, normalized);
-    return {
-      synced: true,
-    };
-  } catch (error: unknown) {
-    return {
-      synced: false,
-      message:
-        error instanceof Error
-          ? error.message
-          : "Retry failed. Local notes are still safe.",
-    };
+// ── One-time migration ────────────────────────────────────────────────────────
+
+/**
+ * Reads the legacy `notesJson` blob from `userNotes/{uid}` and writes each
+ * note as its own document to `userNotes/{uid}/notes/{noteId}`.
+ *
+ * Gated by a `notesMigrated: true` flag in `userPreferences/{uid}` so it
+ * runs exactly once per account and never again after that.
+ */
+export async function migrateNotesFromJson(uid: string): Promise<void> {
+  // Skip if already migrated.
+  const prefsSnap = await getDoc(firestoreDoc(db, "userPreferences", uid));
+  if (prefsSnap.data()?.notesMigrated === true) return;
+
+  // Read the old single-document format.
+  const oldSnap = await getDoc(firestoreDoc(db, "userNotes", uid));
+  if (oldSnap.exists()) {
+    const raw = oldSnap.data()?.notesJson;
+    if (typeof raw === "string") {
+      let oldNotes: WorkspaceNote[] = [];
+      try {
+        const parsed = JSON.parse(raw) as unknown;
+        oldNotes = Array.isArray(parsed) ? normalizeNotes(parsed as WorkspaceNote[]) : [];
+      } catch { /* invalid JSON — migrate nothing */ }
+
+      if (oldNotes.length > 0) {
+        await Promise.allSettled(
+          oldNotes.map((note) =>
+            setDoc(firestoreDoc(db, "userNotes", uid, "notes", note.id), note, { merge: true }),
+          ),
+        );
+      }
+    }
   }
+
+  // Mark migration complete regardless of whether there were notes to migrate.
+  await setDoc(firestoreDoc(db, "userPreferences", uid), { notesMigrated: true }, { merge: true });
 }
