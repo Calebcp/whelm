@@ -244,6 +244,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
   const savedSelectionRef = useRef<Range | null>(null);
   const syncInFlightRef = useRef(false);
   const bodyDirtyRef = useRef(false);
+  const bodyDirtyNoteIdRef = useRef<string | null>(null);
   const notesRef = useRef<WorkspaceNote[]>([]);
   const selectedNoteIdRef = useRef<string | null>(null);
   const notesSectionRef = useRef<HTMLElement | null>(null);
@@ -339,6 +340,10 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
 
   // ── Load editor body when selected note changes ────────────────────────────
   useEffect(() => {
+    // If the user is actively typing into this note, don't overwrite their in-flight edits.
+    // (bodyDirtyNoteIdRef tracks which note is dirty so we still load content when navigating.)
+    if (bodyDirtyRef.current && bodyDirtyNoteIdRef.current === selectedNoteId) return;
+
     const currentUser = auth.currentUser;
     let nextHtml = selectedNote ? normalizeBodyForEditor(selectedNote.body) : "";
 
@@ -355,6 +360,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
   // ── Sync editorBodyDraft → editor.innerHTML ────────────────────────────────
   useEffect(() => {
     if (!editorRef.current) return;
+    if (bodyDirtyRef.current && bodyDirtyNoteIdRef.current === selectedNoteId) return;
     if (editorRef.current.innerHTML !== editorBodyDraft) {
       editorRef.current.innerHTML = editorBodyDraft;
     }
@@ -398,6 +404,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
 
     const timeoutId = window.setTimeout(() => {
       bodyDirtyRef.current = false;
+      bodyDirtyNoteIdRef.current = null;
       console.log("[whelm] autosave body:", {
         noteId: selectedNote.id,
         bodyLength: editorBodyDraft.length,
@@ -614,6 +621,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
 
     const now = new Date().toISOString();
     bodyDirtyRef.current = false;
+    bodyDirtyNoteIdRef.current = null;
     const nextNotes = notesRef.current.map((note) =>
       note.id === currentSelectedNoteId ? { ...note, body: nextBody, updatedAtISO: now } : note,
     );
@@ -663,6 +671,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
 
     const now = new Date().toISOString();
     bodyDirtyRef.current = true;
+    bodyDirtyNoteIdRef.current = currentSelectedNoteId;
     const nextNotes = notesRef.current.map((note) =>
       note.id === currentSelectedNoteId ? { ...note, body: nextBody, updatedAtISO: now } : note,
     );

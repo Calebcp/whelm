@@ -204,6 +204,9 @@ export function useUserData({
   // Defensive: preserve the last non-zero streak so a partial data load
   // (sessions resolved before plannedBlocks) never briefly flashes streak to 0.
   const lastGoodStreakRef = useRef<number>(0);
+  // Defensive: preserve the last non-zero XP summary so XP display never flashes
+  // to 0 before sessions have loaded from Firestore.
+  const lastGoodLifetimeXpRef = useRef<LifetimeXpSummary | null>(null);
   const streak = useMemo(() => {
     const computed = computeStreak([], streakQualifiedDateKeys);
     if (computed > 0) {
@@ -261,8 +264,16 @@ export function useUserData({
     const totalXp = xpByDay.reduce((sum, day) => sum + day.totalXp, 0);
     const todayKey = dayKeyLocal(new Date());
     const todayXp = xpByDay.find((day) => day.dateKey === todayKey)?.totalXp ?? 0;
-    return getLifetimeXpSummary(totalXp, todayXp);
-  }, [xpByDay]);
+    const summary = getLifetimeXpSummary(totalXp, todayXp);
+    if (summary.totalXp > 0) {
+      lastGoodLifetimeXpRef.current = summary;
+      return summary;
+    }
+    if (!sessionsSyncedRef.current && lastGoodLifetimeXpRef.current) {
+      return lastGoodLifetimeXpRef.current;
+    }
+    return summary;
+  }, [xpByDay, sessionsSyncedRef]);
 
   // ── Profile display ────────────────────────────────────────────────────────
 

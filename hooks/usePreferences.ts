@@ -96,7 +96,7 @@ export function usePreferences({
 
     applyPreferencesSnapshot(nextState);
 
-    void setDoc(
+    await setDoc(
       doc(db, "userPreferences", user.uid),
       {
         uid: user.uid,
