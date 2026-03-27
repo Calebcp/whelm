@@ -14,12 +14,14 @@ import CollapsibleSectionCard from "@/components/CollapsibleSectionCard";
 import DailyPlanningModal from "@/components/DailyPlanningModal";
 import { DailyRitualSubmitBandana, DailyRitualWaveIcon } from "@/components/DailyRitualDecorations";
 import FeedbackModal from "@/components/FeedbackModal";
+import IntroSplash from "@/components/IntroSplash";
 import KpiDetailModal from "@/components/KpiDetailModal";
 import LeaderboardProfileModal from "@/components/LeaderboardProfileModal";
 import MobileMoreSheet from "@/components/MobileMoreSheet";
 import PaywallModal from "@/components/PaywallModal";
 import ProfileSheet from "@/components/ProfileSheet";
 import QuickCardModal from "@/components/QuickCardModal";
+import SessionRewardToast from "@/components/SessionRewardToast";
 import ThemePromptModal from "@/components/ThemePromptModal";
 import StreakOverlayCluster from "@/components/StreakOverlayCluster";
 import TopAppBar from "@/components/TopAppBar";
@@ -2126,33 +2128,6 @@ const MOBILE_MORE_TABS: AppTab[] = [
   "settings",
 ];
 
-function IntroSplash({ onComplete }: { onComplete: () => void }) {
-  return (
-    <main className={styles.splashScreen}>
-      <div className={styles.splashOrb} aria-hidden="true" />
-      <div className={styles.splashFrame}>
-        <div className={styles.splashAnimationShell}>
-          <div className={styles.splashAnimation}>
-            <video
-              className={styles.splashVideo}
-              autoPlay
-              muted
-              playsInline
-              preload="auto"
-              aria-label="Whelm intro animation"
-              onEnded={onComplete}
-            >
-              <source src="/intro/twosecappicon.mp4" type="video/mp4" />
-            </video>
-          </div>
-        </div>
-        <p className={styles.splashWordmark}>WHELM</p>
-        <p className={styles.splashCaption}>Build momentum before the day gets loud.</p>
-      </div>
-    </main>
-  );
-}
-
 function SenseiAvatar({
   message,
   variant,
@@ -2256,292 +2231,6 @@ function ProUnlockCard({
   );
 }
 
-function SessionRewardToast({
-  reward,
-  onDismiss,
-}: {
-  reward: SessionRewardState;
-  onDismiss: () => void;
-}) {
-  const tierTheme = getStreakTierColorTheme(reward.tierUnlocked?.color);
-  const rewardStyle = {
-    "--reward-accent": tierTheme.accent,
-    "--reward-accent-strong": tierTheme.accentStrong,
-    "--reward-accent-glow": tierTheme.accentGlow,
-  } as CSSProperties;
-
-  return (
-    <motion.div
-      className={styles.sessionRewardToast}
-      style={rewardStyle}
-      initial={{ opacity: 0, y: 28, scale: 0.96 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: 18, scale: 0.98 }}
-      transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
-    >
-      <button type="button" className={styles.sessionRewardClose} onClick={onDismiss} aria-label="Dismiss reward">
-        ×
-      </button>
-      <div className={styles.sessionRewardTop}>
-        <div>
-          <p className={styles.sectionLabel}>Session complete</p>
-          <h3 className={styles.sessionRewardTitle}>+{reward.xpGained} XP secured</h3>
-          <p className={styles.sessionRewardBody}>
-            {reward.minutesSpent} minutes banked. Today now holds {reward.todayXp} XP.
-          </p>
-        </div>
-        <div className={styles.sessionRewardBadge}>
-          <span>{reward.minutesSpent}m</span>
-        </div>
-      </div>
-      <div className={styles.sessionRewardStats}>
-        <div className={styles.sessionRewardStat}>
-          <span>Streak</span>
-          <strong>
-            {reward.streakAfter}d
-            {reward.streakDelta > 0 ? ` · +${reward.streakDelta}` : ""}
-          </strong>
-        </div>
-        <div className={styles.sessionRewardStat}>
-          <span>Level</span>
-          <strong>{reward.leveledUp ? "Level up" : "Progress"}</strong>
-        </div>
-        <div className={styles.sessionRewardStat}>
-          <span>Tier</span>
-          <strong>{reward.tierUnlocked?.label ?? "Holding line"}</strong>
-        </div>
-      </div>
-    </motion.div>
-  );
-}
-
-function StreakCelebrationToast({
-  celebration,
-  onDismiss,
-}: {
-  celebration: StreakCelebrationState;
-  onDismiss: () => void;
-}) {
-  const tierTheme = getStreakTierColorTheme(celebration.tier?.color);
-  const rewardStyle = {
-    "--reward-accent": tierTheme.accent,
-    "--reward-accent-strong": tierTheme.accentStrong,
-    "--reward-accent-glow": tierTheme.accentGlow,
-  } as CSSProperties;
-
-  return (
-    <motion.div
-      className={`${styles.sessionRewardToast} ${styles.streakCelebrationToast}`}
-      style={rewardStyle}
-      initial={{ opacity: 0, y: 28, scale: 0.96 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: 18, scale: 0.98 }}
-      transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
-    >
-      <button
-        type="button"
-        className={styles.sessionRewardClose}
-        onClick={onDismiss}
-        aria-label="Dismiss streak celebration"
-      >
-        ×
-      </button>
-      <div className={styles.sessionRewardTop}>
-        <div>
-          <p className={styles.sectionLabel}>Streak secured</p>
-          <h3 className={styles.sessionRewardTitle}>Congratulations. {celebration.todayLabel} is protected.</h3>
-          <p className={styles.sessionRewardBody}>
-            That last point pushed you over the line. Your streak now holds at {celebration.streakAfter} day
-            {celebration.streakAfter === 1 ? "" : "s"}.
-          </p>
-        </div>
-        <div className={styles.sessionRewardBadge}>
-          <span>{celebration.streakAfter}d</span>
-        </div>
-      </div>
-      <div className={styles.sessionRewardStats}>
-        <div className={styles.sessionRewardStat}>
-          <span>Today</span>
-          <strong>Protected</strong>
-        </div>
-        <div className={styles.sessionRewardStat}>
-          <span>Streak</span>
-          <strong>{celebration.streakAfter} day line</strong>
-        </div>
-        <div className={styles.sessionRewardStat}>
-          <span>Tier</span>
-          <strong>{celebration.tier?.label ?? "Holding line"}</strong>
-        </div>
-      </div>
-    </motion.div>
-  );
-}
-
-function StreakNudgeToast({
-  nudge,
-  onDismiss,
-  onAction,
-}: {
-  nudge: StreakNudgeState;
-  onDismiss: () => void;
-  onAction: (tab: AppTab) => void;
-}) {
-  return (
-    <motion.div
-      className={styles.streakNudgeToast}
-      initial={{ opacity: 0, y: 28, scale: 0.96 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: 18, scale: 0.98 }}
-      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-    >
-      <button type="button" className={styles.sessionRewardClose} onClick={onDismiss} aria-label="Dismiss streak nudge">
-        ×
-      </button>
-      <p className={styles.sectionLabel}>Streak at risk</p>
-      <h3 className={styles.streakNudgeTitle}>{nudge.title}</h3>
-      <p className={styles.streakNudgeBody}>{nudge.body}</p>
-      <div className={styles.noteFooterActions}>
-        <button
-          type="button"
-          className={styles.reportButton}
-          onClick={() => onAction(nudge.actionTab)}
-        >
-          {nudge.actionLabel}
-        </button>
-        <button type="button" className={styles.secondaryPlanButton} onClick={onDismiss}>
-          Later
-        </button>
-      </div>
-    </motion.div>
-  );
-}
-
-function NoteAttachmentsSection({
-  note,
-  pendingUploads,
-  uploadBusy,
-  uploadStatus,
-  onAttach,
-  onOpen,
-  onRemove,
-}: {
-  note: WorkspaceNote;
-  pendingUploads: PendingNoteAttachment[];
-  uploadBusy: boolean;
-  uploadStatus: string;
-  onAttach: () => void;
-  onOpen: (attachment: NoteAttachment) => void;
-  onRemove: (attachment: NoteAttachment) => void;
-}) {
-  const hasAttachments = note.attachments.length > 0;
-  const hasPendingUploads = pendingUploads.length > 0;
-
-  return (
-    <section className={styles.noteAttachmentsSection}>
-      <div className={styles.noteAttachmentsHeader}>
-        <div className={styles.noteAttachmentsSummary}>
-          <p className={styles.noteAttachmentsEyebrow}>Files</p>
-          <strong className={styles.noteAttachmentsTitle}>
-            {hasAttachments
-              ? `${note.attachments.length} attached`
-              : "Keep files with this note"}
-          </strong>
-        </div>
-        <button
-          type="button"
-          className={styles.noteAttachmentAddButton}
-          onClick={onAttach}
-          disabled={uploadBusy}
-        >
-          {uploadBusy ? "Adding..." : "Add file"}
-        </button>
-      </div>
-      {uploadStatus ? <p className={styles.noteAttachmentStatus}>{uploadStatus}</p> : null}
-      {hasPendingUploads ? (
-        <div className={styles.noteAttachmentsRail}>
-          {pendingUploads.map((attachment) => (
-            <article key={attachment.id} className={styles.noteAttachmentPendingCard}>
-              <div className={styles.noteAttachmentPendingTop}>
-                <span className={styles.noteAttachmentGlyph}>{noteAttachmentGlyph(attachment)}</span>
-                <span className={styles.noteAttachmentBadge}>Uploading</span>
-              </div>
-              <strong className={styles.noteAttachmentName}>{attachment.name}</strong>
-              <div className={styles.noteAttachmentProgressTrack}>
-                <span
-                  className={styles.noteAttachmentProgressFill}
-                  style={{ width: `${Math.max(6, attachment.progress)}%` }}
-                />
-              </div>
-              <span className={styles.noteAttachmentInfo}>{Math.round(attachment.progress)}%</span>
-            </article>
-          ))}
-        </div>
-      ) : null}
-      {hasAttachments ? (
-        <div className={styles.noteAttachmentsRail}>
-          {note.attachments.map((attachment) => (
-            <article
-              key={attachment.id}
-              className={`${styles.noteAttachmentCard} ${
-                attachment.kind === "image" ? styles.noteAttachmentCardImage : ""
-              }`}
-            >
-              {attachment.kind === "image" ? (
-                <button
-                  type="button"
-                  className={styles.noteAttachmentPreviewButton}
-                  onClick={() => onOpen(attachment)}
-                >
-                  <img
-                    src={attachment.downloadUrl}
-                    alt={attachment.name}
-                    className={styles.noteAttachmentPreviewImage}
-                  />
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className={styles.noteAttachmentFileFace}
-                  onClick={() => onOpen(attachment)}
-                >
-                  <span className={styles.noteAttachmentGlyph}>{noteAttachmentGlyph(attachment)}</span>
-                  <span className={styles.noteAttachmentBadge}>{noteAttachmentBadgeLabel(attachment)}</span>
-                </button>
-              )}
-              <div className={styles.noteAttachmentMeta}>
-                <strong className={styles.noteAttachmentName}>{attachment.name}</strong>
-                <span className={styles.noteAttachmentInfo}>
-                  {noteAttachmentBadgeLabel(attachment)} · {formatAttachmentSize(attachment.sizeBytes)}
-                </span>
-              </div>
-              <div className={styles.noteAttachmentActions}>
-                <button
-                  type="button"
-                  className={styles.noteAttachmentOpenButton}
-                  onClick={() => onOpen(attachment)}
-                >
-                  Open
-                </button>
-                <button
-                  type="button"
-                  className={styles.noteAttachmentRemoveButton}
-                  onClick={() => onRemove(attachment)}
-                >
-                  Remove
-                </button>
-              </div>
-            </article>
-          ))}
-        </div>
-      ) : (
-        <span className={styles.noteAttachmentsEmpty}>
-          <span className={styles.noteAttachmentEmptyGlyph}>＋</span>
-          <p>No files attached</p>
-        </span>
-      )}
-    </section>
-  );
-}
 
 export default function HomePage() {
   "use no memo";
@@ -4266,7 +3955,11 @@ export default function HomePage() {
 
       <AnimatePresence>
         {!notificationsBlocked && sessionReward ? (
-          <SessionRewardToast reward={sessionReward} onDismiss={() => setSessionReward(null)} />
+          <SessionRewardToast
+            reward={sessionReward}
+            onDismiss={() => setSessionReward(null)}
+            getStreakTierColorTheme={getStreakTierColorTheme}
+          />
         ) : null}
       </AnimatePresence>
 
