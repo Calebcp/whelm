@@ -14,6 +14,7 @@ import LeaderboardProfileModal from "@/components/LeaderboardProfileModal";
 import PaywallModal from "@/components/PaywallModal";
 import ProfileSheet from "@/components/ProfileSheet";
 import QuickCardModal from "@/components/QuickCardModal";
+import StreakOverlayCluster from "@/components/StreakOverlayCluster";
 import TopAppBar from "@/components/TopAppBar";
 import SettingsTab from "@/components/SettingsTab";
 import HistoryTab from "@/components/HistoryTab";
@@ -4915,196 +4916,53 @@ export default function HomePage() {
         </div>
       )}
 
-      {streakSaveQuestionnaireOpen && (sickDaySaveEligible || streakSaveQuestionnairePreview) && (
-        <div className={styles.feedbackOverlay} onClick={closeStreakSaveQuestionnaire}>
-          <div
-            className={`${styles.feedbackModal} ${styles.feedbackModalScrollable}`}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className={styles.feedbackHeader}>
-              <h2 className={styles.feedbackTitle}>Streak Mirror check-in</h2>
-              <button
-                type="button"
-                className={styles.feedbackClose}
-                onClick={closeStreakSaveQuestionnaire}
-              >
-                Close
-              </button>
-            </div>
-            <p className={styles.feedbackMeta}>
-              {streakSaveQuestionnairePreview
-                ? "Preview mode only. Fill it out and close it without changing the streak."
-                : "Private to you. No one else sees these reflections. Whelm keeps them only to support honest reflection and accountability inside the app."}
-            </p>
-            <div className={styles.mirrorModalBanner}>
-              <strong>{monthlyStreakSaveCount}/{STREAK_SAVE_MONTHLY_LIMIT} used this month</strong>
-              <span>{streakMirrorSaying}</span>
-            </div>
-            <div className={styles.feedbackFormStack}>
-              {STREAK_SAVE_ACCOUNTABILITY_QUESTIONS.map((question, index) => {
-                const currentAnswer = streakSaveAnswers[question] ?? "";
-                const wordCount = countWords(currentAnswer);
-                const metMinimum = wordCount >= STREAK_MIRROR_MIN_WORDS;
-                return (
-                  <label key={question} className={styles.planLabel}>
-                    {index + 1}. {question}
-                    <textarea
-                      value={currentAnswer}
-                      onChange={(event) =>
-                        setStreakSaveAnswers((current) => ({
-                          ...current,
-                          [question]: event.target.value.slice(0, 2500),
-                        }))
-                      }
-                      className={styles.feedbackTextarea}
-                      rows={5}
-                    />
-                    <span className={`${styles.mirrorWordCount} ${metMinimum ? styles.mirrorWordCountMet : ""}`}>
-                      {wordCount} / {STREAK_MIRROR_MIN_WORDS} words
-                      {metMinimum ? " met" : ""}
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
-            <div className={styles.mirrorTagSection}>
-              <p className={styles.feedbackLabel}>What best describes the miss?</p>
-                    <div className={styles.mirrorTagRow}>
-                      {STREAK_MIRROR_TAGS.map((tag) => (
-                        <button
-                          key={tag.value}
-                          type="button"
-                          className={`${styles.mirrorTagButton} ${
-                            streakMirrorTag === tag.value ? styles.mirrorTagButtonActive : ""
-                          }`}
-                          style={{ ["--mirror-accent" as const]: tag.accent } as CSSProperties}
-                          onClick={() => setStreakMirrorTag(tag.value)}
-                        >
-                    {tag.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            {streakSaveStatus && <p className={styles.feedbackStatus}>{streakSaveStatus}</p>}
-            <div className={styles.noteFooterActions}>
-              <button
-                type="button"
-                className={styles.feedbackSubmit}
-                onClick={() =>
-                  claimSickDaySave({
-                    sickDaySaveEligible,
-                    monthlySaveLimitReached,
-                    yesterdayKey,
-                    sessions,
-                    protectedStreakDateKeys,
-                    onTrackStreakChange: (previousStreak, nextStreak, source, changedDateKey) =>
-                      trackStreakChange(previousStreak, nextStreak, source, null, changedDateKey),
-                    onAfterClaim: () => setActiveTab("mirror"),
-                  })
-                }
-                disabled={
-                  !streakSaveQuestionnairePreview &&
-                  (STREAK_SAVE_ACCOUNTABILITY_QUESTIONS.some(
-                    (question) =>
-                      countWords(streakSaveAnswers[question] ?? "") < STREAK_MIRROR_MIN_WORDS,
-                  ) ||
-                    !streakMirrorTag)
-                }
-              >
-                {streakSaveQuestionnairePreview ? "Close preview" : "Save to Streak Mirror"}
-              </button>
-              <button
-                type="button"
-                className={styles.secondaryPlanButton}
-                onClick={closeStreakSaveQuestionnaire}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {!notificationsBlocked && sickDaySavePromptOpen && ((rawYesterdayMissed && !yesterdaySave) || sickDaySavePromptPreview) && (
-        <div className={styles.feedbackOverlay} onClick={dismissSickDaySavePrompt}>
-          <div className={styles.feedbackModal} onClick={(event) => event.stopPropagation()}>
-            <div className={styles.feedbackHeader}>
-              <h2 className={styles.feedbackTitle}>
-                {sickDaySaveEligible ? "Your streak is at risk from yesterday" : "Your streak reset yesterday"}
-              </h2>
-              <button
-                type="button"
-                className={styles.feedbackClose}
-                onClick={dismissSickDaySavePrompt}
-              >
-                Later
-              </button>
-            </div>
-            <p className={styles.feedbackMeta}>
-              {sickDaySaveEligible
-                ? "You missed yesterday, so the streak will reset unless you use a private Streak Mirror save. Open it now if the miss was genuinely caused by sickness."
-                : monthlySaveLimitReached
-                  ? "You missed yesterday and the streak reset. Your Streak Mirror is still there to review patterns, but this month has already used all available saves."
-                  : "You missed yesterday and the streak reset. Open Streak Mirror to review what happened and reset clearly."}
-            </p>
-            <div className={styles.noteFooterActions}>
-              <button
-                type="button"
-                className={styles.feedbackSubmit}
-                onClick={openSickDaySaveReview}
-              >
-                {sickDaySaveEligible ? "Open Streak Mirror save" : "Open Streak Mirror"}
-              </button>
-              <button
-                type="button"
-                className={styles.secondaryPlanButton}
-                onClick={dismissSickDaySavePrompt}
-              >
-                Ask later
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {!notificationsBlocked && (noteUndoItem || deletedPlanUndo) && (
-        <div className={styles.undoToast}>
-          <span>
-            {noteUndoItem
-              ? `Deleted note: ${noteUndoItem.title || "Untitled note"}`
-              : "Removed planned block"}
-          </span>
-          {noteUndoItem && (
-            <button type="button" onClick={() => void undoDeleteNote()}>
-              Undo note
-            </button>
-          )}
-          {deletedPlanUndo && (
-            <button type="button" onClick={undoDeletePlannedBlock}>
-              Undo plan
-            </button>
-          )}
-        </div>
-      )}
-
-      <AnimatePresence>
-        {!notificationsBlocked && streakCelebration ? (
-          <StreakCelebrationToast
-            celebration={streakCelebration}
-            onDismiss={() => setStreakCelebration(null)}
-          />
-        ) : null}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {!notificationsBlocked && streakNudge ? (
-          <StreakNudgeToast
-            nudge={streakNudge}
-            onDismiss={() => setStreakNudge(null)}
-            onAction={handleStreakNudgeAction}
-          />
-        ) : null}
-      </AnimatePresence>
+      <StreakOverlayCluster
+        notificationsBlocked={notificationsBlocked}
+        streakSaveQuestionnaireOpen={streakSaveQuestionnaireOpen}
+        sickDaySaveEligible={sickDaySaveEligible}
+        streakSaveQuestionnairePreview={streakSaveQuestionnairePreview}
+        closeStreakSaveQuestionnaire={closeStreakSaveQuestionnaire}
+        monthlyStreakSaveCount={monthlyStreakSaveCount}
+        streakSaveMonthlyLimit={STREAK_SAVE_MONTHLY_LIMIT}
+        streakMirrorSaying={streakMirrorSaying}
+        questions={STREAK_SAVE_ACCOUNTABILITY_QUESTIONS}
+        streakSaveAnswers={streakSaveAnswers}
+        onSetStreakSaveAnswers={setStreakSaveAnswers}
+        minWords={STREAK_MIRROR_MIN_WORDS}
+        tags={STREAK_MIRROR_TAGS}
+        streakMirrorTag={streakMirrorTag}
+        onSetStreakMirrorTag={setStreakMirrorTag}
+        streakSaveStatus={streakSaveStatus}
+        onClaimSickDaySave={() =>
+          claimSickDaySave({
+            sickDaySaveEligible,
+            monthlySaveLimitReached,
+            yesterdayKey,
+            sessions,
+            protectedStreakDateKeys,
+            onTrackStreakChange: (previousStreak, nextStreak, source, changedDateKey) =>
+              trackStreakChange(previousStreak, nextStreak, source, null, changedDateKey),
+            onAfterClaim: () => setActiveTab("mirror"),
+          })
+        }
+        onDismissSickDaySavePrompt={dismissSickDaySavePrompt}
+        sickDaySavePromptOpen={sickDaySavePromptOpen}
+        rawYesterdayMissed={rawYesterdayMissed}
+        yesterdaySave={yesterdaySave}
+        sickDaySavePromptPreview={sickDaySavePromptPreview}
+        monthlySaveLimitReached={monthlySaveLimitReached}
+        onOpenSickDaySaveReview={openSickDaySaveReview}
+        noteUndoItem={noteUndoItem}
+        deletedPlanUndo={deletedPlanUndo}
+        onUndoDeleteNote={() => void undoDeleteNote()}
+        onUndoDeletePlan={undoDeletePlannedBlock}
+        streakCelebration={streakCelebration}
+        onDismissStreakCelebration={() => setStreakCelebration(null)}
+        getStreakTierColorTheme={getStreakTierColorTheme}
+        streakNudge={streakNudge}
+        onDismissStreakNudge={() => setStreakNudge(null)}
+        onStreakNudgeAction={handleStreakNudgeAction}
+      />
 
       <PaywallModal open={paywallOpen} onClose={() => setPaywallOpen(false)} />
 
