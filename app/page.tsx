@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ChangeEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { useRive } from "@rive-app/react-canvas";
 import { AnimatePresence, motion } from "motion/react";
 import { type User } from "firebase/auth";
 import { ref as storageRef } from "firebase/storage";
@@ -13,6 +12,7 @@ import BlockDetailModal from "@/components/BlockDetailModal";
 import CalendarTonePicker from "@/components/CalendarTonePicker";
 import CollapsibleSectionCard from "@/components/CollapsibleSectionCard";
 import DailyPlanningModal from "@/components/DailyPlanningModal";
+import { DailyRitualSubmitBandana, DailyRitualWaveIcon } from "@/components/DailyRitualDecorations";
 import FeedbackModal from "@/components/FeedbackModal";
 import KpiDetailModal from "@/components/KpiDetailModal";
 import LeaderboardProfileModal from "@/components/LeaderboardProfileModal";
@@ -23,6 +23,7 @@ import QuickCardModal from "@/components/QuickCardModal";
 import ThemePromptModal from "@/components/ThemePromptModal";
 import StreakOverlayCluster from "@/components/StreakOverlayCluster";
 import TopAppBar from "@/components/TopAppBar";
+import XpBandanaLevelMark from "@/components/XpBandanaLevelMark";
 import SettingsTab from "@/components/SettingsTab";
 import HistoryTab from "@/components/HistoryTab";
 import WhelmboardTab from "@/components/WhelmboardTab";
@@ -1292,12 +1293,6 @@ function getStreakTierColorTheme(tierColor: string | null | undefined) {
   }
 }
 
-function getStreakBandanaAssetPath(tierColor: string | null | undefined) {
-  const tier =
-    STREAK_BANDANA_TIERS.find((item) => item.color === tierColor) ??
-    STREAK_BANDANA_TIERS.find((item) => item.color === "yellow");
-  return tier ? `/streak/${tier.assetFile}` : "/streak/moveband.riv";
-}
 
 
 
@@ -1312,26 +1307,6 @@ function getStreakBandanaAssetPath(tierColor: string | null | undefined) {
 
 
 
-
-function getDailyRitualWaveImagePath(tier: string | null | undefined) {
-  switch (tier) {
-    case "white":
-      return "/waving-intro-whelms/wave-white.png";
-    case "black":
-      return "/waving-intro-whelms/wave-black.png";
-    case "blue":
-      return "/waving-intro-whelms/wave-blue.png";
-    case "purple":
-      return "/waving-intro-whelms/wave-purple.png";
-    case "green":
-      return "/waving-intro-whelms/wave-green.png";
-    case "red":
-      return "/waving-intro-whelms/wave-red.png";
-    case "yellow":
-    default:
-      return "/waving-intro-whelms/wave-yellow.png";
-  }
-}
 
 function WhelmNavIcon({ icon }: { icon: NavIconKey }) {
   const svgProps = {
@@ -2150,88 +2125,6 @@ const MOBILE_MORE_TABS: AppTab[] = [
   "reports",
   "settings",
 ];
-
-function StreakBandana({
-  streakDays,
-  className,
-}: {
-  streakDays: number;
-  className?: string;
-}) {
-  "use no memo";
-
-  const tier = getStreakBandanaTier(streakDays);
-  const { RiveComponent } = useRive({
-    src: tier ? `/streak/${tier.assetFile}` : "/streak/moveband.riv",
-    autoplay: true,
-  });
-
-  return (
-    <div
-      className={[styles.streakBandanaWrap, className].filter(Boolean).join(" ")}
-      aria-hidden="true"
-      title={tier?.label}
-    >
-      <RiveComponent className={styles.streakBandanaRive} />
-    </div>
-  );
-}
-
-function DailyRitualWaveIcon({
-  className,
-  tierColor,
-}: {
-  className?: string;
-  tierColor: string | null | undefined;
-}) {
-  return (
-    <div className={[styles.dailyRitualWaveIcon, className].filter(Boolean).join(" ")} aria-hidden="true">
-      <img
-        src={getDailyRitualWaveImagePath(tierColor)}
-        alt=""
-        className={styles.dailyRitualCornerIconImage}
-      />
-    </div>
-  );
-}
-
-function DailyRitualSubmitBandana({
-  className,
-  streakDays,
-}: {
-  className?: string;
-  streakDays: number;
-}) {
-  return (
-    <div className={[styles.dailyRitualSubmitBandanaWrap, className].filter(Boolean).join(" ")} aria-hidden="true">
-      <StreakBandana streakDays={streakDays} className={styles.dailyRitualSubmitBandanaCanvas} />
-    </div>
-  );
-}
-
-function XpBandanaLevelMark({
-  className,
-  tierColor,
-  level,
-}: {
-  className?: string;
-  tierColor: string | null | undefined;
-  level: number;
-}) {
-  "use no memo";
-
-  const { RiveComponent } = useRive({
-    src: getStreakBandanaAssetPath(tierColor),
-    autoplay: true,
-  });
-
-  return (
-    <div className={[styles.xpBandanaLevelMark, className].filter(Boolean).join(" ")} aria-hidden="true">
-      <RiveComponent className={styles.xpBandanaLevelCanvas} />
-      <span className={styles.xpBandanaLevelValue}>{level}</span>
-    </div>
-  );
-}
 
 function IntroSplash({ onComplete }: { onComplete: () => void }) {
   return (

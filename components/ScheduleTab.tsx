@@ -2,18 +2,17 @@
 
 import { type CSSProperties, type Ref, type RefObject } from "react";
 import { motion } from "motion/react";
-import { useRive } from "@rive-app/react-canvas";
 
 import styles from "@/app/page.module.css";
 import AnimatedTabSection from "@/components/AnimatedTabSection";
 import CalendarTonePicker from "@/components/CalendarTonePicker";
 import SenseiFigure, { type SenseiVariant } from "@/components/SenseiFigure";
+import StreakBandana from "@/components/StreakBandana";
 import {
   getCalendarToneMeta,
   getCalendarToneStyle,
   type CalendarTone,
 } from "@/lib/calendar-tones";
-import { getStreakBandanaTier } from "@/lib/streak-bandanas";
 import { type WhelBandanaColor } from "@/lib/whelm-mascot";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -165,32 +164,6 @@ function resolveAgendaTimingState(
 
 function attachmentIndicatorLabel(count: number) {
   return count === 1 ? "1 file" : `${count} files`;
-}
-
-function StreakBandana({
-  streakDays,
-  className,
-}: {
-  streakDays: number;
-  className?: string;
-}) {
-  "use no memo";
-
-  const tier = getStreakBandanaTier(streakDays);
-  const { RiveComponent } = useRive({
-    src: tier ? `/streak/${tier.assetFile}` : "/streak/moveband.riv",
-    autoplay: true,
-  });
-
-  return (
-    <div
-      className={[styles.streakBandanaWrap, className].filter(Boolean).join(" ")}
-      aria-hidden="true"
-      title={tier?.label}
-    >
-      <RiveComponent className={styles.streakBandanaRive} />
-    </div>
-  );
 }
 
 function SenseiAvatar({
