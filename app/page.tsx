@@ -1987,6 +1987,7 @@ export default function HomePage() {
           themeMode: prefs.themeMode as ThemeMode,
           backgroundSetting: prefs.backgroundSetting as AppBackgroundSetting,
           backgroundSkin: prefs.backgroundSkin as BackgroundSkinSetting,
+          proState: prefs.proState,
         });
       },
       onReflection: handleReflectionSnapshot,

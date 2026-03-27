@@ -16,6 +16,10 @@ type PreferencesPayload = {
     blur?: number;
     imageFit?: "fill" | "fit";
   };
+  proState?: {
+    isPro?: boolean;
+    source?: "preview" | "store" | "none";
+  };
 };
 
 type FirestoreDocumentResponse = {
@@ -50,6 +54,7 @@ function getAuthHeader(request: NextRequest) {
 function normalizePreferences(payload: Partial<PreferencesPayload>) {
   const backgroundSetting = payload.backgroundSetting;
   const backgroundSkin = payload.backgroundSkin;
+  const proState = payload.proState;
   return {
     themeMode: payload.themeMode === "light" ? "light" : "dark",
     companionStyle:
@@ -68,6 +73,10 @@ function normalizePreferences(payload: Partial<PreferencesPayload>) {
       surfaceOpacity: Math.min(0.98, Math.max(0.08, Number(backgroundSkin?.surfaceOpacity) || 0.72)),
       blur: Math.min(40, Math.max(0, Number(backgroundSkin?.blur) || 18)),
       imageFit: backgroundSkin?.imageFit === "fill" ? "fill" : "fit",
+    },
+    proState: {
+      isPro: typeof proState?.isPro === "boolean" ? proState.isPro : true,
+      source: proState?.source === "store" || proState?.source === "preview" ? proState.source : "none",
     },
   };
 }

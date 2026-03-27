@@ -17,11 +17,17 @@ export type PreferencesBackgroundSkin = {
   imageFit: "fill" | "fit";
 };
 
+export type PreferencesProState = {
+  isPro: boolean;
+  source: "preview" | "store" | "none";
+};
+
 export type PreferencesState = {
   themeMode: PreferencesThemeMode;
   companionStyle: PreferencesCompanionStyle;
   backgroundSetting: PreferencesBackgroundSetting;
   backgroundSkin: PreferencesBackgroundSkin;
+  proState: PreferencesProState;
 };
 
 export type PreferencesSyncResult = PreferencesState & {
@@ -74,6 +80,16 @@ function normalizeState(state: Partial<PreferencesState> | null | undefined): Pr
         : "balanced",
     backgroundSetting: normalizeBackgroundSetting(state?.backgroundSetting),
     backgroundSkin: normalizeBackgroundSkin(state?.backgroundSkin),
+    proState: {
+      isPro:
+        typeof state?.proState?.isPro === "boolean"
+          ? state.proState.isPro
+          : true,
+      source:
+        state?.proState?.source === "store" || state?.proState?.source === "preview"
+          ? state.proState.source
+          : "none",
+    },
   };
 }
 

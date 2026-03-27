@@ -13,10 +13,11 @@ import {
 import { resolveApiUrl } from "@/lib/api-base";
 import { auth } from "@/lib/firebase";
 import {
-  getProState,
-  restoreFreeTier,
-  startProPreview,
-} from "@/lib/subscription";
+  loadPreferences,
+  readLocalPreferences,
+  savePreferences,
+  type PreferencesProState,
+} from "@/lib/preferences-store";
 import {
   getScreenTimeCapability,
   openScreenTimeSystemSettings,
@@ -62,17 +63,24 @@ export function useAccountSettings({
   const [accountDangerStatus, setAccountDangerStatus] = useState("");
   const [deletingAccount, setDeletingAccount] = useState(false);
 
+  const applyProState = useCallback((next: PreferencesProState) => {
+    setIsPro(next.isPro);
+    setProSource(next.source);
+  }, []);
+
   useEffect(() => {
+    if (!user) return;
+
     let active = true;
-    void getProState().then((state) => {
+    applyProState(readLocalPreferences(user.uid).proState);
+    void loadPreferences(user).then((prefs) => {
       if (!active) return;
-      setIsPro(state.isPro);
-      setProSource(state.source);
+      applyProState(prefs.proState);
     });
     return () => {
       active = false;
     };
-  }, []);
+  }, [applyProState, user]);
 
   useEffect(() => {
     let active = true;
@@ -141,11 +149,19 @@ export function useAccountSettings({
     }
   }, [feedbackCategory, feedbackMessage, feedbackSubmitting, user]);
 
+  const persistProState = useCallback(async (next: PreferencesProState) => {
+    applyProState(next);
+    if (!user) return;
+    const base = readLocalPreferences(user.uid);
+    await savePreferences(user, {
+      ...base,
+      proState: next,
+    });
+  }, [applyProState, user]);
+
   const handleRestoreFreeTier = useCallback(async () => {
-    const next = await restoreFreeTier();
-    setIsPro(next.isPro);
-    setProSource(next.source);
-  }, []);
+    await persistProState({ isPro: false, source: "none" });
+  }, [persistProState]);
 
   const handleStartProPreview = useCallback(async () => {
     const code = window.prompt("Enter the Whelm Pro preview code.");
@@ -154,10 +170,8 @@ export function useAccountSettings({
       window.alert("Incorrect preview code.");
       return;
     }
-    const next = await startProPreview();
-    setIsPro(next.isPro);
-    setProSource(next.source);
-  }, []);
+    await persistProState({ isPro: true, source: "preview" });
+  }, [persistProState]);
 
   const handleRequestScreenTimeAuth = useCallback(async () => {
     try {

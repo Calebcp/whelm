@@ -13,6 +13,7 @@ import {
   type PreferencesBackgroundSetting,
   type PreferencesBackgroundSkin,
   type PreferencesCompanionStyle,
+  type PreferencesProState,
   type PreferencesState,
   type PreferencesThemeMode,
   writeLocalPreferences,
@@ -43,6 +44,7 @@ export function usePreferences({
     kind: "default",
   });
   const [backgroundSkin, setBackgroundSkin] = useState<PreferencesBackgroundSkin>(defaultBackgroundSkin);
+  const [proState, setProState] = useState<PreferencesProState>({ isPro: true, source: "preview" });
 
   const resolvedTheme: "dark" | "light" =
     themeMode === "system" ? (systemIsDark ? "dark" : "light") : themeMode;
@@ -67,6 +69,7 @@ export function usePreferences({
     setThemePromptOpen(false);
     setAppBackgroundSetting(prefs.backgroundSetting);
     setBackgroundSkin(prefs.backgroundSkin);
+    setProState(prefs.proState);
     if (user) {
       writeLocalPreferences(user.uid, prefs);
     }
@@ -112,8 +115,9 @@ export function usePreferences({
       themeMode: nextMode,
       backgroundSetting: appBackgroundSetting,
       backgroundSkin,
+      proState,
     });
-  }, [appBackgroundSetting, backgroundSkin, companionStyle, persistPreferencesState]);
+  }, [appBackgroundSetting, backgroundSkin, companionStyle, persistPreferencesState, proState]);
 
   const applyBackgroundSetting = useCallback((nextSetting: PreferencesBackgroundSetting) => {
     void persistPreferencesState({
@@ -121,8 +125,9 @@ export function usePreferences({
       themeMode,
       backgroundSetting: nextSetting,
       backgroundSkin,
+      proState,
     });
-  }, [backgroundSkin, companionStyle, persistPreferencesState, themeMode]);
+  }, [backgroundSkin, companionStyle, persistPreferencesState, proState, themeMode]);
 
   const applyCompanionStyle = useCallback((nextStyle: PreferencesCompanionStyle) => {
     void persistPreferencesState({
@@ -130,8 +135,9 @@ export function usePreferences({
       themeMode,
       backgroundSetting: appBackgroundSetting,
       backgroundSkin,
+      proState,
     });
-  }, [appBackgroundSetting, backgroundSkin, persistPreferencesState, themeMode]);
+  }, [appBackgroundSetting, backgroundSkin, persistPreferencesState, proState, themeMode]);
 
   const updateBackgroundSkin = useCallback((nextSkin: PreferencesBackgroundSkin) => {
     void persistPreferencesState({
@@ -139,8 +145,9 @@ export function usePreferences({
       themeMode,
       backgroundSetting: appBackgroundSetting,
       backgroundSkin: nextSkin,
+      proState,
     });
-  }, [appBackgroundSetting, companionStyle, persistPreferencesState, themeMode]);
+  }, [appBackgroundSetting, companionStyle, persistPreferencesState, proState, themeMode]);
 
   const handleBackgroundUpload = useCallback(async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
