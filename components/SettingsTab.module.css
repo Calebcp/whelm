@@ -1,0 +1,390 @@
+.settingsGrid {
+  display: grid;
+  gap: 16px;
+}
+
+.settingsHeroCard {
+  border-color: rgba(20, 93, 160, 0.2);
+  background: linear-gradient(180deg, #f8fbff 0%, #eef5ff 100%);
+}
+
+.settingsHeroHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.settingsReadoutGrid {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.settingsReadoutCard {
+  border: 1px solid rgba(20, 93, 160, 0.16);
+  border-radius: 18px;
+  padding: 14px;
+  display: grid;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.76);
+}
+
+.settingsReadoutCard span {
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #95a6cd;
+}
+
+.settingsReadoutCard strong {
+  color: #f4f8ff;
+  line-height: 1.35;
+}
+
+.settingsReadoutCard small {
+  color: #95a6cd;
+}
+
+.settingsPills {
+  margin: 12px 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.settingsPill {
+  border: 1px solid rgba(20, 93, 160, 0.22);
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 0.76rem;
+  color: #1d3f66;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.settingsList {
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+
+.settingsList li {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 12px;
+  background: #f8fbff;
+  padding: 10px 12px;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.settingsList span {
+  color: #36495f;
+  font-size: 0.9rem;
+}
+
+.settingsList strong {
+  color: #102033;
+  font-size: 0.86rem;
+}
+
+.settingsActionGrid {
+  margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.companionStyleRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.companionStyleButton {
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.86);
+  color: #334155;
+  font-weight: 600;
+}
+
+.companionStyleButtonActive {
+  background: #39457b;
+  color: #f8fbff;
+  box-shadow: 0 10px 24px rgba(3, 6, 18, 0.18);
+}
+
+.backgroundUploadInput {
+  display: none;
+}
+
+.backgroundPresetGrid {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 10px;
+}
+
+.backgroundPresetButton {
+  border: 1px solid rgba(123, 138, 184, 0.16);
+  border-radius: 16px;
+  background: rgba(18, 22, 40, 0.82);
+  color: #f4f7ff;
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+  text-align: left;
+}
+
+.backgroundPresetButtonActive {
+  border-color: rgba(117, 181, 255, 0.42);
+  box-shadow: 0 0 0 1px rgba(117, 181, 255, 0.18);
+}
+
+.backgroundPresetSwatch {
+  display: block;
+  width: 100%;
+  height: 68px;
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 8% 0%, rgba(73, 102, 255, 0.18), transparent 26%),
+    radial-gradient(circle at 100% 12%, rgba(136, 76, 255, 0.16), transparent 24%),
+    linear-gradient(180deg, rgba(7, 9, 18, 0.92), rgba(14, 18, 34, 0.98));
+}
+
+.backgroundSkinPanel {
+  margin-top: 14px;
+  border: 1px solid rgba(123, 138, 184, 0.16);
+  border-radius: 18px;
+  background: rgba(15, 20, 36, 0.66);
+  padding: 14px;
+  display: grid;
+  gap: 12px;
+}
+
+.backgroundSkinHeader strong {
+  font-size: 0.98rem;
+  color: #f4f7ff;
+}
+
+.backgroundSkinControls {
+  display: grid;
+  gap: 12px;
+}
+
+.backgroundSkinControl {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 12px;
+  align-items: center;
+}
+
+.backgroundSkinControl span {
+  font-size: 0.84rem;
+  color: #d2dbef;
+}
+
+.backgroundSkinControl strong {
+  font-size: 0.82rem;
+  color: #ffffff;
+}
+
+.backgroundSkinControl input {
+  grid-column: 1 / -1;
+  width: 100%;
+  accent-color: #7cb3ff;
+}
+
+.accountDangerCard {
+  border-color: rgba(185, 28, 28, 0.18);
+  background:
+    radial-gradient(circle at top right, rgba(254, 202, 202, 0.26), transparent 28%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(254, 242, 242, 0.96));
+}
+
+.deleteAccountButton {
+  margin-top: 12px;
+  border: 0;
+  border-radius: 18px;
+  padding: 13px 16px;
+  background: linear-gradient(135deg, #b91c1c, #7f1d1d);
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 12px 28px rgba(127, 29, 29, 0.18);
+}
+
+.deleteAccountButton:disabled {
+  opacity: 0.74;
+  cursor: wait;
+}
+
+.accountDangerStatus {
+  margin: 12px 0 0;
+  color: #991b1b;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+:global(.themeDark) .settingsHeroCard,
+:global(.themeDark) .settingsPill,
+:global(.themeDark) .settingsList li,
+:global(.themeDark) .accountDangerCard {
+  background: rgba(18, 22, 40, 0.92);
+  color: #eef3ff;
+  border-color: rgba(123, 138, 184, 0.18);
+}
+
+:global(.themeDark) .settingsList strong {
+  color: #f3f6ff;
+}
+
+:global(.themeDark) .settingsList span {
+  color: #9aa8c7;
+}
+
+:global(.themeDark) .accountDangerStatus {
+  color: #f3f6ff;
+}
+
+:global(.themeDark) .settingsHeroCard {
+  background:
+    radial-gradient(circle at top right, rgba(86, 107, 255, 0.14), transparent 28%),
+    linear-gradient(180deg, rgba(20, 24, 43, 0.98), rgba(13, 17, 31, 0.94));
+}
+
+:global(.themeDark) .settingsPill {
+  color: #d8e0f4;
+}
+
+:global(.themeDark.pageShellGlass) .settingsHeroCard,
+:global(.themeDark.pageShellGlass) .backgroundPresetButton,
+:global(.themeDark.pageShellGlass) .backgroundSkinPanel,
+:global(.themeDark.pageShellGlass) .settingsPill {
+  background:
+    linear-gradient(
+      180deg,
+      rgba(10, 14, 26, var(--glass-surface-opacity)),
+      rgba(13, 18, 33, calc(var(--glass-surface-opacity) + 0.04))
+    ),
+    radial-gradient(circle at top left, rgba(120, 152, 255, 0.12), transparent 42%);
+  border-color: rgba(188, 205, 255, var(--glass-border-alpha));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, var(--glass-highlight-alpha)),
+    0 22px 50px rgba(3, 6, 18, var(--glass-shadow-alpha));
+  backdrop-filter: blur(var(--glass-blur)) saturate(135%);
+}
+
+:global(.themeDark) .accountDangerCard {
+  background:
+    radial-gradient(circle at top right, rgba(185, 28, 28, 0.24), transparent 28%),
+    linear-gradient(180deg, rgba(31, 14, 18, 0.98), rgba(25, 12, 15, 0.96));
+}
+
+:global(.themeLight) .settingsHeroCard {
+  background:
+    radial-gradient(circle at top right, rgba(216, 220, 245, 0.46), transparent 28%),
+    linear-gradient(180deg, rgba(251, 248, 243, 0.98), rgba(244, 239, 232, 0.96));
+}
+
+:global(.themeLight) .settingsReadoutCard {
+  border-color: rgba(125, 135, 160, 0.14);
+  background:
+    radial-gradient(circle at top right, rgba(214, 221, 247, 0.24), transparent 30%),
+    linear-gradient(180deg, rgba(250, 247, 242, 0.98), rgba(243, 238, 231, 0.96));
+}
+
+:global(.themeLight) .settingsReadoutCard span,
+:global(.themeLight) .settingsReadoutCard small {
+  color: #6b7890;
+}
+
+:global(.themeLight) .settingsReadoutCard strong {
+  color: #102033;
+}
+
+:global(.themeLight) .backgroundPresetButton {
+  background: rgba(252, 249, 245, 0.96);
+  border-color: rgba(125, 135, 160, 0.14);
+  color: #1d2a40;
+}
+
+:global(.themeLight.pageShellGlass) .settingsHeroCard,
+:global(.themeLight.pageShellGlass) .backgroundPresetButton,
+:global(.themeLight.pageShellGlass) .backgroundSkinPanel,
+:global(.themeLight.pageShellGlass) .settingsPill {
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 251, 246, var(--glass-surface-opacity)),
+      rgba(244, 239, 231, calc(var(--glass-surface-opacity) + 0.04))
+    ),
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.5), transparent 42%);
+  border-color: rgba(111, 122, 150, var(--glass-border-alpha));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, var(--glass-highlight-alpha)),
+    0 18px 42px rgba(85, 95, 128, var(--glass-shadow-alpha));
+  backdrop-filter: blur(var(--glass-blur)) saturate(135%);
+}
+
+:global(.themeLight) .settingsHeroCard,
+:global(.themeLight) .settingsPill,
+:global(.themeLight) .settingsList li,
+:global(.themeLight) .accountDangerCard {
+  border-color: rgba(111, 122, 150, 0.14);
+}
+
+:global(.themeLight) .settingsList span {
+  color: #67758e;
+}
+
+:global(.themeLight) .accountDangerCard {
+  background:
+    radial-gradient(circle at top right, rgba(244, 212, 208, 0.42), transparent 28%),
+    linear-gradient(180deg, rgba(250, 244, 240, 0.98), rgba(244, 232, 228, 0.96));
+  border-color: rgba(188, 96, 85, 0.16);
+}
+
+:global(.themeLight) .deleteAccountButton {
+  box-shadow: 0 12px 24px rgba(152, 62, 52, 0.14);
+}
+
+@media (min-width: 901px) {
+  .settingsGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .settingsGrid > :global(.companionPulse) {
+    grid-column: 1 / -1;
+  }
+
+  .settingsHeroCard {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 760px) {
+  .settingsHeroHeader {
+    gap: 10px;
+    align-items: center;
+  }
+
+  .settingsPills {
+    margin: 10px 0 8px;
+    gap: 6px;
+  }
+
+  .settingsPill {
+    padding: 4px 8px;
+    font-size: 0.72rem;
+  }
+
+  .settingsActionGrid {
+    margin-top: 10px;
+    gap: 8px;
+  }
+}

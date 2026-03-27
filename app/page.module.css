@@ -647,7 +647,6 @@ body[data-theme="light"] {
 }
 
 .profileCommandCard span,
-.settingsReadoutCard span,
 .mobileMoreHero span,
 .mobileSummaryRailItem span {
   font-size: 0.68rem;
@@ -657,7 +656,6 @@ body[data-theme="light"] {
 }
 
 .profileCommandCard strong,
-.settingsReadoutCard strong,
 .mobileMoreHero strong,
 .mobileSummaryRailItem strong {
   color: #f4f8ff;
@@ -665,7 +663,6 @@ body[data-theme="light"] {
 }
 
 .profileCommandCard small,
-.settingsReadoutCard small,
 .mobileMoreHero small,
 .mobileSummaryRailItem small {
   color: #a4b2d1;
@@ -1121,7 +1118,6 @@ body[data-theme="light"] {
 .rightColumn,
 .reportsGrid,
 .insightsGrid,
-.settingsGrid,
 .calendarGrid {
   display: grid;
   gap: 14px;
@@ -3816,86 +3812,6 @@ body[data-theme="light"] {
   border: 1px solid rgba(255, 213, 97, 0.16);
 }
 
-.backgroundUploadInput {
-  display: none;
-}
-
-.backgroundPresetGrid {
-  margin-top: 12px;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
-  gap: 10px;
-}
-
-.backgroundPresetButton {
-  border: 1px solid rgba(123, 138, 184, 0.16);
-  border-radius: 16px;
-  background: rgba(18, 22, 40, 0.82);
-  color: #f4f7ff;
-  padding: 10px;
-  display: grid;
-  gap: 8px;
-  text-align: left;
-}
-
-.backgroundPresetButtonActive {
-  border-color: rgba(117, 181, 255, 0.42);
-  box-shadow: 0 0 0 1px rgba(117, 181, 255, 0.18);
-}
-
-.backgroundPresetSwatch {
-  display: block;
-  width: 100%;
-  height: 68px;
-  border-radius: 12px;
-  background:
-    radial-gradient(circle at 8% 0%, rgba(73, 102, 255, 0.18), transparent 26%),
-    radial-gradient(circle at 100% 12%, rgba(136, 76, 255, 0.16), transparent 24%),
-    linear-gradient(180deg, rgba(7, 9, 18, 0.92), rgba(14, 18, 34, 0.98));
-}
-
-.backgroundSkinPanel {
-  margin-top: 14px;
-  border: 1px solid rgba(123, 138, 184, 0.16);
-  border-radius: 18px;
-  background: rgba(15, 20, 36, 0.66);
-  padding: 14px;
-  display: grid;
-  gap: 12px;
-}
-
-.backgroundSkinHeader strong {
-  font-size: 0.98rem;
-  color: #f4f7ff;
-}
-
-.backgroundSkinControls {
-  display: grid;
-  gap: 12px;
-}
-
-.backgroundSkinControl {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px 12px;
-  align-items: center;
-}
-
-.backgroundSkinControl span {
-  font-size: 0.84rem;
-  color: #d2dbef;
-}
-
-.backgroundSkinControl strong {
-  font-size: 0.82rem;
-  color: #ffffff;
-}
-
-.backgroundSkinControl input {
-  grid-column: 1 / -1;
-  width: 100%;
-  accent-color: #7cb3ff;
-}
 
 .kpiGrid {
   margin-top: 12px;
@@ -4776,141 +4692,6 @@ body[data-theme="light"] {
   padding: 7px 10px;
 }
 
-.settingsHeroCard {
-  border-color: rgba(20, 93, 160, 0.2);
-  background: linear-gradient(180deg, #f8fbff 0%, #eef5ff 100%);
-}
-
-.settingsHeroHeader {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.settingsAvatar {
-  width: 52px;
-  height: 52px;
-  flex: 0 0 52px;
-}
-
-.settingsPills {
-  margin: 12px 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.settingsReadoutGrid {
-  margin-top: 14px;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.settingsReadoutCard {
-  border: 1px solid rgba(20, 93, 160, 0.16);
-  border-radius: 18px;
-  padding: 14px;
-  display: grid;
-  gap: 6px;
-  background: rgba(255, 255, 255, 0.76);
-}
-
-.settingsPill {
-  border: 1px solid rgba(20, 93, 160, 0.22);
-  border-radius: 999px;
-  padding: 5px 10px;
-  font-size: 0.76rem;
-  color: #1d3f66;
-  background: rgba(255, 255, 255, 0.8);
-}
-
-.settingsList {
-  margin: 10px 0 0;
-  padding: 0;
-  list-style: none;
-  display: grid;
-  gap: 8px;
-}
-
-.settingsList li {
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  border-radius: 12px;
-  background: #f8fbff;
-  padding: 10px 12px;
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.settingsList span {
-  color: #36495f;
-  font-size: 0.9rem;
-}
-
-.settingsList strong {
-  color: #102033;
-  font-size: 0.86rem;
-}
-
-.settingsActionGrid {
-  margin-top: 14px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.accountDangerCard {
-  border-color: rgba(185, 28, 28, 0.18);
-  background:
-    radial-gradient(circle at top right, rgba(254, 202, 202, 0.26), transparent 28%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(254, 242, 242, 0.96));
-}
-
-.deleteAccountButton {
-  margin-top: 12px;
-  border: 0;
-  border-radius: 18px;
-  padding: 13px 16px;
-  background: linear-gradient(135deg, #b91c1c, #7f1d1d);
-  color: #ffffff;
-  font-weight: 700;
-  box-shadow: 0 12px 28px rgba(127, 29, 29, 0.18);
-}
-
-.deleteAccountButton:disabled {
-  opacity: 0.74;
-  cursor: wait;
-}
-
-.accountDangerStatus {
-  margin: 12px 0 0;
-  color: #991b1b;
-  font-size: 0.88rem;
-  line-height: 1.45;
-}
-
-.companionStyleRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.companionStyleButton {
-  border: 1px solid rgba(15, 23, 42, 0.1);
-  border-radius: 999px;
-  padding: 8px 12px;
-  background: rgba(255, 255, 255, 0.86);
-  color: #334155;
-  font-weight: 600;
-}
-
-.companionStyleButtonActive {
-  background: #39457b;
-  color: #f8fbff;
-  box-shadow: 0 10px 24px rgba(3, 6, 18, 0.18);
-}
 
 
 .bottomTabs {
@@ -5745,8 +5526,6 @@ body[data-theme="light"] {
 .themeDark .dayAgendaMeta,
 .themeDark .planLabel,
 .themeDark .planItem span,
-.themeDark .settingsList span,
-.themeDark .accountDangerStatus,
 .themeDark .loadingLabel {
   color: #9aa8c7;
 }
@@ -5767,10 +5546,6 @@ body[data-theme="light"] {
 .themeDark .planControl,
 .themeDark .planItem,
 .themeDark .planItemTime,
-.themeDark .settingsHeroCard,
-.themeDark .settingsPill,
-.themeDark .settingsList li,
-.themeDark .accountDangerCard,
 .themeDark .feedbackSelect,
 .themeDark .feedbackTextarea,
 .themeDark .feedbackInput {
@@ -5816,7 +5591,6 @@ body[data-theme="light"] {
 .themeDark .insightLegendValue,
 .themeDark .reminderItem strong,
 .themeDark .dayAgendaTitle,
-.themeDark .settingsList strong,
 .themeDark .feedbackTitle,
 .themeDark .feedbackSelect,
 .themeDark .feedbackTextarea,
@@ -5837,16 +5611,6 @@ body[data-theme="light"] {
   background: rgba(52, 62, 105, 0.6);
 }
 
-.themeDark .settingsHeroCard {
-  background:
-    radial-gradient(circle at top right, rgba(86, 107, 255, 0.14), transparent 28%),
-    linear-gradient(180deg, rgba(20, 24, 43, 0.98), rgba(13, 17, 31, 0.94));
-}
-
-.themeDark .settingsPill {
-  color: #d8e0f4;
-}
-
 .themeDark.pageShellGlass .topAppBar,
 .themeDark.pageShellGlass .tabRail,
 .themeDark.pageShellGlass .bottomTabs,
@@ -5856,7 +5620,6 @@ body[data-theme="light"] {
 .themeDark.pageShellGlass .companionPulse,
 .themeDark.pageShellGlass .companionPulseSpeech,
 .themeDark.pageShellGlass .senseiCard,
-.themeDark.pageShellGlass .settingsHeroCard,
 .themeDark.pageShellGlass .feedbackModal,
 .themeDark.pageShellGlass .paywallModal,
 .themeDark.pageShellGlass .kpiModal,
@@ -5872,9 +5635,7 @@ body[data-theme="light"] {
 .themeDark.pageShellGlass .mobileAgendaStat,
 .themeDark.pageShellGlass .mobileMoreButton,
 .themeDark.pageShellGlass .proUnlockCard,
-.themeDark.pageShellGlass .backgroundPresetButton,
-.themeDark.pageShellGlass .backgroundSkinPanel,
-.themeDark.pageShellGlass .settingsPill {
+.themeDark.pageShellGlass .proUnlockCard {
   background:
     linear-gradient(
       180deg,
@@ -5897,12 +5658,6 @@ body[data-theme="light"] {
   background: rgba(19, 26, 46, var(--glass-surface-opacity-strong));
   border-color: rgba(188, 205, 255, calc(var(--glass-border-alpha) - 0.04));
   backdrop-filter: blur(calc(var(--glass-blur) * 0.75)) saturate(130%);
-}
-
-.themeDark .accountDangerCard {
-  background:
-    radial-gradient(circle at top right, rgba(185, 28, 28, 0.24), transparent 28%),
-    linear-gradient(180deg, rgba(31, 14, 18, 0.98), rgba(25, 12, 15, 0.96));
 }
 
 .themeLight {
@@ -5939,7 +5694,6 @@ body[data-theme="light"] {
 .themeLight .companionPulse,
 .themeLight .companionPulseSpeech,
 .themeLight .senseiCard,
-.themeLight .settingsHeroCard,
 .themeLight .mobileBlockModal {
   background: linear-gradient(180deg, rgba(251, 248, 243, 0.97), rgba(246, 242, 235, 0.96));
   color: #16253c;
@@ -5984,7 +5738,6 @@ body[data-theme="light"] {
 .themeLight.pageShellGlass .companionPulse,
 .themeLight.pageShellGlass .companionPulseSpeech,
 .themeLight.pageShellGlass .senseiCard,
-.themeLight.pageShellGlass .settingsHeroCard,
 .themeLight.pageShellGlass .feedbackModal,
 .themeLight.pageShellGlass .paywallModal,
 .themeLight.pageShellGlass .kpiModal,
@@ -6000,9 +5753,7 @@ body[data-theme="light"] {
 .themeLight.pageShellGlass .mobileAgendaStat,
 .themeLight.pageShellGlass .mobileMoreButton,
 .themeLight.pageShellGlass .proUnlockCard,
-.themeLight.pageShellGlass .backgroundPresetButton,
-.themeLight.pageShellGlass .backgroundSkinPanel,
-.themeLight.pageShellGlass .settingsPill {
+.themeLight.pageShellGlass .proUnlockCard {
   background:
     linear-gradient(
       180deg,
@@ -6072,17 +5823,8 @@ body[data-theme="light"] {
     linear-gradient(180deg, rgba(250, 247, 242, 0.98), rgba(243, 238, 231, 0.96));
 }
 
-.themeLight .settingsReadoutCard {
-  border-color: rgba(125, 135, 160, 0.14);
-  background:
-    radial-gradient(circle at top right, rgba(214, 221, 247, 0.24), transparent 30%),
-    linear-gradient(180deg, rgba(250, 247, 242, 0.98), rgba(243, 238, 231, 0.96));
-}
-
 .themeLight .profileCommandCard span,
 .themeLight .profileCommandCard small,
-.themeLight .settingsReadoutCard span,
-.themeLight .settingsReadoutCard small,
 .themeLight .mobileMoreHero span,
 .themeLight .mobileMoreHero small,
 .themeLight .mobileSummaryRailItem span,
@@ -6092,7 +5834,6 @@ body[data-theme="light"] {
 }
 
 .themeLight .profileCommandCard strong,
-.themeLight .settingsReadoutCard strong,
 .themeLight .mobileMoreHero strong,
 .themeLight .mobileSummaryRailItem strong,
 .themeLight .mobileMoreButton strong {
@@ -6181,7 +5922,7 @@ body[data-theme="light"] {
 }
 
 .themeLight .proUnlockCard,
-.themeLight .backgroundPresetButton {
+.themeLight .proUnlockCard {
   background: rgba(252, 249, 245, 0.96);
   border-color: rgba(125, 135, 160, 0.14);
   color: #1d2a40;
@@ -6991,8 +6732,6 @@ body[data-theme="light"] {
 .themeLight .planItem,
 .themeLight .planItemStatic,
 .themeLight .planItemTime,
-.themeLight .settingsPill,
-.themeLight .settingsList li,
 .themeLight .feedbackSelect {
   background: rgba(252, 249, 245, 0.96);
   color: #1d2a40;
@@ -7249,29 +6988,11 @@ body[data-theme="light"] {
   background: #ddd7ce;
 }
 
-.themeLight .settingsHeroCard {
-  background:
-    radial-gradient(circle at top right, rgba(216, 220, 245, 0.46), transparent 28%),
-    linear-gradient(180deg, rgba(251, 248, 243, 0.98), rgba(244, 239, 232, 0.96));
-}
-
-.themeLight .settingsList span,
 .themeLight .accountMeta,
 .themeLight .feedbackMeta,
 .themeLight .feedbackLabel,
 .themeLight .planItemNote {
   color: #67758e;
-}
-
-.themeLight .accountDangerCard {
-  background:
-    radial-gradient(circle at top right, rgba(244, 212, 208, 0.42), transparent 28%),
-    linear-gradient(180deg, rgba(250, 244, 240, 0.98), rgba(244, 232, 228, 0.96));
-  border-color: rgba(188, 96, 85, 0.16);
-}
-
-.themeLight .deleteAccountButton {
-  box-shadow: 0 12px 24px rgba(152, 62, 52, 0.14);
 }
 
 .themeLight .dailyLockOverlay {
@@ -7697,8 +7418,7 @@ body[data-theme="light"] {
 
   .calendarGrid > .companionPulse,
   .reportsGrid > .companionPulse,
-  .insightsGrid > .companionPulse,
-  .settingsGrid > .companionPulse {
+  .insightsGrid > .companionPulse {
     grid-column: 1 / -1;
   }
 
@@ -7747,14 +7467,6 @@ body[data-theme="light"] {
 
   .analyticsHeroGrid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-
-  .settingsGrid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .settingsHeroCard {
-    grid-column: 1 / -1;
   }
 
   .bottomTabs {
@@ -8037,27 +7749,7 @@ body[data-theme="light"] {
     font-size: 1.55rem;
   }
 
-  .settingsHeroHeader {
-    gap: 10px;
-    align-items: center;
-  }
-
-  .settingsPills {
-    margin: 10px 0 8px;
-    gap: 6px;
-  }
-
-  .settingsPill {
-    padding: 4px 8px;
-    font-size: 0.72rem;
-  }
-
-  .settingsActionGrid {
-    margin-top: 10px;
-    gap: 8px;
-  }
-
-  .cardCollapseState {
+.cardCollapseState {
     padding: 7px 10px;
     font-size: 0.74rem;
   }

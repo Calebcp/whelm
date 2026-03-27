@@ -2,11 +2,12 @@
 
 import { type ChangeEvent, type Ref, type RefObject } from "react";
 
-import styles from "@/app/page.module.css";
+import sharedStyles from "@/app/page.module.css";
 import AnimatedTabSection from "@/components/AnimatedTabSection";
 import CollapsibleSectionCard from "@/components/CollapsibleSectionCard";
 import CompanionPulse from "@/components/CompanionPulse";
 import ProUnlockCard from "@/components/ProUnlockCard";
+import styles from "@/components/SettingsTab.module.css";
 import WhelmProfileAvatar from "@/components/WhelmProfileAvatar";
 import type { SenseiVariant } from "@/components/SenseiFigure";
 import type { WhelBandanaColor } from "@/lib/whelm-mascot";
@@ -190,7 +191,7 @@ export default function SettingsTab({
     <AnimatedTabSection className={styles.settingsGrid} sectionRef={sectionRef}>
       <CompanionPulse {...companionPulse} bandanaColor={bandanaColor} />
 
-      <article className={`${styles.card} ${styles.settingsHeroCard}`} ref={primaryRef}>
+      <article className={`${sharedStyles.card} ${styles.settingsHeroCard}`} ref={primaryRef}>
         <div className={styles.settingsHeroHeader}>
           <WhelmProfileAvatar
             tierColor={streakBandanaTier?.color}
@@ -199,9 +200,9 @@ export default function SettingsTab({
             photoUrl={photoUrl}
           />
           <div>
-            <p className={styles.sectionLabel}>Account</p>
-            <h2 className={styles.cardTitle}>{displayName || "Whelm user"}</h2>
-            <p className={styles.accountMeta}>{email}</p>
+            <p className={sharedStyles.sectionLabel}>Account</p>
+            <h2 className={sharedStyles.cardTitle}>{displayName || "Whelm user"}</h2>
+            <p className={sharedStyles.accountMeta}>{email}</p>
           </div>
         </div>
         <div className={styles.settingsReadoutGrid}>
@@ -237,25 +238,25 @@ export default function SettingsTab({
           <span className={styles.settingsPill}>Streak: {streak}d</span>
         </div>
         <div className={styles.settingsActionGrid}>
-          <button type="button" className={styles.reportButton} onClick={onFeedbackOpen}>
+          <button type="button" className={sharedStyles.reportButton} onClick={onFeedbackOpen}>
             Send Whelm feedback
           </button>
         </div>
         {!isPro ? (
-          <div className={styles.noteFooterActions}>
-            <button type="button" className={styles.inlineUpgrade} onClick={onStartProPreview}>
+          <div className={sharedStyles.noteFooterActions}>
+            <button type="button" className={sharedStyles.inlineUpgrade} onClick={onStartProPreview}>
               Enter Whelm Pro Preview
             </button>
-            <button type="button" className={styles.secondaryPlanButton} onClick={onSignOut}>
+            <button type="button" className={sharedStyles.secondaryPlanButton} onClick={onSignOut}>
               Sign out
             </button>
           </div>
         ) : (
-          <div className={styles.noteFooterActions}>
-            <button type="button" className={styles.secondaryPlanButton} onClick={onRestoreFreeTier}>
+          <div className={sharedStyles.noteFooterActions}>
+            <button type="button" className={sharedStyles.secondaryPlanButton} onClick={onRestoreFreeTier}>
               Return to Whelm Free
             </button>
-            <button type="button" className={styles.secondaryPlanButton} onClick={onSignOut}>
+            <button type="button" className={sharedStyles.secondaryPlanButton} onClick={onSignOut}>
               Sign out
             </button>
           </div>
@@ -283,13 +284,13 @@ export default function SettingsTab({
         onToggle={() => onToggleSection("internalTools")}
       >
         <div className={styles.settingsActionGrid}>
-          <button type="button" className={styles.reportButton} onClick={onPreviewStreakMirror}>
+          <button type="button" className={sharedStyles.reportButton} onClick={onPreviewStreakMirror}>
             Preview Streak Mirror
           </button>
-          <button type="button" className={styles.secondaryPlanButton} onClick={onPreviewDailyCommitment}>
+          <button type="button" className={sharedStyles.secondaryPlanButton} onClick={onPreviewDailyCommitment}>
             Preview daily commitment
           </button>
-          <button type="button" className={styles.secondaryPlanButton} onClick={onPreviewStreakAlert}>
+          <button type="button" className={sharedStyles.secondaryPlanButton} onClick={onPreviewStreakAlert}>
             Preview streak alert
           </button>
         </div>
@@ -378,10 +379,10 @@ export default function SettingsTab({
                 </button>
               ))}
             </div>
-            <div className={styles.noteFooterActions}>
+            <div className={sharedStyles.noteFooterActions}>
               <button
                 type="button"
-                className={styles.reportButton}
+                className={sharedStyles.reportButton}
                 onClick={() => backgroundUploadInputRef.current?.click()}
               >
                 Upload backdrop
@@ -389,7 +390,7 @@ export default function SettingsTab({
               {appBackgroundSetting.kind === "upload" ? (
                 <button
                   type="button"
-                  className={styles.secondaryPlanButton}
+                  className={sharedStyles.secondaryPlanButton}
                   onClick={() => onApplyBackgroundSetting({ kind: "default" })}
                 >
                   Return to standard shell
@@ -400,7 +401,7 @@ export default function SettingsTab({
               <div className={styles.backgroundSkinHeader}>
                 <div>
                   <strong>Surface behavior</strong>
-                  <p className={styles.accountMeta}>
+                  <p className={sharedStyles.accountMeta}>
                     Default keeps the standard Whelm shell. Adaptive glass opens the shell so your Whelm Pro background can breathe through.
                   </p>
                 </div>
@@ -481,12 +482,12 @@ export default function SettingsTab({
         open={sectionsOpen.sync}
         onToggle={() => onToggleSection("sync")}
       >
-        <p className={styles.accountMeta}>
+        <p className={sharedStyles.accountMeta}>
           {notesSyncStatus === "synced" ? "Synced" : notesSyncStatus === "syncing" ? "Syncing" : "Local only"}
         </p>
-        {notesSyncMessage ? <p className={styles.accountMeta}>{notesSyncMessage}</p> : null}
+        {notesSyncMessage ? <p className={sharedStyles.accountMeta}>{notesSyncMessage}</p> : null}
         {notesSyncStatus !== "synced" ? (
-          <button type="button" className={styles.retrySyncButton} onClick={onRetrySync}>
+          <button type="button" className={sharedStyles.retrySyncButton} onClick={onRetrySync}>
             Retry notes sync
           </button>
         ) : null}
@@ -498,17 +499,17 @@ export default function SettingsTab({
         open={sectionsOpen.screenTime}
         onToggle={() => onToggleSection("screenTime")}
       >
-        <p className={styles.accountMeta}>
+        <p className={sharedStyles.accountMeta}>
           {screenTimeSupported
             ? `Authorization status: ${screenTimeStatus}`
             : "Screen Time is available only in the iOS native build."}
         </p>
-        {screenTimeReason ? <p className={styles.accountMeta}>{screenTimeReason}</p> : null}
-        <div className={styles.noteFooterActions}>
+        {screenTimeReason ? <p className={sharedStyles.accountMeta}>{screenTimeReason}</p> : null}
+        <div className={sharedStyles.noteFooterActions}>
           {screenTimeSupported ? (
             <button
               type="button"
-              className={styles.reportButton}
+              className={sharedStyles.reportButton}
               onClick={onRequestScreenTimeAuth}
               disabled={screenTimeBusy}
             >
@@ -517,14 +518,14 @@ export default function SettingsTab({
           ) : null}
           <button
             type="button"
-            className={styles.secondaryPlanButton}
+            className={sharedStyles.secondaryPlanButton}
             onClick={onOpenScreenTimeSettings}
             disabled={screenTimeBusy}
           >
             Open iOS Settings
           </button>
         </div>
-        <ul className={styles.commandList}>
+        <ul className={sharedStyles.commandList}>
           <li>This enables Screen Time APIs through Apple&apos;s permission flow.</li>
           <li>Detailed per-app charts require the Device Activity report extension.</li>
         </ul>
