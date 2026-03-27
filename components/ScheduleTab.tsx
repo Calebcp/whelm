@@ -1,32 +1,28 @@
 "use client";
 
-import { useState, type CSSProperties, type Ref, type RefObject } from "react";
+import { type CSSProperties, type Ref, type RefObject } from "react";
 import { motion } from "motion/react";
 import { useRive } from "@rive-app/react-canvas";
 
 import styles from "@/app/page.module.css";
 import AnimatedTabSection from "@/components/AnimatedTabSection";
+import CalendarTonePicker from "@/components/CalendarTonePicker";
 import SenseiFigure, { type SenseiVariant } from "@/components/SenseiFigure";
+import {
+  getCalendarToneMeta,
+  getCalendarToneStyle,
+  type CalendarTone,
+} from "@/lib/calendar-tones";
 import { getStreakBandanaTier } from "@/lib/streak-bandanas";
 import { type WhelBandanaColor } from "@/lib/whelm-mascot";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-
-const CALENDAR_TONES = [
-  { value: "Clear", ariaLabel: "Electric blue", accent: "#53b7ff" },
-  { value: "Push", ariaLabel: "Solar orange", accent: "#ff9b54" },
-  { value: "Deep", ariaLabel: "Voltage violet", accent: "#7c7cff" },
-  { value: "Sharp", ariaLabel: "Laser yellow", accent: "#ffe14d" },
-  { value: "Steady", ariaLabel: "Neon green", accent: "#47f59a" },
-  { value: "Recover", ariaLabel: "Hot pink", accent: "#ff6f9f" },
-] as const;
 
 const MIN_PLANNED_BLOCK_MINUTES = 15;
 const MAX_PLANNED_BLOCK_MINUTES = 240;
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-type CalendarTone = (typeof CALENDAR_TONES)[number]["value"];
 type CalendarView = "month" | "day";
 
 type MonthCell = {
@@ -129,15 +125,6 @@ type DayViewTimeline = {
 
 // ── Local helpers ─────────────────────────────────────────────────────────────
 
-function getCalendarToneMeta(tone: CalendarTone | null | undefined) {
-  return CALENDAR_TONES.find((item) => item.value === tone) ?? null;
-}
-
-function getCalendarToneStyle(tone: CalendarTone | null | undefined): CSSProperties | undefined {
-  const meta = getCalendarToneMeta(tone);
-  return meta ? ({ ["--calendar-tone-accent" as const]: meta.accent } as CSSProperties) : undefined;
-}
-
 function normalizeTimeLabel(raw: string) {
   if (!raw) return "Any time";
   const parsed = new Date(`2000-01-01T${raw}:00`);
@@ -178,124 +165,6 @@ function resolveAgendaTimingState(
 
 function attachmentIndicatorLabel(count: number) {
   return count === 1 ? "1 file" : `${count} files`;
-}
-
-// ── Sub-components ────────────────────────────────────────────────────────────
-
-function CalendarTonePicker({
-  label,
-  selectedTone,
-  onSelectTone,
-  isPro,
-  onUpgrade,
-}: {
-  label: "Month tone" | "Day tone" | "Block tone";
-  selectedTone: CalendarTone | null;
-  onSelectTone: (tone: CalendarTone | null) => void;
-  isPro: boolean;
-  onUpgrade: () => void;
-}) {
-  "use no memo";
-
-  const [open, setOpen] = useState(false);
-  const selectedToneStyle = getCalendarToneStyle(selectedTone);
-
-  return (
-    <div className={`${styles.calendarTonePanel} ${open ? styles.calendarTonePanelOpen : ""}`}>
-      <button
-        type="button"
-        className={`${styles.calendarToneDisclosureButton} ${
-          selectedTone ? styles.calendarToneDisclosureButtonActive : ""
-        }`}
-        style={selectedToneStyle}
-        onClick={() => setOpen((current) => !current)}
-        aria-expanded={open}
-      >
-        <span className={styles.calendarToneDisclosureLabel}>{label}</span>
-        <span className={styles.calendarToneDisclosureMeta}>
-          <span
-            className={`${styles.calendarToneDisclosureSwatch} ${
-              !selectedTone ? styles.calendarToneDisclosureSwatchOff : ""
-            }`}
-            style={selectedToneStyle}
-            aria-hidden="true"
-          >
-            <span className={styles.calendarToneDisclosureSwatchFill} />
-          </span>
-        </span>
-      </button>
-      {open &&
-        (isPro ? (
-          <div className={styles.calendarToneSwatchRow}>
-            <button
-              type="button"
-              className={`${styles.calendarToneSwatch} ${styles.calendarToneSwatchReset} ${
-                !selectedTone ? styles.calendarToneSwatchActive : ""
-              }`}
-              onClick={() => onSelectTone(null)}
-              aria-label={`Reset ${label.toLowerCase()}`}
-              title={`Reset ${label.toLowerCase()}`}
-            >
-              <span>Off</span>
-            </button>
-            {CALENDAR_TONES.map((tone) => (
-              <button
-                key={tone.value}
-                type="button"
-                className={`${styles.calendarToneSwatch} ${
-                  selectedTone === tone.value ? styles.calendarToneSwatchActive : ""
-                }`}
-                style={getCalendarToneStyle(tone.value)}
-                onClick={() => onSelectTone(tone.value)}
-                aria-label={tone.ariaLabel}
-                title={tone.ariaLabel}
-              >
-                <span className={styles.calendarToneSwatchFill} />
-              </button>
-            ))}
-          </div>
-        ) : (
-          <div className={styles.calendarToneLockedPreview}>
-            <div className={styles.calendarToneLockedSwatchGrid}>
-              {CALENDAR_TONES.map((tone) => (
-                <button
-                  key={tone.value}
-                  type="button"
-                  className={styles.calendarToneLockedSwatch}
-                  style={getCalendarToneStyle(tone.value)}
-                  onClick={onUpgrade}
-                  aria-label={`Preview ${tone.value.toLowerCase()} tone in Whelm Pro`}
-                >
-                  <span className={styles.calendarToneLockedSwatchFill} />
-                  <small>{tone.value}</small>
-                </button>
-              ))}
-            </div>
-            <button
-              type="button"
-              className={styles.calendarToneLockedCard}
-              style={getCalendarToneStyle(selectedTone ?? CALENDAR_TONES[0].value)}
-              onClick={onUpgrade}
-            >
-              <div className={styles.calendarToneLockedCardHead}>
-                <span>{label}</span>
-                <strong>{selectedTone ?? CALENDAR_TONES[0].value}</strong>
-              </div>
-              <div className={styles.calendarToneLockedCardPreview}>
-                <div className={styles.calendarToneLockedCardTime}>9:00 AM</div>
-                <div>
-                  <strong>Deep focus block</strong>
-                  <small>See how premium tone styling lands inside the planner.</small>
-                </div>
-              </div>
-            </button>
-            <button type="button" className={styles.inlineUpgrade} onClick={onUpgrade}>
-              Enter Whelm Pro Preview
-            </button>
-          </div>
-        ))}
-    </div>
-  );
 }
 
 function StreakBandana({
