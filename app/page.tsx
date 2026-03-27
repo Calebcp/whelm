@@ -8,8 +8,12 @@ import { type User } from "firebase/auth";
 import { ref as storageRef } from "firebase/storage";
 
 import BottomNav from "@/components/BottomNav";
+import FeedbackModal from "@/components/FeedbackModal";
+import KpiDetailModal from "@/components/KpiDetailModal";
 import LeaderboardProfileModal from "@/components/LeaderboardProfileModal";
+import PaywallModal from "@/components/PaywallModal";
 import ProfileSheet from "@/components/ProfileSheet";
+import QuickCardModal from "@/components/QuickCardModal";
 import TopAppBar from "@/components/TopAppBar";
 import SettingsTab from "@/components/SettingsTab";
 import HistoryTab from "@/components/HistoryTab";
@@ -5102,195 +5106,36 @@ export default function HomePage() {
         ) : null}
       </AnimatePresence>
 
-      {paywallOpen && (
-        <div className={styles.feedbackOverlay} onClick={() => setPaywallOpen(false)}>
-          <div className={styles.paywallModal} onClick={(event) => event.stopPropagation()}>
-            <div className={styles.feedbackHeader}>
-              <h2 className={styles.feedbackTitle}>Upgrade to Whelm Pro</h2>
-              <button type="button" className={styles.feedbackClose} onClick={() => setPaywallOpen(false)}>
-                Close
-              </button>
-            </div>
-            <p className={styles.paywallCopy}>
-              {WHELM_PRO_POSITIONING}
-            </p>
-            <div className={styles.planGrid}>
-              <article className={`${styles.planCard} ${styles.planCardFeatured}`}>
-                <p className={styles.planName}>Whelm Pro Founding Release</p>
-                <p className={styles.planPrice}>Soon</p>
-                <p className={styles.planMeta}>early users will receive a strong launch offer</p>
-              </article>
-            </div>
-            <ul className={styles.proList}>
-              <li>Deeper command reports and score history</li>
-              <li>Longer memory across streaks, history, and reflections</li>
-              <li>Stronger personalization, cleaner command surfaces, and more animated PRO WHELMS!</li>
-            </ul>
-            <div className={styles.paywallActions}>
-              <button type="button" className={styles.feedbackSubmit} onClick={() => setPaywallOpen(false)}>
-                Stay in Whelm Free
-              </button>
-            </div>
-            <p className={styles.paywallHint}>
-              Billing is not live in this version. Whelm Pro will be introduced in a later release.
-            </p>
-          </div>
-        </div>
-      )}
+      <PaywallModal open={paywallOpen} onClose={() => setPaywallOpen(false)} />
 
-      {kpiDetailOpen && (
-        <div className={styles.feedbackOverlay} onClick={() => setKpiDetailOpen(null)}>
-          <div className={styles.kpiModal} onClick={(event) => event.stopPropagation()}>
-            <div className={styles.feedbackHeader}>
-              <h2 className={styles.feedbackTitle}>{kpiDetailContent[kpiDetailOpen].title}</h2>
-              <button
-                type="button"
-                className={styles.feedbackClose}
-                onClick={() => setKpiDetailOpen(null)}
-              >
-                Close
-              </button>
-            </div>
-            <p className={styles.paywallCopy}>{kpiDetailContent[kpiDetailOpen].summary}</p>
-            <ul className={styles.commandList}>
-              {kpiDetailContent[kpiDetailOpen].bullets.map((bullet) => (
-                <li key={bullet}>{bullet}</li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      )}
+      <KpiDetailModal
+        openKey={kpiDetailOpen}
+        content={kpiDetailContent}
+        onClose={() => setKpiDetailOpen(null)}
+      />
 
-      {feedbackOpen && (
-        <div
-          className={styles.feedbackOverlay}
-          onClick={() => {
-            if (!feedbackSubmitting) {
-              setFeedbackOpen(false);
-              setFeedbackStatus("");
-            }
-          }}
-        >
-          <div className={styles.feedbackModal} onClick={(event) => event.stopPropagation()}>
-            <div className={styles.feedbackHeader}>
-              <h2 className={styles.feedbackTitle}>Send feedback</h2>
-              <button
-                type="button"
-                className={styles.feedbackClose}
-                disabled={feedbackSubmitting}
-                onClick={() => {
-                  setFeedbackOpen(false);
-                  setFeedbackStatus("");
-                }}
-              >
-                Close
-              </button>
-            </div>
-
-            <div className={styles.feedbackMeta}>
-              <span>{user.email || "Unknown email"}</span>
-            </div>
-
-            <label className={styles.feedbackLabel} htmlFor="feedback-category">
-              Category
-            </label>
-            <select
-              id="feedback-category"
-              value={feedbackCategory}
-              onChange={(event) => setFeedbackCategory(event.target.value as FeedbackCategory)}
-              className={styles.feedbackSelect}
-              disabled={feedbackSubmitting}
-            >
-              <option value="bug">Bug</option>
-              <option value="feature">Feature</option>
-              <option value="other">Other</option>
-            </select>
-
-            <label className={styles.feedbackLabel} htmlFor="feedback-message">
-              Message
-            </label>
-            <textarea
-              id="feedback-message"
-              value={feedbackMessage}
-              onChange={(event) => setFeedbackMessage(event.target.value)}
-              className={styles.feedbackTextarea}
-              placeholder="What happened? What should change?"
-              maxLength={2000}
-              disabled={feedbackSubmitting}
-            />
-
-            <div className={styles.feedbackFooter}>
-              <button
-                type="button"
-                className={styles.feedbackSubmit}
-                onClick={submitFeedback}
-                disabled={feedbackSubmitting}
-              >
-                {feedbackSubmitting ? "Sending..." : "Send feedback"}
-              </button>
-              {feedbackStatus && <p className={styles.feedbackStatus}>{feedbackStatus}</p>}
-            </div>
-          </div>
-        </div>
-      )}
+      <FeedbackModal
+        open={feedbackOpen}
+        feedbackSubmitting={feedbackSubmitting}
+        feedbackStatus={feedbackStatus}
+        feedbackCategory={feedbackCategory}
+        feedbackMessage={feedbackMessage}
+        userEmail={user.email}
+        onClose={() => setFeedbackOpen(false)}
+        onSetFeedbackStatus={setFeedbackStatus}
+        onSetFeedbackCategory={(value) => setFeedbackCategory(value as FeedbackCategory)}
+        onSetFeedbackMessage={setFeedbackMessage}
+        onSubmit={submitFeedback}
+      />
       </main>
 
-      {selectionPopup && !quickCardForm ? (
-        <button
-          type="button"
-          className={styles.selectionCardPopup}
-          style={{ left: selectionPopup.x, top: selectionPopup.y }}
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={() => {
-            setQuickCardForm({ front: "", back: selectionPopup.text });
-            setSelectionPopup(null);
-          }}
-        >
-          📇 Create Card
-        </button>
-      ) : null}
-
-      {quickCardForm ? (
-        <div className={styles.feedbackOverlay} onClick={() => setQuickCardForm(null)}>
-          <div className={styles.feedbackModal} onClick={(event) => event.stopPropagation()}>
-            <div className={styles.feedbackHeader}>
-              <h2 className={styles.feedbackTitle}>Create Card from Note</h2>
-              <button type="button" className={styles.feedbackClose} onClick={() => setQuickCardForm(null)}>
-                ✕
-              </button>
-            </div>
-            <label className={styles.planLabel}>
-              Front (question)
-              <input
-                autoFocus
-                value={quickCardForm.front}
-                onChange={(event) => setQuickCardForm((current) => current ? { ...current, front: event.target.value } : null)}
-                className={styles.planControl}
-                placeholder="What does this text answer?"
-              />
-            </label>
-            <label className={styles.planLabel}>
-              Back (answer)
-              <textarea
-                value={quickCardForm.back}
-                onChange={(event) => setQuickCardForm((current) => current ? { ...current, back: event.target.value } : null)}
-                className={styles.feedbackTextarea}
-                rows={5}
-              />
-            </label>
-            <div className={styles.feedbackFooter}>
-              <button
-                type="button"
-                className={styles.feedbackSubmit}
-                onClick={() => void handleQuickCardSave()}
-                disabled={!quickCardForm.front.trim() || !quickCardForm.back.trim()}
-              >
-                Save Card
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <QuickCardModal
+        selectionPopup={selectionPopup}
+        quickCardForm={quickCardForm}
+        onSetQuickCardForm={setQuickCardForm}
+        onSetSelectionPopup={setSelectionPopup}
+        onSave={() => void handleQuickCardSave()}
+      />
 
       {mascot.visible ? (
         <WhelMascot
