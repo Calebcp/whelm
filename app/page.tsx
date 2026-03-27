@@ -92,6 +92,7 @@ import { useAccountSettings } from "@/hooks/useAccountSettings";
 import { usePreferences } from "@/hooks/usePreferences";
 import { useCalendarInteractions } from "@/hooks/useCalendarInteractions";
 import { useCompanionMetrics } from "@/hooks/useCompanionMetrics";
+import { useHistoryData } from "@/hooks/useHistoryData";
 import { useModalFlows } from "@/hooks/useModalFlows";
 import { useReflection } from "@/hooks/useReflection";
 import { useReportsAnalytics } from "@/hooks/useReportsAnalytics";
@@ -456,27 +457,6 @@ type AgendaTimingState = "now" | "next" | "upcoming" | "overdue" | "completed" |
 type TrendPoint = {
   label: string;
   minutes: number;
-};
-
-type SessionHistoryDayGroup = {
-  key: string;
-  label: string;
-  totalMinutes: number;
-  items: SessionDoc[];
-};
-
-type SessionHistoryWeekGroup = {
-  key: string;
-  label: string;
-  totalMinutes: number;
-  days: SessionHistoryDayGroup[];
-};
-
-type SessionHistoryMonthGroup = {
-  key: string;
-  label: string;
-  totalMinutes: number;
-  weeks: SessionHistoryWeekGroup[];
 };
 
 type PlannedBlock = {
@@ -2999,11 +2979,6 @@ export default function HomePage() {
   const [dayTones, setDayTones] = useState<DayToneMap>({});
   const [monthTones, setMonthTones] = useState<MonthToneMap>({});
   const { toasts: whelToasts, showToast, dismissToast } = useToasts();
-  const [historySectionsOpen, setHistorySectionsOpen] = useState({
-    completed: false,
-    incomplete: false,
-  });
-  const [historyGroupsOpen, setHistoryGroupsOpen] = useState<Record<string, boolean>>({});
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [streakRulesOpen, setStreakRulesOpen] = useState(false);
   const [settingsSectionsOpen, setSettingsSectionsOpen] = useState({
@@ -3487,134 +3462,27 @@ export default function HomePage() {
     clearPendingXpPop();
   }, [clearPendingXpPop, pendingXpPop, triggerXPPop]);
 
-  const sessionHistoryGroups = useMemo<SessionHistoryMonthGroup[]>(() => {
-    const grouped = new Map<
-      string,
-      {
-        monthDate: Date;
-        weeks: Map<
-          string,
-          {
-            weekStart: Date;
-            days: Map<string, SessionDoc[]>;
-          }
-        >;
-      }
-    >();
-
-    for (const session of sessions) {
-      const completedAt = new Date(session.completedAtISO);
-      const monthKey = `${completedAt.getFullYear()}-${String(completedAt.getMonth() + 1).padStart(2, "0")}`;
-      const weekKey = weekStartKeyLocal(completedAt);
-      const dayKey = dayKeyLocal(completedAt);
-
-      if (!grouped.has(monthKey)) {
-        grouped.set(monthKey, {
-          monthDate: new Date(completedAt.getFullYear(), completedAt.getMonth(), 1),
-          weeks: new Map(),
-        });
-      }
-
-      const monthGroup = grouped.get(monthKey)!;
-
-      if (!monthGroup.weeks.has(weekKey)) {
-        monthGroup.weeks.set(weekKey, {
-          weekStart: startOfDayLocal(`${weekKey}T00:00:00`),
-          days: new Map(),
-        });
-      }
-
-      const weekGroup = monthGroup.weeks.get(weekKey)!;
-      const existingDay = weekGroup.days.get(dayKey) ?? [];
-      existingDay.push(session);
-      weekGroup.days.set(dayKey, existingDay);
-    }
-
-    return [...grouped.entries()]
-      .sort(([a], [b]) => (a < b ? 1 : -1))
-      .map(([monthKey, monthGroup]) => {
-        const weeks = [...monthGroup.weeks.entries()]
-          .sort(([a], [b]) => (a < b ? 1 : -1))
-          .map(([weekKey, weekGroup]) => {
-            const days = [...weekGroup.days.entries()]
-              .sort(([a], [b]) => (a < b ? 1 : -1))
-              .map(([dayKey, items]) => ({
-                key: `day-${dayKey}`,
-                label: new Date(items[0]?.completedAtISO ?? `${dayKey}T00:00:00`).toLocaleDateString(
-                  undefined,
-                  {
-                    weekday: "short",
-                    month: "short",
-                    day: "numeric",
-                  },
-                ),
-                totalMinutes: items.reduce((sum, item) => sum + item.minutes, 0),
-                items: [...items].sort((a, b) => (a.completedAtISO < b.completedAtISO ? 1 : -1)),
-              }));
-
-            return {
-              key: `week-${weekKey}`,
-              label: formatHistoryWeekLabel(weekGroup.weekStart),
-              totalMinutes: days.reduce((sum, day) => sum + day.totalMinutes, 0),
-              days,
-            };
-          });
-
-        return {
-          key: `month-${monthKey}`,
-          label: monthGroup.monthDate.toLocaleDateString(undefined, {
-            month: "long",
-            year: "numeric",
-          }),
-          totalMinutes: weeks.reduce((sum, week) => sum + week.totalMinutes, 0),
-          weeks,
-        };
-      });
-  }, [sessions]);
-  const freeSessionHistoryGroups = useMemo<SessionHistoryMonthGroup[]>(() => {
-    return sessionHistoryGroups
-      .map((monthGroup) => {
-        const weeks = monthGroup.weeks
-          .map((weekGroup) => {
-            const days = weekGroup.days.filter((dayGroup) =>
-              isDateKeyWithinRecentWindow(dayGroup.key.replace(/^day-/, ""), PRO_HISTORY_FREE_DAYS),
-            );
-
-            if (days.length === 0) return null;
-            return {
-              ...weekGroup,
-              totalMinutes: days.reduce((sum, day) => sum + day.totalMinutes, 0),
-              days,
-            };
-          })
-          .filter((weekGroup): weekGroup is SessionHistoryWeekGroup => Boolean(weekGroup));
-
-        if (weeks.length === 0) return null;
-        return {
-          ...monthGroup,
-          totalMinutes: weeks.reduce((sum, week) => sum + week.totalMinutes, 0),
-          weeks,
-        };
-      })
-      .filter((monthGroup): monthGroup is SessionHistoryMonthGroup => Boolean(monthGroup));
-  }, [sessionHistoryGroups]);
-  const hasLockedHistoryDays = useMemo(() => {
-    const totalDays = sessionHistoryGroups.reduce(
-      (sum, monthGroup) =>
-        sum +
-        monthGroup.weeks.reduce(
-          (weekSum, weekGroup) =>
-            weekSum +
-            weekGroup.days.filter(
-              (dayGroup) =>
-                !isDateKeyWithinRecentWindow(dayGroup.key.replace(/^day-/, ""), PRO_HISTORY_FREE_DAYS),
-            ).length,
-          0,
-        ),
-      0,
-    );
-    return totalDays > 0;
-  }, [sessionHistoryGroups]);
+  const {
+    historySectionsOpen,
+    historyGroupsOpen,
+    sessionHistoryGroups,
+    freeSessionHistoryGroups,
+    hasLockedHistoryDays,
+    plannedBlockHistory,
+    hasLockedBlockHistory,
+    toggleHistorySection,
+    toggleHistoryGroup,
+  } = useHistoryData({
+    isPro,
+    plannedBlocks,
+    sessions,
+    proHistoryFreeDays: PRO_HISTORY_FREE_DAYS,
+    isDateKeyBeforeToday,
+    isDateKeyWithinRecentWindow,
+    startOfDayLocal,
+    weekStartKeyLocal,
+    formatHistoryWeekLabel,
+  });
 
   const {
     focusMetrics,
@@ -3978,26 +3846,6 @@ export default function HomePage() {
   const plannedBlockById = useMemo(
     () => new Map(plannedBlocks.map((item) => [item.id, item])),
     [plannedBlocks],
-  );
-  const plannedBlockHistory = useMemo(() => {
-    const sorted = [...plannedBlocks]
-      .filter((item) => isPro || isDateKeyWithinRecentWindow(item.dateKey, PRO_HISTORY_FREE_DAYS))
-      .sort((a, b) => {
-        if (a.dateKey !== b.dateKey) return b.dateKey.localeCompare(a.dateKey);
-        return a.timeOfDay.localeCompare(b.timeOfDay);
-      });
-    return {
-      completed: sorted.filter((item) => item.status === "completed"),
-      incomplete: sorted.filter((item) => item.status === "active" && isDateKeyBeforeToday(item.dateKey)),
-    };
-  }, [isPro, plannedBlocks]);
-  const hasLockedBlockHistory = useMemo(
-    () =>
-      !isPro &&
-      plannedBlocks.some(
-        (item) => !isDateKeyWithinRecentWindow(item.dateKey, PRO_HISTORY_FREE_DAYS),
-      ),
-    [isPro, plannedBlocks],
   );
   const calendarEntriesByDate = useMemo(() => {
     const entries = new Map<string, CalendarEntry[]>();
@@ -5036,9 +4884,7 @@ export default function HomePage() {
               primaryRef={historyPrimaryRef}
               plannedBlockHistory={plannedBlockHistory}
               historySectionsOpen={historySectionsOpen}
-              onToggleHistorySection={(key) =>
-                setHistorySectionsOpen((current) => ({ ...current, [key]: !current[key] }))
-              }
+              onToggleHistorySection={toggleHistorySection}
               isPro={isPro}
               hasLockedBlockHistory={hasLockedBlockHistory}
               proPanelCalendarOpen={proPanelsOpen.calendar}
@@ -5048,9 +4894,7 @@ export default function HomePage() {
               onStartProPreview={() => void handleStartProPreview()}
               sessionHistoryGroups={isPro ? sessionHistoryGroups : freeSessionHistoryGroups}
               historyGroupsOpen={historyGroupsOpen}
-              onToggleHistoryGroup={(key) =>
-                setHistoryGroupsOpen((current) => ({ ...current, [key]: !current[key] }))
-              }
+              onToggleHistoryGroup={toggleHistoryGroup}
               hasLockedHistoryDays={hasLockedHistoryDays}
               proPanelHistoryOpen={proPanelsOpen.history}
               onToggleProHistoryPanel={() =>
