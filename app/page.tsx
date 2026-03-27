@@ -24,6 +24,7 @@ import MirrorTab from "@/components/MirrorTab";
 import NotesTab from "@/components/NotesTab";
 import ReportsTab from "@/components/ReportsTab";
 import ScheduleTab from "@/components/ScheduleTab";
+import TodayTab from "@/components/TodayTab";
 import SenseiFigure, { type SenseiVariant } from "@/components/SenseiFigure";
 import WhelMascot from "@/components/WhelMascot";
 import Timer, { type TimerSessionContext } from "@/components/Timer";
@@ -8678,369 +8679,63 @@ export default function HomePage() {
           />
 
           {activeTab === "today" && (
-            <>
-              {isMobileViewport && <section className={styles.mobileTodayStack} ref={todaySectionRef}>
-                <div className={styles.mobileTimerWrap} ref={todayTimerRef}>
-                  <Timer
-                    minutes={30}
-                    title="Focus timer"
-                    actionLabel={FOCUS_TIMER.actionLabel}
-                    theme={FOCUS_TIMER.theme}
-                    appearance={resolvedTheme}
-                    isPro={isPro}
-                    sessionNoteCount={todaySessionNoteCount}
-                    onOpenSessionNotes={() => setActiveTab("history")}
-                    streakMinimumMinutes={30}
-                    showHeaderCopy={false}
-                    showStreakHint={false}
-                    onSessionStart={handleSessionStarted}
-                    onSessionAbandon={handleSessionAbandoned}
-                    onComplete={(note, minutesSpent, sessionContext) =>
-                      completeSession(note, minutesSpent, sessionContext)
-                    }
-                  />
-                </div>
-
-                <article className={styles.mobileSummaryCard} ref={todaySummaryRef}>
-                  <button
-                    type="button"
-                    className={styles.mobileSummaryToggle}
-                    onClick={() => setMobileTodayOverviewOpen((open) => !open)}
-                    aria-expanded={mobileTodayOverviewOpen}
-                  >
-                    <div>
-                      <p className={styles.sectionLabel}>Today</p>
-                      <strong className={styles.mobileSectionToggleTitle}>Today&apos;s overview</strong>
-                    </div>
-                    <span>{mobileTodayOverviewOpen ? "Hide" : "Open"}</span>
-                  </button>
-                  {mobileTodayOverviewOpen ? (
-                    <div className={styles.mobileSummaryBody}>
-                      <div className={styles.mobileSummaryHeader}>
-                        <button
-                          type="button"
-                          className={styles.reportButton}
-                          onClick={handleTodayPrimaryAction}
-                        >
-                          {senseiGuidance.actionLabel}
-                        </button>
-                      </div>
-                      <div className={styles.mobileSummaryGrid}>
-                        <div className={styles.mobileSummaryItem}>
-                          <span className={styles.mobileSummaryLabel}>Focus</span>
-                          <strong>{focusMetrics.todayMinutes}m</strong>
-                        </div>
-                        <div className={styles.mobileSummaryItem}>
-                          <span className={styles.mobileSummaryLabel}>Sessions</span>
-                          <strong>{focusMetrics.todaySessions}</strong>
-                        </div>
-                        <div className={styles.mobileSummaryItem}>
-                          <span className={styles.mobileSummaryLabel}>Streak</span>
-                          <strong>{streak}d</strong>
-                        </div>
-                      </div>
-                      <div className={styles.mobileSummaryRail}>
-                        <article className={styles.mobileSummaryRailItem}>
-                          <span>Next block</span>
-                          <strong>{nextPlannedBlock?.title ?? "No block set"}</strong>
-                          <small>
-                            {nextPlannedBlock
-                              ? `${normalizeTimeLabel(nextPlannedBlock.timeOfDay)} · ${nextPlannedBlock.durationMinutes}m`
-                              : "Nothing scheduled"}
-                          </small>
-                        </article>
-                        <article className={styles.mobileSummaryRailItem}>
-                          <span>Reminders</span>
-                          <strong>{dueReminderNotes.length} due today</strong>
-                          <small>
-                            {dueReminderNotes[0]?.title ?? "No reminders today"}
-                          </small>
-                        </article>
-                      </div>
-                    </div>
-                  ) : null}
-                </article>
-              </section>}
-
-              <section className={styles.statsGrid} ref={!isMobileViewport ? todaySectionRef : undefined}>
-                <article className={styles.statCard}>
-                  <span className={styles.statLabel}>Discipline Score</span>
-                  <strong className={styles.statValue}>
-                    {focusMetrics.disciplineScore}
-                    <span className={styles.statSuffix}>/100</span>
-                  </strong>
-                </article>
-                <article className={styles.statCard}>
-                  <span className={styles.statLabel}>Focus Today</span>
-                  <strong className={styles.statValue}>{focusMetrics.todayMinutes}m</strong>
-                </article>
-                <article className={styles.statCard}>
-                  <span className={styles.statLabel}>Current Streak</span>
-                  <strong className={styles.statValue}>
-                    {streak} day{streak === 1 ? "" : "s"}
-                  </strong>
-                </article>
-                <article className={styles.statCard}>
-                  <span className={styles.statLabel}>Focus Week</span>
-                  <strong className={styles.statValueSmall}>{focusMetrics.weekMinutes} minutes</strong>
-                </article>
-              </section>
-
-              {!isMobileViewport && (
-                <section className={styles.todayCommandStrip}>
-                  <article className={styles.todayCommandTile}>
-                    <span>Next block</span>
-                    <strong>{nextPlannedBlock?.title ?? "No active block queued"}</strong>
-                    <small>
-                      {nextPlannedBlock
-                        ? `${normalizeTimeLabel(nextPlannedBlock.timeOfDay)} · ${nextPlannedBlock.durationMinutes}m`
-                        : "Use Schedule to place the next move before drift opens up."}
-                    </small>
-                  </article>
-                  <article className={styles.todayCommandTile}>
-                    <span>Last session</span>
-                    <strong>
-                      {lastSession
-                        ? new Date(lastSession.completedAtISO).toLocaleTimeString([], {
-                            hour: "numeric",
-                            minute: "2-digit",
-                          })
-                        : "No session saved"}
-                    </strong>
-                    <small>
-                      {lastSessionHoursAgo !== null
-                        ? `${Math.round(lastSessionHoursAgo)}h ago`
-                        : "Start the first clean block of the day."}
-                    </small>
-                  </article>
-                  <article className={styles.todayCommandTile}>
-                    <span>Return points</span>
-                    <strong>{dueReminderNotes.length} due today</strong>
-                    <small>
-                      {dueReminderNotes[0]?.title
-                        ? `First return point: ${dueReminderNotes[0].title}`
-                        : "No reminders are pulling on you right now."}
-                    </small>
-                  </article>
-                  <article className={styles.todayCommandTile}>
-                    <span>Latest note</span>
-                    <strong>{latestNote?.title || "No note captured yet"}</strong>
-                    <small>
-                      {latestNote
-                        ? new Date(latestNote.updatedAtISO).toLocaleDateString()
-                        : "Capture one thought worth returning to."}
-                    </small>
-                  </article>
-                </section>
-              )}
-
-              {!isPro && (
-                <section className={styles.adStrip}>
-                  <p className={styles.adBadge}>Whelm Pro</p>
-                  <p className={styles.adCopy}>
-                    {WHELM_PRO_POSITIONING}
-                  </p>
-                  <button type="button" className={styles.inlineUpgrade} onClick={openUpgradeFlow}>
-                    Upgrade to Whelm Pro
-                  </button>
-                </section>
-              )}
-
-              <section className={styles.mainGrid}>
-                <article
-                  className={`${styles.card} ${styles.senseiCard} ${styles[`senseiCard${senseiGuidance.tone[0].toUpperCase()}${senseiGuidance.tone.slice(1)}`]}`}
-                >
-                  <div className={styles.senseiRitualBackdrop}>
-                    <WhelmRitualScene variant="orb" />
-                  </div>
-                  <div className={styles.senseiCardHeader}>
-                    <SenseiAvatar
-                      message={todayHeroCopy.eyebrow}
-                      variant="neutral"
-                      bandanaColor={bandanaColor}
-                      emoteVideoSrc="/emotes/welcomeemoting.mp4"
-                      autoPlayEmote
-                    />
-                    <div className={styles.senseiDialogueStack}>
-                      <div className={styles.senseiSpeechPanel}>
-                        <p className={styles.senseiSpeechEyebrow}>Whelm</p>
-                        <p className={styles.senseiGreeting}>{todayHeroCopy.title}</p>
-                        <p className={styles.senseiMessage}>{todayHeroCopy.body}</p>
-                        <p className={styles.senseiSignature}>"{todayHeroCopy.signatureLine}"</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className={styles.senseiMetrics}>
-                    <span className={styles.senseiMetricPill}>
-                      Presence: {formatSenseiLabel(companionState.stage)}
-                    </span>
-                    <span className={styles.senseiMetricPill}>
-                      Stance: {formatSenseiLabel(senseiGuidance.ritual)}
-                    </span>
-                    <span className={styles.senseiMetricPill}>
-                      Tone: {formatSenseiLabel(senseiGuidance.voiceMode)}
-                    </span>
-                    <span className={styles.senseiMetricPill}>
-                      Today: {focusMetrics.todaySessions} session
-                      {focusMetrics.todaySessions === 1 ? "" : "s"}
-                    </span>
-                    <span className={styles.senseiMetricPill}>Streak: {streak}d</span>
-                    <span className={styles.senseiMetricPill}>
-                      Ready: {todayActivePlannedBlocks.length}
-                    </span>
-                    {nextSenseiMilestone.next ? (
-                      <span className={styles.senseiMetricPill}>
-                        Next mark: {nextSenseiMilestone.next} ({nextSenseiMilestone.remaining} left)
-                      </span>
-                    ) : (
-                      <span className={styles.senseiMetricPill}>Legend tier unlocked</span>
-                    )}
-                  </div>
-                  <div className={styles.senseiActionRow}>
-                    <button
-                      type="button"
-                      className={styles.reportButton}
-                      onClick={handleTodayPrimaryAction}
-                    >
-                      {senseiGuidance.actionLabel}
-                    </button>
-                    <span className={styles.accountMeta}>
-                      Whelm is directing your next move toward {tabTitle(senseiGuidance.actionTab as AppTab)}.
-                    </span>
-                  </div>
-                  {senseiReaction && <p className={styles.senseiReaction}>{senseiReaction}</p>}
-                </article>
-
-                <div className={styles.leftColumn}>
-                  <Timer
-                    minutes={30}
-                    title={FOCUS_TIMER.title}
-                    actionLabel={FOCUS_TIMER.actionLabel}
-                    theme={FOCUS_TIMER.theme}
-                    appearance={resolvedTheme}
-                    isPro={isPro}
-                    sessionNoteCount={todaySessionNoteCount}
-                    onOpenSessionNotes={() => setActiveTab("history")}
-                    streakMinimumMinutes={30}
-                    onSessionStart={handleSessionStarted}
-                    onSessionAbandon={handleSessionAbandoned}
-                    onComplete={(note, minutesSpent, sessionContext) =>
-                      completeSession(note, minutesSpent, sessionContext)
-                    }
-                  />
-
-                  <article className={styles.card}>
-                    <div className={styles.cardHeader}>
-                      <div>
-                        <p className={styles.sectionLabel}>Command Center</p>
-                        <h2 className={styles.cardTitle}>Today under command</h2>
-                        <p className={styles.accountMeta}>The minimum clear read on whether the day is tightening or drifting.</p>
-                      </div>
-                      <button type="button" className={styles.reportButton} onClick={() => void copyWeeklyReport()}>
-                        {reportCopyStatus || "Copy Whelm report"}
-                      </button>
-                    </div>
-                    <ul className={styles.commandList}>
-                      <li>
-                        <strong>{focusMetrics.todaySessions}</strong> sessions completed
-                      </li>
-                      <li>
-                        <strong>{focusMetrics.todayMinutes}m</strong> focused
-                      </li>
-                      <li>
-                        Last session:{" "}
-                        <strong>
-                          {lastSession
-                            ? new Date(lastSession.completedAtISO).toLocaleTimeString([], {
-                                hour: "numeric",
-                                minute: "2-digit",
-                              })
-                            : "not started"}
-                        </strong>
-                      </li>
-                      <li>
-                        <strong>{orderedNotes.filter((note) => note.isPinned).length}</strong> pinned notes
-                      </li>
-                    </ul>
-                  </article>
-                </div>
-
-                <aside className={styles.rightColumn}>
-                  <article className={`${styles.card} ${styles.todayUtilityCard}`}>
-                    <p className={styles.sectionLabel}>Quick Capture</p>
-                    <h2 className={styles.cardTitle}>Keep the thought</h2>
-                    <p className={styles.accountMeta}>Recent notes should be one tap away, not buried under editing chrome.</p>
-                    <div className={styles.quickNoteList}>
-                      {orderedNotes.slice(0, 4).map((note) => (
-                        <button
-                          key={note.id}
-                          type="button"
-                          className={styles.quickNoteItem}
-                            onClick={() => {
-                              setSelectedNoteId(note.id);
-                              openNotesTab();
-                            }}
-                          style={{ backgroundColor: note.color || "#f8fafc" }}
-                        >
-                          <strong>{note.title || "Untitled note"}</strong>
-                          <span>{new Date(note.updatedAtISO).toLocaleDateString()}</span>
-                        </button>
-                      ))}
-                      {orderedNotes.length === 0 && (
-                        <p className={styles.emptyText}>No notes yet. Create your first note.</p>
-                      )}
-                    </div>
-                    <button type="button" className={styles.newNoteButton} onClick={createWorkspaceNote}>
-                      + New note
-                    </button>
-                  </article>
-
-                  <article className={`${styles.card} ${styles.todayUtilityCard}`}>
-                    <p className={styles.sectionLabel}>Due Today</p>
-                    <h2 className={styles.cardTitle}>Return points</h2>
-                    <p className={styles.accountMeta}>These are the things that should pull you back into the right lane.</p>
-                    {dueReminderNotes.length === 0 ? (
-                      <p className={styles.emptyText}>No note reminders due today.</p>
-                    ) : (
-                      <div className={styles.reminderList}>
-                        {dueReminderNotes.slice(0, 5).map((note) => (
-                          <button
-                            key={note.id}
-                            type="button"
-                            className={styles.reminderItem}
-                            onClick={() => {
-                              setSelectedNoteId(note.id);
-                              openNotesTab();
-                            }}
-                          >
-                            <strong>{note.title || "Untitled note"}</strong>
-                            <span>
-                              {new Date(note.reminderAtISO || "").toLocaleTimeString([], {
-                                hour: "numeric",
-                                minute: "2-digit",
-                              })}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </article>
-
-                  <article className={`${styles.card} ${styles.todayAccessCard}`}>
-                    <p className={styles.sectionLabel}>Access</p>
-                    <p className={styles.accountMeta}>
-                      {isPro ? "Whelm Pro" : "Whelm Free"}
-                    </p>
-                    <p className={styles.accountMeta}>{user.email}</p>
-                    {!isPro && (
-                      <button type="button" className={styles.inlineUpgrade} onClick={openUpgradeFlow}>
-                        Upgrade to Whelm Pro
-                      </button>
-                    )}
-                  </article>
-                </aside>
-              </section>
-            </>
+            <TodayTab
+              todaySectionRef={todaySectionRef}
+              todayTimerRef={todayTimerRef}
+              todaySummaryRef={todaySummaryRef}
+              isMobileViewport={isMobileViewport}
+              isPro={isPro}
+              resolvedTheme={resolvedTheme}
+              todaySessionNoteCount={todaySessionNoteCount}
+              focusMetrics={{
+                disciplineScore: focusMetrics.disciplineScore,
+                todayMinutes: focusMetrics.todayMinutes,
+                todaySessions: focusMetrics.todaySessions,
+                weekMinutes: focusMetrics.weekMinutes,
+              }}
+              streak={streak}
+              mobileTodayOverviewOpen={mobileTodayOverviewOpen}
+              nextPlannedBlock={nextPlannedBlock}
+              dueReminderNotes={dueReminderNotes}
+              lastSession={lastSession}
+              lastSessionHoursAgo={lastSessionHoursAgo}
+              latestNote={latestNote}
+              orderedNotes={orderedNotes}
+              todayActivePlannedBlocksCount={todayActivePlannedBlocks.length}
+              senseiGuidance={{
+                tone: senseiGuidance.tone,
+                ritual: senseiGuidance.ritual,
+                voiceMode: senseiGuidance.voiceMode,
+                actionLabel: senseiGuidance.actionLabel,
+                actionTab: senseiGuidance.actionTab,
+              }}
+              todayHeroCopy={{
+                eyebrow: todayHeroCopy.eyebrow,
+                title: todayHeroCopy.title,
+                body: todayHeroCopy.body,
+                signatureLine: todayHeroCopy.signatureLine,
+              }}
+              companionStageLabel={companionState.stage}
+              nextSenseiMilestone={nextSenseiMilestone}
+              senseiReaction={senseiReaction}
+              bandanaColor={bandanaColor}
+              reportCopyStatus={reportCopyStatus}
+              onOpenSessionNotes={() => setActiveTab("history")}
+              onSessionStart={handleSessionStarted}
+              onSessionAbandon={handleSessionAbandoned}
+              onSessionComplete={(note, minutesSpent, sessionContext) =>
+                void completeSession(note, minutesSpent, sessionContext)
+              }
+              onToggleMobileTodayOverview={() => setMobileTodayOverviewOpen((open) => !open)}
+              onTodayPrimaryAction={handleTodayPrimaryAction}
+              onSetSelectedNoteId={setSelectedNoteId}
+              onOpenNotesTab={openNotesTab}
+              onCreateWorkspaceNote={() => void createWorkspaceNote()}
+              onCopyWeeklyReport={() => void copyWeeklyReport()}
+              onUpgrade={openUpgradeFlow}
+              senseiActionTabTitle={tabTitle(senseiGuidance.actionTab as AppTab)}
+              userEmail={user.email ?? ""}
+            />
           )}
 
           {activeTab === "calendar" && (
