@@ -4,13 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, 
 import { useRouter } from "next/navigation";
 import { useRive } from "@rive-app/react-canvas";
 import { AnimatePresence, motion } from "motion/react";
-import {
-  EmailAuthProvider,
-  deleteUser,
-  reauthenticateWithCredential,
-  signOut,
-  type User,
-} from "firebase/auth";
+import { type User } from "firebase/auth";
 import { ref as storageRef } from "firebase/storage";
 
 import BottomNav from "@/components/BottomNav";
@@ -54,17 +48,6 @@ import {
   type SessionDoc,
 } from "@/lib/streak";
 import {
-  getProState,
-  restoreFreeTier,
-  startProPreview,
-} from "@/lib/subscription";
-import {
-  getScreenTimeCapability,
-  openScreenTimeSystemSettings,
-  requestScreenTimeAuthorization,
-  type ScreenTimeAuthorizationStatus,
-} from "@/lib/screentime";
-import {
   buildSenseiCompanionState,
   type SenseiCompanionStyle,
 } from "@/lib/sensei-companion";
@@ -105,6 +88,7 @@ import {
 import { useNotes } from "@/hooks/useNotes";
 import { useLeaderboard } from "@/hooks/useLeaderboard";
 import { usePlannedBlocks } from "@/hooks/usePlannedBlocks";
+import { useAccountSettings } from "@/hooks/useAccountSettings";
 import { usePreferences } from "@/hooks/usePreferences";
 import { useCalendarInteractions } from "@/hooks/useCalendarInteractions";
 import { useReflection } from "@/hooks/useReflection";
@@ -3001,12 +2985,6 @@ export default function HomePage() {
   const [introFinished, setIntroFinished] = useState(false);
   const [introMinElapsed, setIntroMinElapsed] = useState(false);
   const [landingWisdomMinute, setLandingWisdomMinute] = useState(() => Math.floor(Date.now() / 60000));
-  const [feedbackOpen, setFeedbackOpen] = useState(false);
-  const [feedbackCategory, setFeedbackCategory] = useState<FeedbackCategory>("bug");
-  const [feedbackMessage, setFeedbackMessage] = useState("");
-  const [feedbackStatus, setFeedbackStatus] = useState("");
-  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
-  const [profileOpen, setProfileOpen] = useState(false);
   const [reportCopyStatus, setReportCopyStatus] = useState("");
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [analyticsError, setAnalyticsError] = useState("");
@@ -3023,19 +3001,8 @@ export default function HomePage() {
       completionRate: number;
     }>
   >([]);
-  const [paywallOpen, setPaywallOpen] = useState(false);
   const [mobileTodayOverviewOpen, setMobileTodayOverviewOpen] = useState(false);
   const [senseiReaction, setSenseiReaction] = useState("");
-  const [isPro, setIsPro] = useState(true);
-  const [proSource, setProSource] = useState<"preview" | "store" | "none">("preview");
-  const [proPanelsOpen, setProPanelsOpen] = useState({
-    notes: false,
-    calendar: false,
-    history: false,
-    reports: false,
-    background: false,
-    mirror: false,
-  });
   const [trendRange, setTrendRange] = useState<TrendRange>(7);
   const [activeTab, setActiveTab] = useState<AppTab>("calendar");
   const [selectedLbProfile, setSelectedLbProfile] = useState<{ entry: LeaderboardEntry; rank: number } | null>(null);
@@ -3054,13 +3021,6 @@ export default function HomePage() {
     incomplete: false,
   });
   const [historyGroupsOpen, setHistoryGroupsOpen] = useState<Record<string, boolean>>({});
-  const [screenTimeStatus, setScreenTimeStatus] =
-    useState<ScreenTimeAuthorizationStatus>("unsupported");
-  const [screenTimeSupported, setScreenTimeSupported] = useState(false);
-  const [screenTimeReason, setScreenTimeReason] = useState("");
-  const [screenTimeBusy, setScreenTimeBusy] = useState(false);
-  const [accountDangerStatus, setAccountDangerStatus] = useState("");
-  const [deletingAccount, setDeletingAccount] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [streakRulesOpen, setStreakRulesOpen] = useState(false);
   const [settingsSectionsOpen, setSettingsSectionsOpen] = useState({
@@ -3108,6 +3068,42 @@ export default function HomePage() {
   const settingsSectionRef = useRef<HTMLElement | null>(null);
   const settingsPrimaryRef = useRef<HTMLElement | null>(null);
   const mobileDayTimelineScrollRef = useRef<HTMLDivElement | null>(null);
+  const {
+    feedbackOpen,
+    setFeedbackOpen,
+    feedbackCategory,
+    setFeedbackCategory,
+    feedbackMessage,
+    setFeedbackMessage,
+    feedbackStatus,
+    setFeedbackStatus,
+    feedbackSubmitting,
+    profileOpen,
+    setProfileOpen,
+    paywallOpen,
+    setPaywallOpen,
+    isPro,
+    proSource,
+    proPanelsOpen,
+    setProPanelsOpen,
+    screenTimeStatus,
+    screenTimeSupported,
+    screenTimeReason,
+    screenTimeBusy,
+    deletingAccount,
+    accountDangerStatus,
+    submitFeedback,
+    handleRestoreFreeTier,
+    handleStartProPreview,
+    handleRequestScreenTimeAuth,
+    handleOpenScreenTimeSettings,
+    handleDeleteAccount,
+    openUpgradeFlow,
+    handleSignOut,
+  } = useAccountSettings({
+    user: auth.currentUser,
+    clearLocalAccountData,
+  });
   const {
     plannedBlocks,
     setPlannedBlocks,
@@ -4243,33 +4239,6 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    let active = true;
-    void getProState().then((state) => {
-      if (!active) return;
-      setIsPro(state.isPro);
-      setProSource(state.source);
-    });
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    let active = true;
-    void getScreenTimeCapability().then((capability) => {
-      if (!active) return;
-      setScreenTimeSupported(capability.supported);
-      setScreenTimeStatus(capability.status);
-      setScreenTimeReason(capability.reason || "");
-    });
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
-
-  useEffect(() => {
     if (!user) return;
     setDayTones(loadDayTones(user.uid));
   }, [user]);
@@ -4394,59 +4363,6 @@ export default function HomePage() {
     return () => window.clearTimeout(timeoutId);
   }, [streakCelebration]);
 
-  async function submitFeedback() {
-    if (!user || feedbackSubmitting) return;
-
-    const message = feedbackMessage.trim();
-    if (!message) {
-      setFeedbackStatus("Please write a short message before sending.");
-      return;
-    }
-
-    setFeedbackSubmitting(true);
-    setFeedbackStatus("");
-
-    try {
-      const token = await user.getIdToken();
-      const response = await fetch(resolveApiUrl("/api/feedback"), {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          uid: user.uid,
-          email: user.email ?? "",
-          displayName: user.displayName ?? "",
-          category: feedbackCategory,
-          message,
-          pagePath: window.location.pathname,
-        }),
-      });
-
-      const body = (await response.json().catch(() => null)) as
-        | { error?: string }
-        | null;
-
-      if (!response.ok) {
-        throw new Error(body?.error || "Failed to submit feedback.");
-      }
-
-      setFeedbackMessage("");
-      setFeedbackStatus("Thanks. Feedback submitted.");
-      window.setTimeout(() => {
-        setFeedbackOpen(false);
-        setFeedbackStatus("");
-      }, 900);
-    } catch (error: unknown) {
-      setFeedbackStatus(
-        error instanceof Error ? error.message : "Failed to submit feedback.",
-      );
-    } finally {
-      setFeedbackSubmitting(false);
-    }
-  }
-
   async function copyWeeklyReport() {
     const userLabel = user?.displayName || user?.email || "Whelm user";
     const report = [
@@ -4468,243 +4384,6 @@ export default function HomePage() {
     } finally {
       window.setTimeout(() => setReportCopyStatus(""), 1200);
     }
-  }
-
-  async function handleRestoreFreeTier() {
-    const next = await restoreFreeTier();
-    setIsPro(next.isPro);
-    setProSource(next.source);
-  }
-
-  async function handleStartProPreview() {
-    const code = window.prompt("Enter the Whelm Pro preview code.");
-    if (code === null) return;
-    if (code.trim() !== "1234") {
-      window.alert("Incorrect preview code.");
-      return;
-    }
-    const next = await startProPreview();
-    setIsPro(next.isPro);
-    setProSource(next.source);
-  }
-
-  async function handleRequestScreenTimeAuth() {
-    try {
-      setScreenTimeBusy(true);
-      const status = await requestScreenTimeAuthorization();
-      setScreenTimeStatus(status);
-      setScreenTimeReason(
-        status === "approved"
-          ? "Screen Time permission granted."
-          : "Screen Time permission was not approved.",
-      );
-    } catch (error) {
-      setScreenTimeReason(
-        error instanceof Error ? error.message : "Unable to request Screen Time permission.",
-      );
-    } finally {
-      setScreenTimeBusy(false);
-    }
-  }
-
-  async function handleDeleteAccount() {
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
-      setAccountDangerStatus("No signed-in account found.");
-      return;
-    }
-
-    const confirmed = window.confirm(
-      "Delete your Whelm account and all associated app data? This cannot be undone.",
-    );
-    if (!confirmed) return;
-
-    const secondConfirmed = window.confirm(
-      "Final confirmation: permanently delete this account, your notes, your sessions, and your local Whelm data?",
-    );
-    if (!secondConfirmed) return;
-
-    setDeletingAccount(true);
-    setAccountDangerStatus("");
-
-    try {
-      const email = currentUser.email?.trim();
-      if (!email) {
-        throw new Error("This account is missing an email address for deletion confirmation.");
-      }
-
-      const password = window.prompt(
-        "Enter your password to permanently delete this account.",
-      );
-
-      if (password === null) {
-        return;
-      }
-
-      if (!password.trim()) {
-        throw new Error("Enter your password to delete your account.");
-      }
-
-      try {
-        await reauthenticateWithCredential(
-          currentUser,
-          EmailAuthProvider.credential(email, password),
-        );
-      } catch (reauthError: unknown) {
-        const reauthMessage =
-          reauthError instanceof Error ? reauthError.message : "Reauthentication failed.";
-
-        if (
-          reauthMessage.includes("invalid-credential") ||
-          reauthMessage.includes("wrong-password")
-        ) {
-          throw new Error("Incorrect password. Enter the same password you use to log in.");
-        }
-
-        throw reauthError;
-      }
-
-      const runDeletion = async () => {
-        const token = await currentUser.getIdToken(true);
-        const headers = {
-          Authorization: `Bearer ${token}`,
-        };
-
-        const deleteNotesResponse = await fetch(
-          resolveApiUrl(`/api/notes?uid=${encodeURIComponent(currentUser.uid)}`),
-          {
-            method: "DELETE",
-            headers,
-          },
-        );
-
-        if (!deleteNotesResponse.ok) {
-          const body = (await deleteNotesResponse.json().catch(() => null)) as
-            | { error?: string }
-            | null;
-          throw new Error(body?.error || "Failed to delete saved notes.");
-        }
-
-        const deleteSessionsResponse = await fetch(
-          resolveApiUrl(`/api/sessions?uid=${encodeURIComponent(currentUser.uid)}`),
-          {
-            method: "DELETE",
-            headers,
-          },
-        );
-
-        if (!deleteSessionsResponse.ok) {
-          const body = (await deleteSessionsResponse.json().catch(() => null)) as
-            | { error?: string }
-            | null;
-          throw new Error(body?.error || "Failed to delete saved sessions.");
-        }
-
-        const deletePlannedBlocksResponse = await fetch(
-          resolveApiUrl(`/api/planned-blocks?uid=${encodeURIComponent(currentUser.uid)}`),
-          {
-            method: "DELETE",
-            headers,
-          },
-        );
-
-        if (!deletePlannedBlocksResponse.ok) {
-          const body = (await deletePlannedBlocksResponse.json().catch(() => null)) as
-            | { error?: string }
-            | null;
-          throw new Error(body?.error || "Failed to delete saved planned blocks.");
-        }
-
-        const deleteReflectionStateResponse = await fetch(
-          resolveApiUrl(`/api/reflection-state?uid=${encodeURIComponent(currentUser.uid)}`),
-          {
-            method: "DELETE",
-            headers,
-          },
-        );
-
-        if (!deleteReflectionStateResponse.ok) {
-          const body = (await deleteReflectionStateResponse.json().catch(() => null)) as
-            | { error?: string }
-            | null;
-          throw new Error(body?.error || "Failed to delete saved reflection state.");
-        }
-
-        const deletePreferencesResponse = await fetch(
-          resolveApiUrl(`/api/preferences?uid=${encodeURIComponent(currentUser.uid)}`),
-          {
-            method: "DELETE",
-            headers,
-          },
-        );
-
-        if (!deletePreferencesResponse.ok) {
-          const body = (await deletePreferencesResponse.json().catch(() => null)) as
-            | { error?: string }
-            | null;
-          throw new Error(body?.error || "Failed to delete saved preferences.");
-        }
-
-        clearLocalAccountData(currentUser.uid);
-        await deleteUser(currentUser);
-      };
-
-      try {
-        await runDeletion();
-      } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : "Failed to delete account.";
-        const needsRecentLogin =
-          message.includes("requires-recent-login") ||
-          message.includes("auth/requires-recent-login");
-
-        if (!needsRecentLogin) {
-          throw error;
-        }
-
-        await runDeletion();
-      }
-
-      router.replace("/login");
-    } catch (error: unknown) {
-      const message =
-        error instanceof Error ? error.message : "Failed to delete account.";
-      if (
-        message.includes("requires-recent-login") ||
-        message.includes("auth/requires-recent-login")
-      ) {
-        setAccountDangerStatus(
-          "Reauthentication failed. Log in again, then retry account deletion.",
-        );
-      } else if (
-        message.includes("invalid-credential") ||
-        message.includes("wrong-password")
-      ) {
-        setAccountDangerStatus(
-          "Incorrect password. Enter the same password you use to log in.",
-        );
-      } else {
-        setAccountDangerStatus(message);
-      }
-    } finally {
-      setDeletingAccount(false);
-    }
-  }
-
-  async function handleOpenScreenTimeSettings() {
-    try {
-      setScreenTimeBusy(true);
-      await openScreenTimeSystemSettings();
-    } catch (error) {
-      setScreenTimeReason(
-        error instanceof Error ? error.message : "Unable to open iOS settings.",
-      );
-    } finally {
-      setScreenTimeBusy(false);
-    }
-  }
-
-  function openUpgradeFlow() {
-    setPaywallOpen(true);
   }
 
   function openMobileNoteEditor(noteId: string) {
@@ -6055,7 +5734,7 @@ export default function HomePage() {
               }}
               onStartProPreview={() => void handleStartProPreview()}
               onRestoreFreeTier={() => void handleRestoreFreeTier()}
-              onSignOut={() => signOut(auth)}
+              onSignOut={() => void handleSignOut()}
               onApplyCompanionStyle={applyCompanionStyle}
               onApplyThemeMode={applyThemeMode}
               appBackgroundSetting={appBackgroundSetting}
