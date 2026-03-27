@@ -155,6 +155,23 @@ function previousRanksStorageKey(uid: string, metric: LeaderboardMetric) {
   return `whelm:leaderboard-prev-ranks:${uid}:${metric}`;
 }
 
+function persistentMovementStorageKey(uid: string, metric: LeaderboardMetric) {
+  return `whelm:leaderboard-movement:${uid}:${metric}`;
+}
+
+function resolvePersistentMovement(
+  current: LeaderboardMovement,
+  cached: LeaderboardMovement | null | undefined,
+) {
+  if (current.direction === "up" || current.direction === "down") {
+    return current;
+  }
+  if (cached && (cached.direction === "up" || cached.direction === "down")) {
+    return cached;
+  }
+  return current;
+}
+
 export function useLeaderboard({
   activeTab,
   user,
@@ -180,6 +197,7 @@ export function useLeaderboard({
   const [leaderboardError, setLeaderboardError] = useState("");
   const [seenChallengerIds, setSeenChallengerIds] = useState<Set<string>>(new Set());
   const [cachedPreviousRanks, setCachedPreviousRanks] = useState<Map<string, number>>(new Map());
+  const [cachedMovementById, setCachedMovementById] = useState<Map<string, LeaderboardMovement>>(new Map());
 
   const myBestStreak = useMemo(
     () => Math.max(0, ...Array.from(historicalStreaksByDay.values())),
@@ -298,6 +316,10 @@ export function useLeaderboard({
       leaderboardPageItems.map((entry) => {
         const isMe = entry.userId === currentUserId;
         const previousRank = entry.previousRank ?? cachedPreviousRanks.get(entry.userId) ?? null;
+        const currentMovement =
+          previousRank !== null
+            ? movementForRanks(entry.rank, previousRank)
+            : movementFromSnapshot(entry);
         return {
           entry: {
             id: entry.userId,
@@ -313,13 +335,11 @@ export function useLeaderboard({
             isCurrentUser: isMe,
           },
           rank: entry.rank,
-          movement:
-            previousRank !== null
-              ? movementForRanks(entry.rank, previousRank)
-              : movementFromSnapshot(entry),
+          movement: resolvePersistentMovement(currentMovement, cachedMovementById.get(entry.userId)),
         };
       }),
     [
+      cachedMovementById,
       cachedPreviousRanks,
       currentUserId,
       currentUserPhotoUrl,
@@ -339,6 +359,10 @@ export function useLeaderboard({
       leaderboardAroundMeItems.map((entry) => {
         const isMe = entry.userId === currentUserId;
         const previousRank = entry.previousRank ?? cachedPreviousRanks.get(entry.userId) ?? null;
+        const currentMovement =
+          previousRank !== null
+            ? movementForRanks(entry.rank, previousRank)
+            : movementFromSnapshot(entry);
         return {
           entry: {
             id: entry.userId,
@@ -354,13 +378,11 @@ export function useLeaderboard({
             isCurrentUser: isMe,
           },
           rank: entry.rank,
-          movement:
-            previousRank !== null
-              ? movementForRanks(entry.rank, previousRank)
-              : movementFromSnapshot(entry),
+          movement: resolvePersistentMovement(currentMovement, cachedMovementById.get(entry.userId)),
         };
       }),
     [
+      cachedMovementById,
       cachedPreviousRanks,
       currentUserId,
       currentUserPhotoUrl,
@@ -526,6 +548,20 @@ export function useLeaderboard({
       );
     } catch {
       setCachedPreviousRanks(new Map());
+    }
+  }, [leaderboardMetricTab, user]);
+
+  useEffect(() => {
+    if (!user) {
+      setCachedMovementById(new Map());
+      return;
+    }
+    try {
+      const raw = window.localStorage.getItem(persistentMovementStorageKey(user.uid, leaderboardMetricTab));
+      const parsed = raw ? (JSON.parse(raw) as Record<string, LeaderboardMovement>) : {};
+      setCachedMovementById(new Map(Object.entries(parsed)));
+    } catch {
+      setCachedMovementById(new Map());
     }
   }, [leaderboardMetricTab, user]);
 
@@ -699,6 +735,36 @@ export function useLeaderboard({
       // Ignore local storage errors.
     }
   }, [leaderboardAroundMeItems, leaderboardMetricTab, leaderboardPageItems, user]);
+
+  useEffect(() => {
+    if (!user || leaderboardRows.length === 0) return;
+    const next = new Map(cachedMovementById);
+    let changed = false;
+    leaderboardRows.forEach((row) => {
+      if (row.movement.direction === "up" || row.movement.direction === "down") {
+        const existing = next.get(row.entry.id);
+        if (
+          !existing ||
+          existing.direction !== row.movement.direction ||
+          existing.delta !== row.movement.delta ||
+          existing.previousRank !== row.movement.previousRank
+        ) {
+          next.set(row.entry.id, row.movement);
+          changed = true;
+        }
+      }
+    });
+    if (!changed) return;
+    setCachedMovementById(next);
+    try {
+      window.localStorage.setItem(
+        persistentMovementStorageKey(user.uid, leaderboardMetricTab),
+        JSON.stringify(Object.fromEntries(next)),
+      );
+    } catch {
+      // Ignore local storage errors.
+    }
+  }, [cachedMovementById, leaderboardMetricTab, leaderboardRows, user]);
 
   return {
     leaderboardMetricTab,
