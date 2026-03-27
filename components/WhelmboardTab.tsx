@@ -3,9 +3,10 @@
 import { type CSSProperties, type Ref } from "react";
 import { motion } from "motion/react";
 
-import styles from "@/app/page.module.css";
+import sharedStyles from "@/app/page.module.css";
 import AnimatedTabSection from "@/components/AnimatedTabSection";
 import WhelmProfileAvatar from "@/components/WhelmProfileAvatar";
+import styles from "@/components/WhelmboardTab.module.css";
 import { getStreakBandanaTier } from "@/lib/streak-bandanas";
 import { getStreakTierColorTheme } from "@/lib/xp-utils";
 
@@ -263,7 +264,7 @@ export default function WhelmboardTab({
       {/* Compact header */}
       <div className={styles.wbHeader} ref={primaryRef as React.RefObject<HTMLDivElement>}>
         <div>
-          <p className={styles.sectionLabel}>Whelmboard</p>
+          <p className={sharedStyles.sectionLabel}>Whelmboard</p>
           <h2 className={styles.wbTitle}>Global Whelm rank</h2>
         </div>
         <div className={styles.wbHeaderRight}>
@@ -316,14 +317,14 @@ export default function WhelmboardTab({
         {/* Main leaderboard + around-you */}
         <div className={styles.wbLeaderboardPane}>
           <div className={styles.wbPaneHeader}>
-            <span className={styles.sectionLabel}>Standings</span>
+            <span className={sharedStyles.sectionLabel}>Standings</span>
             <span className={styles.leaderboardCountPill}>
               {(leaderboardSource === "snapshot" ? leaderboardTotalEntries : leaderboardRows.length)} players
             </span>
           </div>
 
           {leaderboardError ? (
-            <p className={styles.analyticsEmptyState}>{leaderboardError}</p>
+            <p className={sharedStyles.analyticsEmptyState}>{leaderboardError}</p>
           ) : null}
 
           {leaderboardLoading ? (
@@ -335,7 +336,7 @@ export default function WhelmboardTab({
           ) : !leaderboardHasEntries ? (
             <div className={styles.leaderboardEmptyState}>
               <strong>No Whelmboard data yet</strong>
-              <p className={styles.accountMeta}>
+              <p className={sharedStyles.accountMeta}>
                 Once competitive data is available, the global Whelmboard will populate here.
               </p>
             </div>
@@ -362,7 +363,7 @@ export default function WhelmboardTab({
             <div className={styles.leaderboardFooter}>
               <button
                 type="button"
-                className={styles.secondaryPlanButton}
+                className={sharedStyles.secondaryPlanButton}
                 onClick={onLoadMore}
               >
                 Load more
@@ -373,7 +374,7 @@ export default function WhelmboardTab({
           {!leaderboardLoading && leaderboardAroundRows.length > 0 ? (
             <div className={styles.wbAroundSection}>
               <div className={styles.wbPaneHeader}>
-                <span className={styles.sectionLabel}>Around you</span>
+                <span className={sharedStyles.sectionLabel}>Around you</span>
               </div>
               <div className={styles.leaderboardBoardList}>
                 {leaderboardAroundRows.map((row) => (
@@ -398,7 +399,7 @@ export default function WhelmboardTab({
         {/* Bandana tier list */}
         <div className={styles.wbBandanaPane}>
           <div className={styles.wbPaneHeader}>
-            <span className={styles.sectionLabel}>Bandana tiers</span>
+            <span className={sharedStyles.sectionLabel}>Bandana tiers</span>
           </div>
           <div className={styles.leaderboardBandanaList}>
             {leaderboardBandanaHolders.map((holder) => (

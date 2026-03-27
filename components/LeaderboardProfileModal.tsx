@@ -1,7 +1,8 @@
 "use client";
 
-import styles from "@/app/page.module.css";
+import sharedStyles from "@/app/page.module.css";
 import WhelmProfileAvatar from "@/components/WhelmProfileAvatar";
+import styles from "@/components/WhelmboardTab.module.css";
 import { getStreakBandanaTier } from "@/lib/streak-bandanas";
 import { getStreakTierColorTheme } from "@/lib/xp-utils";
 
@@ -42,8 +43,8 @@ export default function LeaderboardProfileModal({
     <div className={styles.feedbackOverlay} onClick={onClose}>
       <div className={styles.lbProfileSheet} onClick={(event) => event.stopPropagation()}>
         <div className={styles.lbProfileHeader}>
-          <span className={styles.sectionLabel}>Player Profile</span>
-          <button type="button" className={styles.feedbackClose} onClick={onClose} aria-label="Close profile">
+          <span className={sharedStyles.sectionLabel}>Player Profile</span>
+          <button type="button" className={sharedStyles.feedbackClose} onClick={onClose} aria-label="Close profile">
             ✕
           </button>
         </div>
