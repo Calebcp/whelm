@@ -8,9 +8,10 @@ import {
 } from "react";
 import { motion } from "motion/react";
 
-import styles from "@/app/page.module.css";
+import sharedStyles from "@/app/page.module.css";
 import AnimatedTabSection from "@/components/AnimatedTabSection";
 import CardsTab from "@/components/CardsTab";
+import styles from "@/components/NotesTab.module.css";
 import ProUnlockCard from "@/components/ProUnlockCard";
 import SenseiFigure from "@/components/SenseiFigure";
 import { type WorkspaceNote, type NoteAttachment } from "@/lib/notes-store";
@@ -549,19 +550,19 @@ export default function NotesTab({
         className={styles.hiddenAttachmentInput}
         onChange={onNoteAttachmentInput}
       />
-      <div className={styles.cardsHeader}>
+      <div className={sharedStyles.cardsHeader}>
         <div>
-          <p className={styles.sectionLabel}>Notes + Cards</p>
-          <h2 className={styles.cardTitle}>Your writing studio</h2>
-          <p className={styles.accountMeta}>
+          <p className={sharedStyles.sectionLabel}>Notes + Cards</p>
+          <h2 className={sharedStyles.cardTitle}>Your writing studio</h2>
+          <p className={sharedStyles.accountMeta}>
             Write freely, then turn your notes into flashcards for spaced-repetition review.
           </p>
         </div>
-        <div className={styles.cardsHeaderActions}>
+        <div className={sharedStyles.cardsHeaderActions}>
           <button
             type="button"
             className={
-              notesSurface === "notes" ? styles.reportButton : styles.secondaryPlanButton
+              notesSurface === "notes" ? sharedStyles.reportButton : sharedStyles.secondaryPlanButton
             }
             onClick={() => onSetNotesSurface("notes")}
           >
@@ -570,7 +571,7 @@ export default function NotesTab({
           <button
             type="button"
             className={
-              notesSurface === "cards" ? styles.reportButton : styles.secondaryPlanButton
+              notesSurface === "cards" ? sharedStyles.reportButton : sharedStyles.secondaryPlanButton
             }
             onClick={() => onSetNotesSurface("cards")}
           >
@@ -586,13 +587,13 @@ export default function NotesTab({
             <article className={styles.mobileNotesStartCard} ref={notesStartRef}>
               <div className={styles.mobileNotesStartHeaderCompact}>
                 <div>
-                  <p className={styles.sectionLabel}>Writing Studio</p>
-                  <h2 className={styles.cardTitle}>Write clean</h2>
-                  <p className={styles.accountMeta}>Start a note or reopen one. Keep the page clear and the thought alive.</p>
+                  <p className={sharedStyles.sectionLabel}>Writing Studio</p>
+                  <h2 className={sharedStyles.cardTitle}>Write clean</h2>
+                  <p className={sharedStyles.accountMeta}>Start a note or reopen one. Keep the page clear and the thought alive.</p>
                 </div>
                 <button
                   type="button"
-                  className={styles.newNoteButton}
+                  className={sharedStyles.newNoteButton}
                   onClick={() => void onMobileCreateNote()}
                 >
                   New note
@@ -602,7 +603,7 @@ export default function NotesTab({
                 {selectedNoteId && (
                   <button
                     type="button"
-                    className={styles.secondaryPlanButton}
+                    className={sharedStyles.secondaryPlanButton}
                     onClick={onOpenCurrentMobileNote}
                   >
                     Return to current note
@@ -610,7 +611,7 @@ export default function NotesTab({
                 )}
                 <button
                   type="button"
-                  className={styles.mobileJumpButton}
+                  className={sharedStyles.mobileJumpButton}
                   onClick={() => {
                     onSetMobileNotesRecentOpen(true);
                     window.setTimeout(() => onScrollToSection(notesRecentRef.current), 80);
@@ -624,13 +625,13 @@ export default function NotesTab({
             <article className={styles.mobileNotesRecentCard} ref={notesRecentRef}>
               <button
                 type="button"
-                className={styles.mobileSectionToggle}
+                className={sharedStyles.mobileSectionToggle}
                 onClick={() => onSetMobileNotesRecentOpen((open) => !open)}
                 aria-expanded={mobileNotesRecentOpen}
               >
                 <div>
-                  <p className={styles.sectionLabel}>Recent Notes</p>
-                  <strong className={styles.mobileSectionToggleTitle}>Reopen the latest writing fast</strong>
+                  <p className={sharedStyles.sectionLabel}>Recent Notes</p>
+                  <strong className={sharedStyles.mobileSectionToggleTitle}>Reopen the latest writing fast</strong>
                 </div>
                 <span>{mobileNotesRecentOpen ? "Hide" : "Open"}</span>
               </button>
@@ -658,7 +659,7 @@ export default function NotesTab({
                         <strong className={styles.noteListTitle}>
                           {note.title || "Untitled note"}
                           {note.attachments.length > 0 ? (
-                            <span className={styles.attachmentIndicatorChip}>
+                            <span className={sharedStyles.attachmentIndicatorChip}>
                               {attachmentIndicatorLabel(note.attachments.length)}
                             </span>
                           ) : null}
@@ -677,7 +678,7 @@ export default function NotesTab({
                       </button>
                     ))}
                     {recentNotes.length === 0 && (
-                      <p className={styles.emptyText}>No notes yet. Start your first one.</p>
+                      <p className={sharedStyles.emptyText}>No notes yet. Start your first one.</p>
                     )}
                   </div>
                 </>
@@ -700,12 +701,12 @@ export default function NotesTab({
               >
                 <div className={styles.notesStudioHero}>
                   <div>
-                    <p className={`${styles.sectionLabel} ${styles.noteHeroLabel}`}>Editing</p>
-                    <h2 className={`${styles.cardTitle} ${styles.noteHeroTitle}`}>
+                    <p className={`${sharedStyles.sectionLabel} ${styles.noteHeroLabel}`}>Editing</p>
+                    <h2 className={`${sharedStyles.cardTitle} ${styles.noteHeroTitle}`}>
                       {selectedNote.title || "Untitled note"}
                     </h2>
                   </div>
-                  <div className={styles.noteFooterActions}>
+                  <div className={sharedStyles.noteFooterActions}>
                     {isPro ? (
                       <div className={styles.noteToneControlRow}>
                         <div className={styles.noteFillModeSwitch}>
@@ -816,7 +817,7 @@ export default function NotesTab({
                     ) : null}
                     <button
                       type="button"
-                      className={`${styles.secondaryPlanButton} ${styles.noteDoneButton}`}
+                      className={`${sharedStyles.secondaryPlanButton} ${styles.noteDoneButton}`}
                       onClick={() => {
                         void onFlushNoteDraft();
                         onSetMobileNotesEditorOpen(false);
@@ -830,8 +831,8 @@ export default function NotesTab({
                 <div className={styles.mobileNotesControls}>
                   <button
                     type="button"
-                    className={`${styles.mobileControlToggle} ${
-                      mobileNotesToolsOpen === "format" ? styles.mobileControlToggleActive : ""
+                    className={`${sharedStyles.mobileControlToggle} ${
+                      mobileNotesToolsOpen === "format" ? sharedStyles.mobileControlToggleActive : ""
                     }`}
                     onClick={() =>
                       onSetMobileNotesToolsOpen((current) => (current === "format" ? null : "format"))
@@ -841,8 +842,8 @@ export default function NotesTab({
                   </button>
                   <button
                     type="button"
-                    className={`${styles.mobileControlToggle} ${
-                      mobileNotesToolsOpen === "type" ? styles.mobileControlToggleActive : ""
+                    className={`${sharedStyles.mobileControlToggle} ${
+                      mobileNotesToolsOpen === "type" ? sharedStyles.mobileControlToggleActive : ""
                     }`}
                     disabled={!isPro}
                     onClick={() =>
@@ -853,8 +854,8 @@ export default function NotesTab({
                   </button>
                   <button
                     type="button"
-                    className={`${styles.mobileControlToggle} ${
-                      mobileNotesToolsOpen === "color" ? styles.mobileControlToggleActive : ""
+                    className={`${sharedStyles.mobileControlToggle} ${
+                      mobileNotesToolsOpen === "color" ? sharedStyles.mobileControlToggleActive : ""
                     }`}
                     disabled={!isPro}
                     onClick={() =>
@@ -866,7 +867,7 @@ export default function NotesTab({
                 </div>
 
                 {mobileNotesToolsOpen === "format" && (
-                  <div className={styles.mobileToolPanel}>
+                  <div className={sharedStyles.mobileToolPanel}>
                     <button
                       type="button"
                       className={styles.noteToolButton}
@@ -937,7 +938,7 @@ export default function NotesTab({
                 )}
 
                 {mobileNotesToolsOpen === "type" && (
-                  <div className={styles.mobileToolPanel}>
+                  <div className={sharedStyles.mobileToolPanel}>
                     <select
                       className={styles.noteToolSelect}
                       value={selectedNote.fontFamily}
@@ -975,7 +976,7 @@ export default function NotesTab({
                 )}
 
                 {mobileNotesToolsOpen === "color" && (
-                  <div className={styles.mobileToolPanel}>
+                  <div className={sharedStyles.mobileToolPanel}>
                     <button
                       type="button"
                       className={styles.noteToolButton}
@@ -1169,10 +1170,10 @@ export default function NotesTab({
                     </span>
                   </div>
                 </div>
-                <div className={styles.noteFooterActions}>
+                <div className={sharedStyles.noteFooterActions}>
                   <button
                     type="button"
-                    className={`${styles.secondaryPlanButton} ${styles.noteDoneButton}`}
+                    className={`${sharedStyles.secondaryPlanButton} ${styles.noteDoneButton}`}
                     onClick={() => {
                       void onFlushNoteDraft();
                       onSetSelectedNoteId(null);
@@ -1182,14 +1183,14 @@ export default function NotesTab({
                   </button>
                   <button
                     type="button"
-                    className={`${styles.reportButton} ${styles.blockActionButton}`}
+                    className={`${sharedStyles.reportButton} ${sharedStyles.blockActionButton}`}
                     onClick={() => onConvertNoteToBlock(selectedNote)}
                   >
                     Turn into block
                   </button>
                   <button
                     type="button"
-                    className={styles.deleteNoteButton}
+                    className={sharedStyles.deleteNoteButton}
                     onClick={() => void onDeleteNote(selectedNote.id)}
                   >
                     Remove note
@@ -1217,13 +1218,13 @@ export default function NotesTab({
             >
               <div className={styles.notesSidebarHeader}>
                 <div>
-                  <p className={styles.sectionLabel}>Notes + Cards</p>
+                  <p className={sharedStyles.sectionLabel}>Notes + Cards</p>
                   <h2 className={styles.notesSidebarTitle}>Writing studio</h2>
                   <p className={styles.notesSidebarMeta}>
                     {filteredNotes.length} visible note{filteredNotes.length === 1 ? "" : "s"}
                   </p>
                 </div>
-                <button type="button" className={styles.newNoteButton} onClick={onCreateNote}>
+                <button type="button" className={sharedStyles.newNoteButton} onClick={onCreateNote}>
                   + New
                 </button>
               </div>
@@ -1248,7 +1249,7 @@ export default function NotesTab({
                   <option value="work">Work</option>
                 </select>
                 {!isPro && (
-                  <button type="button" className={styles.inlineUpgrade} onClick={onOpenUpgradeFlow}>
+                  <button type="button" className={sharedStyles.inlineUpgrade} onClick={onOpenUpgradeFlow}>
                     Upgrade to Whelm Pro
                   </button>
                 )}
@@ -1279,7 +1280,7 @@ export default function NotesTab({
                         {note.isPinned ? "★ " : ""}
                         {note.title || "Untitled note"}
                         {note.attachments.length > 0 ? (
-                          <span className={styles.attachmentIndicatorChip}>
+                          <span className={sharedStyles.attachmentIndicatorChip}>
                             {attachmentIndicatorLabel(note.attachments.length)}
                           </span>
                         ) : null}
@@ -1309,11 +1310,11 @@ export default function NotesTab({
                   </motion.div>
                 ))}
                 {filteredNotes.length === 0 && (
-                  <p className={styles.emptyText}>No notes match your filters.</p>
+                  <p className={sharedStyles.emptyText}>No notes match your filters.</p>
                 )}
               </div>
               {!isPro && hasLockedNotesHistory ? (
-                <p className={styles.accountMeta}>
+                <p className={sharedStyles.accountMeta}>
                   Whelm Free keeps the last 14 days of notes visible. Whelm Pro keeps the older archive ready
                   whenever you want it back.
                 </p>
@@ -1352,7 +1353,7 @@ export default function NotesTab({
                 <>
                   <div className={styles.notesStudioHero}>
                     <div>
-                      <p className={styles.sectionLabel}>Writing Studio</p>
+                      <p className={sharedStyles.sectionLabel}>Writing Studio</p>
                       <h2 className={styles.notesEditorTitle}>
                         {selectedNote.title || "Untitled note"}
                       </h2>
@@ -1532,7 +1533,7 @@ export default function NotesTab({
                       Reminder
                       <input
                         type="datetime-local"
-                        className={styles.planControl}
+                        className={sharedStyles.planControl}
                         value={
                           selectedNote.reminderAtISO
                             ? new Date(selectedNote.reminderAtISO)
@@ -1905,20 +1906,20 @@ export default function NotesTab({
                         {selectedNoteWordCount} word{selectedNoteWordCount === 1 ? "" : "s"}
                         {selectedNoteWordCount >= 33 ? " · streak writing met" : ""}
                       </span>
-                      <div className={styles.noteFooterActions}>
+                      <div className={sharedStyles.noteFooterActions}>
                         <button
                           type="button"
-                          className={`${styles.reportButton} ${styles.blockActionButton}`}
+                          className={`${sharedStyles.reportButton} ${sharedStyles.blockActionButton}`}
                           onClick={() => onConvertNoteToBlock(selectedNote)}
                         >
                           Turn into block
                         </button>
                         {notesSyncStatus !== "synced" && (
-                          <button type="button" className={styles.retrySyncButton} onClick={() => void onRetrySync()}>
+                          <button type="button" className={sharedStyles.retrySyncButton} onClick={() => void onRetrySync()}>
                             Retry notes sync
                           </button>
                         )}
-                        <button type="button" className={styles.deleteNoteButton} onClick={() => void onDeleteNote(selectedNote.id)}>
+                        <button type="button" className={sharedStyles.deleteNoteButton} onClick={() => void onDeleteNote(selectedNote.id)}>
                           Remove note
                         </button>
                       </div>
