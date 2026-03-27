@@ -59,7 +59,6 @@ import {
 } from "@/lib/reflection-store";
 import { loadSessions, saveSession } from "@/lib/session-store";
 import {
-  computeHistoricalStreaks,
   computeStreak,
   computeStreakEndingAtDateKey,
   type SessionDoc,
@@ -117,6 +116,7 @@ import {
 import { useNotes } from "@/hooks/useNotes";
 import { useLeaderboard } from "@/hooks/useLeaderboard";
 import { usePlannedBlocks } from "@/hooks/usePlannedBlocks";
+import { useStreak } from "@/hooks/useStreak";
 import { useUserData } from "@/hooks/useUserData";
 import styles from "./page.module.css";
 
@@ -449,20 +449,6 @@ type MonthCell = {
   level: 0 | 1 | 2 | 3;
   isCurrentMonth: boolean;
   tone?: CalendarTone;
-};
-
-type StreakMonthCell = {
-  key: string;
-  dateKey: string | null;
-  dayNumber: number | null;
-  isCurrentMonth: boolean;
-  isToday: boolean;
-  streakLength: number;
-  streakTierColor: string | null;
-  hasSession: boolean;
-  isSaved: boolean;
-  leftConnected: boolean;
-  rightConnected: boolean;
 };
 
 type CalendarEntrySource = "plan" | "reminder" | "session";
@@ -1261,21 +1247,6 @@ function isDateKeyWithinRecentWindow(dateKey: string, days: number) {
 
 function normalizePlannableDateKey(dateKey: string) {
   return isDateKeyBeforeToday(dateKey) ? dayKeyLocal(new Date()) : dateKey;
-}
-
-function buildNextBandanaMilestone(streak: number, countsTodayIfEarnedNow = false) {
-  const nextTier = STREAK_BANDANA_TIERS.find((tier) => streak < tier.minDays) ?? null;
-  if (!nextTier) return null;
-
-  const remainingDays = nextTier.minDays - streak;
-  const daysUntilTarget = Math.max(0, remainingDays - (countsTodayIfEarnedNow ? 1 : 0));
-  const targetDate = addDays(startOfDayLocal(new Date()), daysUntilTarget);
-
-  return {
-    tier: nextTier,
-    remainingDays,
-    targetDate,
-  };
 }
 
 function countSessionsForDate(sessions: SessionDoc[], dateKey: string) {
@@ -3245,10 +3216,6 @@ export default function HomePage() {
   );
   const [dayTones, setDayTones] = useState<DayToneMap>({});
   const [monthTones, setMonthTones] = useState<MonthToneMap>({});
-  const [streakCalendarCursor, setStreakCalendarCursor] = useState<Date>(() => {
-    const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), 1);
-  });
   const { toasts: whelToasts, showToast, dismissToast } = useToasts();
   const [kpiDetailOpen, setKpiDetailOpen] = useState<KpiDetailKey | null>(null);
   const [historySectionsOpen, setHistorySectionsOpen] = useState({
@@ -3576,6 +3543,51 @@ export default function HomePage() {
     plannedBlocksHydrated,
     onSignIn: handleUserSignedIn,
     onSignOut,
+  });
+
+  const {
+    streakCalendarCursor,
+    setStreakCalendarCursor,
+    historicalStreaksByDay,
+    todayKey,
+    yesterdayKey,
+    todayFocusMinutes,
+    todayNoteWords,
+    hasEarnedToday,
+    displayStreak,
+    streakBandanaTier,
+    xpTierTheme,
+    xpDockStyle,
+    mobileStreakJumpStyle,
+    monthlyStreakSaveCount,
+    streakSaveSlotsLeft,
+    rawYesterdayMissed,
+    yesterdaySave,
+    monthlySaveLimitReached,
+    sickDaySaveEligible,
+    formattedLifetimeXp,
+    formattedXpToNextLevel,
+    nextBandanaMilestone,
+    longestStreak,
+    streakRuleV2ActiveToday,
+    streakProtectedToday,
+    streakProgressMinutesLabel,
+    streakProgressBlocksLabel,
+    streakProgressWordsLabel,
+    streakStatusLine,
+    streakNudgeDraft,
+    streakRuleSummaryLine,
+    streakMonthLabel,
+    streakMonthCalendar,
+  } = useStreak({
+    streak,
+    streakQualifiedDateKeys,
+    sessionMinutesByDay,
+    noteWordsByDay,
+    completedBlocksByDay,
+    sickDaySaves,
+    sickDaySaveDismissals,
+    lifetimeXpSummary,
   });
 
   useEffect(() => {
@@ -5573,10 +5585,6 @@ export default function HomePage() {
     year: "numeric",
   });
   const calendarMonthInput = monthInputFromDate(calendarCursor);
-  const historicalStreaksByDay = useMemo(
-    () => computeHistoricalStreaks([], streakQualifiedDateKeys),
-    [streakQualifiedDateKeys],
-  );
   const dynamicMonthCalendar = useMemo<MonthCell[]>(() => {
     const monthStart = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth(), 1);
     const daysInMonth = new Date(
@@ -5623,99 +5631,6 @@ export default function HomePage() {
 
     return cells;
   }, [calendarCursor, dayTones, monthTones, selectedCalendarMonthKey, sessionMinutesByDay]);
-  const streakMonthLabel = streakCalendarCursor.toLocaleDateString(undefined, {
-    month: "long",
-    year: "numeric",
-  });
-  const streakMonthCalendar = useMemo<StreakMonthCell[]>(() => {
-    const monthStart = new Date(
-      streakCalendarCursor.getFullYear(),
-      streakCalendarCursor.getMonth(),
-      1,
-    );
-    const daysInMonth = new Date(
-      streakCalendarCursor.getFullYear(),
-      streakCalendarCursor.getMonth() + 1,
-      0,
-    ).getDate();
-    const cells: StreakMonthCell[] = [];
-    const leadingSpaces = monthStart.getDay();
-    const todayKey = dayKeyLocal(new Date());
-
-    for (let i = 0; i < leadingSpaces; i += 1) {
-      cells.push({
-        key: `streak-leading-${i}`,
-        dateKey: null,
-        dayNumber: null,
-        isCurrentMonth: false,
-        isToday: false,
-        streakLength: 0,
-        streakTierColor: null,
-        hasSession: false,
-        isSaved: false,
-        leftConnected: false,
-        rightConnected: false,
-      });
-    }
-
-    for (let dayNumber = 1; dayNumber <= daysInMonth; dayNumber += 1) {
-      const day = new Date(
-        streakCalendarCursor.getFullYear(),
-        streakCalendarCursor.getMonth(),
-        dayNumber,
-      );
-      const dateKey = dayKeyLocal(day);
-      const isFutureDate = dateKey > todayKey;
-      const streakLength = isFutureDate ? 0 : (historicalStreaksByDay.get(dateKey) ?? 0);
-      cells.push({
-        key: dateKey,
-        dateKey,
-        dayNumber,
-        isCurrentMonth: true,
-        isToday: dateKey === todayKey,
-        streakLength,
-        streakTierColor: isFutureDate ? null : (getStreakBandanaTier(streakLength)?.color ?? null),
-        hasSession: !isFutureDate && sessionMinutesByDay.has(dateKey),
-        isSaved:
-          !isFutureDate &&
-          protectedStreakDateKeys.includes(dateKey) &&
-          !sessionMinutesByDay.has(dateKey),
-        leftConnected: false,
-        rightConnected: false,
-      });
-    }
-
-    while (cells.length < 42) {
-      cells.push({
-        key: `streak-trailing-${cells.length}`,
-        dateKey: null,
-        dayNumber: null,
-        isCurrentMonth: false,
-        isToday: false,
-        streakLength: 0,
-        streakTierColor: null,
-        hasSession: false,
-        isSaved: false,
-        leftConnected: false,
-        rightConnected: false,
-      });
-    }
-
-    return cells.map((cell, index, items) => {
-      if (!cell.dateKey || cell.streakLength <= 0) return cell;
-
-      const previous = items[index - 1];
-      const next = items[index + 1];
-      const sameWeekAsPrevious = previous ? Math.floor((index - 1) / 7) === Math.floor(index / 7) : false;
-      const sameWeekAsNext = next ? Math.floor((index + 1) / 7) === Math.floor(index / 7) : false;
-
-      return {
-        ...cell,
-        leftConnected: Boolean(previous?.dateKey) && (previous?.streakLength ?? 0) > 0 && sameWeekAsPrevious,
-        rightConnected: Boolean(next?.dateKey) && (next?.streakLength ?? 0) > 0 && sameWeekAsNext,
-      };
-    });
-  }, [historicalStreaksByDay, sessionMinutesByDay, streakCalendarCursor]);
   const selectedDatePlanGroups = useMemo(() => {
     const sameDate = plannedBlocks
       .filter(
@@ -6439,9 +6354,6 @@ export default function HomePage() {
   const nextPlannedBlock = todayActivePlannedBlocks[0] ?? null;
   const mobileMoreActive = MOBILE_MORE_TABS.includes(activeTab);
   const recentNotes = filteredNotes.slice(0, 4);
-  const todayKey = dayKeyLocal(new Date());
-  const yesterdayKey = dayKeyLocal(addDays(startOfDayLocal(new Date()), -1));
-  const dayBeforeYesterdayKey = dayKeyLocal(addDays(startOfDayLocal(new Date()), -2));
   const todayLabel = new Date().toLocaleDateString(undefined, {
     month: "long",
     day: "numeric",
@@ -6449,55 +6361,6 @@ export default function HomePage() {
   const todaySessionNoteCount = sessions.filter((session) => {
     return dayKeyLocal(session.completedAtISO) === todayKey && Boolean(session.note?.trim());
   }).length;
-  const todayCompletedBlocksCount = completedBlocksByDay.get(todayKey) ?? 0;
-  const todayFocusMinutes = sessionMinutesByDay.get(todayKey) ?? 0;
-  const todayNoteWords = noteWordsByDay.get(todayKey) ?? 0;
-  const currentMonthKey = monthKeyLocal(new Date());
-  const monthlyStreakSaveCount = sickDaySaves.filter(
-    (save) => monthKeyLocal(save.claimedAtISO) === currentMonthKey,
-  ).length;
-  const streakSaveSlotsLeft = Math.max(0, STREAK_SAVE_MONTHLY_LIMIT - monthlyStreakSaveCount);
-  const todayMinutesProgress = Math.min(30, todayFocusMinutes);
-  const todayWordsProgress = Math.min(33, todayNoteWords);
-  const hasEarnedToday = streakQualifiedDateKeys.includes(todayKey);
-  const yesterdaySave = sickDaySaves.find((save) => save.dateKey === yesterdayKey) ?? null;
-  const rawYesterdayMissed = !streakQualifiedDateKeys.includes(yesterdayKey);
-  const priorRunBeforeYesterday = computeStreakEndingAtDateKey(
-    [],
-    dayBeforeYesterdayKey,
-    streakQualifiedDateKeys,
-  );
-  const monthlySaveLimitReached = monthlyStreakSaveCount >= STREAK_SAVE_MONTHLY_LIMIT;
-  const sickDaySaveEligible =
-    rawYesterdayMissed &&
-    priorRunBeforeYesterday > 0 &&
-    !yesterdaySave &&
-    !monthlySaveLimitReached &&
-    !sickDaySaveDismissals.includes(yesterdayKey);
-  const carriedRunThroughYesterday = computeStreakEndingAtDateKey(
-    [],
-    yesterdayKey,
-    streakQualifiedDateKeys,
-  );
-  const displayStreak = hasEarnedToday ? streak : carriedRunThroughYesterday;
-  const streakBandanaTier = getStreakBandanaTier(displayStreak);
-  const xpTierTheme = getStreakTierColorTheme(streakBandanaTier?.color);
-  const xpDockStyle = {
-    "--xp-accent": xpTierTheme.accent,
-    "--xp-accent-strong": xpTierTheme.accentStrong,
-    "--xp-accent-deep": xpTierTheme.accentDeep,
-    "--xp-accent-glow": xpTierTheme.accentGlow,
-    "--xp-shell": xpTierTheme.shell,
-    "--xp-text-strong": xpTierTheme.textStrong,
-    "--xp-text-soft": xpTierTheme.textSoft,
-  } as CSSProperties;
-  const mobileStreakJumpStyle = {
-    "--mobile-streak-accent": xpTierTheme.accent,
-    "--mobile-streak-accent-strong": xpTierTheme.accentStrong,
-    "--mobile-streak-accent-deep": xpTierTheme.accentDeep,
-    "--mobile-streak-glow": xpTierTheme.accentGlow,
-    "--mobile-streak-text": xpTierTheme.textStrong,
-  } as CSSProperties;
   const profileTierTheme = getProfileTierTheme(streakBandanaTier?.color, isPro);
   const {
     leaderboardMetricTab,
@@ -6549,85 +6412,7 @@ export default function HomePage() {
     };
   }, [selectedDateEntries, selectedDateFocusedMinutes, selectedDateKey]);
 
-  const formattedLifetimeXp = lifetimeXpSummary.totalXp.toLocaleString();
-  const formattedXpToNextLevel = Math.max(
-    0,
-    lifetimeXpSummary.nextLevelXp - lifetimeXpSummary.totalXp,
-  ).toLocaleString();
-  const nextBandanaMilestone = buildNextBandanaMilestone(displayStreak, !hasEarnedToday);
-  const longestStreak = Math.max(0, ...Array.from(historicalStreaksByDay.values()));
   const lifetimeFocusMinutes = sessions.reduce((sum, session) => sum + session.minutes, 0);
-  const streakMinutesLeft = Math.max(0, 30 - todayFocusMinutes);
-  const streakWordsLeft = Math.max(0, 33 - todayNoteWords);
-  const streakBlocksLeft = Math.max(0, 1 - todayCompletedBlocksCount);
-  const streakEffortRequirementMet = todayFocusMinutes >= 30 || todayNoteWords >= 33;
-  const streakRuleV2ActiveToday = todayKey >= STREAK_RULE_V2_START_DATE;
-  const streakProtectedToday = hasEarnedToday;
-  const streakProgressMinutesLabel = `${todayMinutesProgress}/30 focus minutes`;
-  const streakProgressBlocksLabel = `${Math.min(todayCompletedBlocksCount, 1)}/1 completed block`;
-  const streakProgressWordsLabel = `${todayWordsProgress}/33 note words`;
-  const streakStatusLine = streakProtectedToday
-    ? streakRuleV2ActiveToday
-      ? `Congratulations. ${todayLabel} is protected and your streak is secured for today.`
-      : `${todayLabel} already counts toward your streak. The stricter rule starts on March 22.`
-    : streakBlocksLeft > 0 && streakEffortRequirementMet
-      ? `${todayLabel} is not protected yet. You met the focus or writing requirement. Complete 1 block to secure the streak.`
-      : streakBlocksLeft === 0
-        ? `${todayLabel} is not protected yet. Your block is done. Finish ${streakMinutesLeft} more focus minute${streakMinutesLeft === 1 ? "" : "s"} or write ${streakWordsLeft} more note word${streakWordsLeft === 1 ? "" : "s"}.`
-        : `${todayLabel} is not protected yet. Complete 1 block and either reach 30 focus minutes or write 33 note words.`;
-  const streakNudgeDraft = useMemo(() => {
-    if (streakProtectedToday || !streakRuleV2ActiveToday) return null;
-
-    if (streakBlocksLeft > 0 && !streakEffortRequirementMet) {
-      return {
-        title: "One block and one clean push secures today.",
-        body: `You still need 1 completed block plus either ${streakMinutesLeft} more focus minute${
-          streakMinutesLeft === 1 ? "" : "s"
-        } or ${streakWordsLeft} more note word${streakWordsLeft === 1 ? "" : "s"}.`,
-        actionLabel: "Open Schedule",
-        actionTab: "calendar" as const,
-      };
-    }
-
-    if (streakBlocksLeft > 0) {
-      return {
-        title: "You already did the hard part.",
-        body: "Your focus or writing requirement is already met. One completed block is all that is left to protect today.",
-        actionLabel: "Finish A Block",
-        actionTab: "calendar" as const,
-      };
-    }
-
-    if (streakMinutesLeft <= streakWordsLeft) {
-      return {
-        title: "Today is still one focused session away.",
-        body: `Your block is already done. Add ${streakMinutesLeft} more focus minute${
-          streakMinutesLeft === 1 ? "" : "s"
-        } to secure the streak.`,
-        actionLabel: "Open Timer",
-        actionTab: "today" as const,
-      };
-    }
-
-    return {
-      title: "One more note can still protect today.",
-      body: `Your block is already done. Write ${streakWordsLeft} more note word${
-        streakWordsLeft === 1 ? "" : "s"
-      } and today is secured.`,
-      actionLabel: "Open Notes",
-      actionTab: "notes" as const,
-    };
-  }, [
-    streakBlocksLeft,
-    streakEffortRequirementMet,
-    streakMinutesLeft,
-    streakProtectedToday,
-    streakRuleV2ActiveToday,
-    streakWordsLeft,
-  ]);
-  const streakRuleSummaryLine = streakRuleV2ActiveToday
-    ? "A streak day needs 1 completed block and either 30 focus minutes or 33 note words."
-    : "Your previous streak days stay unchanged. The new stricter rule starts on March 22.";
   const notificationsBlocked = dailyPlanningLocked || dailyPlanningOpen || dailyPlanningPreviewOpen;
   const previousStreakProtectedTodayRef = useRef<boolean | null>(null);
 
