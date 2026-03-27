@@ -58,6 +58,7 @@ import {
   type PreferencesBackgroundSkin,
 } from "@/lib/preferences-store";
 import { loadSessions } from "@/lib/session-store";
+import { getProfileTierTheme } from "@/lib/profile-tier";
 import {
   computeStreak,
   computeStreakEndingAtDateKey,
@@ -992,13 +993,6 @@ function analyticsSubjectModeFromText(text: string): "language" | "school" | "wo
 }
 
 type NavIconKey = AppTab | "more";
-type ProfileTierTheme = {
-  title: string;
-  imagePath: string;
-};
-
-
-
 type AppBackgroundSetting =
   | { kind: "default" }
   | { kind: "preset"; value: string }
@@ -1264,64 +1258,6 @@ function iconForTab(tab: AppTab) {
 
 function iconForNavKey(tab: NavIconKey) {
   return <WhelmNavIcon icon={tab} />;
-}
-
-function getProfileTierTheme(
-  tier: string | null | undefined,
-  isPro = false,
-): ProfileTierTheme {
-  switch (tier) {
-    case "white":
-      return {
-        title: "White Ascendant",
-        imagePath: isPro
-          ? "/profile-tiers/premium_profile_white.PNG"
-          : "/profile-tiers/white_profile.PNG",
-      };
-    case "black":
-      return {
-        title: "Black Resolve",
-        imagePath: isPro
-          ? "/profile-tiers/premium_profile_black.PNG"
-          : "/profile-tiers/black_profile.PNG",
-      };
-    case "blue":
-      return {
-        title: "Blue Voltage",
-        imagePath: isPro
-          ? "/profile-tiers/premium_profile_blue.PNG"
-          : "/profile-tiers/blue_profile.PNG",
-      };
-    case "purple":
-      return {
-        title: "Purple Pulse",
-        imagePath: isPro
-          ? "/profile-tiers/premium_profile_purple.PNG"
-          : "/profile-tiers/purple_profile.PNG",
-      };
-    case "green":
-      return {
-        title: "Green Current",
-        imagePath: isPro
-          ? "/profile-tiers/premium_profile_green.PNG"
-          : "/profile-tiers/green_profile.PNG",
-      };
-    case "red":
-      return {
-        title: "Red Return",
-        imagePath: isPro
-          ? "/profile-tiers/premium_profile_red.PNG"
-          : "/profile-tiers/red_profile.PNG",
-      };
-    case "yellow":
-    default:
-      return {
-        title: "Yellow Spark",
-        imagePath: isPro
-          ? "/profile-tiers/premium_profile_yellow.PNG"
-          : "/profile-tiers/yellow_profile.PNG",
-      };
-  }
 }
 
 function tabTitle(tab: AppTab) {
