@@ -20,6 +20,7 @@ import SettingsTab from "@/components/SettingsTab";
 import HistoryTab from "@/components/HistoryTab";
 import WhelmboardTab from "@/components/WhelmboardTab";
 import StreaksTab from "@/components/StreaksTab";
+import MirrorTab from "@/components/MirrorTab";
 import SenseiFigure, { type SenseiVariant } from "@/components/SenseiFigure";
 import WhelMascot from "@/components/WhelMascot";
 import Timer, { type TimerSessionContext } from "@/components/Timer";
@@ -10685,178 +10686,37 @@ export default function HomePage() {
           )}
 
           {activeTab === "mirror" && (
-            <AnimatedTabSection className={styles.mirrorShell} sectionRef={mirrorSectionRef}>
-              <CollapsibleSectionCard
-                className={styles.mirrorHeroCard}
-                label="Private Reflection"
-                title="Streak Mirror"
-                description="Private reflection for resets, sick-day saves, and pattern review."
-                open={mirrorSectionsOpen.summary}
-                onToggle={() =>
-                  setMirrorSectionsOpen((current) => ({ ...current, summary: !current.summary }))
-                }
-              >
-                <div className={styles.mirrorHeroCopy}>
-                  <p className={styles.mirrorSaying}>{streakMirrorSaying}</p>
-                  <div className={styles.mirrorPrivacyWrap}>
-                    <button
-                      type="button"
-                      className={styles.secondaryPlanButton}
-                      onClick={() => setMirrorPrivacyOpen((current) => !current)}
-                    >
-                      Privacy
-                    </button>
-                    {mirrorPrivacyOpen ? (
-                      <p className={styles.mirrorLead}>
-                        Private to you. No one else sees your Streak Mirror entries. Whelm keeps
-                        them only to support honest reflection and accountability inside the app.
-                      </p>
-                    ) : null}
-                  </div>
-                </div>
-                <div className={styles.mirrorHeroMeta}>
-                  <div className={styles.mirrorCounterCard}>
-                    <span>This month</span>
-                    <strong>
-                      {monthlyStreakSaveCount}/{STREAK_SAVE_MONTHLY_LIMIT}
-                    </strong>
-                    <small>
-                      {streakSaveSlotsLeft > 0
-                        ? `${streakSaveSlotsLeft} streak save${streakSaveSlotsLeft === 1 ? "" : "s"} left`
-                        : "Monthly save limit reached"}
-                    </small>
-                  </div>
-                </div>
-              </CollapsibleSectionCard>
-
-              <div ref={mirrorEntriesAnchorRef}>
-                <CollapsibleSectionCard
-                  className={styles.mirrorGridCard}
-                  label="Entries"
-                  title={streakMirrorEntries.length === 0 ? "No reflections yet" : "Look back clearly"}
-                  description={
-                    streakMirrorEntries.length === 0
-                      ? "When a streak save is used, the reflection is stored here as a private mirror entry."
-                      : isPro
-                        ? "Every saved mirror entry stays available here."
-                        : "Whelm Free keeps your 2 most recent mirror entries visible. Whelm Pro keeps the full archive available."
-                  }
-                  open={mirrorSectionsOpen.entries}
-                  onToggle={() =>
-                    setMirrorSectionsOpen((current) => ({ ...current, entries: !current.entries }))
-                  }
-                >
-                  {streakMirrorVisibleEntries.length > 0 ? (
-                    <div className={styles.mirrorEntryGrid}>
-                    {streakMirrorVisibleEntries.map((entry) => {
-                      const tagMeta = getStreakMirrorTagMeta(entry.tag);
-                      return (
-                        <button
-                          key={entry.id}
-                          type="button"
-                          className={`${styles.mirrorEntryCard} ${
-                            selectedStreakMirrorEntry?.id === entry.id ? styles.mirrorEntryCardActive : ""
-                          }`}
-                          style={{ ["--mirror-accent" as const]: tagMeta.accent } as CSSProperties}
-                          onClick={() => {
-                            setSelectedStreakMirrorId(entry.id);
-                            setMirrorSectionsOpen((current) => ({
-                              ...current,
-                              entries: true,
-                              detail: true,
-                            }));
-                          }}
-                        >
-                          <div className={styles.mirrorEntryCardHeader}>
-                            <img src="/mirror-icon-tab.png" alt="" className={styles.mirrorEntryIcon} />
-                            <span className={styles.mirrorEntryTag}>{tagMeta.label}</span>
-                          </div>
-                          <strong className={styles.mirrorEntryDate}>
-                            {new Date(`${entry.dateKey}T00:00:00`).toLocaleDateString(undefined, {
-                              month: "long",
-                              day: "numeric",
-                              year: "numeric",
-                            })}
-                          </strong>
-                          <p className={styles.mirrorEntryPreview}>
-                            {entry.answers[STREAK_SAVE_ACCOUNTABILITY_QUESTIONS[0]]}
-                          </p>
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <p className={styles.emptyText}>No mirror entries yet. Honest save reflections will appear here.</p>
-                )}
-
-                  {!isPro && streakMirrorEntries.length > 2 ? (
-                    <ProUnlockCard
-                      title="Full Streak Mirror archive"
-                      body={`${WHELM_PRO_POSITIONING} Whelm Free keeps the 2 most recent mirror reflections visible. Whelm Pro keeps the full archive so patterns stay easy to trace.`}
-                      open={proPanelsOpen.mirror}
-                      onToggle={() =>
-                        setProPanelsOpen((current) => ({ ...current, mirror: !current.mirror }))
-                      }
-                      onPreview={() => void handleStartProPreview()}
-                    />
-                  ) : null}
-                </CollapsibleSectionCard>
-              </div>
-
-              <CollapsibleSectionCard
-                className={styles.mirrorDetailCard}
-                label="Entry View"
-                title={selectedStreakMirrorEntry ? "Private accountability reflection" : "Select a mirror card"}
-                description={
-                  selectedStreakMirrorEntry
-                    ? "Open the full reflection only when you want the detail."
-                    : "Choose one of your mirror cards to open the full reflection."
-                }
-                open={mirrorSectionsOpen.detail}
-                onToggle={() =>
-                  setMirrorSectionsOpen((current) => ({ ...current, detail: !current.detail }))
-                }
-              >
-                {selectedStreakMirrorEntry ? (
-                  <div className={styles.mirrorDetailBody}>
-                    <div className={styles.mirrorDetailMeta}>
-                      <span className={styles.mirrorDetailDate}>
-                        {new Date(`${selectedStreakMirrorEntry.dateKey}T00:00:00`).toLocaleDateString(
-                          undefined,
-                          {
-                            weekday: "long",
-                            month: "long",
-                            day: "numeric",
-                            year: "numeric",
-                          },
-                        )}
-                      </span>
-                      <span
-                        className={styles.mirrorEntryTag}
-                        style={{
-                          backgroundColor: `${getStreakMirrorTagMeta(selectedStreakMirrorEntry.tag).accent}22`,
-                          borderColor: `${getStreakMirrorTagMeta(selectedStreakMirrorEntry.tag).accent}66`,
-                          color: getStreakMirrorTagMeta(selectedStreakMirrorEntry.tag).accent,
-                        }}
-                      >
-                        {getStreakMirrorTagMeta(selectedStreakMirrorEntry.tag).label}
-                      </span>
-                    </div>
-                    <div className={styles.mirrorAnswerList}>
-                      {STREAK_SAVE_ACCOUNTABILITY_QUESTIONS.map((question, index) => (
-                        <article key={question} className={styles.mirrorAnswerCard}>
-                          <p className={styles.mirrorQuestionLabel}>Prompt {index + 1}</p>
-                          <strong className={styles.mirrorQuestionText}>{question}</strong>
-                          <p className={styles.mirrorAnswerText}>
-                            {selectedStreakMirrorEntry.answers[question]}
-                          </p>
-                        </article>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-              </CollapsibleSectionCard>
-            </AnimatedTabSection>
+            <MirrorTab
+              sectionRef={mirrorSectionRef}
+              entriesAnchorRef={mirrorEntriesAnchorRef}
+              mirrorSectionsOpen={mirrorSectionsOpen}
+              onToggleMirrorSection={(key) =>
+                setMirrorSectionsOpen((current) => ({ ...current, [key]: !current[key] }))
+              }
+              streakMirrorSaying={streakMirrorSaying}
+              mirrorPrivacyOpen={mirrorPrivacyOpen}
+              onToggleMirrorPrivacy={() => setMirrorPrivacyOpen((current) => !current)}
+              monthlyStreakSaveCount={monthlyStreakSaveCount}
+              streakSaveMonthlyLimit={STREAK_SAVE_MONTHLY_LIMIT}
+              streakSaveSlotsLeft={streakSaveSlotsLeft}
+              streakMirrorEntries={streakMirrorEntries}
+              streakMirrorVisibleEntries={streakMirrorVisibleEntries}
+              selectedStreakMirrorEntry={selectedStreakMirrorEntry}
+              isPro={isPro}
+              onSelectMirrorEntry={(id) => {
+                setSelectedStreakMirrorId(id);
+                setMirrorSectionsOpen((current) => ({
+                  ...current,
+                  entries: true,
+                  detail: true,
+                }));
+              }}
+              proPanelMirrorOpen={proPanelsOpen.mirror}
+              onToggleProMirrorPanel={() =>
+                setProPanelsOpen((current) => ({ ...current, mirror: !current.mirror }))
+              }
+              onStartProPreview={() => void handleStartProPreview()}
+            />
           )}
 
           {activeTab === "notes" && (
