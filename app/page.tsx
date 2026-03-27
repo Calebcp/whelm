@@ -18,6 +18,7 @@ import BottomNav from "@/components/BottomNav";
 import TopAppBar from "@/components/TopAppBar";
 import SettingsTab from "@/components/SettingsTab";
 import HistoryTab from "@/components/HistoryTab";
+import WhelmboardTab from "@/components/WhelmboardTab";
 import SenseiFigure, { type SenseiVariant } from "@/components/SenseiFigure";
 import WhelMascot from "@/components/WhelMascot";
 import Timer, { type TimerSessionContext } from "@/components/Timer";
@@ -10654,174 +10655,32 @@ export default function HomePage() {
           )}
 
           {activeTab === "leaderboard" && (
-            <AnimatedTabSection className={`${styles.leaderboardShell} ${styles.wbThemeShell}`} sectionRef={leaderboardSectionRef}>
-
-              {/* Compact header */}
-              <div className={styles.wbHeader} ref={leaderboardPrimaryRef as React.RefObject<HTMLDivElement>}>
-                <div>
-                  <p className={styles.sectionLabel}>Whelmboard</p>
-                  <h2 className={styles.wbTitle}>Global Whelm rank</h2>
-                </div>
-                <div className={styles.wbHeaderRight}>
-                  <div className={styles.wbRankBadge}>
-                    <span>{leaderboardMetricTab === "xp" ? "XP" : "Streak"}</span>
-                    <strong>#{leaderboardCurrentUserRank || "--"}</strong>
-                  </div>
-                  <LeaderboardMovementIndicator movement={leaderboardCurrentUserMovement} tab={leaderboardMetricTab} />
-                </div>
-              </div>
-
-              {/* XP / Streak toggle */}
-              <div className={styles.leaderboardToggle} role="tablist" aria-label="Whelmboard views">
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={leaderboardMetricTab === "xp"}
-                  className={`${styles.leaderboardToggleButton} ${
-                    leaderboardMetricTab === "xp" ? styles.leaderboardToggleButtonActive : ""
-                  }`}
-                  onClick={() => {
-                    if (leaderboardMetricTab === "xp") return;
-                    void trackLeaderboardTabSwitched(user, {
-                      fromMetric: leaderboardMetricTab,
-                      toMetric: "xp",
-                    }).catch(() => undefined);
-                    setLeaderboardMetricTab("xp");
-                  }}
-                >
-                  XP
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={leaderboardMetricTab === "streak"}
-                  className={`${styles.leaderboardToggleButton} ${
-                    leaderboardMetricTab === "streak" ? styles.leaderboardToggleButtonActive : ""
-                  }`}
-                  onClick={() => {
-                    if (leaderboardMetricTab === "streak") return;
-                    void trackLeaderboardTabSwitched(user, {
-                      fromMetric: leaderboardMetricTab,
-                      toMetric: "streak",
-                    }).catch(() => undefined);
-                    setLeaderboardMetricTab("streak");
-                  }}
-                >
-                  Streak
-                </button>
-              </div>
-
-              {/* Desktop 2-col: leaderboard list | bandana tiers */}
-              <div className={styles.wbDesktopGrid}>
-
-                {/* ── Main leaderboard + around-you ── */}
-                <div className={styles.wbLeaderboardPane}>
-                  <div className={styles.wbPaneHeader}>
-                    <span className={styles.sectionLabel}>Standings</span>
-                    <span className={styles.leaderboardCountPill}>
-                      {(leaderboardSource === "snapshot" ? leaderboardTotalEntries : leaderboardRows.length)} players
-                    </span>
-                  </div>
-
-                  {leaderboardError ? (
-                    <p className={styles.analyticsEmptyState}>{leaderboardError}</p>
-                  ) : null}
-
-                  {leaderboardLoading ? (
-                    <div className={styles.leaderboardLoadingList}>
-                      {Array.from({ length: 5 }).map((_, index) => (
-                        <div key={index} className={styles.leaderboardLoadingRow} aria-hidden="true" />
-                      ))}
-                    </div>
-                  ) : !leaderboardHasEntries ? (
-                    <div className={styles.leaderboardEmptyState}>
-                      <strong>No Whelmboard data yet</strong>
-                      <p className={styles.accountMeta}>
-                        Once competitive data is available, the global Whelmboard will populate here.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className={styles.leaderboardBoardList}>
-                      {leaderboardRows.map((row) => (
-                        <LeaderboardRow
-                          key={row.entry.id}
-                          entry={row.entry}
-                          rank={row.rank}
-                          movement={
-                            row.movement.direction === "new" && seenChallengerIds.has(row.entry.id)
-                              ? { ...row.movement, direction: "same" as const }
-                              : row.movement
-                          }
-                          tab={leaderboardMetricTab}
-                          onClick={() => setSelectedLbProfile({ entry: row.entry, rank: row.rank })}
-                        />
-                      ))}
-                    </div>
-                  )}
-
-                  {!leaderboardLoading && leaderboardHasMore ? (
-                    <div className={styles.leaderboardFooter}>
-                      <button
-                        type="button"
-                        className={styles.secondaryPlanButton}
-                        onClick={() => void handleLeaderboardLoadMore()}
-                      >
-                        Load more
-                      </button>
-                    </div>
-                  ) : null}
-
-                  {!leaderboardLoading && leaderboardAroundRows.length > 0 ? (
-                    <div className={styles.wbAroundSection}>
-                      <div className={styles.wbPaneHeader}>
-                        <span className={styles.sectionLabel}>Around you</span>
-                      </div>
-                      <div className={styles.leaderboardBoardList}>
-                        {leaderboardAroundRows.map((row) => (
-                          <LeaderboardRow
-                            key={`around-${row.entry.id}-${row.rank}`}
-                            entry={row.entry}
-                            rank={row.rank}
-                            movement={
-                              row.movement.direction === "new" && seenChallengerIds.has(row.entry.id)
-                                ? { ...row.movement, direction: "same" as const }
-                                : row.movement
-                            }
-                            tab={leaderboardMetricTab}
-                            onClick={() => setSelectedLbProfile({ entry: row.entry, rank: row.rank })}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-
-                {/* ── Bandana tier list ── */}
-                <div className={styles.wbBandanaPane}>
-                  <div className={styles.wbPaneHeader}>
-                    <span className={styles.sectionLabel}>Bandana tiers</span>
-                  </div>
-                  <div className={styles.leaderboardBandanaList}>
-                    {leaderboardBandanaHolders.map((holder) => (
-                      <div key={holder.color} className={styles.leaderboardBandanaRow}>
-                        <img
-                          src={bandanaCursorAssetPath(holder.color, 128)}
-                          alt={holder.label}
-                          className={styles.leaderboardBandanaTierImg}
-                          style={{ filter: `drop-shadow(0 0 6px ${bandanaImageGlow(holder.color)})` }}
-                        />
-                        <span className={styles.leaderboardBandanaName}>{holder.label}</span>
-                        <span className={styles.leaderboardBandanaHolder}>{holder.entry?.username ?? "—"}</span>
-                        <span className={styles.leaderboardBandanaXp}>
-                          {holder.entry ? formatLeaderboardXp(holder.entry.totalXp) : ""}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-              </div>
-            </AnimatedTabSection>
+            <WhelmboardTab
+              sectionRef={leaderboardSectionRef}
+              primaryRef={leaderboardPrimaryRef}
+              leaderboardMetricTab={leaderboardMetricTab}
+              onSetMetricTab={(tab) => {
+                void trackLeaderboardTabSwitched(user, {
+                  fromMetric: leaderboardMetricTab,
+                  toMetric: tab,
+                }).catch(() => undefined);
+                setLeaderboardMetricTab(tab);
+              }}
+              leaderboardCurrentUserRank={leaderboardCurrentUserRank}
+              leaderboardCurrentUserMovement={leaderboardCurrentUserMovement}
+              leaderboardSource={leaderboardSource}
+              leaderboardTotalEntries={leaderboardTotalEntries}
+              leaderboardRows={leaderboardRows}
+              leaderboardAroundRows={leaderboardAroundRows}
+              leaderboardBandanaHolders={leaderboardBandanaHolders}
+              leaderboardError={leaderboardError}
+              leaderboardLoading={leaderboardLoading}
+              leaderboardHasEntries={leaderboardHasEntries}
+              leaderboardHasMore={leaderboardHasMore}
+              seenChallengerIds={seenChallengerIds}
+              onSelectProfile={setSelectedLbProfile}
+              onLoadMore={() => void handleLeaderboardLoadMore()}
+            />
           )}
 
           {activeTab === "mirror" && (
