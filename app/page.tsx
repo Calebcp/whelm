@@ -322,7 +322,6 @@ type DailyRitualBlockDraft = {
   durationMinutes: number;
 };
 
-type LeaderboardMetricTab = "xp" | "streak";
 type LeaderboardEntry = {
   id: string;
   username: string;
@@ -335,11 +334,6 @@ type LeaderboardEntry = {
   avatarUrl?: string | null;
   isProStyle?: boolean;
   isCurrentUser?: boolean;
-};
-type LeaderboardMovement = {
-  delta: number;
-  previousRank: number | null;
-  direction: "up" | "down" | "same" | "new";
 };
 type LeaderboardBandanaHolder = {
   color: string;
@@ -577,24 +571,6 @@ function describeAttachmentUploadError(error: unknown, bucketName: string) {
       return error instanceof Error && error.message
         ? error.message
         : "Attachment upload failed.";
-  }
-}
-
-function bandanaCursorAssetPath(color: string | null | undefined, size: 128 | 256 = 128) {
-  const resolved = color ?? "yellow";
-  return `/streak/cursor/bandana-${resolved}-${size}.png`;
-}
-
-function bandanaImageGlow(color: string | null | undefined): string {
-  switch (color) {
-    case "yellow": return "rgba(255, 200, 0, 0.5)";
-    case "red":    return "rgba(220, 50, 50, 0.5)";
-    case "green":  return "rgba(50, 200, 100, 0.5)";
-    case "purple": return "rgba(150, 50, 220, 0.5)";
-    case "blue":   return "rgba(50, 120, 255, 0.5)";
-    case "black":  return "rgba(180, 180, 180, 0.4)";
-    case "white":  return "rgba(255, 255, 255, 0.6)";
-    default:       return "transparent";
   }
 }
 
@@ -1016,8 +992,6 @@ function analyticsSubjectModeFromText(text: string): "language" | "school" | "wo
 }
 
 type NavIconKey = AppTab | "more";
-type ProfileAvatarSize = "mini" | "row" | "compact" | "hero";
-
 type ProfileTierTheme = {
   title: string;
   imagePath: string;
@@ -1350,43 +1324,6 @@ function getProfileTierTheme(
   }
 }
 
-function WhelmProfileAvatar({
-  tierColor,
-  size,
-  isPro = false,
-  photoUrl,
-}: {
-  tierColor: string | null | undefined;
-  size: ProfileAvatarSize;
-  isPro?: boolean;
-  photoUrl?: string | null;
-}) {
-  const theme = getProfileTierTheme(tierColor, isPro);
-
-  return (
-    <div
-      className={`${styles.profileAvatarCard} ${
-        size === "mini"
-          ? styles.profileAvatarCardMini
-          : size === "row"
-          ? styles.profileAvatarCardRow
-          : size === "compact"
-            ? styles.profileAvatarCardCompact
-            : styles.profileAvatarCardHero
-      }`}
-      data-tier-color={tierColor ?? "yellow"}
-      aria-hidden="true"
-    >
-      <img src={theme.imagePath} alt="" className={styles.profileAvatarImage} />
-      {photoUrl ? (
-        <span className={styles.profileAvatarPhotoShell}>
-          <img src={photoUrl} alt="" className={styles.profileAvatarPhoto} />
-        </span>
-      ) : null}
-    </div>
-  );
-}
-
 function tabTitle(tab: AppTab) {
   switch (tab) {
     case "today":
@@ -1408,250 +1345,6 @@ function tabTitle(tab: AppTab) {
     case "settings":
       return "Settings";
   }
-}
-
-function getLeaderboardBandanaMeta(streak: number) {
-  const tier = getStreakBandanaTier(streak);
-  const theme = getStreakTierColorTheme(tier?.color);
-
-  return {
-    tier,
-    theme,
-    label: tier ? tier.label : "No bandana",
-    shortLabel: tier ? tier.label.replace(" Bandana", "") : "None",
-  };
-}
-
-function formatLeaderboardXp(totalXp: number) {
-  return `${totalXp.toLocaleString()} XP`;
-}
-
-function compareLeaderboardEntries(
-  left: LeaderboardEntry,
-  right: LeaderboardEntry,
-  tab: LeaderboardMetricTab,
-) {
-  if (tab === "xp") {
-    return (
-      right.totalXp - left.totalXp ||
-      right.currentStreak - left.currentStreak ||
-      left.createdAtISO.localeCompare(right.createdAtISO)
-    );
-  }
-
-  return (
-    right.currentStreak - left.currentStreak ||
-    right.totalXp - left.totalXp ||
-    left.createdAtISO.localeCompare(right.createdAtISO)
-  );
-}
-
-function movementForRanks(currentRank: number, previousRank: number | null): LeaderboardMovement {
-  if (previousRank === null) {
-    return { delta: 0, previousRank, direction: "new" };
-  }
-
-  const delta = previousRank - currentRank;
-  if (delta > 0) return { delta, previousRank, direction: "up" };
-  if (delta < 0) return { delta, previousRank, direction: "down" };
-  return { delta: 0, previousRank, direction: "same" };
-}
-
-function leaderboardMovementLabel(movement: LeaderboardMovement, tab: LeaderboardMetricTab) {
-  if (movement.direction === "new") return tab === "xp" ? "New challenger" : "New";
-  if (movement.direction === "same") return tab === "xp" ? "No movement" : "Flat";
-  const magnitude = Math.abs(movement.delta);
-  return movement.direction === "up"
-    ? `${tab === "xp" ? "Up" : "+"}${magnitude}`
-    : `${tab === "xp" ? "Down" : "-"}${magnitude}`;
-}
-
-function LeaderboardMovementIndicator({
-  movement,
-  tab,
-}: {
-  movement: LeaderboardMovement;
-  tab: LeaderboardMetricTab;
-}) {
-  const label = leaderboardMovementLabel(movement, tab);
-  const directionClassName =
-    movement.direction === "up"
-      ? styles.leaderboardMovementUp
-      : movement.direction === "down"
-        ? styles.leaderboardMovementDown
-        : movement.direction === "new"
-          ? styles.leaderboardMovementNew
-          : styles.leaderboardMovementSame;
-
-  if (tab === "xp") {
-    return (
-      <span className={`${styles.leaderboardMovementBadge} ${directionClassName}`}>
-        <span className={styles.leaderboardMovementArrow}>
-          {movement.direction === "up"
-            ? "▲"
-            : movement.direction === "down"
-              ? "▼"
-              : movement.direction === "new"
-                ? "✦"
-                : "•"}
-        </span>
-        <span>{label}</span>
-      </span>
-    );
-  }
-
-  return (
-    <span className={`${styles.leaderboardMovementSubtle} ${directionClassName}`}>
-      {label}
-    </span>
-  );
-}
-
-function LeaderboardRow({
-  entry,
-  rank,
-  movement,
-  tab,
-  onClick,
-}: {
-  entry: LeaderboardEntry;
-  rank: number;
-  movement: LeaderboardMovement;
-  tab: LeaderboardMetricTab;
-  onClick?: () => void;
-}) {
-  const bandana = getLeaderboardBandanaMeta(entry.currentStreak);
-  const rankAccent =
-    rank === 1 ? styles.leaderboardRowGold
-    : rank === 2 ? styles.leaderboardRowSilver
-    : rank === 3 ? styles.leaderboardRowBronze
-    : "";
-  // Enforce 16-char display limit (existing users may have longer stored names)
-  const displayName = entry.username.slice(0, 16);
-
-  return (
-    <motion.article
-      className={`${styles.leaderboardRow} ${rankAccent} ${
-        entry.isCurrentUser ? styles.leaderboardRowCurrentUser : ""
-      } ${onClick ? styles.leaderboardRowClickable : ""}`}
-      onClick={onClick}
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{
-        duration: 0.26,
-        delay: Math.min((rank - 1) * 0.035, 0.18),
-        ease: [0.22, 1, 0.36, 1],
-      }}
-    >
-      <span className={styles.leaderboardRowRank}>#{rank}</span>
-      <div className={styles.leaderboardAvatarWrap}>
-        <WhelmProfileAvatar
-          tierColor={bandana.tier?.color}
-          size="mini"
-          isPro={entry.isProStyle}
-          photoUrl={entry.avatarUrl}
-        />
-      </div>
-      <div className={styles.leaderboardRowIdentity}>
-        <strong className={styles.leaderboardRowUsername}>{displayName}</strong>
-        <div className={styles.leaderboardRowMeta}>
-          {bandana.tier ? (
-            <img
-              src={bandanaCursorAssetPath(bandana.tier.color, 128)}
-              alt={bandana.tier.label}
-              className={styles.leaderboardBandanaImg}
-              style={{ filter: `drop-shadow(0 0 5px ${bandanaImageGlow(bandana.tier.color)})` }}
-            />
-          ) : (
-            <span className={styles.leaderboardBandanaChip}>None</span>
-          )}
-          {entry.isCurrentUser ? <span className={styles.leaderboardYouBadge}>You</span> : null}
-          <LeaderboardMovementIndicator movement={movement} tab={tab} />
-        </div>
-      </div>
-      <div className={styles.leaderboardRowStats}>
-        {tab === "xp" ? (
-          <>
-            <span className={styles.leaderboardRowXp}>{formatLeaderboardXp(entry.totalXp)}</span>
-            <span className={styles.leaderboardRowStreak}>{entry.currentStreak}d</span>
-          </>
-        ) : (
-          <span className={styles.leaderboardRowStreakStat}>
-            <span>{entry.currentStreak} days</span>
-            {bandana.tier ? (
-              <img
-                src={bandanaCursorAssetPath(bandana.tier.color, 128)}
-                alt={bandana.tier.label}
-                className={styles.leaderboardBandanaImgStat}
-                style={{ filter: `drop-shadow(0 0 4px ${bandanaImageGlow(bandana.tier.color)})` }}
-              />
-            ) : null}
-          </span>
-        )}
-      </div>
-    </motion.article>
-  );
-}
-
-function LeaderboardPodiumCard({
-  row,
-  tab,
-}: {
-  row: { entry: LeaderboardEntry; rank: number; movement: LeaderboardMovement };
-  tab: LeaderboardMetricTab;
-}) {
-  const bandana = getLeaderboardBandanaMeta(row.entry.currentStreak);
-  const rowStyle = {
-    "--leaderboard-accent": bandana.theme.accent,
-    "--leaderboard-accent-strong": bandana.theme.accentStrong,
-    "--leaderboard-accent-deep": bandana.theme.accentDeep,
-    "--leaderboard-accent-glow": bandana.theme.accentGlow,
-    "--leaderboard-shell": bandana.theme.shell,
-    "--leaderboard-text-strong": bandana.theme.textStrong,
-    "--leaderboard-text-soft": bandana.theme.textSoft,
-  } as CSSProperties;
-
-  return (
-    <motion.article
-      className={`${styles.leaderboardPodiumCard} ${
-        row.entry.isCurrentUser ? styles.leaderboardPodiumCardCurrentUser : ""
-      } ${row.rank === 1 ? styles.leaderboardPodiumCardFirst : ""}`}
-      style={rowStyle}
-      initial={{ opacity: 0, y: 18, scale: 0.97 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.38, delay: Math.min((row.rank - 1) * 0.06, 0.18), ease: [0.22, 1, 0.36, 1] }}
-    >
-      <div className={styles.leaderboardPodiumTopline}>
-        <span className={styles.leaderboardPodiumPlace}>#{row.rank}</span>
-        <LeaderboardMovementIndicator movement={row.movement} tab={tab} />
-      </div>
-      <div className={styles.leaderboardPodiumAvatar}>
-        <WhelmProfileAvatar
-          tierColor={bandana.tier?.color}
-          size="row"
-          isPro={row.entry.isProStyle}
-          photoUrl={row.entry.avatarUrl}
-        />
-      </div>
-      <div className={styles.leaderboardPodiumIdentity}>
-        <strong>{row.entry.username}</strong>
-        <span>{bandana.shortLabel}</span>
-      </div>
-      <div className={styles.leaderboardPodiumStats}>
-        <div>
-          <span>{tab === "xp" ? "XP" : "Streak"}</span>
-          <strong>
-            {tab === "xp" ? formatLeaderboardXp(row.entry.totalXp) : `${row.entry.currentStreak}d`}
-          </strong>
-        </div>
-        <div>
-          <span>Level</span>
-          <strong>Lv {row.entry.level}</strong>
-        </div>
-      </div>
-      {row.entry.isCurrentUser ? <span className={styles.leaderboardYouBadge}>You</span> : null}
-    </motion.article>
-  );
 }
 
 function mobileTabDescription(tab: AppTab) {
@@ -3884,7 +3577,6 @@ export default function HomePage() {
       <LeaderboardProfileModal
         selected={selectedLbProfile}
         onClose={() => setSelectedLbProfile(null)}
-        getLeaderboardBandanaMeta={getLeaderboardBandanaMeta}
       />
     </>
   );

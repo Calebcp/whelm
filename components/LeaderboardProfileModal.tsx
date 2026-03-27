@@ -2,17 +2,8 @@
 
 import styles from "@/app/page.module.css";
 import WhelmProfileAvatar from "@/components/WhelmProfileAvatar";
-
-type LeaderboardBandanaMeta = {
-  tier: {
-    color: string;
-    label: string;
-  } | null;
-  theme: {
-    shell: string;
-    accent: string;
-  };
-};
+import { getStreakBandanaTier } from "@/lib/streak-bandanas";
+import { getStreakTierColorTheme } from "@/lib/xp-utils";
 
 type LeaderboardEntry = {
   username: string;
@@ -30,16 +21,15 @@ type LeaderboardEntry = {
 export default function LeaderboardProfileModal({
   selected,
   onClose,
-  getLeaderboardBandanaMeta,
 }: {
   selected: { entry: LeaderboardEntry; rank: number } | null;
   onClose: () => void;
-  getLeaderboardBandanaMeta: (streak: number) => LeaderboardBandanaMeta;
 }) {
   if (!selected) return null;
 
   const { entry, rank } = selected;
-  const profileBandana = getLeaderboardBandanaMeta(entry.currentStreak);
+  const tier = getStreakBandanaTier(entry.currentStreak);
+  const theme = getStreakTierColorTheme(tier?.color);
   const joinDate = (() => {
     try {
       return new Date(entry.createdAtISO).toLocaleDateString("en-US", { month: "long", year: "numeric" });
@@ -60,7 +50,7 @@ export default function LeaderboardProfileModal({
 
         <div className={styles.lbProfileHero}>
           <WhelmProfileAvatar
-            tierColor={profileBandana.tier?.color}
+            tierColor={tier?.color}
             size="compact"
             isPro={entry.isProStyle}
             photoUrl={entry.avatarUrl}
@@ -71,16 +61,16 @@ export default function LeaderboardProfileModal({
               {entry.isCurrentUser ? <span className={styles.leaderboardYouBadge}>You</span> : null}
             </div>
             <p className={styles.lbProfileRank}>Rank #{rank}</p>
-            {profileBandana.tier ? (
+            {tier ? (
               <span
                 className={styles.lbProfileBandanaBadge}
                 style={{
-                  background: profileBandana.theme.shell,
-                  color: profileBandana.theme.accent,
-                  borderColor: profileBandana.theme.accent,
+                  background: theme.shell,
+                  color: theme.accent,
+                  borderColor: theme.accent,
                 }}
               >
-                {profileBandana.tier.label}
+                {tier.label}
               </span>
             ) : (
               <span className={styles.lbProfileBandanaBadge} style={{ opacity: 0.5 }}>
