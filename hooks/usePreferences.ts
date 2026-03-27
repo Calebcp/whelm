@@ -96,6 +96,8 @@ export function usePreferences({
 
     applyPreferencesSnapshot(nextState);
 
+    // Firestore SDK write — best-effort. If this fails (e.g. missing security rule)
+    // we must not block the authoritative REST API write below.
     await setDoc(
       doc(db, "userPreferences", user.uid),
       {
@@ -104,7 +106,9 @@ export function usePreferences({
         updatedAtISO: new Date().toISOString(),
       },
       { merge: true },
-    );
+    ).catch((err: unknown) => {
+      console.warn("[whelm] preferences Firestore SDK write failed (non-fatal):", err);
+    });
 
     await savePreferences(user, nextState);
   }, [applyPreferencesSnapshot, user]);

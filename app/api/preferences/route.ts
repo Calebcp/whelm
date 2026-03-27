@@ -176,7 +176,11 @@ export async function GET(request: NextRequest) {
     if (!uid) return jsonError("Missing uid.", 400);
     const document = await fetchDocument(request, uid);
     const raw = document?.fields?.preferencesJson?.stringValue;
-    return NextResponse.json(raw ? JSON.parse(raw) : normalizePreferences({}));
+    let parsed: unknown = null;
+    if (raw) {
+      try { parsed = JSON.parse(raw); } catch { /* fall through to defaults */ }
+    }
+    return NextResponse.json(parsed && typeof parsed === "object" ? parsed : normalizePreferences({}));
   } catch (error: unknown) {
     return jsonError(error instanceof Error ? error.message : "Failed to load preferences.");
   }
