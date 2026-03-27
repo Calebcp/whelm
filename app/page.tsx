@@ -7,7 +7,6 @@ import { AnimatePresence, motion } from "motion/react";
 import {
   EmailAuthProvider,
   deleteUser,
-  onAuthStateChanged,
   reauthenticateWithCredential,
   signOut,
   type User,
@@ -102,9 +101,34 @@ import {
 import { buildPerformanceNotificationPlan } from "@/lib/performance-notifications";
 import type { LeaderboardPageResponse, LeaderboardSnapshotEntry } from "@/lib/leaderboard";
 import type { WhelmEmoteId } from "@/lib/whelm-emotes";
-import { bandanaColorFromStreak } from "@/lib/whelm-mascot";
-import { useMascot } from "@/hooks/useMascot";
 import { subscribeToUserData } from "@/lib/firestore-sync";
+import type { AppTab } from "@/lib/app-tabs";
+import {
+  buildDayXpSummaryForDate,
+  doesDateQualifyForStreak,
+  formatXpMultiplier,
+  getLifetimeXpSummary,
+  STREAK_RULE_V2_START_DATE,
+  XP_DAILY_CAP,
+  XP_DAILY_TARGET,
+  XP_FOCUS_DAILY_CAP,
+  XP_COMPLETED_BLOCK_XP,
+  XP_COMPLETED_BLOCK_DAILY_CAP,
+  XP_STREAK_DAILY_BONUS,
+  XP_COMBO_BONUS,
+  XP_DEEP_WORK_BONUS,
+  XP_WRITING_ENTRY_THRESHOLD,
+  XP_WRITING_ENTRY_BONUS,
+  XP_WRITING_BONUS_THRESHOLD,
+  XP_WRITING_BONUS_XP,
+  XP_WRITING_DAILY_CAP,
+  type DayXpSummary,
+  type LifetimeXpSummary,
+  type SessionRewardState,
+  type StreakCelebrationState,
+  type StreakNudgeState,
+} from "@/lib/xp-engine";
+import { useUserData } from "@/hooks/useUserData";
 import styles from "./page.module.css";
 
 const FOCUS_TIMER = {
@@ -247,20 +271,7 @@ const PRO_BACKGROUND_PRESETS = [
 const MIN_PLANNED_BLOCK_MINUTES = 15;
 const MAX_PLANNED_BLOCK_MINUTES = 240;
 const MIN_PLANNED_BLOCK_GAP_MINUTES = 15;
-const STREAK_RULE_V2_START_DATE = "2026-03-22";
-const XP_DAILY_TARGET = 120;
-const XP_DAILY_CAP = 150;
-const XP_FOCUS_DAILY_CAP = 90;
-const XP_COMPLETED_BLOCK_XP = 25;
-const XP_COMPLETED_BLOCK_DAILY_CAP = 50;
-const XP_STREAK_DAILY_BONUS = 10;
-const XP_COMBO_BONUS = 15;
-const XP_DEEP_WORK_BONUS = 25;
-const XP_WRITING_ENTRY_THRESHOLD = 33;
-const XP_WRITING_ENTRY_BONUS = 10;
-const XP_WRITING_BONUS_THRESHOLD = 100;
-const XP_WRITING_BONUS_XP = 10;
-const XP_WRITING_DAILY_CAP = 20;
+
 const WHELM_BRAND_THESIS = "Whelm is where productivity becomes a standard, not a mood.";
 const WHELM_PRO_POSITIONING =
   "Whelm Pro is the full version of the system: deeper reports, longer memory, stronger personalization, a cleaner command center, and of course more animated PRO WHELMS!";
@@ -328,16 +339,7 @@ type DailyRitualBlockDraft = {
   timeOfDay: string;
   durationMinutes: number;
 };
-type AppTab =
-  | "today"
-  | "calendar"
-  | "leaderboard"
-  | "mirror"
-  | "notes"
-  | "streaks"
-  | "history"
-  | "reports"
-  | "settings";
+
 type LeaderboardMetricTab = "xp" | "streak";
 type LeaderboardEntry = {
   id: string;
@@ -1576,47 +1578,7 @@ type ProfileTierTheme = {
   imagePath: string;
 };
 
-type DayXpSummary = {
-  dateKey: string;
-  streakLength: number;
-  multiplier: number;
-  baseActionXp: number;
-  completedBlocksXp: number;
-  focusXp: number;
-  writingXp: number;
-  multipliedBaseXp: number;
-  streakDailyXp: number;
-  streakMilestoneXp: number;
-  deepWorkXp: number;
-  comboXp: number;
-  totalXp: number;
-};
 
-type SessionRewardState = {
-  id: string;
-  minutesSpent: number;
-  xpGained: number;
-  todayXp: number;
-  streakAfter: number;
-  streakDelta: number;
-  leveledUp: boolean;
-  tierUnlocked: StreakBandanaTier | null;
-};
-
-type StreakCelebrationState = {
-  id: string;
-  streakAfter: number;
-  todayLabel: string;
-  tier: StreakBandanaTier | null;
-};
-
-type StreakNudgeState = {
-  id: string;
-  title: string;
-  body: string;
-  actionLabel: string;
-  actionTab: AppTab;
-};
 
 type PendingNoteAttachment = {
   id: string;
@@ -1625,17 +1587,7 @@ type PendingNoteAttachment = {
   progress: number;
 };
 
-type LifetimeXpSummary = {
-  totalXp: number;
-  todayXp: number;
-  todayTarget: number;
-  dailyCap: number;
-  currentLevel: number;
-  currentLevelFloorXp: number;
-  nextLevelXp: number;
-  progressInLevel: number;
-  progressToNextLevel: number;
-};
+
 
 type AppBackgroundSetting =
   | { kind: "default" }
@@ -1658,25 +1610,7 @@ const DEFAULT_BACKGROUND_SKIN: BackgroundSkinSetting = {
   imageFit: "fit",
 };
 
-function getXpMultiplierForStreak(streakLength: number) {
-  switch (getStreakBandanaTier(streakLength)?.color) {
-    case "white":
-      return 2.4;
-    case "black":
-      return 2;
-    case "blue":
-      return 1.6;
-    case "purple":
-      return 1.35;
-    case "green":
-      return 1.2;
-    case "red":
-      return 1.1;
-    case "yellow":
-    default:
-      return 1;
-  }
-}
+
 
 function getStreakTierColorTheme(tierColor: string | null | undefined) {
   switch (tierColor) {
@@ -1761,137 +1695,19 @@ function getStreakBandanaAssetPath(tierColor: string | null | undefined) {
   return tier ? `/streak/${tier.assetFile}` : "/streak/moveband.riv";
 }
 
-function getXpWritingBonus(wordCount: number) {
-  if (wordCount >= XP_WRITING_BONUS_THRESHOLD) {
-    return XP_WRITING_DAILY_CAP;
-  }
 
-  if (wordCount >= XP_WRITING_ENTRY_THRESHOLD) {
-    return XP_WRITING_ENTRY_BONUS;
-  }
 
-  return 0;
-}
 
-function doesDateQualifyForStreak({
-  dateKey,
-  focusMinutes,
-  completedBlocks,
-  noteWords,
-  todayKey,
-  protectedDateKeys,
-}: {
-  dateKey: string;
-  focusMinutes: number;
-  completedBlocks: number;
-  noteWords: number;
-  todayKey: string;
-  protectedDateKeys: string[];
-}) {
-  if (protectedDateKeys.includes(dateKey)) return true;
-  if (dateKey < STREAK_RULE_V2_START_DATE) return focusMinutes > 0;
-  if (dateKey > todayKey) return false;
-  return completedBlocks >= 1 && (focusMinutes >= 30 || noteWords >= 33);
-}
 
-function buildDayXpSummaryForDate({
-  dateKey,
-  sessionMinutesByDay,
-  completedBlocksByDay,
-  noteWordsByDay,
-  streakQualifiedDateKeys,
-}: {
-  dateKey: string;
-  sessionMinutesByDay: Map<string, number>;
-  completedBlocksByDay: Map<string, number>;
-  noteWordsByDay: Map<string, number>;
-  streakQualifiedDateKeys: string[];
-}) {
-  const focusMinutes = sessionMinutesByDay.get(dateKey) ?? 0;
-  const completedBlocks = completedBlocksByDay.get(dateKey) ?? 0;
-  const noteWords = noteWordsByDay.get(dateKey) ?? 0;
-  const streakLength = computeStreakEndingAtDateKey([], dateKey, streakQualifiedDateKeys);
-  const multiplier = getXpMultiplierForStreak(streakLength);
-  const completedBlocksXp = Math.min(XP_COMPLETED_BLOCK_DAILY_CAP, completedBlocks * XP_COMPLETED_BLOCK_XP);
-  const focusXp = Math.min(XP_FOCUS_DAILY_CAP, focusMinutes);
-  const writingXp = getXpWritingBonus(noteWords);
-  const baseActionXp = completedBlocksXp + focusXp + writingXp;
-  const multipliedBaseXp = Math.round(baseActionXp * multiplier);
-  const streakDailyXp = streakLength > 0 ? XP_STREAK_DAILY_BONUS : 0;
-  const streakMilestoneXp = streakLength > 0 ? getXpMilestoneBonus(streakLength) : 0;
-  const deepWorkXp = focusMinutes >= 90 ? XP_DEEP_WORK_BONUS : 0;
-  const comboXp =
-    completedBlocks >= 1 && (focusMinutes >= 30 || noteWords >= XP_WRITING_ENTRY_THRESHOLD)
-      ? XP_COMBO_BONUS
-      : 0;
 
-  return {
-    dateKey,
-    streakLength,
-    multiplier,
-    baseActionXp,
-    completedBlocksXp,
-    focusXp,
-    writingXp,
-    multipliedBaseXp,
-    streakDailyXp,
-    streakMilestoneXp,
-    deepWorkXp,
-    comboXp,
-    totalXp: Math.min(
-      XP_DAILY_CAP,
-      multipliedBaseXp + streakDailyXp + streakMilestoneXp + deepWorkXp + comboXp,
-    ),
-  } satisfies DayXpSummary;
-}
 
-function getXpMilestoneBonus(streakLength: number) {
-  if (streakLength === 100) return 350;
-  if (streakLength === 30) return 120;
-  if (streakLength === 7) return 40;
-  return 0;
-}
 
-function getXpRequiredToReachLevel(level: number) {
-  if (level <= 1) return 0;
 
-  let total = 0;
-  for (let currentLevel = 1; currentLevel < level; currentLevel += 1) {
-    total += Math.round(85 * currentLevel ** 1.45);
-  }
 
-  return total;
-}
 
-function formatXpMultiplier(multiplier: number) {
-  return `x${multiplier.toFixed(multiplier % 1 === 0 ? 1 : 2).replace(/\.?0+$/, "")}`;
-}
 
-function getLifetimeXpSummary(totalXp: number, todayXp: number): LifetimeXpSummary {
-  let currentLevel = 1;
-  let nextLevelXp = getXpRequiredToReachLevel(2);
 
-  while (totalXp >= nextLevelXp) {
-    currentLevel += 1;
-    nextLevelXp = getXpRequiredToReachLevel(currentLevel + 1);
-  }
 
-  const currentLevelFloorXp = getXpRequiredToReachLevel(currentLevel);
-  const progressInLevel = Math.max(0, totalXp - currentLevelFloorXp);
-  const levelRange = Math.max(1, nextLevelXp - currentLevelFloorXp);
-
-  return {
-    totalXp,
-    todayXp,
-    todayTarget: XP_DAILY_TARGET,
-    dailyCap: XP_DAILY_CAP,
-    currentLevel,
-    currentLevelFloorXp,
-    nextLevelXp,
-    progressInLevel,
-    progressToNextLevel: Math.min(1, progressInLevel / levelRange),
-  };
-}
 
 function getDailyRitualWaveImagePath(tier: string | null | undefined) {
   switch (tier) {
@@ -3421,8 +3237,6 @@ export default function HomePage() {
   const router = useRouter();
   const liveTodayKey = dayKeyLocal(new Date());
 
-  const [user, setUser] = useState<User | null>(null);
-  const [sessions, setSessions] = useState<SessionDoc[]>([]);
   const [notes, setNotes] = useState<WorkspaceNote[]>([]);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [notesSurface, setNotesSurface] = useState<"notes" | "cards">("notes");
@@ -3438,7 +3252,6 @@ export default function HomePage() {
   const [noteAttachmentBusy, setNoteAttachmentBusy] = useState(false);
   const [noteAttachmentStatus, setNoteAttachmentStatus] = useState("");
   const [pendingNoteAttachments, setPendingNoteAttachments] = useState<PendingNoteAttachment[]>([]);
-  const [authChecked, setAuthChecked] = useState(false);
   const [showIntroSplash, setShowIntroSplash] = useState(true);
   const [introFinished, setIntroFinished] = useState(false);
   const [introMinElapsed, setIntroMinElapsed] = useState(false);
@@ -3547,14 +3360,6 @@ export default function HomePage() {
   const [planTime, setPlanTime] = useState("09:00");
   const [planStatus, setPlanStatus] = useState("");
   const { toasts: whelToasts, showToast, dismissToast } = useToasts();
-  const [xpPops, setXpPops] = useState<XPPop[]>([]);
-  const triggerXPPop = useCallback((amount: number, x?: number, y?: number) => {
-    const id = `xp-${Date.now()}-${Math.random()}`;
-    setXpPops((prev) => [...prev, { id, amount, x, y }]);
-  }, []);
-  const removeXPPop = useCallback((id: string) => {
-    setXpPops((prev) => prev.filter((p) => p.id !== id));
-  }, []);
   const [planConflictWarning, setPlanConflictWarning] = useState<{
     conflictIds: string[];
     message: string;
@@ -3605,9 +3410,6 @@ export default function HomePage() {
   const [streakMirrorTag, setStreakMirrorTag] = useState<StreakMirrorTag | null>(null);
   const [streakSaveAnswers, setStreakSaveAnswers] = useState<Record<string, string>>({});
   const [streakSaveStatus, setStreakSaveStatus] = useState("");
-  const [sessionReward, setSessionReward] = useState<SessionRewardState | null>(null);
-  const [streakCelebration, setStreakCelebration] = useState<StreakCelebrationState | null>(null);
-  const [streakNudge, setStreakNudge] = useState<StreakNudgeState | null>(null);
   const [editorBandanaCaret, setEditorBandanaCaret] = useState<{
     left: number;
     top: number;
@@ -3653,9 +3455,6 @@ export default function HomePage() {
   const noteAttachmentInputRef = useRef<HTMLInputElement | null>(null);
   const savedSelectionRef = useRef<Range | null>(null);
   const syncInFlightRef = useRef(false);
-  // True once the initial loadSessions sync (localStorage → Firestore) has completed.
-  // Prevents stale onSnapshot cache-fires from overwriting sessions before the sync runs.
-  const sessionsSyncedRef = useRef(false);
   const bodyDirtyRef = useRef(false);
   const notesRef = useRef<WorkspaceNote[]>([]);
   const selectedNoteIdRef = useRef<string | null>(null);
@@ -3685,7 +3484,6 @@ export default function HomePage() {
   const streaksPrimaryRef = useRef<HTMLElement | null>(null);
   const settingsSectionRef = useRef<HTMLElement | null>(null);
   const settingsPrimaryRef = useRef<HTMLElement | null>(null);
-  const appOpenTrackedRef = useRef<string | null>(null);
   const mobileDayTimelineScrollRef = useRef<HTMLDivElement | null>(null);
   const tabScrollPositionsRef = useRef<Partial<Record<AppTab, number>>>({});
   const lastTabTapRef = useRef<{ key: AppTab | "more"; at: number } | null>(null);
@@ -3693,21 +3491,12 @@ export default function HomePage() {
   const previousActiveTabRef = useRef<AppTab | null>(null);
   const dayTimelineMotionRef = useRef<"guide" | "restore">("restore");
   const activeMotionCancelRef = useRef<(() => void) | null>(null);
-  const authReadyRef = useRef(false);
   const activatedCalendarEntryTimeoutRef = useRef<number | null>(null);
   const calendarHoverPreviewTimeoutRef = useRef<number | null>(null);
   const protectedStreakDateKeys = useMemo(
     () => sickDaySaves.map((save) => save.dateKey),
     [sickDaySaves],
   );
-  const sessionMinutesByDay = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const session of sessions) {
-      const key = dayKeyLocal(session.completedAtISO);
-      map.set(key, (map.get(key) ?? 0) + session.minutes);
-    }
-    return map;
-  }, [sessions]);
   const noteWordsByDay = useMemo(() => {
     const map = new Map<string, number>();
     for (const note of notes) {
@@ -3724,43 +3513,72 @@ export default function HomePage() {
     }
     return map;
   }, [plannedBlocks]);
-  const streakQualifiedDateKeys = useMemo(() => {
-    const todayKey = dayKeyLocal(new Date());
-    const qualifyingDays = new Set(protectedStreakDateKeys);
 
-    for (const [dateKey, minutes] of sessionMinutesByDay.entries()) {
-      if (dateKey < STREAK_RULE_V2_START_DATE) {
-        qualifyingDays.add(dateKey);
-        continue;
+  // ── useUserData: auth, sessions, XP, streak, bandana, mascot ───────────────
+  // onSignIn and onSignOut are stable callbacks (empty deps) — all used
+  // values are React setter functions which are guaranteed stable by React.
+  const onSignIn = useCallback(async (uid: string) => {
+    // Seed notes from localStorage immediately.
+    try {
+      const raw = window.localStorage.getItem(`whelm:notes:${uid}`);
+      const local = raw ? (JSON.parse(raw) as WorkspaceNote[]) : [];
+      if (local.length > 0) {
+        setNotes(local);
+        setSelectedNoteId((current) => current ?? local[0]?.id ?? null);
       }
+    } catch { /* ignore */ }
+    // Full Firestore sync.
+    void refreshNotes(uid).catch(() => { /* keep local notes visible */ });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-      const completedBlocks = completedBlocksByDay.get(dateKey) ?? 0;
-      const noteWords = noteWordsByDay.get(dateKey) ?? 0;
-      if (dateKey <= todayKey && completedBlocks >= 1 && (minutes >= 30 || noteWords >= 33)) {
-        qualifyingDays.add(dateKey);
-      }
-    }
+  const onSignOut = useCallback(() => {
+    setNotes([]);
+    setPlannedBlocks([]);
+    setPlannedBlocksHydrated(false);
+    setSickDaySaves([]);
+    setSickDaySaveDismissals([]);
+    setSickDaySavePromptOpen(false);
+    setSelectedNoteId(null);
+    setSelectedCalendarDate(null);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    return [...qualifyingDays].sort();
-  }, [completedBlocksByDay, noteWordsByDay, protectedStreakDateKeys, sessionMinutesByDay]);
-  // Defensive: preserve the last non-zero streak value so a partial data load
-  // (sessions resolved before plannedBlocks) never briefly flashes streak to 0.
-  const lastGoodStreakRef = useRef<number>(0);
-  const streak = useMemo(() => {
-    const computed = computeStreak([], streakQualifiedDateKeys);
-    if (computed > 0) {
-      lastGoodStreakRef.current = computed;
-      return computed;
-    }
-    // If blocks haven't finished loading yet, hold the last known good value
-    // rather than resetting to 0 due to missing completedBlocksByDay data.
-    if (!plannedBlocksHydrated && lastGoodStreakRef.current > 0) {
-      return lastGoodStreakRef.current;
-    }
-    return computed;
-  }, [streakQualifiedDateKeys, plannedBlocksHydrated]);
-  const bandanaColor = bandanaColorFromStreak(streak);
-  const { mascot, show: showMascot, dismiss: dismissMascot } = useMascot(bandanaColor);
+  const {
+    user,
+    authChecked,
+    setAuthChecked,
+    sessionsSyncedRef,
+    sessions,
+    setSessions,
+    sessionMinutesByDay,
+    streakQualifiedDateKeys,
+    streak,
+    bandanaColor,
+    mascot,
+    showMascot,
+    dismissMascot,
+    xpByDay,
+    lifetimeXpSummary,
+    xpPops,
+    triggerXPPop,
+    removeXPPop,
+    sessionReward,
+    setSessionReward,
+    streakCelebration,
+    setStreakCelebration,
+    streakNudge,
+    setStreakNudge,
+    profileDisplayName,
+    currentUserPhotoUrl,
+    currentUserId,
+    currentUserCreatedAtISO,
+  } = useUserData({
+    completedBlocksByDay,
+    noteWordsByDay,
+    protectedStreakDateKeys,
+    plannedBlocksHydrated,
+    onSignIn,
+    onSignOut,
+  });
 
   const focusMetrics = useMemo(() => {
     const now = new Date();
@@ -4605,88 +4423,6 @@ export default function HomePage() {
     };
   }, []);
 
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (nextUser) => {
-      if (!nextUser) {
-        appOpenTrackedRef.current = null;
-        sessionsSyncedRef.current = false;
-        setUser(null);
-        setSessions([]);
-        setNotes([]);
-        setPlannedBlocks([]);
-        setPlannedBlocksHydrated(false);
-        setSickDaySaves([]);
-        setSickDaySaveDismissals([]);
-        setSickDaySavePromptOpen(false);
-        setSelectedNoteId(null);
-        setSelectedCalendarDate(null);
-        if (authReadyRef.current) {
-          setAuthChecked(true);
-        }
-        return;
-      }
-
-      authReadyRef.current = true;
-      setUser(nextUser);
-      if (appOpenTrackedRef.current !== nextUser.uid) {
-        appOpenTrackedRef.current = nextUser.uid;
-        fireAndForgetTracking(
-          trackAppOpened(nextUser, {
-            screenName: "today",
-            launchSource: "cold_start",
-          }),
-        );
-      }
-      setAuthChecked(true);
-
-      // Seed sessions from localStorage immediately so XP shows at once.
-      try {
-        const raw = window.localStorage.getItem(`whelm:sessions:${nextUser.uid}`);
-        const local = raw ? (JSON.parse(raw) as SessionDoc[]) : [];
-        if (local.length > 0) setSessions(local);
-      } catch { /* ignore */ }
-
-      // Seed notes from localStorage immediately so the notes tab is populated at once.
-      try {
-        const raw = window.localStorage.getItem(`whelm:notes:${nextUser.uid}`);
-        const local = raw ? (JSON.parse(raw) as WorkspaceNote[]) : [];
-        if (local.length > 0) {
-          setNotes(local);
-          setSelectedNoteId((current) => current ?? local[0]?.id ?? null);
-        }
-      } catch { /* ignore */ }
-
-      // loadSessions merges localStorage + Firestore and writes any missing sessions
-      // back to Firestore so all devices see the complete history. Once it resolves,
-      // mark the sync done so onSnapshot callbacks take over going forward.
-      void refreshSessions(nextUser.uid)
-        .then(() => { sessionsSyncedRef.current = true; })
-        .catch(() => { sessionsSyncedRef.current = true; });
-
-      // refreshNotes merges localStorage + cloud notes and selects the first note.
-      void refreshNotes(nextUser.uid).catch(() => { /* keep local notes visible */ });
-    });
-
-    return () => unsub();
-  }, [router]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const waitForAuthReady =
-      typeof auth.authStateReady === "function" ? auth.authStateReady() : Promise.resolve();
-
-    waitForAuthReady.catch(() => undefined).finally(() => {
-      if (cancelled || authReadyRef.current) return;
-      authReadyRef.current = true;
-      setUser(auth.currentUser);
-      setAuthChecked(true);
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -4902,15 +4638,6 @@ export default function HomePage() {
       document.removeEventListener("selectionchange", handleSelectionChange);
     };
   }, [selectedNote, selectedNoteId]);
-
-  async function refreshSessions(uid: string) {
-    const currentUser = auth.currentUser;
-    if (!currentUser || currentUser.uid !== uid) {
-      throw new Error("Your login session is missing. Sign in again.");
-    }
-
-    setSessions(await loadSessions(currentUser));
-  }
 
   async function refreshNotes(uid: string) {
     const currentUser = auth.currentUser;
@@ -6680,46 +6407,6 @@ export default function HomePage() {
     () => computeHistoricalStreaks([], streakQualifiedDateKeys),
     [streakQualifiedDateKeys],
   );
-  const xpByDay = useMemo(() => {
-    const allDayKeys = new Set<string>();
-    const todayKey = dayKeyLocal(new Date());
-
-    for (const key of sessionMinutesByDay.keys()) {
-      if (key <= todayKey) allDayKeys.add(key);
-    }
-    for (const key of noteWordsByDay.keys()) {
-      if (key <= todayKey) allDayKeys.add(key);
-    }
-    for (const key of completedBlocksByDay.keys()) {
-      if (key <= todayKey) allDayKeys.add(key);
-    }
-    for (const key of protectedStreakDateKeys) {
-      if (key <= todayKey) allDayKeys.add(key);
-    }
-
-    return [...allDayKeys]
-      .sort()
-      .map<DayXpSummary>((dateKey) =>
-        buildDayXpSummaryForDate({
-          dateKey,
-          sessionMinutesByDay,
-          completedBlocksByDay,
-          noteWordsByDay,
-          streakQualifiedDateKeys,
-        }),
-      );
-  }, [
-    completedBlocksByDay,
-    noteWordsByDay,
-    streakQualifiedDateKeys,
-    sessionMinutesByDay,
-  ]);
-  const lifetimeXpSummary = useMemo(() => {
-    const totalXp = xpByDay.reduce((sum, day) => sum + day.totalXp, 0);
-    const todayKey = dayKeyLocal(new Date());
-    const todayXp = xpByDay.find((day) => day.dateKey === todayKey)?.totalXp ?? 0;
-    return getLifetimeXpSummary(totalXp, todayXp);
-  }, [xpByDay]);
   const dynamicMonthCalendar = useMemo<MonthCell[]>(() => {
     const monthStart = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth(), 1);
     const daysInMonth = new Date(
@@ -7950,14 +7637,6 @@ export default function HomePage() {
     "--mobile-streak-text": xpTierTheme.textStrong,
   } as CSSProperties;
   const profileTierTheme = getProfileTierTheme(streakBandanaTier?.color, isPro);
-  const profileDisplayName =
-    user?.displayName?.trim() ||
-    user?.email?.split("@")[0]?.trim() ||
-    "Whelm user";
-  const currentUserPhotoUrl = user?.photoURL ?? null;
-  const currentUserId = user?.uid ?? "current-user";
-  const currentUserCreatedAtISO =
-    user?.metadata.creationTime ? new Date(user.metadata.creationTime).toISOString() : new Date().toISOString();
   const leaderboardEntries = useMemo<LeaderboardEntry[]>(() => {
     const seeded = LEADERBOARD_SEED_DATA.map((entry) => ({
       id: entry.id,
