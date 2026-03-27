@@ -51,7 +51,6 @@ import { resolveApiUrl } from "@/lib/api-base";
 import { getCalendarToneMeta, type CalendarTone } from "@/lib/calendar-tones";
 import { auth, db, storage } from "@/lib/firebase";
 import {
-  type NoteAttachment,
   type WorkspaceNote,
 } from "@/lib/notes-store";
 import {
@@ -499,113 +498,6 @@ const INSIGHT_CATEGORY_META: Record<
   },
 };
 
-function createNote(): WorkspaceNote {
-  const now = new Date().toISOString();
-  return {
-    id: typeof crypto !== "undefined" ? crypto.randomUUID() : `${Date.now()}`,
-    title: "Untitled note",
-    body: "",
-    attachments: [],
-    color: "#e7e5e4",
-    shellColor: "#fff7d6",
-    surfaceStyle: "solid",
-    isPinned: false,
-    fontFamily: "Avenir Next",
-    fontSizePx: 16,
-    category: "personal",
-    reminderAtISO: "",
-    createdAtISO: now,
-    updatedAtISO: now,
-  };
-}
-
-function noteAttachmentKind(mimeType: string, fileName: string): NoteAttachment["kind"] {
-  const normalizedMime = mimeType.toLowerCase();
-  const extension = fileName.toLowerCase().split(".").pop() || "";
-
-  if (normalizedMime.startsWith("image/")) return "image";
-  if (
-    normalizedMime.includes("pdf") ||
-    normalizedMime.includes("word") ||
-    normalizedMime.includes("document") ||
-    ["pdf", "doc", "docx", "pages", "rtf"].includes(extension)
-  ) {
-    return "document";
-  }
-  if (
-    normalizedMime.includes("spreadsheet") ||
-    normalizedMime.includes("excel") ||
-    ["xls", "xlsx", "csv", "numbers"].includes(extension)
-  ) {
-    return "spreadsheet";
-  }
-  if (
-    normalizedMime.includes("presentation") ||
-    normalizedMime.includes("powerpoint") ||
-    ["ppt", "pptx", "key"].includes(extension)
-  ) {
-    return "presentation";
-  }
-  if (
-    normalizedMime.startsWith("text/") ||
-    ["txt", "md"].includes(extension)
-  ) {
-    return "text";
-  }
-  if (
-    normalizedMime.includes("zip") ||
-    normalizedMime.includes("compressed") ||
-    ["zip"].includes(extension)
-  ) {
-    return "archive";
-  }
-  return "other";
-}
-
-function noteAttachmentBadgeLabel(attachment: NoteAttachment) {
-  switch (attachment.kind) {
-    case "image":
-      return "Image";
-    case "document":
-      return "Document";
-    case "spreadsheet":
-      return "Sheet";
-    case "presentation":
-      return "Slides";
-    case "archive":
-      return "Archive";
-    case "text":
-      return "Text";
-    default:
-      return "File";
-  }
-}
-
-function noteAttachmentGlyph(attachment: Pick<NoteAttachment, "kind">) {
-  switch (attachment.kind) {
-    case "image":
-      return "◫";
-    case "document":
-      return "▤";
-    case "spreadsheet":
-      return "▥";
-    case "presentation":
-      return "◩";
-    case "archive":
-      return "⬚";
-    case "text":
-      return "≣";
-    default:
-      return "•";
-  }
-}
-
-function formatAttachmentSize(sizeBytes: number) {
-  if (sizeBytes < 1024) return `${sizeBytes} B`;
-  if (sizeBytes < 1024 * 1024) return `${Math.round(sizeBytes / 1024)} KB`;
-  return `${(sizeBytes / (1024 * 1024)).toFixed(sizeBytes >= 10 * 1024 * 1024 ? 0 : 1)} MB`;
-}
-
 function parseHexColor(value: string) {
   const normalized = value.trim();
   const match = normalized.match(/^#([\da-f]{3}|[\da-f]{6})$/i);
@@ -713,45 +605,6 @@ function bandanaImageGlow(color: string | null | undefined): string {
 function attachmentIndicatorLabel(count: number) {
   return `📎 ${count}`;
 }
-
-function noteWordCount(body: string): number {
-  return body.trim() === "" ? 0 : body.trim().split(/\s+/).length;
-}
-
-type LocalNoteDraft = {
-  body: string;
-  updatedAtISO: string;
-};
-
-function noteDraftStorageKey(uid: string, noteId: string) {
-  return `whelm:note-draft:${uid}:${noteId}`;
-}
-
-function readLocalNoteDraft(uid: string, noteId: string) {
-  try {
-    const raw = window.localStorage.getItem(noteDraftStorageKey(uid, noteId));
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as LocalNoteDraft;
-    if (!parsed || typeof parsed.body !== "string" || typeof parsed.updatedAtISO !== "string") {
-      return null;
-    }
-    return parsed;
-  } catch {
-    return null;
-  }
-}
-
-function writeLocalNoteDraft(uid: string, noteId: string, body: string, updatedAtISO: string) {
-  window.localStorage.setItem(
-    noteDraftStorageKey(uid, noteId),
-    JSON.stringify({ body, updatedAtISO } satisfies LocalNoteDraft),
-  );
-}
-
-function clearLocalNoteDraft(uid: string, noteId: string) {
-  window.localStorage.removeItem(noteDraftStorageKey(uid, noteId));
-}
-
 
 function normalizeBodyForEditor(body: string) {
   if (!body) return "";
@@ -1182,15 +1035,6 @@ type ProfileAvatarSize = "mini" | "row" | "compact" | "hero";
 type ProfileTierTheme = {
   title: string;
   imagePath: string;
-};
-
-
-
-type PendingNoteAttachment = {
-  id: string;
-  name: string;
-  kind: NoteAttachment["kind"];
-  progress: number;
 };
 
 
