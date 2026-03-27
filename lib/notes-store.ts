@@ -278,35 +278,54 @@ export async function retryNotesSync(user: User, notes: WorkspaceNote[]) {
  * Reads the legacy `notesJson` blob from `userNotes/{uid}` and writes each
  * note as its own document to `userNotes/{uid}/notes/{noteId}`.
  *
- * Gated by a `notesMigrated: true` flag in `userPreferences/{uid}` so it
- * runs exactly once per account and never again after that.
+ * Gate: if the subcollection already has documents, the migration already ran
+ * (or notes were written by the new code), so we skip immediately.
+ * This avoids depending on `userPreferences` which has no security rule.
  */
 export async function migrateNotesFromJson(uid: string): Promise<void> {
-  // Skip if already migrated.
-  const prefsSnap = await getDoc(firestoreDoc(db, "userPreferences", uid));
-  if (prefsSnap.data()?.notesMigrated === true) return;
+  // If the subcollection already has any documents, nothing to migrate.
+  const existingSnap = await getDocs(collection(db, "userNotes", uid, "notes"));
+  if (!existingSnap.empty) {
+    console.log("[whelm:migration] subcollection already has docs — skipping", existingSnap.size);
+    return;
+  }
+
+  console.log("[whelm:migration] subcollection is empty — reading legacy notesJson blob");
 
   // Read the old single-document format.
   const oldSnap = await getDoc(firestoreDoc(db, "userNotes", uid));
-  if (oldSnap.exists()) {
-    const raw = oldSnap.data()?.notesJson;
-    if (typeof raw === "string") {
-      let oldNotes: WorkspaceNote[] = [];
-      try {
-        const parsed = JSON.parse(raw) as unknown;
-        oldNotes = Array.isArray(parsed) ? normalizeNotes(parsed as WorkspaceNote[]) : [];
-      } catch { /* invalid JSON — migrate nothing */ }
-
-      if (oldNotes.length > 0) {
-        await Promise.allSettled(
-          oldNotes.map((note) =>
-            setDoc(firestoreDoc(db, "userNotes", uid, "notes", note.id), note, { merge: true }),
-          ),
-        );
-      }
-    }
+  if (!oldSnap.exists()) {
+    console.log("[whelm:migration] no legacy document found — nothing to migrate");
+    return;
   }
 
-  // Mark migration complete regardless of whether there were notes to migrate.
-  await setDoc(firestoreDoc(db, "userPreferences", uid), { notesMigrated: true }, { merge: true });
+  const raw = oldSnap.data()?.notesJson;
+  if (typeof raw !== "string") {
+    console.log("[whelm:migration] legacy document has no notesJson string — nothing to migrate");
+    return;
+  }
+
+  let oldNotes: WorkspaceNote[] = [];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    oldNotes = Array.isArray(parsed) ? normalizeNotes(parsed as WorkspaceNote[]) : [];
+  } catch {
+    console.warn("[whelm:migration] failed to parse legacy notesJson");
+  }
+
+  if (oldNotes.length === 0) {
+    console.log("[whelm:migration] legacy notesJson parsed to zero notes — nothing to migrate");
+    return;
+  }
+
+  console.log(`[whelm:migration] migrating ${oldNotes.length} notes to subcollection`);
+
+  const results = await Promise.allSettled(
+    oldNotes.map((note) =>
+      setDoc(firestoreDoc(db, "userNotes", uid, "notes", note.id), note, { merge: true }),
+    ),
+  );
+
+  const failed = results.filter((r) => r.status === "rejected").length;
+  console.log(`[whelm:migration] done — ${oldNotes.length - failed} written, ${failed} failed`);
 }
