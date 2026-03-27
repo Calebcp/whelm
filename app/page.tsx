@@ -26,7 +26,6 @@ import ScheduleTab from "@/components/ScheduleTab";
 import TodayTab from "@/components/TodayTab";
 import SenseiFigure, { type SenseiVariant } from "@/components/SenseiFigure";
 import WhelMascot from "@/components/WhelMascot";
-import Timer, { type TimerSessionContext } from "@/components/Timer";
 import WhelmEmote from "@/components/WhelmEmote";
 import WhelmRitualScene from "@/components/WhelmRitualScene";
 import CardsTab from "@/components/CardsTab";
@@ -35,11 +34,7 @@ import WhelToastContainer, { useToasts } from "@/components/WhelToast";
 import { createCard, loadCards, saveCards } from "@/lib/cards-store";
 import {
   trackAppOpened,
-  trackSessionAbandoned,
-  trackSessionCompleted,
-  trackSessionStarted,
   trackStreakUpdated,
-  trackTaskCompleted,
   trackTaskCreated,
 } from "@/lib/analytics-tracker";
 import { resolveApiUrl } from "@/lib/api-base";
@@ -52,7 +47,7 @@ import {
   type PreferencesBackgroundSetting,
   type PreferencesBackgroundSkin,
 } from "@/lib/preferences-store";
-import { loadSessions, saveSession } from "@/lib/session-store";
+import { loadSessions } from "@/lib/session-store";
 import {
   computeStreak,
   computeStreakEndingAtDateKey,
@@ -73,7 +68,6 @@ import {
   buildSenseiCompanionState,
   type SenseiCompanionStyle,
 } from "@/lib/sensei-companion";
-import { evaluateSessionQuality } from "@/lib/session-quality";
 import {
   getStreakBandanaTier,
   STREAK_BANDANA_TIERS,
@@ -113,6 +107,7 @@ import { useLeaderboard } from "@/hooks/useLeaderboard";
 import { usePlannedBlocks } from "@/hooks/usePlannedBlocks";
 import { usePreferences } from "@/hooks/usePreferences";
 import { useReflection } from "@/hooks/useReflection";
+import { useSessions } from "@/hooks/useSessions";
 import { useStreak } from "@/hooks/useStreak";
 import { useUserData } from "@/hooks/useUserData";
 import styles from "./page.module.css";
@@ -1221,10 +1216,6 @@ function isDateKeyWithinRecentWindow(dateKey: string, days: number) {
 
 function normalizePlannableDateKey(dateKey: string) {
   return isDateKeyBeforeToday(dateKey) ? dayKeyLocal(new Date()) : dateKey;
-}
-
-function countSessionsForDate(sessions: SessionDoc[], dateKey: string) {
-  return sessions.filter((session) => dayKeyLocal(session.completedAtISO) === dateKey).length;
 }
 
 function greetingForDate(date: Date) {
@@ -3400,6 +3391,58 @@ export default function HomePage() {
     onSignOut,
   });
 
+  const handleSessionOutcome = useCallback(({
+    source,
+    minutesSpent,
+    nextSessions,
+    nextStreak,
+  }: {
+    source: "timer" | "plan";
+    minutesSpent: number;
+    nextSessions: SessionDoc[];
+    nextStreak: number;
+  }) => {
+    const todayKeyForReaction = dayKeyLocal(new Date());
+    setSenseiReaction(
+      buildSenseiReaction({
+        source,
+        minutesSpent,
+        todaySessions: nextSessions.filter(
+          (session) => dayKeyLocal(session.completedAtISO) === todayKeyForReaction,
+        ).length,
+        streak: nextStreak,
+      }),
+    );
+    if (source === "plan") {
+      showToast("Session saved from plan.", "success");
+    }
+  }, [showToast]);
+
+  const {
+    handleSessionStarted,
+    handleSessionAbandoned,
+    completeSession,
+    completePlannedBlock,
+  } = useSessions({
+    user,
+    sessions,
+    setSessions,
+    sessionMinutesByDay,
+    completedBlocksByDay,
+    noteWordsByDay,
+    streakQualifiedDateKeys,
+    protectedStreakDateKeys,
+    xpByDay,
+    lifetimeXpSummary,
+    plannedBlocks,
+    persistPlannedBlocks,
+    sessionReward,
+    setSessionReward,
+    triggerXPPop,
+    getSubjectModeFromText: analyticsSubjectModeFromText,
+    onSessionOutcome: handleSessionOutcome,
+  });
+
   const {
     companionStyle,
     themeMode,
@@ -4349,178 +4392,6 @@ export default function HomePage() {
       }),
     );
   }
-
-  async function handleSessionStarted(context: TimerSessionContext) {
-    if (!user) return;
-
-    fireAndForgetTracking(
-      trackSessionStarted(user, {
-        sessionId: context.sessionId,
-        sessionType: context.sessionType,
-        subjectMode: context.subjectMode,
-        targetMinutes: context.targetMinutes,
-      }),
-    );
-  }
-
-  async function handleSessionAbandoned(
-    context: TimerSessionContext & {
-      elapsedMinutes: number;
-      abandonReason: "reset" | "route_change" | "component_unmount" | "unknown";
-    },
-  ) {
-    if (!user) return;
-
-    const quality = evaluateSessionQuality({
-      plannedDurationMinutes: context.targetMinutes,
-      actualDurationMinutes: context.elapsedMinutes,
-      completionStatus: "abandoned",
-      earlyExit: true,
-      interruptionCount: context.interruptionCount,
-      tasksCompletedCount: 0,
-    });
-
-    fireAndForgetTracking(
-      trackSessionAbandoned(user, {
-        sessionId: context.sessionId,
-        sessionType: context.sessionType,
-        subjectMode: context.subjectMode,
-        elapsedMinutes: context.elapsedMinutes,
-        abandonReason: context.abandonReason,
-        plannedDurationMinutes: context.targetMinutes,
-        interruptionCount: context.interruptionCount,
-        qualityScore: quality.score,
-        qualityRating: quality.rating,
-      }),
-    );
-  }
-
-  async function completeSession(
-    note: string,
-    minutesSpent: number,
-    sessionContext?: TimerSessionContext,
-  ) {
-    if (!user) return;
-
-    const todayKey = dayKeyLocal(new Date());
-    const previousStreak = computeStreak(sessions, protectedStreakDateKeys);
-    const previousTodayXp =
-      xpByDay.find((day) => day.dateKey === todayKey)?.totalXp ??
-      buildDayXpSummaryForDate({
-        dateKey: todayKey,
-        sessionMinutesByDay,
-        completedBlocksByDay,
-        noteWordsByDay,
-        streakQualifiedDateKeys,
-      }).totalXp;
-    const previousTotalXp = lifetimeXpSummary.totalXp;
-    const previousLevel = lifetimeXpSummary.currentLevel;
-    const now = new Date().toISOString();
-    const session: SessionDoc = {
-      uid: user.uid,
-      completedAtISO: now,
-      minutes: minutesSpent,
-      category: "misc",
-      note: note.trim(),
-      noteSavedAtISO: now,
-    };
-
-    const nextSessions = await saveSession(user, session);
-    setSessions(nextSessions);
-    const nextSessionMinutesByDay = new Map(sessionMinutesByDay);
-    nextSessionMinutesByDay.set(todayKey, (nextSessionMinutesByDay.get(todayKey) ?? 0) + minutesSpent);
-    const todayFocusMinutesAfter = nextSessionMinutesByDay.get(todayKey) ?? 0;
-    const todayCompletedBlocksAfter = completedBlocksByDay.get(todayKey) ?? 0;
-    const todayNoteWordsAfter = noteWordsByDay.get(todayKey) ?? 0;
-    const qualifiesTodayAfter = doesDateQualifyForStreak({
-      dateKey: todayKey,
-      focusMinutes: todayFocusMinutesAfter,
-      completedBlocks: todayCompletedBlocksAfter,
-      noteWords: todayNoteWordsAfter,
-      todayKey,
-      protectedDateKeys: protectedStreakDateKeys,
-    });
-    const nextQualifiedDateKeys = qualifiesTodayAfter
-      ? [...new Set([...streakQualifiedDateKeys, todayKey])].sort()
-      : streakQualifiedDateKeys;
-    const nextTodaySummary = buildDayXpSummaryForDate({
-      dateKey: todayKey,
-      sessionMinutesByDay: nextSessionMinutesByDay,
-      completedBlocksByDay,
-      noteWordsByDay,
-      streakQualifiedDateKeys: nextQualifiedDateKeys,
-    });
-    const nextTodayXp = nextTodaySummary.totalXp;
-    const xpGained = Math.max(0, nextTodayXp - previousTodayXp);
-    const nextTotalXp = previousTotalXp + xpGained;
-    const nextLevel = getLifetimeXpSummary(nextTotalXp, nextTodayXp).currentLevel;
-    const nextStreak = computeStreak(nextSessions, protectedStreakDateKeys);
-    const previousTier = getStreakBandanaTier(previousStreak);
-    const nextTier = getStreakBandanaTier(nextStreak);
-    const tierUnlocked =
-      nextTier && (previousTier?.minDays ?? 0) < nextTier.minDays ? nextTier : null;
-    if (sessionContext) {
-      const quality = evaluateSessionQuality({
-        plannedDurationMinutes: sessionContext.targetMinutes,
-        actualDurationMinutes: minutesSpent,
-        completionStatus: "completed",
-        earlyExit:
-          sessionContext.targetMinutes !== null && minutesSpent < sessionContext.targetMinutes,
-        interruptionCount: sessionContext.interruptionCount,
-        tasksCompletedCount: 0,
-      });
-      fireAndForgetTracking(
-        trackSessionCompleted(user, {
-          sessionId: sessionContext.sessionId,
-          sessionType: sessionContext.sessionType,
-          subjectMode: sessionContext.subjectMode,
-          durationMinutes: minutesSpent,
-          plannedDurationMinutes: sessionContext.targetMinutes,
-          completionStatus: "completed",
-          earlyExit:
-            sessionContext.targetMinutes !== null && minutesSpent < sessionContext.targetMinutes,
-          interruptionCount: sessionContext.interruptionCount,
-          tasksCompletedCount: 0,
-          qualityScore: quality.score,
-          qualityRating: quality.rating,
-          noteAttached: Boolean(note.trim()),
-        }),
-      );
-    }
-    trackStreakChange(
-      previousStreak,
-      nextStreak,
-      "session_completed",
-      sessionContext?.sessionId ?? null,
-    );
-    setSenseiReaction(
-      buildSenseiReaction({
-        source: "timer",
-        minutesSpent,
-        todaySessions: countSessionsForDate(nextSessions, todayKey),
-        streak: nextStreak,
-      }),
-    );
-    setSessionReward({
-      id: `${Date.now()}`,
-      minutesSpent,
-      xpGained,
-      todayXp: nextTodayXp,
-      streakAfter: nextStreak,
-      streakDelta: Math.max(0, nextStreak - previousStreak),
-      leveledUp: nextLevel > previousLevel,
-      tierUnlocked,
-    });
-  triggerXPPop(20);
-  }
-
-  useEffect(() => {
-    if (!sessionReward) return;
-    const timeoutId = window.setTimeout(() => {
-      setSessionReward((current) => (current?.id === sessionReward.id ? null : current));
-    }, 4200);
-    return () => window.clearTimeout(timeoutId);
-  }, [sessionReward]);
 
   useEffect(() => {
     if (!streakCelebration) return;
@@ -5781,96 +5652,6 @@ export default function HomePage() {
     }),
     [reportMetrics],
   );
-
-  async function completePlannedBlock(item: PlannedBlock) {
-    if (!user) return;
-
-    const previousStreak = computeStreak(sessions, protectedStreakDateKeys);
-    const localDateTime = new Date(`${item.dateKey}T${item.timeOfDay}:00`);
-    const completedAtISO = Number.isNaN(localDateTime.getTime())
-      ? new Date().toISOString()
-      : localDateTime.toISOString();
-
-    const session: SessionDoc = {
-      uid: user.uid,
-      completedAtISO,
-      minutes: item.durationMinutes,
-      category: "misc",
-      note: item.note.trim()
-        ? `Planned block completed: ${item.title} - ${item.note.trim()}`
-        : `Planned block completed: ${item.title}`,
-      noteSavedAtISO: new Date().toISOString(),
-    };
-
-    const linkedSessionId =
-      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-        ? crypto.randomUUID()
-        : `${Date.now()}`;
-    const nextSessions = await saveSession(user, session);
-    setSessions(nextSessions);
-    const quality = evaluateSessionQuality({
-      plannedDurationMinutes: item.durationMinutes,
-      actualDurationMinutes: item.durationMinutes,
-      completionStatus: "completed",
-      earlyExit: false,
-      interruptionCount: 0,
-      tasksCompletedCount: 1,
-    });
-    fireAndForgetTracking(
-      trackSessionCompleted(user, {
-        sessionId: linkedSessionId,
-        sessionType: "focus",
-        subjectMode: analyticsSubjectModeFromText(`${item.title} ${item.note}`),
-        durationMinutes: item.durationMinutes,
-        plannedDurationMinutes: item.durationMinutes,
-        completionStatus: "completed",
-        earlyExit: false,
-        interruptionCount: 0,
-        tasksCompletedCount: 1,
-        qualityScore: quality.score,
-        qualityRating: quality.rating,
-        noteAttached: Boolean(item.note.trim()),
-        completedFromTaskId: item.id,
-      }),
-    );
-    fireAndForgetTracking(
-      trackTaskCompleted(user, {
-        taskId: item.id,
-        scheduledDate: item.dateKey,
-        durationMinutes: item.durationMinutes,
-        subjectMode: analyticsSubjectModeFromText(`${item.title} ${item.note}`),
-        linkedSessionId,
-      }),
-    );
-    trackStreakChange(
-      previousStreak,
-      computeStreak(nextSessions, protectedStreakDateKeys),
-      "task_completed",
-      linkedSessionId,
-      item.dateKey,
-    );
-    setSenseiReaction(
-      buildSenseiReaction({
-        source: "plan",
-        minutesSpent: item.durationMinutes,
-        todaySessions: countSessionsForDate(nextSessions, dayKeyLocal(new Date())),
-        streak: computeStreak(nextSessions, protectedStreakDateKeys),
-      }),
-    );
-    const updated = plannedBlocks.map((block) =>
-      block.id === item.id
-        ? {
-            ...block,
-            status: "completed" as PlannedBlock["status"],
-            completedAtISO,
-            updatedAtISO: new Date().toISOString(),
-          }
-        : block,
-    );
-    void persistPlannedBlocks(updated);
-    showToast("Session saved from plan.", "success");
-    triggerXPPop(10);
-  }
 
   function jumpToCalendarSection(sectionId: string) {
     if (sectionId === "calendar-planner" && calendarView === "day") {
