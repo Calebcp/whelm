@@ -91,6 +91,7 @@ import { usePlannedBlocks } from "@/hooks/usePlannedBlocks";
 import { useAccountSettings } from "@/hooks/useAccountSettings";
 import { usePreferences } from "@/hooks/usePreferences";
 import { useCalendarInteractions } from "@/hooks/useCalendarInteractions";
+import { useModalFlows } from "@/hooks/useModalFlows";
 import { useReflection } from "@/hooks/useReflection";
 import { useReportsAnalytics } from "@/hooks/useReportsAnalytics";
 import { useSessions } from "@/hooks/useSessions";
@@ -4098,75 +4099,6 @@ export default function HomePage() {
     return () => window.clearTimeout(timeoutId);
   }, [streakCelebration]);
 
-  function openMobileNoteEditor(noteId: string) {
-    setSelectedNoteId(noteId);
-    setMobileNotesEditorOpen(true);
-    setMobileNotesToolsOpen(null);
-    setMobileNotesRecentOpen(false);
-  }
-
-  async function handleMobileCreateNote() {
-    await createWorkspaceNote();
-    setMobileNotesEditorOpen(true);
-    setMobileNotesToolsOpen(null);
-    setMobileNotesRecentOpen(false);
-  }
-
-  function handleOpenCurrentMobileNote() {
-    if (!selectedNoteId) return;
-    openMobileNoteEditor(selectedNoteId);
-  }
-
-  function handleMobilePlannerOpen() {
-    setActiveTab("calendar");
-    setCalendarView("day");
-    setMobileBlockSheetOpen(true);
-    setPlanStatus("");
-  }
-
-  function openTimeBlockFlow(dateKey: string) {
-    const nextDateKey = normalizePlannableDateKey(dateKey);
-    setSelectedCalendarDate(nextDateKey);
-    setActiveTab("calendar");
-    setCalendarView("day");
-    setMobileBlockSheetOpen(true);
-    setDayPortalComposerOpen(true);
-    setPlanAttachmentCount(0);
-    if (nextDateKey !== dateKey) {
-      showToast("Past dates stay read-only. Add the block to today or a future day.", "warning");
-    }
-    setPlanConflictWarning(null);
-  }
-
-  function openSickDaySaveReview() {
-    dismissSickDaySavePrompt();
-    if (sickDaySaveEligible) {
-      openStreakSaveQuestionnaire();
-      return;
-    }
-    setActiveTab("mirror");
-  }
-
-  function openDailyPlanningPreview() {
-    setDailyPlanningStatus("");
-    setDailyPlanningPreviewOpen(true);
-    setDailyPlanningOpen(true);
-  }
-
-  function handleTodayPrimaryAction() {
-    if (senseiGuidance.actionLabel === "Start Today") {
-      openTimeBlockFlow(dayKeyLocal(new Date()));
-      return;
-    }
-
-    if (senseiGuidance.actionLabel === "Protect the Streak") {
-      openTimeBlockFlow(selectedDateKey);
-      return;
-    }
-
-    setActiveTab(senseiGuidance.actionTab as AppTab);
-  }
-
   function convertNoteToPlannedBlock(note: WorkspaceNote) {
     const reminderDate = note.reminderAtISO ? new Date(note.reminderAtISO) : null;
     const rawDateKey = reminderDate ? dayKeyLocal(reminderDate) : selectedDateKey;
@@ -4558,6 +4490,50 @@ export default function HomePage() {
       mobileDayTimelineScrollRef,
     },
   });
+  const {
+    openMobileNoteEditor,
+    handleMobileCreateNote,
+    handleOpenCurrentMobileNote,
+    handleMobilePlannerOpen,
+    openTimeBlockFlow,
+    openSickDaySaveReview,
+    openDailyPlanningPreview,
+    handleTodayPrimaryAction,
+    handleStreakNudgeAction,
+  } = useModalFlows({
+    selectedNoteId,
+    selectedDateKey,
+    sickDaySaveEligible,
+    senseiActionLabel: senseiGuidance.actionLabel,
+    senseiActionTab: senseiGuidance.actionTab as AppTab,
+    dismissSickDaySavePrompt,
+    openStreakSaveQuestionnaire,
+    createWorkspaceNote,
+    setSelectedNoteId,
+    setMobileNotesEditorOpen,
+    setMobileNotesToolsOpen,
+    setMobileNotesRecentOpen,
+    setActiveTab,
+    setCalendarView,
+    setMobileBlockSheetOpen,
+    setPlanStatus,
+    setSelectedCalendarDate,
+    setDayPortalComposerOpen,
+    setPlanAttachmentCount,
+    showToast,
+    setPlanConflictWarning,
+    setDailyPlanningStatus,
+    setDailyPlanningPreviewOpen,
+    setDailyPlanningOpen,
+    setStreakNudge: () => setStreakNudge(null),
+    scrollToSection,
+    todayTimerRef,
+    todaySectionRef,
+    notesEditorRef,
+    notesSectionRef,
+    calendarTimelineRef,
+    calendarSectionRef,
+  });
   const calendarEntryById = useMemo(() => {
     const byId = new Map<string, CalendarEntry>();
     calendarEntriesByDate.forEach((items) => {
@@ -4854,24 +4830,6 @@ export default function HomePage() {
         </div>
       </main>
     );
-  }
-
-  function handleStreakNudgeAction(tab: AppTab) {
-    setStreakNudge(null);
-    setActiveTab(tab);
-    if (tab === "today") {
-      window.setTimeout(() => scrollToSection(todayTimerRef.current ?? todaySectionRef.current), 80);
-      return;
-    }
-    if (tab === "notes") {
-      window.setTimeout(() => scrollToSection(notesEditorRef.current ?? notesSectionRef.current), 80);
-      return;
-    }
-    if (tab === "calendar") {
-      setCalendarView("day");
-      setSelectedCalendarDate(todayKey);
-      window.setTimeout(() => scrollToSection(calendarTimelineRef.current ?? calendarSectionRef.current), 80);
-    }
   }
 
   const maxTrendMinutes = Math.max(30, ...trendPoints.map((point) => point.minutes));
