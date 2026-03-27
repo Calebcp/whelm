@@ -489,92 +489,6 @@ const INSIGHT_CATEGORY_META: Record<
   },
 };
 
-function parseHexColor(value: string) {
-  const normalized = value.trim();
-  const match = normalized.match(/^#([\da-f]{3}|[\da-f]{6})$/i);
-  if (!match) return null;
-
-  const hex = match[1];
-  const expanded =
-    hex.length === 3
-      ? hex
-          .split("")
-          .map((char) => `${char}${char}`)
-          .join("")
-      : hex;
-
-  const red = Number.parseInt(expanded.slice(0, 2), 16);
-  const green = Number.parseInt(expanded.slice(2, 4), 16);
-  const blue = Number.parseInt(expanded.slice(4, 6), 16);
-
-  return { red, green, blue };
-}
-
-function relativeLuminance({ red, green, blue }: { red: number; green: number; blue: number }) {
-  const toLinear = (channel: number) => {
-    const normalized = channel / 255;
-    return normalized <= 0.03928
-      ? normalized / 12.92
-      : ((normalized + 0.055) / 1.055) ** 2.4;
-  };
-
-  return 0.2126 * toLinear(red) + 0.7152 * toLinear(green) + 0.0722 * toLinear(blue);
-}
-
-function notePreviewStyle(tint: string): CSSProperties {
-  const parsed = parseHexColor(tint);
-  const luminance = parsed ? relativeLuminance(parsed) : 1;
-  const usesDarkInk = luminance > 0.64;
-
-  return {
-    ["--note-item-tint" as const]: tint,
-    ["--note-item-title" as const]: usesDarkInk ? "#102033" : "#f7fbff",
-    ["--note-item-meta" as const]: usesDarkInk ? "rgba(16, 32, 51, 0.72)" : "rgba(247, 251, 255, 0.78)",
-    ["--note-item-chip-bg" as const]: usesDarkInk ? "rgba(16, 32, 51, 0.12)" : "rgba(255, 255, 255, 0.16)",
-    ["--note-item-chip-color" as const]: usesDarkInk ? "#183a67" : "#f7fbff",
-    ["--note-item-text-shadow" as const]: usesDarkInk
-      ? "0 1px 0 rgba(255, 255, 255, 0.26)"
-      : "0 1px 10px rgba(8, 12, 24, 0.28)",
-  } as CSSProperties;
-}
-
-function resolveFirebaseStorageBucket() {
-  return typeof storage.app.options.storageBucket === "string"
-    ? storage.app.options.storageBucket.trim()
-    : "";
-}
-
-function describeAttachmentUploadError(error: unknown, bucketName: string) {
-  const code =
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    typeof (error as { code?: unknown }).code === "string"
-      ? (error as { code: string }).code
-      : "";
-
-  switch (code) {
-    case "storage/unauthorized":
-      return "Firebase Storage rejected the upload. Check Storage rules for authenticated writes to users/{uid}/notes/**.";
-    case "storage/bucket-not-found":
-      return `Firebase Storage bucket "${bucketName}" was not found. Check NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET and confirm Storage is enabled for this project.`;
-    case "storage/project-not-found":
-      return "Firebase Storage could not find this Firebase project. Check the deployed Firebase project configuration.";
-    case "storage/quota-exceeded":
-      return "Firebase Storage quota was exceeded. The upload was rejected by the bucket.";
-    case "storage/retry-limit-exceeded":
-      return `Firebase Storage stopped retrying the upload for bucket "${bucketName}". Check the bucket, Storage rules, and browser network access.`;
-    case "storage/canceled":
-      return error instanceof Error && error.message
-        ? error.message
-        : "Attachment upload was canceled.";
-    default:
-      return error instanceof Error && error.message
-        ? error.message
-        : "Attachment upload failed.";
-  }
-}
-
 function attachmentIndicatorLabel(count: number) {
   return `📎 ${count}`;
 }
@@ -1304,30 +1218,6 @@ function mobileTabDescription(tab: AppTab) {
   }
 }
 
-const BANDANA_WORD_COLORS: Record<string, string> = {
-  Yellow: "#ffd84d",
-  Red: "#ff5353",
-  Green: "#43d96b",
-  Purple: "#b477ff",
-  Blue: "#58c7ff",
-  Black: "#8da0bf",
-  White: "#f7fbff",
-};
-
-function renderBandanaBadgeLabel(label: string | null | undefined) {
-  if (!label) return "Start your streak";
-  const [firstWord, ...rest] = label.split(" ");
-  const tint = BANDANA_WORD_COLORS[firstWord] ?? "#f7fbff";
-  return (
-    <>
-      <span className={styles.streakBadgeWord} style={{ color: tint }}>
-        {firstWord}
-      </span>{" "}
-      {rest.join(" ")}
-    </>
-  );
-}
-
 function plannedBlocksStorageKey(uid: string) {
   return `whelm:planned-focus:${uid}`;
 }
@@ -1430,25 +1320,6 @@ function saveMonthTones(uid: string, tones: MonthToneMap) {
   window.localStorage.setItem(monthToneStorageKey(uid), JSON.stringify(tones));
 }
 
-function notesShellBackground(
-  themeMode: ThemeMode,
-  shellColor?: string,
-  pageColor?: string,
-  accent?: string,
-  accentStrong?: string,
-  glow?: string,
-) {
-  return {
-    ["--note-surface-tint" as const]:
-      shellColor ?? (themeMode === "dark" ? "#182038" : "#fff7d6"),
-    ["--note-page-tone" as const]:
-      pageColor ?? (themeMode === "dark" ? "#182038" : "#fffaf0"),
-    ["--note-bandana-accent" as const]: accent ?? "#59c7ff",
-    ["--note-bandana-accent-strong" as const]: accentStrong ?? "#2f86ff",
-    ["--note-bandana-glow" as const]: glow ?? "rgba(84, 173, 255, 0.34)",
-  } as CSSProperties;
-}
-
 function getPageShellBackgroundStyle(
   themeMode: ThemeMode,
   setting: AppBackgroundSetting,
@@ -1487,81 +1358,6 @@ function getPageShellBackgroundStyle(
     backgroundAttachment: "scroll",
     backgroundColor: themeMode === "light" ? "#f6f2eb" : "#0d1121",
   };
-}
-
-function createDailyRitualDrafts(existing: PlannedBlock[]): DailyRitualBlockDraft[] {
-  const seeded: DailyRitualBlockDraft[] = existing
-    .slice(0, 3)
-    .map((item, index) => ({
-      id: `existing-${item.id}-${index}`,
-      existingBlockId: item.id,
-      title: item.title,
-      note: item.note,
-      tone: item.tone ?? null,
-      timeOfDay: item.timeOfDay,
-      durationMinutes: item.durationMinutes,
-    }));
-
-  while (seeded.length < 3) {
-    const nextIndex = seeded.length;
-    seeded.push({
-      id: `new-${nextIndex}`,
-      title: "",
-      note: "",
-      tone: null,
-      timeOfDay: ["09:00", "13:00", "17:00"][nextIndex] || "09:00",
-      durationMinutes: 30,
-    });
-  }
-
-  return seeded;
-}
-
-function syncDailyRitualDrafts(
-  existing: PlannedBlock[],
-  current: DailyRitualBlockDraft[],
-): DailyRitualBlockDraft[] {
-  const synced: DailyRitualBlockDraft[] = existing
-    .slice(0, 3)
-    .map((item, index) => ({
-      id: `existing-${item.id}-${index}`,
-      existingBlockId: item.id,
-      title: item.title,
-      note: item.note,
-      tone: item.tone ?? null,
-      timeOfDay: item.timeOfDay,
-      durationMinutes: item.durationMinutes,
-    }));
-
-  const openDrafts = current
-    .filter((draft) => !draft.existingBlockId)
-    .map((draft) => ({
-      ...draft,
-      id: draft.id.startsWith("new-") ? draft.id : `new-${draft.id}`,
-    }));
-
-  while (synced.length < 3 && openDrafts.length > 0) {
-    const nextIndex = synced.length;
-    const nextDraft = openDrafts.shift()!;
-    synced.push({
-      ...nextDraft,
-      id: `new-${nextIndex}`,
-    });
-  }
-
-  while (synced.length < 3) {
-    const nextIndex = synced.length;
-    synced.push({
-      id: `new-${nextIndex}`,
-      title: "",
-      note: "",
-      tone: null,
-      timeOfDay: ["09:00", "13:00", "17:00"][nextIndex] || "09:00",
-      durationMinutes: 30,
-    });
-  }
-
-  return synced;
 }
 
 const DESKTOP_PRIMARY_TABS: Array<{ key: AppTab; label: string }> = [
