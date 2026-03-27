@@ -112,59 +112,8 @@ export default function StreaksTab({
   return (
     <AnimatedTabSection className={styles.streaksShell} sectionRef={sectionRef}>
       <motion.article
-        className={`${styles.card} ${styles.streakHeroCard}`}
-        ref={primaryRef}
-        initial={{ opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
-      >
-        <div className={styles.streakHeroCopy}>
-          <p className={styles.streakBadge}>Whelm Run</p>
-          <h2 className={styles.streakHeroTitle}>{currentRun} day{currentRun === 1 ? "" : "s"}</h2>
-          <p className={styles.streakHeroBody}>
-            {streakProtectedToday
-              ? "The run is protected. Hold the standard and keep the bandana alive."
-              : "The calendar is the contract. Earn today cleanly and keep the line intact."}
-          </p>
-          <div className={styles.streakHeroMetaRow}>
-            <div className={styles.streakHeroStat}>
-              <strong>{activeMonthDays}</strong>
-              <span>{monthLabelShort} earned</span>
-            </div>
-            <div className={styles.streakHeroStat}>
-              <strong>{protectedMonthDays}</strong>
-              <span>saved days</span>
-            </div>
-            <div
-              className={`${styles.streakHeroStatusPill} ${
-                streakProtectedToday ? styles.streakHeroStatusPillSafe : styles.streakHeroStatusPillOpen
-              }`}
-            >
-              {streakProtectedToday ? "Today protected" : "Today open"}
-            </div>
-          </div>
-        </div>
-        <div className={styles.streakHeroVisual}>
-          <div className={styles.streakMilestoneCard}>
-            <div className={styles.streakMilestoneIcon}>
-              <StreakBandana
-                streakDays={Math.max(1, currentRun)}
-                className={styles.streakMilestoneBandana}
-              />
-            </div>
-            <div className={styles.streakMilestoneCopy}>
-              <p className={styles.sectionLabel}>Bandana status</p>
-              <h3 className={styles.streakMilestoneTitle}>
-                {currentBandanaColor ? `${currentBandanaColor} tier active` : "Run not crowned yet"}
-              </h3>
-              <p className={styles.streakMilestoneBody}>{streakStatusLine}</p>
-            </div>
-          </div>
-        </div>
-      </motion.article>
-
-      <motion.article
         className={`${styles.card} ${styles.streakCalendarCard}`}
+        ref={primaryRef}
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.38, delay: 0.06, ease: [0.22, 1, 0.36, 1] }}
@@ -271,6 +220,51 @@ export default function StreaksTab({
           >
             Return to Today
           </button>
+        </div>
+      </motion.article>
+
+      <motion.article
+        className={`${styles.card} ${styles.streakHeroCard}`}
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+      >
+        <div className={styles.streakHeroCopy}>
+          <div className={styles.streakHeroTopline}>
+            <p className={styles.streakBadge}>Whelm Run</p>
+            <div
+              className={`${styles.streakHeroStatusPill} ${
+                streakProtectedToday ? styles.streakHeroStatusPillSafe : styles.streakHeroStatusPillOpen
+              }`}
+            >
+              {streakProtectedToday ? "Protected" : "Open"}
+            </div>
+          </div>
+          <div className={styles.streakHeroHeadlineRow}>
+            <h2 className={styles.streakHeroTitle}>{currentRun} day{currentRun === 1 ? "" : "s"}</h2>
+            <div className={styles.streakHeroVisual}>
+              <div className={styles.streakMilestoneIcon}>
+                <StreakBandana
+                  streakDays={Math.max(1, currentRun)}
+                  className={styles.streakMilestoneBandana}
+                />
+              </div>
+            </div>
+          </div>
+          <div className={styles.streakHeroMetaRow}>
+            <div className={styles.streakHeroStat}>
+              <strong>{activeMonthDays}</strong>
+              <span>{monthLabelShort} earned</span>
+            </div>
+            <div className={styles.streakHeroStat}>
+              <strong>{protectedMonthDays}</strong>
+              <span>saved days</span>
+            </div>
+            <div className={styles.streakHeroStat}>
+              <strong>{currentBandanaColor ? currentBandanaColor : "none"}</strong>
+              <span>bandana tier</span>
+            </div>
+          </div>
         </div>
       </motion.article>
 

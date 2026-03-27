@@ -2939,7 +2939,22 @@ body[data-theme="light"] {
 
 .streakHeroCopy {
   display: grid;
+  gap: 12px;
+}
+
+.streakHeroTopline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 10px;
+  flex-wrap: wrap;
+}
+
+.streakHeroHeadlineRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
 }
 
 .streakHeroMetaRow {
@@ -2954,9 +2969,9 @@ body[data-theme="light"] {
   gap: 2px;
   min-width: 88px;
   padding: 10px 12px;
-  border-radius: 16px;
-  border: 1px solid rgba(207, 224, 255, 0.16);
-  background: rgba(9, 18, 38, 0.28);
+  border-radius: 18px;
+  border: 1px solid rgba(207, 224, 255, 0.12);
+  background: rgba(9, 18, 38, 0.18);
 }
 
 .streakHeroStat strong {
@@ -2976,10 +2991,10 @@ body[data-theme="light"] {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 42px;
-  padding: 0 14px;
+  min-height: 34px;
+  padding: 0 12px;
   border-radius: 999px;
-  font-size: 0.8rem;
+  font-size: 0.72rem;
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -3016,8 +3031,8 @@ body[data-theme="light"] {
 
 .streakHeroTitle {
   margin: 0;
-  font-size: clamp(2rem, 7vw, 3.8rem);
-  line-height: 0.95;
+  font-size: clamp(1.45rem, 3vw, 2.1rem);
+  line-height: 1;
   color: #fffdf8;
 }
 
@@ -3031,43 +3046,35 @@ body[data-theme="light"] {
 
 .streakHeroVisual {
   justify-self: end;
+  display: flex;
+  align-items: center;
 }
 
 .streakMilestoneCard {
   position: relative;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 16px;
-  align-items: center;
-  background:
-    radial-gradient(circle at top left, rgba(80, 191, 255, 0.16), transparent 24%),
-    linear-gradient(180deg, rgba(20, 36, 70, 0.98), rgba(18, 33, 63, 0.96));
-  overflow: hidden;
+  place-items: center;
+  background: transparent;
+  overflow: visible;
 }
 
 .streakMilestoneCard::after {
-  content: "";
-  position: absolute;
-  inset: auto -8% -35% auto;
-  width: 42%;
-  height: 110%;
-  background: radial-gradient(circle, rgba(105, 165, 255, 0.14), transparent 72%);
-  filter: blur(18px);
+  display: none;
 }
 
 .streakMilestoneIcon {
-  width: 72px;
-  height: 72px;
-  border-radius: 20px;
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
   display: grid;
   place-items: center;
   background:
-    radial-gradient(circle at top left, rgba(145, 214, 255, 0.2), transparent 44%),
-    linear-gradient(180deg, rgba(45, 82, 168, 0.92), rgba(34, 65, 139, 0.96));
-  border: 1px solid rgba(141, 190, 255, 0.28);
+    radial-gradient(circle at top left, rgba(145, 214, 255, 0.18), transparent 44%),
+    linear-gradient(180deg, rgba(45, 82, 168, 0.84), rgba(34, 65, 139, 0.92));
+  border: 1px solid rgba(141, 190, 255, 0.22);
   box-shadow:
-    inset 0 1px 0 rgba(229, 243, 255, 0.28),
-    0 10px 22px rgba(21, 41, 88, 0.34);
+    inset 0 1px 0 rgba(229, 243, 255, 0.22),
+    0 10px 22px rgba(21, 41, 88, 0.24);
 }
 
 .streakMilestoneBandana {
@@ -3117,10 +3124,11 @@ body[data-theme="light"] {
 .streakCalendarCard {
   position: relative;
   display: grid;
-  gap: 12px;
+  gap: 14px;
   background:
-    radial-gradient(circle at top right, rgba(99, 194, 255, 0.12), transparent 18%),
-    linear-gradient(180deg, rgba(14, 22, 45, 0.98), rgba(16, 25, 50, 0.98));
+    radial-gradient(circle at top right, rgba(121, 181, 255, 0.12), transparent 22%),
+    radial-gradient(circle at top left, rgba(160, 188, 255, 0.08), transparent 24%),
+    linear-gradient(180deg, rgba(34, 20, 79, 0.98), rgba(42, 24, 90, 0.98));
   overflow: hidden;
 }
 
@@ -3128,7 +3136,7 @@ body[data-theme="light"] {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(120deg, transparent 0%, rgba(153, 225, 255, 0.06) 32%, transparent 54%);
+  background: linear-gradient(120deg, transparent 0%, rgba(153, 225, 255, 0.04) 32%, transparent 54%);
   transform: translateX(-100%);
   animation: streakSheen 7.2s ease-in-out infinite;
   pointer-events: none;
@@ -3157,13 +3165,13 @@ body[data-theme="light"] {
   text-align: center;
   font-size: 0.82rem;
   font-weight: 700;
-  color: #76869d;
+  color: rgba(202, 212, 240, 0.56);
 }
 
 .streakMonthGrid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 8px;
+  gap: 10px;
 }
 
 .streakCalendarFooter {
@@ -3194,18 +3202,20 @@ body[data-theme="light"] {
 }
 
 .streakMonthCell {
-  --streak-cell-bridge-bg: linear-gradient(180deg, rgba(71, 105, 220, 0.98), rgba(83, 117, 242, 0.98));
   position: relative;
-  min-height: 92px;
-  border-radius: 22px;
-  border: 1px solid rgba(79, 94, 117, 0.16);
-  background: rgba(12, 18, 29, 0.72);
+  min-height: 88px;
+  border-radius: 20px;
+  border: 1px solid rgba(79, 94, 117, 0.1);
+  background: linear-gradient(180deg, rgba(20, 22, 50, 0.9), rgba(14, 16, 39, 0.92));
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 8px;
-  overflow: visible;
+  overflow: hidden;
   z-index: 0;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 12px 24px rgba(9, 7, 28, 0.18);
 }
 
 .streakMonthCellDot {
@@ -3223,15 +3233,14 @@ body[data-theme="light"] {
 
 .streakMonthCellActive {
   border-color: rgba(117, 143, 255, 0.3);
-  --streak-cell-bridge-bg: linear-gradient(180deg, rgba(71, 105, 220, 0.98), rgba(83, 117, 242, 0.98));
   background:
-    radial-gradient(circle at 50% 40%, rgba(122, 235, 255, 0.22), transparent 58%),
-    radial-gradient(circle at center, rgba(110, 126, 255, 0.36), transparent 74%),
-    linear-gradient(180deg, rgba(62, 94, 201, 0.98), rgba(70, 102, 224, 0.96));
+    radial-gradient(circle at 50% 38%, rgba(122, 235, 255, 0.18), transparent 54%),
+    radial-gradient(circle at center, rgba(110, 126, 255, 0.22), transparent 70%),
+    linear-gradient(180deg, rgba(72, 80, 200, 0.96), rgba(83, 89, 221, 0.94));
   box-shadow:
-    inset 0 1px 0 rgba(230, 243, 255, 0.46),
-    inset 0 -10px 24px rgba(43, 63, 151, 0.24),
-    0 10px 22px rgba(47, 72, 178, 0.26);
+    inset 0 1px 0 rgba(230, 243, 255, 0.2),
+    inset 0 -10px 24px rgba(43, 63, 151, 0.18),
+    0 12px 24px rgba(47, 72, 178, 0.18);
 }
 
 .streakMonthCellTierYellow {
@@ -3326,44 +3335,29 @@ body[data-theme="light"] {
 }
 
 .streakMonthCellConnectLeft {
-  border-top-left-radius: 0;
-  border-bottom-left-radius: 0;
+  border-top-left-radius: 20px;
+  border-bottom-left-radius: 20px;
 }
 
 .streakMonthCellConnectRight {
-  border-top-right-radius: 0;
-  border-bottom-right-radius: 0;
+  border-top-right-radius: 20px;
+  border-bottom-right-radius: 20px;
 }
 
 .streakMonthCellConnectLeft::before,
 .streakMonthCellConnectRight::after {
-  content: "";
-  position: absolute;
-  top: 8px;
-  bottom: 8px;
-  width: 14px;
-  background: var(--streak-cell-bridge-bg);
-  border-radius: 999px;
-  z-index: -1;
-}
-
-.streakMonthCellConnectLeft::before {
-  left: -9px;
-}
-
-.streakMonthCellConnectRight::after {
-  right: -9px;
+  display: none;
 }
 
 .streakMonthCellToday {
   box-shadow:
-    inset 0 0 0 3px rgba(255, 255, 255, 0.92),
-    0 0 0 2px rgba(145, 222, 255, 0.24),
-    0 10px 24px rgba(88, 118, 255, 0.24);
+    inset 0 0 0 2px rgba(255, 255, 255, 0.9),
+    0 0 0 1px rgba(145, 222, 255, 0.22),
+    0 10px 24px rgba(88, 118, 255, 0.18);
 }
 
 .streakMonthCellSaved {
-  border-style: dashed;
+  border-style: solid;
 }
 
 .streakMonthCellSaved .streakMonthBandana {
@@ -6062,14 +6056,16 @@ body[data-theme="light"] {
 
 .themeLight .streakHeroCard {
   background:
-    radial-gradient(circle at top right, rgba(130, 217, 255, 0.34), transparent 26%),
-    radial-gradient(circle at 12% 10%, rgba(162, 189, 255, 0.24), transparent 28%),
-    linear-gradient(180deg, #5d79dd 0%, #4d67ce 52%, #4860c4 100%);
+    radial-gradient(circle at top right, rgba(130, 217, 255, 0.28), transparent 24%),
+    radial-gradient(circle at 12% 10%, rgba(162, 189, 255, 0.18), transparent 28%),
+    linear-gradient(180deg, #5771d7 0%, #4b63c6 52%, #455bbb 100%);
 }
 
 .themeLight .streakMilestoneCard,
 .themeLight .streakCalendarCard {
-  background: linear-gradient(180deg, rgba(251, 248, 243, 0.98), rgba(243, 238, 231, 0.96));
+  background:
+    radial-gradient(circle at top right, rgba(214, 231, 255, 0.34), transparent 22%),
+    linear-gradient(180deg, rgba(244, 240, 255, 0.98), rgba(237, 232, 248, 0.96));
 }
 
 .themeLight .streakMilestoneTitle,
@@ -6083,8 +6079,8 @@ body[data-theme="light"] {
 }
 
 .themeLight .streakHeroStat {
-  background: rgba(255, 255, 255, 0.24);
-  border-color: rgba(233, 242, 255, 0.28);
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(233, 242, 255, 0.22);
 }
 
 .themeLight .streakHeroStat span {
@@ -6112,8 +6108,11 @@ body[data-theme="light"] {
 }
 
 .themeLight .streakMonthCell {
-  background: rgba(235, 239, 245, 0.9);
+  background: linear-gradient(180deg, rgba(239, 241, 248, 0.92), rgba(228, 232, 242, 0.94));
   border-color: rgba(128, 142, 170, 0.14);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.88),
+    0 10px 18px rgba(118, 126, 152, 0.08);
 }
 
 .themeLight .streakMonthCellDot {
@@ -7999,9 +7998,8 @@ body[data-theme="light"] {
   }
 
   .streakHeroCard {
-    grid-template-columns: 1fr;
     gap: 10px;
-    padding: 16px;
+    padding: 14px 16px;
   }
 
   .streakRulesList {
@@ -8016,27 +8014,21 @@ body[data-theme="light"] {
     justify-self: start;
   }
 
-  .streakHeroVisual {
-    justify-self: start;
-  }
-
-  .streakMilestoneCard {
-    grid-template-columns: 1fr;
-    gap: 12px;
-    padding: 14px 16px;
-  }
-
   .streakBadge {
-    padding: 8px 12px;
-    font-size: 0.74rem;
+    padding: 7px 11px;
+    font-size: 0.68rem;
   }
 
   .streakHeroTitle {
-    font-size: clamp(1.7rem, 8vw, 2.4rem);
+    font-size: clamp(1.1rem, 5.4vw, 1.45rem);
   }
 
-  .streakHeroBody {
-    font-size: 0.9rem;
+  .streakHeroTopline {
+    gap: 8px;
+  }
+
+  .streakHeroHeadlineRow {
+    gap: 10px;
   }
 
   .streakHeroMetaRow {
@@ -8060,45 +8052,30 @@ body[data-theme="light"] {
 
   .streakHeroStatusPill {
     min-height: 0;
-    padding: 10px 8px;
+    padding: 8px 10px;
     text-align: center;
     border-radius: 16px;
     line-height: 1.2;
   }
 
   .streakMilestoneIcon {
-    width: 56px;
-    height: 56px;
-    border-radius: 16px;
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
   }
 
   .streakMilestoneBandana {
-    width: 46px;
-    height: 46px;
-  }
-
-  .streakMilestoneCopy {
-    gap: 4px;
-  }
-
-  .streakMilestoneTitle {
-    font-size: 0.92rem;
-    line-height: 1.25;
-  }
-
-  .streakMilestoneBody {
-    font-size: 0.88rem;
-    line-height: 1.35;
+    width: 38px;
+    height: 38px;
   }
 
   .streakCalendarCard .cardHeader {
     display: grid;
-    gap: 10px;
+    gap: 8px;
   }
 
   .streakCalendarLead {
-    font-size: 0.86rem;
-    line-height: 1.38;
+    display: none;
   }
 
   .streakCalendarFooter {
@@ -8111,13 +8088,13 @@ body[data-theme="light"] {
   }
 
   .streakMonthGrid {
-    gap: 6px;
+    gap: 7px;
   }
 
   .streakMonthCell {
-    min-height: 64px;
-    border-radius: 18px;
-    padding: 6px;
+    min-height: 58px;
+    border-radius: 16px;
+    padding: 5px;
   }
 
   .streakMonthCellDot {
