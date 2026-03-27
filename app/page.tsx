@@ -17,6 +17,7 @@ import { deleteObject, getDownloadURL, ref as storageRef, uploadBytesResumable }
 import BottomNav from "@/components/BottomNav";
 import TopAppBar from "@/components/TopAppBar";
 import SettingsTab from "@/components/SettingsTab";
+import HistoryTab from "@/components/HistoryTab";
 import SenseiFigure, { type SenseiVariant } from "@/components/SenseiFigure";
 import WhelMascot from "@/components/WhelMascot";
 import Timer, { type TimerSessionContext } from "@/components/Timer";
@@ -12395,253 +12396,36 @@ export default function HomePage() {
           )}
 
           {activeTab === "history" && (
-            <AnimatedTabSection className={styles.historyShell} sectionRef={historySectionRef}>
-              <CompanionPulse {...companionState.pulses.history} bandanaColor={bandanaColor} />
-              <article className={styles.card} ref={historyPrimaryRef}>
-                <p className={styles.sectionLabel}>Block History</p>
-                <h2 className={styles.cardTitle}>Completed and incomplete blocks</h2>
-                <div className={styles.planSectionStack}>
-                  <section className={styles.planSection}>
-                    <button
-                      type="button"
-                      className={styles.planSectionHeader}
-                      onClick={() =>
-                        setHistorySectionsOpen((current) => ({
-                          ...current,
-                          completed: !current.completed,
-                        }))
-                      }
-                    >
-                      <span>Completed</span>
-                      <span>{plannedBlockHistory.completed.length}</span>
-                    </button>
-                    {historySectionsOpen.completed && (
-                      <div className={styles.planList}>
-                        {plannedBlockHistory.completed.length === 0 ? (
-                          <p className={styles.emptyText}>No completed blocks yet.</p>
-                        ) : (
-                          plannedBlockHistory.completed.map((item) => (
-                            <div key={item.id} className={styles.planItemStatic}>
-                              <div>
-                                <strong>{item.title}</strong>
-                                <div className={styles.planMetaRow}>
-                                  <span>
-                                    {new Date(`${item.dateKey}T00:00:00`).toLocaleDateString(undefined, {
-                                      weekday: "short",
-                                      month: "short",
-                                      day: "numeric",
-                                    })}
-                                  </span>
-                                  <span>{normalizeTimeLabel(item.timeOfDay)}</span>
-                                  <span>{item.durationMinutes}m</span>
-                                </div>
-                                {item.note.trim() && <p className={styles.planItemNote}>{item.note}</p>}
-                              </div>
-                              <div className={styles.planStatusPill}>Completed</div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    )}
-                  </section>
-
-                  <section className={styles.planSection}>
-                    <button
-                      type="button"
-                      className={styles.planSectionHeader}
-                      onClick={() =>
-                        setHistorySectionsOpen((current) => ({
-                          ...current,
-                          incomplete: !current.incomplete,
-                        }))
-                      }
-                    >
-                      <span>Incomplete</span>
-                      <span>{plannedBlockHistory.incomplete.length}</span>
-                    </button>
-                    {historySectionsOpen.incomplete && (
-                      <div className={styles.planList}>
-                        {plannedBlockHistory.incomplete.length === 0 ? (
-                          <p className={styles.emptyText}>No incomplete blocks yet.</p>
-                        ) : (
-                          plannedBlockHistory.incomplete.map((item) => (
-                            <div key={item.id} className={styles.planItemStatic}>
-                              <div>
-                                <strong>{item.title}</strong>
-                                <div className={styles.planMetaRow}>
-                                  <span>
-                                    {new Date(`${item.dateKey}T00:00:00`).toLocaleDateString(undefined, {
-                                      weekday: "short",
-                                      month: "short",
-                                      day: "numeric",
-                                    })}
-                                  </span>
-                                  <span>{normalizeTimeLabel(item.timeOfDay)}</span>
-                                  <span>{item.durationMinutes}m</span>
-                                </div>
-                                {item.note.trim() && <p className={styles.planItemNote}>{item.note}</p>}
-                              </div>
-                              <div className={styles.planStatusPillMuted}>Incomplete</div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    )}
-                  </section>
-                </div>
-                {!isPro && hasLockedBlockHistory ? (
-                  <ProUnlockCard
-                    title="Older block history"
-                    body={`${WHELM_PRO_POSITIONING} Whelm Free keeps the last 14 days of block history visible. Whelm Pro keeps the older archive ready whenever you want it back.`}
-                    open={proPanelsOpen.calendar}
-                    onToggle={() => setProPanelsOpen((current) => ({ ...current, calendar: !current.calendar }))}
-                    onPreview={() => void handleStartProPreview()}
-                  />
-                ) : null}
-              </article>
-              <article className={styles.card}>
-                <p className={styles.sectionLabel}>History</p>
-                <h2 className={styles.cardTitle}>Session log</h2>
-                {(isPro ? sessionHistoryGroups : freeSessionHistoryGroups).length === 0 ? (
-                  <div className={styles.historyEmptyState}>
-                    <SenseiFigure
-                      variant="wave"
-                      bandanaColor={bandanaColor}
-                      size="inline"
-                      message="Your first session will start the record."
-                      className={styles.historyEmptySensei}
-                    />
-                    <p className={styles.emptyText}>
-                      No sessions yet. Start your timer and save your first block.
-                    </p>
-                  </div>
-                ) : (
-                  <div className={styles.groupList}>
-                    {(isPro ? sessionHistoryGroups : freeSessionHistoryGroups).map((monthGroup) => (
-                      <section key={monthGroup.key} className={`${styles.sessionGroup} ${styles.historyMonthGroup}`}>
-                        <button
-                          type="button"
-                          className={styles.groupHeader}
-                          onClick={() =>
-                            setHistoryGroupsOpen((current) => ({
-                              ...current,
-                              [monthGroup.key]: !current[monthGroup.key],
-                            }))
-                          }
-                        >
-                          <div className={styles.historyGroupCopy}>
-                            <p className={styles.historyGroupLabel}>Month</p>
-                            <h3>{monthGroup.label}</h3>
-                          </div>
-                          <div className={styles.historyGroupMeta}>
-                            <span>{monthGroup.weeks.length} week{monthGroup.weeks.length === 1 ? "" : "s"}</span>
-                            <strong>{monthGroup.totalMinutes}m</strong>
-                            <span className={styles.historyDisclosure}>
-                              {historyGroupsOpen[monthGroup.key] ? "-" : "+"}
-                            </span>
-                          </div>
-                        </button>
-                        {historyGroupsOpen[monthGroup.key] && (
-                          <div className={styles.historyWeekList}>
-                            {monthGroup.weeks.map((weekGroup) => (
-                              <section
-                                key={weekGroup.key}
-                                className={`${styles.sessionGroup} ${styles.historyWeekGroup}`}
-                              >
-                                <button
-                                  type="button"
-                                  className={styles.groupHeader}
-                                  onClick={() =>
-                                    setHistoryGroupsOpen((current) => ({
-                                      ...current,
-                                      [weekGroup.key]: !current[weekGroup.key],
-                                    }))
-                                  }
-                                >
-                                  <div className={styles.historyGroupCopy}>
-                                    <p className={styles.historyGroupLabel}>Week</p>
-                                    <h3>{weekGroup.label}</h3>
-                                  </div>
-                                  <div className={styles.historyGroupMeta}>
-                                    <span>{weekGroup.days.length} day{weekGroup.days.length === 1 ? "" : "s"}</span>
-                                    <strong>{weekGroup.totalMinutes}m</strong>
-                                    <span className={styles.historyDisclosure}>
-                                      {historyGroupsOpen[weekGroup.key] ? "-" : "+"}
-                                    </span>
-                                  </div>
-                                </button>
-                                {historyGroupsOpen[weekGroup.key] && (
-                                  <div className={styles.historyDayList}>
-                                    {weekGroup.days.map((dayGroup) => (
-                                      <section
-                                        key={dayGroup.key}
-                                        className={`${styles.sessionGroup} ${styles.historyDayGroup}`}
-                                      >
-                                        <button
-                                          type="button"
-                                          className={styles.groupHeader}
-                                          onClick={() =>
-                                            setHistoryGroupsOpen((current) => ({
-                                              ...current,
-                                              [dayGroup.key]: !current[dayGroup.key],
-                                            }))
-                                          }
-                                        >
-                                          <div className={styles.historyGroupCopy}>
-                                            <p className={styles.historyGroupLabel}>Day</p>
-                                            <h3>{dayGroup.label}</h3>
-                                          </div>
-                                          <div className={styles.historyGroupMeta}>
-                                            <span>{dayGroup.items.length} session{dayGroup.items.length === 1 ? "" : "s"}</span>
-                                            <strong>{dayGroup.totalMinutes}m</strong>
-                                            <span className={styles.historyDisclosure}>
-                                              {historyGroupsOpen[dayGroup.key] ? "-" : "+"}
-                                            </span>
-                                          </div>
-                                        </button>
-                                        {historyGroupsOpen[dayGroup.key] && (
-                                          <div className={styles.sessionList}>
-                                            {dayGroup.items.map((session, index) => (
-                                              <div key={`${session.completedAtISO}-${index}`} className={styles.sessionItem}>
-                                                <div>
-                                                  <div className={styles.sessionPrimary}>
-                                                    {new Date(session.completedAtISO).toLocaleTimeString([], {
-                                                      hour: "numeric",
-                                                      minute: "2-digit",
-                                                    })}{" "}
-                                                    {session.note?.trim()
-                                                      ? stripCompletedBlockPrefix(session.note.trim())
-                                                      : "Session"}
-                                                  </div>
-                                                </div>
-                                                <div className={styles.sessionMinutes}>{session.minutes}m</div>
-                                              </div>
-                                            ))}
-                                          </div>
-                                        )}
-                                      </section>
-                                    ))}
-                                  </div>
-                                )}
-                              </section>
-                            ))}
-                          </div>
-                        )}
-                      </section>
-                    ))}
-                  </div>
-                )}
-                {!isPro && hasLockedHistoryDays ? (
-                  <ProUnlockCard
-                    title="Older history"
-                    body={`${WHELM_PRO_POSITIONING} Whelm Free keeps the last 14 days visible. Whelm Pro keeps the older month, week, and day archive ready whenever you want it back.`}
-                    open={proPanelsOpen.history}
-                    onToggle={() => setProPanelsOpen((current) => ({ ...current, history: !current.history }))}
-                    onPreview={() => void handleStartProPreview()}
-                  />
-                ) : null}
-              </article>
-            </AnimatedTabSection>
+            <HistoryTab
+              companionPulse={companionState.pulses.history}
+              bandanaColor={bandanaColor}
+              sectionRef={historySectionRef}
+              primaryRef={historyPrimaryRef}
+              plannedBlockHistory={plannedBlockHistory}
+              historySectionsOpen={historySectionsOpen}
+              onToggleHistorySection={(key) =>
+                setHistorySectionsOpen((current) => ({ ...current, [key]: !current[key] }))
+              }
+              isPro={isPro}
+              hasLockedBlockHistory={hasLockedBlockHistory}
+              proPanelCalendarOpen={proPanelsOpen.calendar}
+              onToggleProCalendarPanel={() =>
+                setProPanelsOpen((current) => ({ ...current, calendar: !current.calendar }))
+              }
+              onStartProPreview={() => void handleStartProPreview()}
+              sessionHistoryGroups={isPro ? sessionHistoryGroups : freeSessionHistoryGroups}
+              historyGroupsOpen={historyGroupsOpen}
+              onToggleHistoryGroup={(key) =>
+                setHistoryGroupsOpen((current) => ({ ...current, [key]: !current[key] }))
+              }
+              hasLockedHistoryDays={hasLockedHistoryDays}
+              proPanelHistoryOpen={proPanelsOpen.history}
+              onToggleProHistoryPanel={() =>
+                setProPanelsOpen((current) => ({ ...current, history: !current.history }))
+              }
+              normalizeTimeLabel={normalizeTimeLabel}
+              stripCompletedBlockPrefix={stripCompletedBlockPrefix}
+            />
           )}
 
           {activeTab === "reports" && (
