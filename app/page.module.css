@@ -2942,6 +2942,61 @@ body[data-theme="light"] {
   gap: 10px;
 }
 
+.streakHeroMetaRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.streakHeroStat {
+  display: grid;
+  gap: 2px;
+  min-width: 88px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(207, 224, 255, 0.16);
+  background: rgba(9, 18, 38, 0.28);
+}
+
+.streakHeroStat strong {
+  font-size: 1rem;
+  color: #f7fbff;
+}
+
+.streakHeroStat span {
+  font-size: 0.74rem;
+  line-height: 1.35;
+  color: rgba(214, 225, 249, 0.74);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.streakHeroStatusPill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.streakHeroStatusPillSafe {
+  background: linear-gradient(180deg, rgba(43, 143, 84, 0.96), rgba(24, 110, 61, 0.98));
+  color: #effff6;
+  box-shadow: 0 10px 20px rgba(18, 86, 48, 0.24);
+}
+
+.streakHeroStatusPillOpen {
+  background: linear-gradient(180deg, rgba(243, 183, 57, 0.96), rgba(215, 146, 18, 0.98));
+  color: #2a1b06;
+  box-shadow: 0 10px 20px rgba(150, 96, 16, 0.24);
+}
+
 .streakBadge {
   width: fit-content;
   margin: 0;
@@ -3085,6 +3140,13 @@ body[data-theme="light"] {
   color: #eef3ff;
 }
 
+.streakCalendarLead {
+  margin: 6px 0 0;
+  max-width: 34ch;
+  color: rgba(202, 214, 239, 0.8);
+  line-height: 1.45;
+}
+
 .streakWeekHeader {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
@@ -3144,6 +3206,14 @@ body[data-theme="light"] {
   padding: 8px;
   overflow: visible;
   z-index: 0;
+}
+
+.streakMonthCellDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(171, 186, 216, 0.3);
+  box-shadow: 0 0 0 1px rgba(226, 234, 255, 0.08);
 }
 
 .streakMonthCellEmpty {
@@ -6012,6 +6082,15 @@ body[data-theme="light"] {
   color: #314884;
 }
 
+.themeLight .streakHeroStat {
+  background: rgba(255, 255, 255, 0.24);
+  border-color: rgba(233, 242, 255, 0.28);
+}
+
+.themeLight .streakHeroStat span {
+  color: rgba(239, 245, 255, 0.86);
+}
+
 .themeLight .streakHeroBody {
   color: rgba(248, 251, 255, 0.88);
 }
@@ -6019,6 +6098,10 @@ body[data-theme="light"] {
 .themeLight .streakMilestoneBody,
 .themeLight .streakWeekHeader span {
   color: #64748b;
+}
+
+.themeLight .streakCalendarLead {
+  color: #607089;
 }
 
 .themeLight .streakSaveCard {
@@ -6031,6 +6114,11 @@ body[data-theme="light"] {
 .themeLight .streakMonthCell {
   background: rgba(235, 239, 245, 0.9);
   border-color: rgba(128, 142, 170, 0.14);
+}
+
+.themeLight .streakMonthCellDot {
+  background: rgba(114, 129, 161, 0.34);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.34);
 }
 
 .themeLight .streakMonthCellActive {
@@ -7951,6 +8039,33 @@ body[data-theme="light"] {
     font-size: 0.9rem;
   }
 
+  .streakHeroMetaRow {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .streakHeroStat {
+    min-width: 0;
+    padding: 10px;
+  }
+
+  .streakHeroStat strong {
+    font-size: 0.95rem;
+  }
+
+  .streakHeroStat span {
+    font-size: 0.68rem;
+  }
+
+  .streakHeroStatusPill {
+    min-height: 0;
+    padding: 10px 8px;
+    text-align: center;
+    border-radius: 16px;
+    line-height: 1.2;
+  }
+
   .streakMilestoneIcon {
     width: 56px;
     height: 56px;
@@ -7981,6 +8096,11 @@ body[data-theme="light"] {
     gap: 10px;
   }
 
+  .streakCalendarLead {
+    font-size: 0.86rem;
+    line-height: 1.38;
+  }
+
   .streakCalendarFooter {
     flex-direction: column;
     align-items: stretch;
@@ -7998,6 +8118,11 @@ body[data-theme="light"] {
     min-height: 64px;
     border-radius: 18px;
     padding: 6px;
+  }
+
+  .streakMonthCellDot {
+    width: 8px;
+    height: 8px;
   }
 
   .streakMonthBandana {
