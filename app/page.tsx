@@ -43,15 +43,14 @@ import {
   trackTaskCreated,
 } from "@/lib/analytics-tracker";
 import { resolveApiUrl } from "@/lib/api-base";
-import { doc, setDoc } from "firebase/firestore";
 import { auth, db, storage } from "@/lib/firebase";
 import {
   type NoteAttachment,
   type WorkspaceNote,
 } from "@/lib/notes-store";
 import {
-  loadPreferences,
-  savePreferences,
+  type PreferencesBackgroundSetting,
+  type PreferencesBackgroundSkin,
 } from "@/lib/preferences-store";
 import { loadSessions, saveSession } from "@/lib/session-store";
 import {
@@ -112,6 +111,7 @@ import {
 import { useNotes } from "@/hooks/useNotes";
 import { useLeaderboard } from "@/hooks/useLeaderboard";
 import { usePlannedBlocks } from "@/hooks/usePlannedBlocks";
+import { usePreferences } from "@/hooks/usePreferences";
 import { useReflection } from "@/hooks/useReflection";
 import { useStreak } from "@/hooks/useStreak";
 import { useUserData } from "@/hooks/useUserData";
@@ -2247,10 +2247,6 @@ function senseiStyleStorageKey(uid: string) {
   return `whelm:sensei-style:${uid}`;
 }
 
-function themeModeStorageKey(uid: string) {
-  return `whelm:theme-mode:${uid}`;
-}
-
 function dayToneStorageKey(uid: string) {
   return `whelm:day-tones:${uid}`;
 }
@@ -2362,54 +2358,6 @@ function notesShellBackground(
     ["--note-bandana-accent-strong" as const]: accentStrong ?? "#2f86ff",
     ["--note-bandana-glow" as const]: glow ?? "rgba(84, 173, 255, 0.34)",
   } as CSSProperties;
-}
-
-function backgroundSettingStorageKey(uid: string) {
-  return `whelm:background-setting:${uid}`;
-}
-
-function backgroundSkinStorageKey(uid: string) {
-  return `whelm:background-skin:${uid}`;
-}
-
-function loadBackgroundSetting(uid: string): AppBackgroundSetting {
-  try {
-    const raw = window.localStorage.getItem(backgroundSettingStorageKey(uid));
-    if (!raw) return { kind: "default" };
-    const parsed = JSON.parse(raw) as AppBackgroundSetting;
-    if (parsed.kind === "preset" && typeof parsed.value === "string") return parsed;
-    if (parsed.kind === "upload" && typeof parsed.value === "string") return parsed;
-    return { kind: "default" };
-  } catch {
-    return { kind: "default" };
-  }
-}
-
-function saveBackgroundSetting(uid: string, setting: AppBackgroundSetting) {
-  window.localStorage.setItem(backgroundSettingStorageKey(uid), JSON.stringify(setting));
-}
-
-function loadBackgroundSkin(uid: string): BackgroundSkinSetting {
-  try {
-    const raw = window.localStorage.getItem(backgroundSkinStorageKey(uid));
-    if (!raw) return DEFAULT_BACKGROUND_SKIN;
-    const parsed = JSON.parse(raw) as Partial<BackgroundSkinSetting>;
-    const mode = parsed.mode === "solid" ? "solid" : "glass";
-    const dim = Math.min(0.96, Math.max(0.02, Number(parsed.dim) || DEFAULT_BACKGROUND_SKIN.dim));
-    const surfaceOpacity = Math.min(
-      0.98,
-      Math.max(0.08, Number(parsed.surfaceOpacity) || DEFAULT_BACKGROUND_SKIN.surfaceOpacity),
-    );
-    const blur = Math.min(40, Math.max(0, Number(parsed.blur) || DEFAULT_BACKGROUND_SKIN.blur));
-    const imageFit = parsed.imageFit === "fill" ? "fill" : "fit";
-    return { mode, dim, surfaceOpacity, blur, imageFit };
-  } catch {
-    return DEFAULT_BACKGROUND_SKIN;
-  }
-}
-
-function saveBackgroundSkin(uid: string, skin: BackgroundSkinSetting) {
-  window.localStorage.setItem(backgroundSkinStorageKey(uid), JSON.stringify(skin));
 }
 
 function getPageShellBackgroundStyle(
@@ -3086,22 +3034,8 @@ export default function HomePage() {
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const [mobileTodayOverviewOpen, setMobileTodayOverviewOpen] = useState(false);
   const [senseiReaction, setSenseiReaction] = useState("");
-  const [companionStyle, setCompanionStyle] = useState<SenseiCompanionStyle>("balanced");
-  const [themeMode, setThemeMode] = useState<ThemeMode>("dark");
-  const [systemIsDark, setSystemIsDark] = useState<boolean>(() =>
-    typeof window !== "undefined"
-      ? window.matchMedia("(prefers-color-scheme: dark)").matches
-      : true,
-  );
-  const resolvedTheme: "dark" | "light" =
-    themeMode === "system" ? (systemIsDark ? "dark" : "light") : themeMode;
-  const [themePromptOpen, setThemePromptOpen] = useState(false);
   const [isPro, setIsPro] = useState(true);
   const [proSource, setProSource] = useState<"preview" | "store" | "none">("preview");
-  const [appBackgroundSetting, setAppBackgroundSetting] = useState<AppBackgroundSetting>({
-    kind: "default",
-  });
-  const [backgroundSkin, setBackgroundSkin] = useState<BackgroundSkinSetting>(DEFAULT_BACKGROUND_SKIN);
   const [proPanelsOpen, setProPanelsOpen] = useState({
     notes: false,
     calendar: false,
@@ -3464,6 +3398,28 @@ export default function HomePage() {
     plannedBlocksHydrated,
     onSignIn: handleUserSignedIn,
     onSignOut,
+  });
+
+  const {
+    companionStyle,
+    themeMode,
+    resolvedTheme,
+    themePromptOpen,
+    appBackgroundSetting,
+    backgroundSkin,
+    effectiveBackgroundSetting,
+    backgroundSkinActive,
+    setThemePromptOpen,
+    applyPreferencesSnapshot,
+    applyThemeMode,
+    applyBackgroundSetting,
+    applyCompanionStyle,
+    updateBackgroundSkin,
+    handleBackgroundUpload,
+  } = usePreferences({
+    user,
+    isPro,
+    defaultBackgroundSkin: DEFAULT_BACKGROUND_SKIN,
   });
 
   const {
@@ -4288,20 +4244,6 @@ export default function HomePage() {
   }, [user]);
 
   useEffect(() => {
-    document.body.dataset.theme = resolvedTheme;
-    return () => {
-      delete document.body.dataset.theme;
-    };
-  }, [resolvedTheme]);
-
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const handler = (event: MediaQueryListEvent) => setSystemIsDark(event.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
-
-  useEffect(() => {
     function onOnline() {
       if (!user || notes.length === 0) return;
       void handleRetrySync();
@@ -4350,11 +4292,12 @@ export default function HomePage() {
         handleBlocksSnapshot(blocks as PlannedBlock[]);
       },
       onPreferences: (prefs) => {
-        setCompanionStyle(prefs.companionStyle as SenseiCompanionStyle);
-        setThemeMode(prefs.themeMode);
-        setThemePromptOpen(false);
-        setAppBackgroundSetting(prefs.backgroundSetting as AppBackgroundSetting);
-        setBackgroundSkin(prefs.backgroundSkin as BackgroundSkinSetting);
+        applyPreferencesSnapshot({
+          companionStyle: prefs.companionStyle as SenseiCompanionStyle,
+          themeMode: prefs.themeMode as ThemeMode,
+          backgroundSetting: prefs.backgroundSetting as AppBackgroundSetting,
+          backgroundSkin: prefs.backgroundSkin as BackgroundSkinSetting,
+        });
       },
       onReflection: handleReflectionSnapshot,
       onSessions: (sessions) => {
@@ -4376,56 +4319,6 @@ export default function HomePage() {
       window.removeEventListener("pagehide", onPageHide);
     };
   }, [handleReflectionSnapshot, user]);
-
-  async function refreshPreferencesState(uid: string) {
-    const currentUser = auth.currentUser;
-    if (!currentUser || currentUser.uid !== uid) {
-      throw new Error("Your login session is missing. Sign in again.");
-    }
-
-    const result = await loadPreferences(currentUser);
-    setCompanionStyle(result.companionStyle as SenseiCompanionStyle);
-    setThemeMode(result.themeMode);
-    setThemePromptOpen(false);
-    setAppBackgroundSetting(result.backgroundSetting as AppBackgroundSetting);
-    setBackgroundSkin(result.backgroundSkin as BackgroundSkinSetting);
-  }
-
-  async function persistPreferencesState(nextState: {
-    companionStyle: SenseiCompanionStyle;
-    themeMode: ThemeMode;
-    backgroundSetting: AppBackgroundSetting;
-    backgroundSkin: BackgroundSkinSetting;
-  }) {
-    if (!user) return;
-
-    setCompanionStyle(nextState.companionStyle);
-    setThemeMode(nextState.themeMode);
-    setThemePromptOpen(false);
-    setAppBackgroundSetting(nextState.backgroundSetting);
-    setBackgroundSkin(nextState.backgroundSkin);
-
-    const payload = {
-      companionStyle: nextState.companionStyle,
-      themeMode: nextState.themeMode,
-      backgroundSetting: nextState.backgroundSetting,
-      backgroundSkin: nextState.backgroundSkin,
-    };
-
-    // Write directly to Firestore so onSnapshot fires on all open devices immediately.
-    void setDoc(
-      doc(db, "userPreferences", user.uid),
-      {
-        uid: user.uid,
-        preferencesJson: JSON.stringify(payload),
-        updatedAtISO: new Date().toISOString(),
-      },
-      { merge: true },
-    );
-
-    // Also write via REST API for local-storage caching / server-side audit.
-    await savePreferences(user, payload);
-  }
 
   function fireAndForgetTracking(work: Promise<unknown>) {
     void work.catch(() => {
@@ -5989,42 +5882,6 @@ export default function HomePage() {
     target.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  function applyThemeMode(nextMode: ThemeMode) {
-    void persistPreferencesState({
-      companionStyle,
-      themeMode: nextMode,
-      backgroundSetting: appBackgroundSetting,
-      backgroundSkin,
-    });
-  }
-
-  function applyBackgroundSetting(nextSetting: AppBackgroundSetting) {
-    void persistPreferencesState({
-      companionStyle,
-      themeMode,
-      backgroundSetting: nextSetting,
-      backgroundSkin,
-    });
-  }
-
-  function applyCompanionStyle(nextStyle: SenseiCompanionStyle) {
-    void persistPreferencesState({
-      companionStyle: nextStyle,
-      themeMode,
-      backgroundSetting: appBackgroundSetting,
-      backgroundSkin,
-    });
-  }
-
-  function updateBackgroundSkin(nextSkin: BackgroundSkinSetting) {
-    void persistPreferencesState({
-      companionStyle,
-      themeMode,
-      backgroundSetting: appBackgroundSetting,
-      backgroundSkin: nextSkin,
-    });
-  }
-
   function openPlannedBlockDetail(blockId: string) {
     setSelectedPlanDetailId(blockId);
   }
@@ -6055,19 +5912,6 @@ export default function HomePage() {
     }
     setMonthTones(next);
     saveMonthTones(user.uid, next);
-  }
-
-  function handleBackgroundUpload(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file || !isPro) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === "string") {
-        applyBackgroundSetting({ kind: "upload", value: reader.result });
-      }
-    };
-    reader.readAsDataURL(file);
-    event.target.value = "";
   }
 
   useEffect(() => {
@@ -6325,9 +6169,6 @@ export default function HomePage() {
   const analyticsLeadNotification = analyticsNotificationPlan?.notifications[0] ?? null;
   const streakHeroEmoteId: WhelmEmoteId =
     streak >= 100 ? "whelm.proud" : streak >= 50 ? "whelm.ready" : "whelm.encourage";
-  const effectiveBackgroundSetting = isPro ? appBackgroundSetting : { kind: "default" as const };
-  const backgroundSkinActive =
-    isPro && effectiveBackgroundSetting.kind !== "default" && backgroundSkin.mode === "glass";
   const pageShellBackgroundStyle = getPageShellBackgroundStyle(
     resolvedTheme,
     effectiveBackgroundSetting,
