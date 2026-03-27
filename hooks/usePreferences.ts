@@ -7,12 +7,15 @@ import type { User } from "firebase/auth";
 
 import { db, storage } from "@/lib/firebase";
 import {
+  loadPreferences,
+  readLocalPreferences,
   savePreferences,
   type PreferencesBackgroundSetting,
   type PreferencesBackgroundSkin,
   type PreferencesCompanionStyle,
   type PreferencesState,
   type PreferencesThemeMode,
+  writeLocalPreferences,
 } from "@/lib/preferences-store";
 
 type UsePreferencesOptions = {
@@ -64,7 +67,26 @@ export function usePreferences({
     setThemePromptOpen(false);
     setAppBackgroundSetting(prefs.backgroundSetting);
     setBackgroundSkin(prefs.backgroundSkin);
-  }, []);
+    if (user) {
+      writeLocalPreferences(user.uid, prefs);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    applyPreferencesSnapshot(readLocalPreferences(user.uid));
+
+    let cancelled = false;
+    void loadPreferences(user).then((prefs) => {
+      if (cancelled) return;
+      applyPreferencesSnapshot(prefs);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [applyPreferencesSnapshot, user]);
 
   const persistPreferencesState = useCallback(async (nextState: PreferencesState) => {
     if (!user) return;
@@ -129,8 +151,7 @@ export function usePreferences({
       const extension = file.name.includes(".")
         ? file.name.slice(file.name.lastIndexOf(".")).toLowerCase()
         : "";
-      // Storage rules currently allow authenticated writes under users/{uid}/notes/**.
-      const objectPath = `users/${user.uid}/notes/backgrounds/app-background${extension}`;
+      const objectPath = `users/${user.uid}/backgrounds/app-background${extension}`;
       const backgroundRef = storageRef(storage, objectPath);
 
       await uploadBytes(backgroundRef, file, {

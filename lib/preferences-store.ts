@@ -90,6 +90,14 @@ function writeLocalState(uid: string, state: PreferencesState) {
   window.localStorage.setItem(storageKey(uid), JSON.stringify(normalizeState(state)));
 }
 
+export function readLocalPreferences(uid: string) {
+  return readLocalState(uid);
+}
+
+export function writeLocalPreferences(uid: string, state: PreferencesState) {
+  writeLocalState(uid, state);
+}
+
 async function authorizedRequest(user: User, input: string, init: RequestInit, timeoutMs = 12000) {
   const controller = new AbortController();
   const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
