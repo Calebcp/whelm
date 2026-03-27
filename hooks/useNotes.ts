@@ -7,6 +7,7 @@ import {
   deleteNoteFromFirestore,
   loadNotes,
   mergeNotesPreferNewest,
+  migrateNotesFromJson,
   readLocalNotes,
   retryNotesSync,
   saveNoteToFirestore,
@@ -445,6 +446,11 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     } catch {
       // keep going; Firestore refresh below is the source of truth
     }
+
+    // One-time migration: move any notes from the legacy notesJson blob into
+    // individual subcollection documents. Gated by a notesMigrated flag so it
+    // runs exactly once and is otherwise a no-op.
+    void migrateNotesFromJson(uid).catch(() => { /* non-critical — notes are still in localStorage */ });
 
     void refreshNotes(uid).catch(() => {
       // keep locally seeded notes visible if refresh fails
