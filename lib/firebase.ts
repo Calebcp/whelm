@@ -35,10 +35,14 @@ function createAuth() {
 }
 
 export const auth = createAuth();
-export const db = initializeFirestore(app, {
-  // VPNs, proxies, and some hosted/browser environments can break Firestore's
-  // default transport stack. Forced long polling is slower, but substantially
-  // more reliable for this app's small payloads.
-  experimentalForceLongPolling: true,
-});
+export const db = initializeFirestore(
+  app,
+  {
+    // VPNs, proxies, and some hosted/browser environments can break Firestore's
+    // default transport stack. Forced long polling is slower, but substantially
+    // more reliable for this app's small payloads.
+    experimentalForceLongPolling: true,
+  },
+  process.env.NEXT_PUBLIC_FIREBASE_DATABASE_ID || "(default)",
+);
 export const storage = getStorage(app);
