@@ -3168,10 +3168,24 @@ body[data-theme="light"] {
   color: rgba(202, 212, 240, 0.56);
 }
 
-.streakMonthGrid {
+.streakMonthRows {
+  display: grid;
+  gap: 10px;
+}
+
+.streakMonthRow {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 24px;
+  border: 1px solid rgba(166, 182, 236, 0.08);
+  background:
+    linear-gradient(180deg, rgba(73, 58, 146, 0.28), rgba(41, 28, 88, 0.34)),
+    linear-gradient(180deg, rgba(21, 18, 47, 0.84), rgba(15, 14, 36, 0.88));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 14px 26px rgba(10, 7, 31, 0.18);
 }
 
 .streakCalendarFooter {
@@ -3203,10 +3217,10 @@ body[data-theme="light"] {
 
 .streakMonthCell {
   position: relative;
-  min-height: 88px;
-  border-radius: 20px;
-  border: 1px solid rgba(79, 94, 117, 0.1);
-  background: linear-gradient(180deg, rgba(20, 22, 50, 0.9), rgba(14, 16, 39, 0.92));
+  min-height: 84px;
+  border-radius: 18px;
+  border: 1px solid rgba(140, 155, 216, 0.08);
+  background: linear-gradient(180deg, rgba(28, 24, 63, 0.88), rgba(18, 17, 42, 0.92));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3228,7 +3242,8 @@ body[data-theme="light"] {
 
 .streakMonthCellEmpty {
   border-color: transparent;
-  background: transparent;
+  background: rgba(68, 56, 136, 0.12);
+  box-shadow: none;
 }
 
 .streakMonthCellActive {
@@ -3332,21 +3347,6 @@ body[data-theme="light"] {
     inset 0 1px 0 rgba(255, 255, 255, 0.9),
     inset 0 -10px 24px rgba(161, 175, 221, 0.2),
     0 10px 22px rgba(173, 186, 231, 0.24);
-}
-
-.streakMonthCellConnectLeft {
-  border-top-left-radius: 20px;
-  border-bottom-left-radius: 20px;
-}
-
-.streakMonthCellConnectRight {
-  border-top-right-radius: 20px;
-  border-bottom-right-radius: 20px;
-}
-
-.streakMonthCellConnectLeft::before,
-.streakMonthCellConnectRight::after {
-  display: none;
 }
 
 .streakMonthCellToday {
@@ -6115,6 +6115,16 @@ body[data-theme="light"] {
     0 10px 18px rgba(118, 126, 152, 0.08);
 }
 
+.themeLight .streakMonthRow {
+  border-color: rgba(155, 167, 202, 0.12);
+  background:
+    linear-gradient(180deg, rgba(214, 220, 241, 0.56), rgba(199, 205, 230, 0.4)),
+    linear-gradient(180deg, rgba(245, 242, 250, 0.9), rgba(235, 231, 244, 0.94));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    0 10px 18px rgba(122, 128, 149, 0.08);
+}
+
 .themeLight .streakMonthCellDot {
   background: rgba(114, 129, 161, 0.34);
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.34);
@@ -8087,8 +8097,14 @@ body[data-theme="light"] {
     min-width: auto;
   }
 
-  .streakMonthGrid {
+  .streakMonthRows {
     gap: 7px;
+  }
+
+  .streakMonthRow {
+    gap: 6px;
+    padding: 6px;
+    border-radius: 18px;
   }
 
   .streakMonthCell {
