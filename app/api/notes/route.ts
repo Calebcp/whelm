@@ -37,6 +37,31 @@ type NotesPayload = {
   notes: WorkspaceNote[];
 };
 
+// ── Firestore REST types ──────────────────────────────────────────────────────
+
+type FirestoreStringValue = { stringValue: string };
+type FirestoreBoolValue = { booleanValue: boolean };
+type FirestoreIntValue = { integerValue: string };
+type FirestoreArrayValue = { arrayValue: { values?: FirestoreFieldValue[] } };
+type FirestoreMapValue = { mapValue: { fields?: Record<string, FirestoreFieldValue> } };
+type FirestoreFieldValue =
+  | FirestoreStringValue
+  | FirestoreBoolValue
+  | FirestoreIntValue
+  | FirestoreArrayValue
+  | FirestoreMapValue
+  | Record<string, never>;
+
+type FirestoreNoteFields = Record<string, FirestoreFieldValue>;
+type FirestoreNoteDocument = {
+  name?: string;
+  fields?: FirestoreNoteFields;
+};
+type FirestoreListResponse = {
+  documents?: FirestoreNoteDocument[];
+};
+
+// ── Legacy single-document type (for GET fallback) ───────────────────────────
 type FirestoreDocumentResponse = {
   name?: string;
   fields?: {
@@ -45,6 +70,7 @@ type FirestoreDocumentResponse = {
     updatedAtISO?: { stringValue?: string };
   };
 };
+
 const legacyColorMap: Record<string, string> = {
   red: "#fecaca",
   green: "#bbf7d0",
@@ -59,11 +85,7 @@ function requireConfig() {
   if (!projectId || !apiKey) {
     throw new Error("Missing Firebase environment variables on the server.");
   }
-
-  return {
-    apiKey,
-    projectId,
-  };
+  return { apiKey, projectId };
 }
 
 function firestoreDocumentsBaseUrl(targetDatabaseId = databaseId) {
@@ -95,6 +117,70 @@ function getAuthHeader(request: NextRequest) {
   return authHeader?.startsWith("Bearer ") ? authHeader : null;
 }
 
+// ── Field helpers ─────────────────────────────────────────────────────────────
+
+function str(v: FirestoreFieldValue | undefined, fallback = ""): string {
+  return (v as FirestoreStringValue)?.stringValue ?? fallback;
+}
+
+function bool(v: FirestoreFieldValue | undefined, fallback = false): boolean {
+  return (v as FirestoreBoolValue)?.booleanValue ?? fallback;
+}
+
+function int(v: FirestoreFieldValue | undefined, fallback = 0): number {
+  const iv = (v as FirestoreIntValue)?.integerValue;
+  return iv !== undefined ? parseInt(iv, 10) || fallback : fallback;
+}
+
+function noteToFields(note: WorkspaceNote): FirestoreNoteFields {
+  return {
+    id: { stringValue: note.id },
+    title: { stringValue: note.title },
+    body: { stringValue: note.body },
+    color: { stringValue: note.color },
+    shellColor: { stringValue: note.shellColor },
+    surfaceStyle: { stringValue: note.surfaceStyle },
+    isPinned: { booleanValue: note.isPinned },
+    fontFamily: { stringValue: note.fontFamily },
+    fontSizePx: { integerValue: String(note.fontSizePx) },
+    category: { stringValue: note.category },
+    reminderAtISO: { stringValue: note.reminderAtISO },
+    updatedAtISO: { stringValue: note.updatedAtISO },
+    createdAtISO: { stringValue: note.createdAtISO },
+  };
+}
+
+function noteFromDocument(doc: FirestoreNoteDocument): WorkspaceNote | null {
+  const f = doc.fields;
+  if (!f) return null;
+  const id = str(f.id);
+  if (!id) return null;
+
+  const color = str(f.color, "#e7e5e4");
+  const shellColor = str(f.shellColor, "#fff7d6");
+
+  return {
+    id,
+    title: str(f.title),
+    body: str(f.body),
+    color: legacyColorMap[color] ?? color,
+    shellColor: legacyColorMap[shellColor] ?? shellColor,
+    surfaceStyle: str(f.surfaceStyle) === "airy" ? "airy" : "solid",
+    isPinned: bool(f.isPinned),
+    fontFamily: str(f.fontFamily, "Avenir Next"),
+    fontSizePx: Math.min(32, Math.max(12, int(f.fontSizePx, 16))),
+    category:
+      (str(f.category) as WorkspaceNote["category"]) === "school" ||
+      (str(f.category) as WorkspaceNote["category"]) === "work"
+        ? (str(f.category) as WorkspaceNote["category"])
+        : "personal",
+    reminderAtISO: str(f.reminderAtISO),
+    updatedAtISO: str(f.updatedAtISO),
+    createdAtISO: str(f.createdAtISO),
+    attachments: [],
+  };
+}
+
 function normalizeNotes(notes: WorkspaceNote[]) {
   return [...notes]
     .filter((note) => note.id && typeof note.title === "string" && typeof note.body === "string")
@@ -102,22 +188,18 @@ function normalizeNotes(notes: WorkspaceNote[]) {
       id: note.id,
       title: note.title.slice(0, 200),
       body: note.body.slice(0, 20000),
-      attachments: normalizeAttachments((note as WorkspaceNote).attachments),
+      attachments: normalizeAttachments(note.attachments),
       color:
         typeof note.color === "string" && note.color
           ? legacyColorMap[note.color] || note.color
           : "#e7e5e4",
       shellColor:
-        typeof (note as WorkspaceNote).shellColor === "string" && (note as WorkspaceNote).shellColor
-          ? legacyColorMap[(note as WorkspaceNote).shellColor] || (note as WorkspaceNote).shellColor
+        typeof note.shellColor === "string" && note.shellColor
+          ? legacyColorMap[note.shellColor] || note.shellColor
           : "#fff7d6",
-      surfaceStyle:
-        (note as WorkspaceNote).surfaceStyle === "airy" ? "airy" : "solid",
+      surfaceStyle: note.surfaceStyle === "airy" ? "airy" : "solid",
       isPinned: typeof note.isPinned === "boolean" ? note.isPinned : false,
-      fontFamily:
-        typeof note.fontFamily === "string" && note.fontFamily
-          ? note.fontFamily
-          : "Avenir Next",
+      fontFamily: typeof note.fontFamily === "string" && note.fontFamily ? note.fontFamily : "Avenir Next",
       fontSizePx:
         typeof note.fontSizePx === "number" && Number.isFinite(note.fontSizePx)
           ? Math.min(32, Math.max(12, Math.round(note.fontSizePx)))
@@ -129,7 +211,7 @@ function normalizeNotes(notes: WorkspaceNote[]) {
       reminderAtISO: typeof note.reminderAtISO === "string" ? note.reminderAtISO : "",
       createdAtISO: note.createdAtISO,
       updatedAtISO: note.updatedAtISO,
-    }))
+    } satisfies WorkspaceNote))
     .sort((a, b) => {
       if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
       return a.updatedAtISO < b.updatedAtISO ? 1 : -1;
@@ -171,19 +253,159 @@ function normalizeAttachments(attachments: WorkspaceNote["attachments"]) {
     .sort((a, b) => (a.uploadedAtISO < b.uploadedAtISO ? 1 : -1));
 }
 
-function parseNotesFromDocument(document: FirestoreDocumentResponse) {
-  const raw = document.fields?.notesJson?.stringValue;
-  if (!raw) return [] as WorkspaceNote[];
+// ── Firestore REST helpers ────────────────────────────────────────────────────
 
-  try {
-    const parsed = JSON.parse(raw) as WorkspaceNote[];
-    return Array.isArray(parsed) ? normalizeNotes(parsed) : [];
-  } catch {
-    return [];
+/** List all note documents in the `userNotes/{uid}/notes` subcollection. */
+async function listNoteDocuments(
+  request: NextRequest,
+  uid: string,
+): Promise<WorkspaceNote[]> {
+  const authHeader = getAuthHeader(request);
+  if (!authHeader) throw new Error("Missing Firebase auth token.");
+
+  const baseUrl = firestoreDocumentsBaseUrl();
+  const { apiKey } = requireConfig();
+
+  const response = await fetch(
+    `${baseUrl}/userNotes/${encodeURIComponent(uid)}/notes?key=${apiKey}`,
+    {
+      method: "GET",
+      headers: { Authorization: authHeader, "Content-Type": "application/json" },
+      cache: "no-store",
+    },
+  );
+
+  if (response.status === 404) return [];
+
+  if (!response.ok) {
+    // Fall back to the legacy single-document format so old clients still work.
+    const legacyNotes = await fetchLegacyDocument(request, uid);
+    return legacyNotes ? parseLegacyNotes(legacyNotes) : [];
+  }
+
+  const body = (await response.json()) as FirestoreListResponse;
+  if (!body.documents || body.documents.length === 0) {
+    // Subcollection is empty — try legacy document as fallback.
+    const legacyNotes = await fetchLegacyDocument(request, uid).catch(() => null);
+    return legacyNotes ? parseLegacyNotes(legacyNotes) : [];
+  }
+
+  return body.documents.map(noteFromDocument).filter((n): n is WorkspaceNote => n !== null);
+}
+
+/** Write a single note document to `userNotes/{uid}/notes/{noteId}`. */
+async function upsertNoteDocument(
+  request: NextRequest,
+  uid: string,
+  note: WorkspaceNote,
+): Promise<void> {
+  const authHeader = getAuthHeader(request);
+  if (!authHeader) throw new Error("Missing Firebase auth token.");
+
+  const baseUrl = firestoreDocumentsBaseUrl();
+  const { apiKey } = requireConfig();
+
+  const response = await fetch(
+    `${baseUrl}/userNotes/${encodeURIComponent(uid)}/notes/${encodeURIComponent(note.id)}?key=${apiKey}`,
+    {
+      method: "PATCH",
+      headers: { Authorization: authHeader, "Content-Type": "application/json" },
+      cache: "no-store",
+      body: JSON.stringify({ fields: noteToFields(note) }),
+    },
+  );
+
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as
+      | { error?: { message?: string; status?: string } }
+      | null;
+    const message = body?.error?.message || body?.error?.status || "Failed to save note.";
+    console.error("Notes Firestore write failed.", { uid, noteId: note.id, status: response.status, message });
+    throw new Error(message);
   }
 }
 
-async function fetchDocument(
+/** Delete all note documents in the subcollection, then the legacy parent document. */
+async function deleteAllNoteDocuments(request: NextRequest, uid: string): Promise<void> {
+  const authHeader = getAuthHeader(request);
+  if (!authHeader) throw new Error("Missing Firebase auth token.");
+
+  const { apiKey } = requireConfig();
+  const errors: string[] = [];
+
+  // 1. List and delete all subcollection docs.
+  for (const targetDatabaseId of deletionDatabaseIds()) {
+    const baseUrl = firestoreDocumentsBaseUrl(targetDatabaseId);
+    try {
+      const listRes = await fetch(
+        `${baseUrl}/userNotes/${encodeURIComponent(uid)}/notes?key=${apiKey}`,
+        {
+          method: "GET",
+          headers: { Authorization: authHeader, "Content-Type": "application/json" },
+          cache: "no-store",
+        },
+      );
+
+      if (listRes.ok) {
+        const body = (await listRes.json()) as FirestoreListResponse;
+        const docs = body.documents ?? [];
+        await Promise.allSettled(
+          docs.map(async (doc) => {
+            if (!doc.name) return;
+            const deleteRes = await fetch(`${doc.name}?key=${apiKey}`, {
+              method: "DELETE",
+              headers: { Authorization: authHeader },
+              cache: "no-store",
+            });
+            if (!deleteRes.ok && deleteRes.status !== 404) {
+              const b = (await deleteRes.json().catch(() => null)) as { error?: { message?: string } } | null;
+              const msg = b?.error?.message ?? "Unknown delete error";
+              if (!shouldIgnoreDeletionError(msg)) throw new Error(msg);
+            }
+          }),
+        );
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      if (!shouldIgnoreDeletionError(msg)) errors.push(`subcollection:${targetDatabaseId}:${msg}`);
+    }
+
+    // 2. Also delete the legacy parent document.
+    const deleteParentRes = await fetch(
+      `${firestoreDocumentsBaseUrl(targetDatabaseId)}/userNotes/${encodeURIComponent(uid)}?key=${apiKey}`,
+      {
+        method: "DELETE",
+        headers: { Authorization: authHeader, "Content-Type": "application/json" },
+        cache: "no-store",
+      },
+    );
+
+    if (deleteParentRes.status === 404) continue;
+    if (!deleteParentRes.ok) {
+      const body = (await deleteParentRes.json().catch(() => null)) as
+        | { error?: { message?: string; status?: string } }
+        | null;
+      const message =
+        body?.error?.message ||
+        body?.error?.status ||
+        `Failed to delete notes from Firestore database "${targetDatabaseId}".`;
+
+      if (shouldIgnoreDeletionError(message)) {
+        errors.push(`parent:${targetDatabaseId}:${message}`);
+        continue;
+      }
+      throw new Error(message);
+    }
+  }
+
+  if (errors.length > 0 && errors.length === deletionDatabaseIds().length * 2) {
+    throw new Error("Unable to verify note deletion in any Firestore database.");
+  }
+}
+
+// ── Legacy document helpers (read-only fallback) ──────────────────────────────
+
+async function fetchLegacyDocument(
   request: NextRequest,
   uid: string,
 ): Promise<FirestoreDocumentResponse | null> {
@@ -194,117 +416,35 @@ async function fetchDocument(
   const { apiKey } = requireConfig();
   const response = await fetch(`${baseUrl}/userNotes/${encodeURIComponent(uid)}?key=${apiKey}`, {
     method: "GET",
-    headers: {
-      Authorization: authHeader,
-      "Content-Type": "application/json",
-    },
+    headers: { Authorization: authHeader, "Content-Type": "application/json" },
     cache: "no-store",
   });
 
   if (response.status === 404) return null;
-
-  if (!response.ok) {
-    const body = (await response.json().catch(() => null)) as
-      | { error?: { message?: string; status?: string } }
-      | null;
-    throw new Error(body?.error?.message || body?.error?.status || "Failed to fetch notes.");
-  }
+  if (!response.ok) return null;
 
   return (await response.json()) as FirestoreDocumentResponse;
 }
 
-async function upsertDocument(request: NextRequest, payload: NotesPayload) {
-  const authHeader = getAuthHeader(request);
-  if (!authHeader) throw new Error("Missing Firebase auth token.");
-
-  const baseUrl = firestoreDocumentsBaseUrl();
-  const { apiKey } = requireConfig();
-  const normalizedNotes = normalizeNotes(payload.notes);
-  const now = new Date().toISOString();
-
-  const response = await fetch(`${baseUrl}/userNotes/${encodeURIComponent(payload.uid)}?key=${apiKey}`, {
-    method: "PATCH",
-    headers: {
-      Authorization: authHeader,
-      "Content-Type": "application/json",
-    },
-    cache: "no-store",
-    body: JSON.stringify({
-      fields: {
-        uid: { stringValue: payload.uid },
-        notesJson: { stringValue: JSON.stringify(normalizedNotes) },
-        updatedAtISO: { stringValue: now },
-      },
-    }),
-  });
-
-  if (!response.ok) {
-    const body = (await response.json().catch(() => null)) as
-      | { error?: { message?: string; status?: string } }
-      | null;
-    const message = body?.error?.message || body?.error?.status || "Failed to save notes.";
-    console.error("Notes Firestore write failed.", {
-      uid: payload.uid,
-      status: response.status,
-      message,
-    });
-    throw new Error(message);
+function parseLegacyNotes(document: FirestoreDocumentResponse): WorkspaceNote[] {
+  const raw = document.fields?.notesJson?.stringValue;
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw) as WorkspaceNote[];
+    return Array.isArray(parsed) ? normalizeNotes(parsed) : [];
+  } catch {
+    return [];
   }
 }
 
-async function deleteDocument(request: NextRequest, uid: string) {
-  const authHeader = getAuthHeader(request);
-  if (!authHeader) throw new Error("Missing Firebase auth token.");
-
-  const { apiKey } = requireConfig();
-  const errors: string[] = [];
-
-  for (const targetDatabaseId of deletionDatabaseIds()) {
-    const baseUrl = firestoreDocumentsBaseUrl(targetDatabaseId);
-    const response = await fetch(
-      `${baseUrl}/userNotes/${encodeURIComponent(uid)}?key=${apiKey}`,
-      {
-        method: "DELETE",
-        headers: {
-          Authorization: authHeader,
-          "Content-Type": "application/json",
-        },
-        cache: "no-store",
-      },
-    );
-
-    if (response.status === 404) continue;
-
-    if (!response.ok) {
-      const body = (await response.json().catch(() => null)) as
-        | { error?: { message?: string; status?: string } }
-        | null;
-      const message =
-        body?.error?.message ||
-        body?.error?.status ||
-        `Failed to delete notes from Firestore database "${targetDatabaseId}".`;
-
-      if (shouldIgnoreDeletionError(message)) {
-        errors.push(`notes:${targetDatabaseId}:${message}`);
-        continue;
-      }
-
-      throw new Error(message);
-    }
-  }
-
-  if (errors.length === deletionDatabaseIds().length) {
-    throw new Error("Unable to verify note deletion in either Firestore database.");
-  }
-}
+// ── Route handlers ────────────────────────────────────────────────────────────
 
 export async function GET(request: NextRequest) {
   try {
     const uid = request.nextUrl.searchParams.get("uid");
     if (!uid) return jsonError("Missing uid.", 400);
 
-    const document = await fetchDocument(request, uid);
-    const notes = document ? parseNotesFromDocument(document) : [];
+    const notes = await listNoteDocuments(request, uid);
     return NextResponse.json({ notes });
   } catch (error: unknown) {
     return jsonError(error instanceof Error ? error.message : "Failed to load notes.");
@@ -317,7 +457,8 @@ export async function POST(request: NextRequest) {
     if (!payload?.uid) return jsonError("Missing uid.", 400);
     if (!Array.isArray(payload.notes)) return jsonError("Missing notes array.", 400);
 
-    await upsertDocument(request, payload);
+    const normalized = normalizeNotes(payload.notes);
+    await Promise.all(normalized.map((note) => upsertNoteDocument(request, payload.uid, note)));
     return NextResponse.json({ ok: true });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Failed to save notes.";
@@ -331,7 +472,7 @@ export async function DELETE(request: NextRequest) {
     const uid = request.nextUrl.searchParams.get("uid");
     if (!uid) return jsonError("Missing uid.", 400);
 
-    await deleteDocument(request, uid);
+    await deleteAllNoteDocuments(request, uid);
     return NextResponse.json({ ok: true });
   } catch (error: unknown) {
     return jsonError(error instanceof Error ? error.message : "Failed to delete notes.");
