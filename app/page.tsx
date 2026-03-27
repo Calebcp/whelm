@@ -12,6 +12,7 @@ import AnimatedTabSection from "@/components/AnimatedTabSection";
 import BlockDetailModal from "@/components/BlockDetailModal";
 import CalendarTonePicker from "@/components/CalendarTonePicker";
 import CollapsibleSectionCard from "@/components/CollapsibleSectionCard";
+import DailyPlanningModal from "@/components/DailyPlanningModal";
 import FeedbackModal from "@/components/FeedbackModal";
 import KpiDetailModal from "@/components/KpiDetailModal";
 import LeaderboardProfileModal from "@/components/LeaderboardProfileModal";
@@ -4448,151 +4449,31 @@ export default function HomePage() {
           closePlannedBlockDetail();
         }}
       />
-
-
-      {dailyPlanningOpen && dailyPlanningPreviewOpen && (
-        <div className={styles.feedbackOverlay}>
-          <div
-            className={`${styles.feedbackModal} ${styles.dailyRitualModal}`}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className={styles.dailyRitualCornerIcon}>
-              <DailyRitualWaveIcon
-                className={styles.dailyRitualCornerIconImage}
-                tierColor={streakBandanaTier?.color}
-              />
-            </div>
-            <div className={styles.feedbackHeader}>
-              <div>
-                <p className={styles.sectionLabel}>Daily Commitments</p>
-                <h2 className={styles.feedbackTitle}>Claim today before it claims you.</h2>
-              </div>
-            </div>
-            <p className={styles.feedbackMeta}>
-              <strong className={styles.dailyRitualCallout}>3 daily commitments to enter.</strong>{" "}
-              {dailyPlanningPreviewOpen
-                ? "Preview mode only. Inspect the flow without changing today."
-                : "Place them before Whelm unlocks. Each one must be at least 15 minutes."}
-            </p>
-            <div className={styles.dailyRitualList}>
-              {dailyRitualDrafts.map((draft, index) => {
-                const locked = Boolean(draft.existingBlockId);
-                const expanded = dailyRitualExpandedId === draft.id;
-                return (
-                  <div key={draft.id} className={styles.dailyRitualItem}>
-                    <button
-                      type="button"
-                      className={styles.dailyRitualHeader}
-                      onClick={() =>
-                        setDailyRitualExpandedId((current) => (current === draft.id ? null : draft.id))
-                      }
-                    >
-                      <div className={styles.dailyRitualHeaderMain}>
-                        <strong>Commitment {index + 1}</strong>
-                        <span>{locked ? "Claimed" : "Required"}</span>
-                      </div>
-                      <div className={styles.dailyRitualSummary}>
-                        <span>{draft.title.trim() || "What are you protecting?"}</span>
-                        <small>{draft.timeOfDay} • {draft.durationMinutes}m</small>
-                      </div>
-                    </button>
-                    {expanded && (
-                      <>
-                        <div className={styles.dailyRitualGrid}>
-                          <input
-                            value={draft.title}
-                            onChange={(event) =>
-                              updateDailyRitualDraft(draft.id, { title: event.target.value })
-                            }
-                            placeholder="What are you protecting?"
-                            className={styles.planInput}
-                            disabled={locked}
-                          />
-                          <label className={styles.planLabel}>
-                            Time
-                            <input
-                              type="time"
-                              value={draft.timeOfDay}
-                              onChange={(event) =>
-                                updateDailyRitualDraft(draft.id, { timeOfDay: event.target.value })
-                              }
-                              className={styles.planControl}
-                              disabled={locked}
-                            />
-                          </label>
-                          <label className={styles.planLabel}>
-                            Minutes
-                            <input
-                              type="number"
-                              min={15}
-                              max={240}
-                              value={draft.durationMinutes}
-                              onChange={(event) =>
-                                updateDailyRitualDraft(draft.id, {
-                                  durationMinutes: Number(event.target.value) || 0,
-                                })
-                              }
-                              className={styles.planControl}
-                              disabled={locked}
-                            />
-                          </label>
-                        </div>
-                        {isPro ? (
-                          <CalendarTonePicker
-                            label="Block tone"
-                            selectedTone={draft.tone}
-                            onSelectTone={(tone) => updateDailyRitualDraft(draft.id, { tone })}
-                            isPro={isPro}
-                            onUpgrade={openUpgradeFlow}
-                          />
-                        ) : null}
-                        <textarea
-                          value={draft.note}
-                          onChange={(event) =>
-                            updateDailyRitualDraft(draft.id, { note: event.target.value.slice(0, 280) })
-                          }
-                          placeholder="Optional note"
-                          className={styles.dailyRitualNote}
-                          disabled={locked}
-                        />
-                      </>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-            {dailyPlanningStatus && <p className={styles.feedbackStatus}>{dailyPlanningStatus}</p>}
-            <div className={`${styles.feedbackFooter} ${styles.dailyRitualFooter}`}>
-              <button
-                type="button"
-                className={`${styles.feedbackClose} ${styles.dailyRitualFooterClose}`}
-                onClick={() =>
-                  dailyPlanningPreviewOpen ? closeDailyPlanningPreview() : setDailyPlanningOpen(false)
-                }
-              >
-                Close
-              </button>
-              <button
-                type="button"
-                className={`${styles.feedbackSubmit} ${styles.dailyRitualSubmit}`}
-                onClick={submitDailyRitual}
-              >
-                <span className={styles.dailyRitualSubmitLabelWrap}>
-                  <span className={styles.dailyRitualSubmitLabel}>
-                    {dailyPlanningPreviewOpen ? "Close preview" : "Submit"}
-                  </span>
-                </span>
-                <span className={styles.dailyRitualSubmitBandanaPanel} aria-hidden="true">
-                  <DailyRitualSubmitBandana
-                    className={styles.dailyRitualSubmitBandana}
-                    streakDays={hasEarnedToday ? displayStreak : displayStreak + 1}
-                  />
-                </span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <DailyPlanningModal
+        open={dailyPlanningOpen}
+        previewOpen={dailyPlanningPreviewOpen}
+        dailyRitualDrafts={dailyRitualDrafts}
+        dailyRitualExpandedId={dailyRitualExpandedId}
+        onSetDailyRitualExpandedId={setDailyRitualExpandedId}
+        onUpdateDailyRitualDraft={updateDailyRitualDraft}
+        isPro={isPro}
+        onUpgrade={openUpgradeFlow}
+        dailyPlanningStatus={dailyPlanningStatus}
+        onClose={() => (dailyPlanningPreviewOpen ? closeDailyPlanningPreview() : setDailyPlanningOpen(false))}
+        onSubmit={submitDailyRitual}
+        headerIcon={
+          <DailyRitualWaveIcon
+            className={styles.dailyRitualCornerIconImage}
+            tierColor={streakBandanaTier?.color}
+          />
+        }
+        submitDecoration={
+          <DailyRitualSubmitBandana
+            className={styles.dailyRitualSubmitBandana}
+            streakDays={hasEarnedToday ? displayStreak : displayStreak + 1}
+          />
+        }
+      />
 
       <ThemePromptModal
         open={themePromptOpen}
