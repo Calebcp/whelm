@@ -3393,22 +3393,23 @@ body[data-theme="light"] {
 
 .streakMonthDayNumber {
   position: absolute;
-  top: 10px;
-  left: 12px;
+  top: 8px;
+  left: 10px;
   z-index: 2;
-  font-size: 0.96rem;
+  font-size: 0.9rem;
   font-weight: 800;
   color: #e9eefc;
+  text-shadow: 0 1px 6px rgba(11, 16, 34, 0.28);
 }
 
 .streakMonthBandana {
   position: absolute;
-  top: 52%;
+  top: 56%;
   left: 50%;
-  width: 66px;
-  height: 66px;
+  width: 58px;
+  height: 58px;
   transform: translate(-50%, -50%);
-  filter: drop-shadow(0 8px 12px rgba(13, 24, 58, 0.34));
+  filter: drop-shadow(0 6px 10px rgba(13, 24, 58, 0.26));
 }
 
 .streakGrid {
@@ -8132,7 +8133,7 @@ body[data-theme="light"] {
   }
 
   .streakMonthCell {
-    min-height: 56px;
+    min-height: 58px;
     border-radius: 16px;
     padding: 4px;
   }
@@ -8164,8 +8165,15 @@ body[data-theme="light"] {
   }
 
   .streakMonthBandana {
-    width: 50px;
-    height: 50px;
+    width: 34px;
+    height: 34px;
+    top: 58%;
+  }
+
+  .streakMonthDayNumber {
+    top: 6px;
+    left: 8px;
+    font-size: 0.82rem;
   }
 
   .streakStatusCard {
@@ -8283,7 +8291,7 @@ body[data-theme="light"] {
 
   .mobileMoreFab {
     right: 12px;
-    bottom: 108px;
+    bottom: 146px;
     padding: 8px 10px;
     gap: 6px;
     font-size: 0.68rem;
