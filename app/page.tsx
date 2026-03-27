@@ -53,10 +53,6 @@ import {
   loadPreferences,
   savePreferences,
 } from "@/lib/preferences-store";
-import {
-  loadReflectionState,
-  saveReflectionState,
-} from "@/lib/reflection-store";
 import { loadSessions, saveSession } from "@/lib/session-store";
 import {
   computeStreak,
@@ -116,6 +112,7 @@ import {
 import { useNotes } from "@/hooks/useNotes";
 import { useLeaderboard } from "@/hooks/useLeaderboard";
 import { usePlannedBlocks } from "@/hooks/usePlannedBlocks";
+import { useReflection } from "@/hooks/useReflection";
 import { useStreak } from "@/hooks/useStreak";
 import { useUserData } from "@/hooks/useUserData";
 import styles from "./page.module.css";
@@ -523,29 +520,6 @@ type KpiDetailKey =
   | "averageSession"
   | "bestDay"
   | "weeklyProgress";
-
-type SickDaySave = {
-  id: string;
-  dateKey: string;
-  claimedAtISO: string;
-  reason: "sick";
-};
-
-type StreakMirrorTag = (typeof STREAK_MIRROR_TAGS)[number]["value"];
-
-type StreakMirrorEntry = {
-  id: string;
-  dateKey: string;
-  createdAtISO: string;
-  updatedAtISO: string;
-  tag: StreakMirrorTag;
-  answers: Record<string, string>;
-  source: "streak_save";
-};
-
-function getStreakMirrorTagMeta(tag: StreakMirrorTag) {
-  return STREAK_MIRROR_TAGS.find((item) => item.value === tag) ?? STREAK_MIRROR_TAGS[0];
-}
 
 function getCalendarToneMeta(tone: CalendarTone | null | undefined) {
   return CALENDAR_TONES.find((item) => item.value === tone) ?? null;
@@ -2371,75 +2345,6 @@ function saveMonthTones(uid: string, tones: MonthToneMap) {
   window.localStorage.setItem(monthToneStorageKey(uid), JSON.stringify(tones));
 }
 
-function loadStreakMirrorEntries(uid: string): StreakMirrorEntry[] {
-  try {
-    const raw = window.localStorage.getItem(streakMirrorStorageKey(uid));
-    const parsed = raw ? (JSON.parse(raw) as StreakMirrorEntry[]) : [];
-    if (!Array.isArray(parsed)) return [];
-    return parsed
-      .filter(
-        (item) =>
-          item &&
-          typeof item.id === "string" &&
-          typeof item.dateKey === "string" &&
-          typeof item.createdAtISO === "string" &&
-          typeof item.updatedAtISO === "string" &&
-          typeof item.tag === "string" &&
-          item.answers &&
-          typeof item.answers === "object",
-      )
-      .map((item) => ({
-        ...item,
-        tag: getStreakMirrorTagMeta(item.tag as StreakMirrorTag).value,
-        source: "streak_save" as const,
-        answers: Object.fromEntries(
-          STREAK_SAVE_ACCOUNTABILITY_QUESTIONS.map((question) => [
-            question,
-            String(item.answers[question] ?? "").slice(0, 2500),
-          ]),
-        ),
-      }))
-      .sort((a, b) => (a.updatedAtISO < b.updatedAtISO ? 1 : -1));
-  } catch {
-    return [];
-  }
-}
-
-function saveStreakMirrorEntries(uid: string, entries: StreakMirrorEntry[]) {
-  window.localStorage.setItem(streakMirrorStorageKey(uid), JSON.stringify(entries));
-}
-
-function loadSickDaySaves(uid: string): SickDaySave[] {
-  try {
-    const raw = window.localStorage.getItem(sickDaySaveStorageKey(uid));
-    const parsed = raw ? (JSON.parse(raw) as SickDaySave[]) : [];
-    if (!Array.isArray(parsed)) return [];
-    return parsed
-      .filter((item) => item && item.dateKey && item.claimedAtISO && item.reason === "sick")
-      .sort((a, b) => (a.claimedAtISO < b.claimedAtISO ? 1 : -1));
-  } catch {
-    return [];
-  }
-}
-
-function saveSickDaySaves(uid: string, saves: SickDaySave[]) {
-  window.localStorage.setItem(sickDaySaveStorageKey(uid), JSON.stringify(saves));
-}
-
-function loadSickDaySaveDismissals(uid: string) {
-  try {
-    const raw = window.localStorage.getItem(sickDaySaveDismissalsStorageKey(uid));
-    const parsed = raw ? (JSON.parse(raw) as string[]) : [];
-    return Array.isArray(parsed) ? parsed.filter((value) => typeof value === "string") : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveSickDaySaveDismissals(uid: string, dateKeys: string[]) {
-  window.localStorage.setItem(sickDaySaveDismissalsStorageKey(uid), JSON.stringify(dateKeys));
-}
-
 function notesShellBackground(
   themeMode: ThemeMode,
   shellColor?: string,
@@ -3231,24 +3136,7 @@ export default function HomePage() {
   const [accountDangerStatus, setAccountDangerStatus] = useState("");
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
-  const [sickDaySaves, setSickDaySaves] = useState<SickDaySave[]>([]);
-  const [sickDaySaveDismissals, setSickDaySaveDismissals] = useState<string[]>([]);
-  const [sickDaySavePromptOpen, setSickDaySavePromptOpen] = useState(false);
-  const [sickDaySavePromptPreview, setSickDaySavePromptPreview] = useState(false);
-  const [streakSaveQuestionnaireOpen, setStreakSaveQuestionnaireOpen] = useState(false);
-  const [streakSaveQuestionnairePreview, setStreakSaveQuestionnairePreview] = useState(false);
   const [streakRulesOpen, setStreakRulesOpen] = useState(false);
-  const [mirrorSectionsOpen, setMirrorSectionsOpen] = useState({
-    summary: false,
-    entries: false,
-    detail: false,
-  });
-  const [mirrorPrivacyOpen, setMirrorPrivacyOpen] = useState(false);
-  const [streakMirrorEntries, setStreakMirrorEntries] = useState<StreakMirrorEntry[]>([]);
-  const [selectedStreakMirrorId, setSelectedStreakMirrorId] = useState<string | null>(null);
-  const [streakMirrorTag, setStreakMirrorTag] = useState<StreakMirrorTag | null>(null);
-  const [streakSaveAnswers, setStreakSaveAnswers] = useState<Record<string, string>>({});
-  const [streakSaveStatus, setStreakSaveStatus] = useState("");
   const [settingsSectionsOpen, setSettingsSectionsOpen] = useState({
     identity: false,
     internalTools: false,
@@ -3302,10 +3190,6 @@ export default function HomePage() {
   const activeMotionCancelRef = useRef<(() => void) | null>(null);
   const activatedCalendarEntryTimeoutRef = useRef<number | null>(null);
   const calendarHoverPreviewTimeoutRef = useRef<number | null>(null);
-  const protectedStreakDateKeys = useMemo(
-    () => sickDaySaves.map((save) => save.dateKey),
-    [sickDaySaves],
-  );
   const {
     plannedBlocks,
     setPlannedBlocks,
@@ -3498,11 +3382,48 @@ export default function HomePage() {
     onNavigateToNotes: () => setActiveTab("notes"),
   });
 
+  const {
+    sickDaySaves,
+    sickDaySaveDismissals,
+    protectedStreakDateKeys,
+    sickDaySavePromptOpen,
+    sickDaySavePromptPreview,
+    streakSaveQuestionnaireOpen,
+    streakSaveQuestionnairePreview,
+    mirrorSectionsOpen,
+    mirrorPrivacyOpen,
+    streakMirrorEntries,
+    streakMirrorTag,
+    streakSaveAnswers,
+    streakSaveStatus,
+    streakMirrorVisibleEntries,
+    selectedStreakMirrorEntry,
+    streakMirrorSaying,
+    setSickDaySavePromptOpen,
+    setMirrorSectionsOpen,
+    setMirrorPrivacyOpen,
+    setSelectedStreakMirrorId,
+    setStreakMirrorTag,
+    setStreakSaveAnswers,
+    handleReflectionSnapshot,
+    openStreakSaveQuestionnaire,
+    openStreakSaveQuestionnairePreview,
+    openSickDaySavePromptPreview,
+    dismissSickDaySavePrompt,
+    closeStreakSaveQuestionnaire,
+    declineSickDaySave,
+    claimSickDaySave,
+  } = useReflection({
+    user: auth.currentUser,
+    isPro,
+    landingWisdomMinute,
+    questions: STREAK_SAVE_ACCOUNTABILITY_QUESTIONS,
+    sayings: STREAK_MIRROR_SAYINGS,
+    minWords: STREAK_MIRROR_MIN_WORDS,
+  });
+
   // ── useUserData: auth, sessions, XP, streak, bandana, mascot ───────────────
   const onSignOut = useCallback(() => {
-    setSickDaySaves([]);
-    setSickDaySaveDismissals([]);
-    setSickDaySavePromptOpen(false);
     handlePlannedBlocksSignedOut();
     handleUserSignedOut();
   }, [handlePlannedBlocksSignedOut, handleUserSignedOut]);
@@ -4367,17 +4288,6 @@ export default function HomePage() {
   }, [user]);
 
   useEffect(() => {
-    const visible = isPro ? streakMirrorEntries : streakMirrorEntries.slice(0, 2);
-    if (visible.length === 0) {
-      setSelectedStreakMirrorId(null);
-      return;
-    }
-    if (!selectedStreakMirrorId || !visible.some((entry) => entry.id === selectedStreakMirrorId)) {
-      setSelectedStreakMirrorId(visible[0].id);
-    }
-  }, [isPro, selectedStreakMirrorId, streakMirrorEntries]);
-
-  useEffect(() => {
     document.body.dataset.theme = resolvedTheme;
     return () => {
       delete document.body.dataset.theme;
@@ -4402,27 +4312,11 @@ export default function HomePage() {
   }, [notes, user]);
 
   useEffect(() => {
-    if (!user) return;
-
-    const today = startOfDayLocal(new Date());
-    const yesterdayDateKey = dayKeyLocal(addDays(today, -1));
-    const dayBeforeYesterdayDateKey = dayKeyLocal(addDays(today, -2));
-    const protectedDateKeys = sickDaySaves.map((save) => save.dateKey);
-    const yesterdayAlreadyProtected = protectedDateKeys.includes(yesterdayDateKey);
-    const yesterdayMissed = !sessions.some(
-      (session) => dayKeyLocal(session.completedAtISO) === yesterdayDateKey,
-    );
-    const priorRun = computeStreakEndingAtDateKey(
-      sessions,
-      dayBeforeYesterdayDateKey,
-      protectedDateKeys,
-    );
-    const dismissed = sickDaySaveDismissals.includes(yesterdayDateKey);
-
-    if (yesterdayMissed && !yesterdayAlreadyProtected && priorRun > 0 && !dismissed) {
+    if (!user || sickDaySavePromptPreview) return;
+    if (sickDaySaveEligible) {
       setSickDaySavePromptOpen(true);
     }
-  }, [sessions, sickDaySaveDismissals, sickDaySaves, user]);
+  }, [setSickDaySavePromptOpen, sickDaySaveEligible, sickDaySavePromptPreview, user]);
 
   useEffect(() => {
     function onVisibilityChange() {
@@ -4462,12 +4356,7 @@ export default function HomePage() {
         setAppBackgroundSetting(prefs.backgroundSetting as AppBackgroundSetting);
         setBackgroundSkin(prefs.backgroundSkin as BackgroundSkinSetting);
       },
-      onReflection: (state) => {
-        setStreakMirrorEntries(state.mirrorEntries as StreakMirrorEntry[]);
-        setSelectedStreakMirrorId((current) => current ?? state.mirrorEntries[0]?.id ?? null);
-        setSickDaySaves(state.sickDaySaves as SickDaySave[]);
-        setSickDaySaveDismissals(state.sickDaySaveDismissals);
-      },
+      onReflection: handleReflectionSnapshot,
       onSessions: (sessions) => {
         if (sessionsSyncedRef.current) {
           setSessions(sessions);
@@ -4486,20 +4375,7 @@ export default function HomePage() {
       document.removeEventListener("visibilitychange", onVisibilityChange);
       window.removeEventListener("pagehide", onPageHide);
     };
-  }, [user]);
-
-  async function refreshReflectionState(uid: string) {
-    const currentUser = auth.currentUser;
-    if (!currentUser || currentUser.uid !== uid) {
-      throw new Error("Your login session is missing. Sign in again.");
-    }
-
-    const result = await loadReflectionState(currentUser);
-    setStreakMirrorEntries(result.mirrorEntries as StreakMirrorEntry[]);
-    setSelectedStreakMirrorId((current) => current ?? result.mirrorEntries[0]?.id ?? null);
-    setSickDaySaves(result.sickDaySaves as SickDaySave[]);
-    setSickDaySaveDismissals(result.sickDaySaveDismissals);
-  }
+  }, [handleReflectionSnapshot, user]);
 
   async function refreshPreferencesState(uid: string) {
     const currentUser = auth.currentUser;
@@ -4513,23 +4389,6 @@ export default function HomePage() {
     setThemePromptOpen(false);
     setAppBackgroundSetting(result.backgroundSetting as AppBackgroundSetting);
     setBackgroundSkin(result.backgroundSkin as BackgroundSkinSetting);
-  }
-
-  async function persistReflectionState(nextState: {
-    mirrorEntries: StreakMirrorEntry[];
-    sickDaySaves: SickDaySave[];
-    sickDaySaveDismissals: string[];
-  }) {
-    if (!user) return;
-
-    setStreakMirrorEntries(nextState.mirrorEntries);
-    setSickDaySaves(nextState.sickDaySaves);
-    setSickDaySaveDismissals(nextState.sickDaySaveDismissals);
-
-    const result = await saveReflectionState(user, nextState);
-    setStreakMirrorEntries(result.mirrorEntries as StreakMirrorEntry[]);
-    setSickDaySaves(result.sickDaySaves as SickDaySave[]);
-    setSickDaySaveDismissals(result.sickDaySaveDismissals);
   }
 
   async function persistPreferencesState(nextState: {
@@ -5408,8 +5267,7 @@ export default function HomePage() {
   }
 
   function openSickDaySaveReview() {
-    setSickDaySavePromptOpen(false);
-    setSickDaySavePromptPreview(false);
+    dismissSickDaySavePrompt();
     if (sickDaySaveEligible) {
       openStreakSaveQuestionnaire();
       return;
@@ -5417,127 +5275,10 @@ export default function HomePage() {
     setActiveTab("mirror");
   }
 
-  function dismissSickDaySavePrompt() {
-    setSickDaySavePromptOpen(false);
-    setSickDaySavePromptPreview(false);
-  }
-
-  function declineSickDaySave() {
-    if (!user || !rawYesterdayMissed) return;
-    const nextDismissals = [...new Set([...sickDaySaveDismissals, yesterdayKey])];
-    void persistReflectionState({
-      mirrorEntries: streakMirrorEntries,
-      sickDaySaves,
-      sickDaySaveDismissals: nextDismissals,
-    });
-    setSickDaySavePromptOpen(false);
-  }
-
-  function openStreakSaveQuestionnaire() {
-    setStreakSaveAnswers({});
-    setStreakMirrorTag(null);
-    setStreakSaveStatus("");
-    setStreakSaveQuestionnairePreview(false);
-    setStreakSaveQuestionnaireOpen(true);
-  }
-
-  function openStreakSaveQuestionnairePreview() {
-    setStreakSaveAnswers({});
-    setStreakMirrorTag(null);
-    setStreakSaveStatus("");
-    setStreakSaveQuestionnairePreview(true);
-    setStreakSaveQuestionnaireOpen(true);
-  }
-
-  function openSickDaySavePromptPreview() {
-    setSickDaySavePromptPreview(true);
-    setSickDaySavePromptOpen(true);
-  }
-
-  function closeStreakSaveQuestionnaire() {
-    setStreakSaveQuestionnaireOpen(false);
-    setStreakSaveQuestionnairePreview(false);
-    setStreakMirrorTag(null);
-    setStreakSaveStatus("");
-  }
-
   function openDailyPlanningPreview() {
     setDailyPlanningStatus("");
     setDailyPlanningPreviewOpen(true);
     setDailyPlanningOpen(true);
-  }
-
-  function claimSickDaySave() {
-    if (streakSaveQuestionnairePreview) {
-      closeStreakSaveQuestionnaire();
-      return;
-    }
-    if (!user || !sickDaySaveEligible) return;
-    const incompleteQuestion = STREAK_SAVE_ACCOUNTABILITY_QUESTIONS.find((question) => {
-      const answer = streakSaveAnswers[question]?.trim() ?? "";
-      return countWords(answer) < STREAK_MIRROR_MIN_WORDS;
-    });
-    if (incompleteQuestion) {
-      setStreakSaveStatus(`Each reflection needs at least ${STREAK_MIRROR_MIN_WORDS} words.`);
-      return;
-    }
-    if (!streakMirrorTag) {
-      setStreakSaveStatus("Choose the pattern tag that best describes the miss.");
-      return;
-    }
-    if (monthlyStreakSaveCount >= STREAK_SAVE_MONTHLY_LIMIT) {
-      setStreakSaveStatus("This month has already used all 5 streak saves.");
-      return;
-    }
-
-    const normalizedAnswers = Object.fromEntries(
-      STREAK_SAVE_ACCOUNTABILITY_QUESTIONS.map((question) => [
-        question,
-        (streakSaveAnswers[question] ?? "").trim(),
-      ]),
-    );
-
-    const previousStreak = computeStreak(sessions, protectedStreakDateKeys);
-    const nowIso = new Date().toISOString();
-    const nextSave: SickDaySave = {
-      id: typeof crypto !== "undefined" ? crypto.randomUUID() : `${Date.now()}`,
-      dateKey: yesterdayKey,
-      claimedAtISO: nowIso,
-      reason: "sick",
-    };
-    const nextSaves = [nextSave, ...sickDaySaves.filter((save) => save.dateKey !== yesterdayKey)].sort((a, b) =>
-      a.claimedAtISO < b.claimedAtISO ? 1 : -1,
-    );
-    const nextMirrorEntry: StreakMirrorEntry = {
-      id: typeof crypto !== "undefined" ? crypto.randomUUID() : `${Date.now()}-mirror`,
-      dateKey: yesterdayKey,
-      createdAtISO: nowIso,
-      updatedAtISO: nowIso,
-      tag: streakMirrorTag,
-      answers: normalizedAnswers,
-      source: "streak_save",
-    };
-    const nextMirrorEntries = [nextMirrorEntry, ...streakMirrorEntries].sort((a, b) =>
-      a.updatedAtISO < b.updatedAtISO ? 1 : -1,
-    );
-    void persistReflectionState({
-      mirrorEntries: nextMirrorEntries,
-      sickDaySaves: nextSaves,
-      sickDaySaveDismissals,
-    });
-    setSelectedStreakMirrorId(nextMirrorEntry.id);
-    trackStreakChange(
-      previousStreak,
-      computeStreak(sessions, nextSaves.map((save) => save.dateKey)),
-      "sick_day_save",
-      null,
-      yesterdayKey,
-    );
-    setSickDaySavePromptOpen(false);
-    setStreakSaveQuestionnaireOpen(false);
-    setStreakMirrorTag(null);
-    setStreakSaveStatus("");
-    setActiveTab("mirror");
   }
 
   function handleTodayPrimaryAction() {
@@ -6544,15 +6285,6 @@ export default function HomePage() {
     }
   }
 
-  const streakMirrorVisibleEntries = isPro
-    ? streakMirrorEntries
-    : streakMirrorEntries.slice(0, 2);
-  const selectedStreakMirrorEntry =
-    streakMirrorVisibleEntries.find((entry) => entry.id === selectedStreakMirrorId) ??
-    streakMirrorVisibleEntries[0] ??
-    null;
-  const streakMirrorSaying =
-    STREAK_MIRROR_SAYINGS[landingWisdomMinute % STREAK_MIRROR_SAYINGS.length];
   const maxTrendMinutes = Math.max(30, ...trendPoints.map((point) => point.minutes));
   const trendPath = trendPoints
     .map((point, index) => {
@@ -7086,7 +6818,7 @@ export default function HomePage() {
               monthlyStreakSaveCount={monthlyStreakSaveCount}
               streakSaveMonthlyLimit={STREAK_SAVE_MONTHLY_LIMIT}
               onOpenStreakSaveQuestionnaire={openStreakSaveQuestionnaire}
-              onDeclineSickDaySave={declineSickDaySave}
+              onDeclineSickDaySave={() => declineSickDaySave(rawYesterdayMissed, yesterdayKey)}
               onGoToMirror={() => setActiveTab("mirror")}
               onGoToToday={() => setActiveTab("today")}
               streakMonthLabel={streakMonthLabel}
@@ -7661,7 +7393,18 @@ export default function HomePage() {
               <button
                 type="button"
                 className={styles.feedbackSubmit}
-                onClick={claimSickDaySave}
+                onClick={() =>
+                  claimSickDaySave({
+                    sickDaySaveEligible,
+                    monthlySaveLimitReached,
+                    yesterdayKey,
+                    sessions,
+                    protectedStreakDateKeys,
+                    onTrackStreakChange: (previousStreak, nextStreak, source, changedDateKey) =>
+                      trackStreakChange(previousStreak, nextStreak, source, null, changedDateKey),
+                    onAfterClaim: () => setActiveTab("mirror"),
+                  })
+                }
                 disabled={
                   !streakSaveQuestionnairePreview &&
                   (STREAK_SAVE_ACCOUNTABILITY_QUESTIONS.some(

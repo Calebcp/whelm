@@ -29,7 +29,7 @@ const STREAK_MIRROR_TAGS = [
 
 type StreakMirrorTag = (typeof STREAK_MIRROR_TAGS)[number]["value"];
 
-function getStreakMirrorTagMeta(tag: StreakMirrorTag) {
+function getStreakMirrorTagMeta(tag: string) {
   return STREAK_MIRROR_TAGS.find((item) => item.value === tag) ?? STREAK_MIRROR_TAGS[0];
 }
 
@@ -40,7 +40,7 @@ type StreakMirrorEntry = {
   dateKey: string;
   createdAtISO: string;
   updatedAtISO: string;
-  tag: StreakMirrorTag;
+  tag: StreakMirrorTag | string;
   answers: Record<string, string>;
   source: "streak_save";
 };
