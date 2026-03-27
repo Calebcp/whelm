@@ -21,6 +21,7 @@ import HistoryTab from "@/components/HistoryTab";
 import WhelmboardTab from "@/components/WhelmboardTab";
 import StreaksTab from "@/components/StreaksTab";
 import MirrorTab from "@/components/MirrorTab";
+import ReportsTab from "@/components/ReportsTab";
 import SenseiFigure, { type SenseiVariant } from "@/components/SenseiFigure";
 import WhelMascot from "@/components/WhelMascot";
 import Timer, { type TimerSessionContext } from "@/components/Timer";
@@ -12149,392 +12150,40 @@ export default function HomePage() {
           )}
 
           {activeTab === "reports" && (
-            <AnimatedTabSection className={styles.reportsGrid} sectionRef={reportsSectionRef}>
-              <CompanionPulse {...companionState.pulses.reports} bandanaColor={bandanaColor} />
-              {!isPro ? (
-                <>
-                  <article className={`${styles.card} ${styles.analyticsHeroCard}`} ref={reportsPrimaryRef}>
-                    <div className={styles.cardHeader}>
-                      <div>
-                        <p className={styles.sectionLabel}>Focus Readout</p>
-                        <h2 className={styles.cardTitle}>Core focus picture</h2>
-                        <p className={styles.accountMeta}>
-                          Whelm Free keeps this simple. Whelm Pro opens the deeper command readout.
-                        </p>
-                      </div>
-                    </div>
-                    <div className={styles.analyticsHeroGrid}>
-                      <motion.div className={styles.analyticsHeroMetric} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.24 }}>
-                        <span>Today</span>
-                        <strong>{focusMetrics.todayMinutes}m</strong>
-                        <small>{focusMetrics.todaySessions} saved session{focusMetrics.todaySessions === 1 ? "" : "s"}</small>
-                      </motion.div>
-                      <motion.div className={styles.analyticsHeroMetric} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.24, delay: 0.04 }}>
-                        <span>7 days</span>
-                        <strong>{focusMetrics.weekMinutes}m</strong>
-                        <small>last week of focus</small>
-                      </motion.div>
-                      <motion.div className={styles.analyticsHeroMetric} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.24, delay: 0.08 }}>
-                        <span>30 days</span>
-                        <strong>{focusMetrics.monthMinutes}m</strong>
-                        <small>recent monthly total</small>
-                      </motion.div>
-                      <motion.div className={styles.analyticsHeroMetric} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.24, delay: 0.12 }}>
-                        <span>Active days</span>
-                        <strong>{focusMetrics.activeDaysInMonth}</strong>
-                        <small>days with saved minutes</small>
-                      </motion.div>
-                    </div>
-                  </article>
-                  <article className={styles.card}>
-                    <p className={styles.sectionLabel}>Whelm Pro</p>
-                    <h2 className={styles.cardTitle}>Advanced reports belong to Whelm Pro</h2>
-                    <ProUnlockCard
-                      title="Unlock score history, insight feed, best hours, and subject analysis"
-                      body={`${WHELM_PRO_POSITIONING} Whelm Pro opens the full reports suite: performance score history, quality and completion analytics, focus windows, insights, and deeper breakdowns.`}
-                      open={proPanelsOpen.reports}
-                      onToggle={() => setProPanelsOpen((current) => ({ ...current, reports: !current.reports }))}
-                      onPreview={() => void handleStartProPreview()}
-                    />
-                  </article>
-                </>
-              ) : (
-                <>
-              <article className={`${styles.card} ${styles.analyticsHeroCard}`} ref={reportsPrimaryRef}>
-                <div className={styles.cardHeader}>
-                  <div>
-                    <p className={styles.sectionLabel}>Advanced Reports</p>
-                    <h2 className={styles.cardTitle}>Performance command center</h2>
-                    <p className={styles.accountMeta}>
-                      Rich analytics from your tracked sessions, completion behavior, quality score, and timing patterns.
-                    </p>
-                  </div>
-                  <WhelmEmote emoteId="whelm.score" size="inline" className={styles.analyticsHeroEmote} />
-                </div>
-
-                <div className={styles.analyticsToolbar}>
-                  <div className={styles.rangeTabs}>
-                    <button
-                      type="button"
-                      className={`${styles.rangeTab} ${insightRange === 7 ? styles.rangeTabActive : ""}`}
-                      onClick={() => setInsightRange(7)}
-                    >
-                      7d
-                    </button>
-                    <button
-                      type="button"
-                      className={`${styles.rangeTab} ${insightRange === 30 ? styles.rangeTabActive : ""}`}
-                      onClick={() => setInsightRange(30)}
-                    >
-                      30d
-                    </button>
-                    <button
-                      type="button"
-                      className={`${styles.rangeTab} ${insightRange === 90 ? styles.rangeTabActive : ""}`}
-                      onClick={() => setInsightRange(90)}
-                    >
-                      90d
-                    </button>
-                  </div>
-                  <p className={styles.accountMeta}>
-                    Window: {analyticsDateRange.startDate} to {analyticsDateRange.endDate}
-                  </p>
-                </div>
-
-                {analyticsError ? (
-                  <p className={styles.analyticsEmptyState}>{analyticsError}</p>
-                ) : analyticsLoading && !analyticsWeeklySummary ? (
-                  <p className={styles.analyticsEmptyState}>Loading advanced reports...</p>
-                ) : analyticsWeeklySummary ? (
-                  <div className={styles.analyticsHeroGrid}>
-                    <motion.div className={styles.analyticsHeroMetric} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.24 }}>
-                      <span>Avg Performance</span>
-                      <strong>{analyticsWeeklySummary.averages.dailyPerformanceScore}</strong>
-                      <small>score this week</small>
-                    </motion.div>
-                    <motion.div className={styles.analyticsHeroMetric} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.24, delay: 0.04 }}>
-                      <span>Completion Rate</span>
-                      <strong>{analyticsWeeklySummary.averages.completionRate}%</strong>
-                      <small>{analyticsWeeklySummary.totals.sessionsCompleted} sessions finished</small>
-                    </motion.div>
-                    <motion.div className={styles.analyticsHeroMetric} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.24, delay: 0.08 }}>
-                      <span>Session Quality</span>
-                      <strong>
-                        {analyticsWeeklySummary.averages.sessionQualityScore === null
-                          ? "N/A"
-                          : analyticsWeeklySummary.averages.sessionQualityScore}
-                      </strong>
-                      <small>quality average</small>
-                    </motion.div>
-                    <motion.div className={styles.analyticsHeroMetric} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.24, delay: 0.12 }}>
-                      <span>Active Days</span>
-                      <strong>{analyticsWeeklySummary.activeDays}</strong>
-                      <small>captured this week</small>
-                    </motion.div>
-                  </div>
-                ) : (
-                  <p className={styles.analyticsEmptyState}>Finish a few tracked sessions to unlock richer reports.</p>
-                )}
-              </article>
-
-              <article className={`${styles.card} ${styles.analyticsCommandCard}`}>
-                <div className={styles.cardHeader}>
-                  <div>
-                    <p className={styles.sectionLabel}>Readout</p>
-                    <h2 className={styles.cardTitle}>What needs attention now</h2>
-                  </div>
-                  <span className={styles.leaderboardCountPill}>Operator view</span>
-                </div>
-                <div className={styles.analyticsCommandGrid}>
-                  <div className={styles.analyticsCommandItem}>
-                    <span>Lead insight</span>
-                    <strong>{analyticsLeadInsight?.title ?? "No standout pattern yet"}</strong>
-                    <small>
-                      {analyticsLeadInsight?.body ?? "Keep logging tracked sessions and Whelm will sharpen the readout."}
-                    </small>
-                  </div>
-                  <div className={styles.analyticsCommandItem}>
-                    <span>Best window</span>
-                    <strong>
-                      {analyticsBestHours?.bestWindow
-                        ? formatAnalyticsWindowLabel(
-                            analyticsBestHours.bestWindow.startHour,
-                            analyticsBestHours.bestWindow.endHour,
-                          )
-                        : "Still forming"}
-                    </strong>
-                    <small>
-                      {analyticsBestHours?.bestWindow
-                        ? `${analyticsBestHours.bestWindow.focusMinutes} focus minutes sit in this window.`
-                        : "Complete more saved sessions to surface your strongest hours."}
-                    </small>
-                  </div>
-                  <div className={styles.analyticsCommandItem}>
-                    <span>Main subject</span>
-                    <strong>{analyticsLeadSubject?.label ?? "No dominant lane yet"}</strong>
-                    <small>
-                      {analyticsLeadSubject
-                        ? `${analyticsLeadSubject.focusMinutes} minutes tracked here across ${analyticsLeadSubject.sessionsCompleted} sessions.`
-                        : "Subject breakdown will strengthen as more work gets categorized."}
-                    </small>
-                  </div>
-                  <div className={styles.analyticsCommandItem}>
-                    <span>Recommended nudge</span>
-                    <strong>{analyticsLeadNotification?.title ?? "No nudge queued"}</strong>
-                    <small>
-                      {analyticsLeadNotification
-                        ? `${analyticsLeadNotification.body} Deliver at ${analyticsLeadNotification.deliverAtLocalTime}.`
-                        : "Once today has enough analytics data, Whelm will queue a targeted prompt here."}
-                    </small>
-                  </div>
-                </div>
-              </article>
-
-              <CollapsibleSectionCard
-                label="Score History"
-                title="Performance score trend"
-                open={reportsSectionsOpen.score}
-                onToggle={() =>
-                  setReportsSectionsOpen((current) => ({ ...current, score: !current.score }))
-                }
-              >
-                {analyticsScoreHistory.length > 0 ? (
-                  <>
-                    <div className={styles.analyticsSectionLead}>
-                      <strong>
-                        {analyticsWeeklySummary?.averages.dailyPerformanceScore ?? "--"} average score
-                      </strong>
-                      <span>
-                        {analyticsWeeklySummary
-                          ? `${analyticsWeeklySummary.performanceBands.high} high days, ${analyticsWeeklySummary.performanceBands.recovery} recovery days`
-                          : "Watch the line to see whether performance is stabilizing or breaking."}
-                      </span>
-                    </div>
-                    <div className={styles.analyticsChartFrame}>
-                      <svg viewBox="0 0 100 100" className={styles.trendChart} preserveAspectRatio="none">
-                        <polyline points={analyticsScorePath} className={styles.analyticsTrendLine} />
-                      </svg>
-                    </div>
-                    <div className={styles.analyticsChartLabels}>
-                      {analyticsScoreHistory
-                        .map((entry, index) => (
-                          <span key={`${entry.date}-${index}`}>
-                            {new Date(`${entry.date}T00:00:00`).toLocaleDateString(undefined, {
-                              month: "short",
-                              day: "numeric",
-                            })}
-                          </span>
-                        ))
-                        .filter((_, index) =>
-                          insightRange === 7
-                            ? true
-                            : insightRange === 30
-                              ? index % 5 === 0 || index === analyticsScoreHistory.length - 1
-                              : index % 15 === 0 || index === analyticsScoreHistory.length - 1,
-                        )}
-                    </div>
-                    <div className={styles.analyticsBandSummary}>
-                      <span>High: {analyticsWeeklySummary?.performanceBands.high ?? 0}</span>
-                      <span>Steady: {analyticsWeeklySummary?.performanceBands.steady ?? 0}</span>
-                      <span>Recovery: {analyticsWeeklySummary?.performanceBands.recovery ?? 0}</span>
-                    </div>
-                  </>
-                ) : (
-                  <p className={styles.analyticsEmptyState}>Performance score history will appear once analytics days are aggregated.</p>
-                )}
-              </CollapsibleSectionCard>
-
-              <CollapsibleSectionCard
-                label="Insight Feed"
-                title="What the system is seeing"
-                open={reportsSectionsOpen.insights}
-                onToggle={() =>
-                  setReportsSectionsOpen((current) => ({ ...current, insights: !current.insights }))
-                }
-              >
-                {analyticsInsights.length > 0 ? (
-                  <div className={styles.analyticsInsightList}>
-                    {analyticsInsights.map((insight, index) => (
-                      <article
-                        key={insight.type}
-                        className={`${styles.analyticsInsightCard} ${
-                          insight.tone === "warning"
-                            ? styles.analyticsInsightWarning
-                            : insight.tone === "positive"
-                              ? styles.analyticsInsightPositive
-                              : styles.analyticsInsightNeutral
-                        }`}
-                        data-lead-insight={index === 0 ? "true" : "false"}
-                      >
-                        <span className={styles.analyticsInsightKicker}>
-                          {index === 0 ? "Lead signal" : "Pattern"}
-                        </span>
-                        <p className={styles.analyticsInsightTitle}>{insight.title}</p>
-                        <p className={styles.accountMeta}>{insight.body}</p>
-                      </article>
-                    ))}
-                  </div>
-                ) : (
-                  <p className={styles.analyticsEmptyState}>No standout insights yet. More tracked sessions will make this feed sharper.</p>
-                )}
-              </CollapsibleSectionCard>
-
-              <CollapsibleSectionCard
-                label="Timing"
-                title="Best focus window"
-                open={reportsSectionsOpen.timing}
-                onToggle={() =>
-                  setReportsSectionsOpen((current) => ({ ...current, timing: !current.timing }))
-                }
-              >
-                {analyticsBestHours?.bestWindow ? (
-                  <>
-                    <div className={styles.analyticsFocusWindow}>
-                      <strong>
-                        {formatAnalyticsWindowLabel(
-                          analyticsBestHours.bestWindow.startHour,
-                          analyticsBestHours.bestWindow.endHour,
-                        )}
-                      </strong>
-                      <span>{analyticsBestHours.bestWindow.focusMinutes} focus minutes captured in this window.</span>
-                      <small>{analyticsBestHours.bestWindow.sharePercent}% of your tracked completed-session focus lives here.</small>
-                    </div>
-                    <div className={styles.analyticsHourList}>
-                      {analyticsTopHours.map((hour, index) => (
-                        <div key={hour.hour} className={styles.analyticsHourRow}>
-                          <div>
-                            <strong>{formatHourLabel(hour.hour)}</strong>
-                            <p className={styles.accountMeta}>
-                              {index === 0 ? "Strongest hour" : `${hour.completedSessions} sessions`}
-                            </p>
-                          </div>
-                          <div className={styles.analyticsBarTrack}>
-                            <motion.div
-                              className={styles.analyticsBarFill}
-                              initial={{ width: "8%" }}
-                              animate={{ width: `${Math.max(8, hour.sharePercent)}%` }}
-                              transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-                            />
-                          </div>
-                          <span>{hour.focusMinutes}m</span>
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                ) : (
-                  <p className={styles.analyticsEmptyState}>Best focus hours appear after enough completed sessions are tracked.</p>
-                )}
-              </CollapsibleSectionCard>
-
-              <CollapsibleSectionCard
-                label="Subject Breakdown"
-                title="Where the work is landing"
-                open={reportsSectionsOpen.subjects}
-                onToggle={() =>
-                  setReportsSectionsOpen((current) => ({ ...current, subjects: !current.subjects }))
-                }
-              >
-                {analyticsTopSubjects.some((subject) => subject.focusMinutes > 0) ? (
-                  <div className={styles.analyticsSubjectList}>
-                    {analyticsTopSubjects.map((subject, index) => (
-                      <div key={subject.key} className={styles.analyticsSubjectRow}>
-                        <div className={styles.analyticsSubjectHeader}>
-                          <strong>{subject.label}</strong>
-                          <span>{subject.focusMinutes}m</span>
-                        </div>
-                        {index === 0 ? (
-                          <p className={styles.analyticsSectionCallout}>This is where most of your tracked effort is landing.</p>
-                        ) : null}
-                        <div className={styles.analyticsBarTrack}>
-                          <motion.div
-                            className={styles.analyticsBarFill}
-                            initial={{ width: "8%" }}
-                            animate={{ width: `${(subject.focusMinutes / analyticsTopSubjectMinutes) * 100}%` }}
-                            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-                          />
-                        </div>
-                        <p className={styles.accountMeta}>
-                          {subject.sessionsCompleted} completed sessions, {subject.tasksCompleted} tasks finished
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className={styles.analyticsEmptyState}>Subject-level analytics will fill in as tracked sessions accumulate.</p>
-                )}
-              </CollapsibleSectionCard>
-
-              <CollapsibleSectionCard
-                label="Popups & Notifications"
-                title="Recommended nudges"
-                description="These are generated from the latest analytics snapshot and can power in-app prompts and scheduled notifications."
-                open={reportsSectionsOpen.notifications}
-                onToggle={() =>
-                  setReportsSectionsOpen((current) => ({
-                    ...current,
-                    notifications: !current.notifications,
-                  }))
-                }
-              >
-                {analyticsNotificationPlan ? (
-                  <div className={styles.analyticsNotificationList}>
-                    {analyticsNotificationPlan.notifications.map((notification) => (
-                      <article key={notification.kind} className={styles.analyticsNotificationCard}>
-                        <div className={styles.analyticsNotificationHeader}>
-                          <strong>{notification.title}</strong>
-                          <span>{notification.deliverAtLocalTime}</span>
-                        </div>
-                        <p className={styles.accountMeta}>{notification.body}</p>
-                      </article>
-                    ))}
-                  </div>
-                ) : (
-                  <p className={styles.analyticsEmptyState}>Once today has analytics data, Whelm can propose targeted nudges here.</p>
-                )}
-              </CollapsibleSectionCard>
-                </>
-              )}
-            </AnimatedTabSection>
+            <ReportsTab
+              sectionRef={reportsSectionRef}
+              primaryRef={reportsPrimaryRef}
+              companionPulse={companionState.pulses.reports}
+              bandanaColor={bandanaColor}
+              isPro={isPro}
+              proPanelReportsOpen={proPanelsOpen.reports}
+              onToggleProReportsPanel={() =>
+                setProPanelsOpen((current) => ({ ...current, reports: !current.reports }))
+              }
+              onStartProPreview={() => void handleStartProPreview()}
+              focusMetrics={focusMetrics}
+              insightRange={insightRange}
+              onSetInsightRange={setInsightRange}
+              analyticsDateRange={analyticsDateRange}
+              analyticsError={analyticsError}
+              analyticsLoading={analyticsLoading}
+              analyticsWeeklySummary={analyticsWeeklySummary}
+              analyticsLeadInsight={analyticsLeadInsight}
+              analyticsBestWindow={analyticsBestHours?.bestWindow ?? null}
+              analyticsLeadSubject={analyticsLeadSubject}
+              analyticsLeadNotification={analyticsLeadNotification}
+              reportsSectionsOpen={reportsSectionsOpen}
+              onToggleReportsSection={(key) =>
+                setReportsSectionsOpen((current) => ({ ...current, [key]: !current[key] }))
+              }
+              analyticsScoreHistory={analyticsScoreHistory}
+              analyticsScorePath={analyticsScorePath}
+              analyticsInsights={analyticsInsights}
+              analyticsTopHours={analyticsTopHours}
+              analyticsTopSubjects={analyticsTopSubjects}
+              analyticsTopSubjectMinutes={analyticsTopSubjectMinutes}
+              analyticsNotificationPlan={analyticsNotificationPlan}
+            />
           )}
 
           {activeTab === "streaks" && (
