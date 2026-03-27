@@ -68,6 +68,7 @@ type UseLeaderboardOptions = {
   lifetimeXpSummary: LifetimeXpSummary;
   historicalStreaksByDay: Map<string, number>;
   sessions: SessionDoc[];
+  sessionsSynced: boolean;
 };
 
 const LEADERBOARD_SEED_DATA: ReadonlyArray<{
@@ -184,6 +185,7 @@ export function useLeaderboard({
   lifetimeXpSummary,
   historicalStreaksByDay,
   sessions,
+  sessionsSynced,
 }: UseLeaderboardOptions) {
   const [leaderboardMetricTab, setLeaderboardMetricTab] = useState<LeaderboardMetricTab>("xp");
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
@@ -567,15 +569,15 @@ export function useLeaderboard({
 
   useEffect(() => {
     const currentUser = user;
-    if (!currentUser) return;
+    if (!currentUser || !sessionsSynced) return;
     const authedUser = currentUser;
 
     const controller = new AbortController();
 
-    async function syncLeaderboardProfile() {
+    async function syncLeaderboardProfile(isRetry = false) {
       try {
         const token = await authedUser.getIdToken();
-        await fetch(resolveApiUrl("/api/leaderboard/profile"), {
+        const response = await fetch(resolveApiUrl("/api/leaderboard/profile"), {
           method: "POST",
           headers: {
             Authorization: `Bearer ${token}`,
@@ -595,14 +597,22 @@ export function useLeaderboard({
           }),
           signal: controller.signal,
         });
+        if (!response.ok && !isRetry && !controller.signal.aborted) {
+          // Single retry on server error.
+          void syncLeaderboardProfile(true);
+        }
       } catch {
-        // Ignore sync failures and keep the current leaderboard UI available.
+        if (!isRetry && !controller.signal.aborted) {
+          // Single retry on network error after a short delay.
+          window.setTimeout(() => { void syncLeaderboardProfile(true); }, 3000);
+        }
       }
     }
 
     void syncLeaderboardProfile();
     return () => controller.abort();
   }, [
+    sessionsSynced,
     displayStreak,
     lifetimeXpSummary.currentLevel,
     lifetimeXpSummary.totalXp,

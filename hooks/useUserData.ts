@@ -59,6 +59,7 @@ export function useUserData({
   const [user, setUser] = useState<User | null>(null);
   const [sessions, setSessions] = useState<SessionDoc[]>([]);
   const [authChecked, setAuthChecked] = useState(false);
+  const [sessionsSynced, setSessionsSynced] = useState(false);
 
   // Guards against stale onSnapshot cache-fires overwriting sessions before
   // the initial localStorage→Firestore sync finishes.
@@ -91,6 +92,7 @@ export function useUserData({
 
     setSessions(merged);
     sessionsSyncedRef.current = true;
+    setSessionsSynced(true);
 
     if (!currentUser || !remoteWasStale || sessionsSyncInFlightRef.current) return;
 
@@ -106,6 +108,7 @@ export function useUserData({
       if (!nextUser) {
         appOpenTrackedRef.current = null;
         sessionsSyncedRef.current = false;
+        setSessionsSynced(false);
         setUser(null);
         setSessions([]);
         if (authReadyRef.current) {
@@ -143,8 +146,9 @@ export function useUserData({
           .then((synced) => {
             setSessions(synced);
             sessionsSyncedRef.current = true;
+            setSessionsSynced(true);
           })
-          .catch(() => { sessionsSyncedRef.current = true; });
+          .catch(() => { sessionsSyncedRef.current = true; setSessionsSynced(true); });
       }
 
       // Delegate notes + other domain state to page.tsx.
@@ -294,6 +298,7 @@ export function useUserData({
     user,
     authChecked,
     setAuthChecked,
+    sessionsSynced,
     sessionsSyncedRef,
     // Sessions
     sessions,

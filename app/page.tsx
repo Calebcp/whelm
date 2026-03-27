@@ -1629,6 +1629,7 @@ export default function HomePage() {
     user,
     authChecked,
     setAuthChecked,
+    sessionsSynced,
     sessionsSyncedRef,
     applySessionsSnapshot,
     sessions,
@@ -2366,6 +2367,7 @@ export default function HomePage() {
     lifetimeXpSummary,
     historicalStreaksByDay,
     sessions,
+    sessionsSynced,
   });
   const notificationsBlocked = dailyPlanningLocked || dailyPlanningOpen || dailyPlanningPreviewOpen;
   const {
