@@ -1412,9 +1412,7 @@
     grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
   }
 
-  .notesWorkspace > :global(.companionPulse),
-  .notesWorkspace > :global(.cardsHeader),
-  .notesWorkspace > :global(.cardsTabShell) {
+  .notesFullWidth {
     grid-column: 1 / -1;
   }
 

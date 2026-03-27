@@ -1553,6 +1553,7 @@ export default function HomePage() {
     noteAttachmentBusy,
     noteAttachmentStatus,
     pendingNoteAttachments,
+    applyNotesSnapshot,
     handleUserSignedIn,
     handleUserSignedOut,
     createWorkspaceNote,
@@ -1629,6 +1630,7 @@ export default function HomePage() {
     authChecked,
     setAuthChecked,
     sessionsSyncedRef,
+    applySessionsSnapshot,
     sessions,
     setSessions,
     sessionMinutesByDay,
@@ -1973,10 +1975,7 @@ export default function HomePage() {
 
     const unsub = subscribeToUserData(user.uid, {
       onNotes: (notes) => {
-        setNotes(notes);
-        setSelectedNoteId((current) => current ?? notes[0]?.id ?? null);
-        setNotesSyncStatus("synced");
-        setNotesSyncMessage("");
+        applyNotesSnapshot(notes);
       },
       onBlocks: (blocks) => {
         handleBlocksSnapshot(blocks as PlannedBlock[]);
@@ -1992,7 +1991,7 @@ export default function HomePage() {
       onReflection: handleReflectionSnapshot,
       onSessions: (sessions) => {
         if (sessionsSyncedRef.current) {
-          setSessions(sessions);
+          applySessionsSnapshot(sessions);
         }
       },
       onCards: () => {

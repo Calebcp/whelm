@@ -346,16 +346,33 @@
 .leaderboardMovementBadge {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
+  gap: 5px;
+  padding: 3px 8px 3px 7px;
   background: rgba(255, 255, 255, 0.08);
   color: #eef4ff;
-  font-size: 0.68rem;
+  font-size: 0.66rem;
   letter-spacing: 0.04em;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  max-width: 72px;
+  flex-shrink: 1;
 }
 
 .leaderboardMovementArrow {
-  font-size: 0.66rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  font-size: 0.58rem;
+  transform: translateY(-0.5px);
+}
+
+.leaderboardMovementText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .leaderboardMovementSubtle {
@@ -369,10 +386,32 @@
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.leaderboardMovementUp { color: #8cf0b3; }
-.leaderboardMovementDown { color: #ff9b9b; }
-.leaderboardMovementSame { color: rgba(200, 185, 255, 0.6); }
-.leaderboardMovementNew { color: #ffe08a; }
+.leaderboardMovementUp {
+  color: #8cf0b3;
+  background: rgba(48, 130, 84, 0.16);
+  border-color: rgba(110, 234, 162, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(110, 234, 162, 0.04);
+}
+
+.leaderboardMovementDown {
+  color: #ff9b9b;
+  background: rgba(143, 48, 68, 0.14);
+  border-color: rgba(255, 155, 155, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(255, 155, 155, 0.04);
+}
+
+.leaderboardMovementSame {
+  color: rgba(200, 185, 255, 0.66);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+.leaderboardMovementNew {
+  color: #ffe08a;
+  background: rgba(148, 112, 32, 0.16);
+  border-color: rgba(255, 224, 138, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(255, 224, 138, 0.05);
+}
 
 .lbProfileSheet {
   width: min(400px, calc(100vw - 32px));

@@ -79,7 +79,7 @@ function normalizeBlocks(blocks: PlannedBlockDoc[]) {
   );
 }
 
-function readLocalBlocks(uid: string) {
+export function readLocalBlocks(uid: string) {
   try {
     const raw = window.localStorage.getItem(storageKey(uid));
     const parsed = raw ? (JSON.parse(raw) as PlannedBlockDoc[]) : [];
@@ -93,7 +93,7 @@ function writeLocalBlocks(uid: string, blocks: PlannedBlockDoc[]) {
   window.localStorage.setItem(storageKey(uid), JSON.stringify(normalizeBlocks(blocks)));
 }
 
-function mergeBlocksPreferNewest(localBlocks: PlannedBlockDoc[], cloudBlocks: PlannedBlockDoc[]) {
+export function mergeBlocksPreferNewest(localBlocks: PlannedBlockDoc[], cloudBlocks: PlannedBlockDoc[]) {
   const merged = new Map<string, PlannedBlockDoc>();
 
   for (const block of cloudBlocks) {

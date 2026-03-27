@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from "react";
+import { getDownloadURL, ref as storageRef, uploadBytes } from "firebase/storage";
 import { doc, setDoc } from "firebase/firestore";
 import type { User } from "firebase/auth";
 
-import { db } from "@/lib/firebase";
+import { db, storage } from "@/lib/firebase";
 import {
   savePreferences,
   type PreferencesBackgroundSetting,
@@ -117,18 +118,25 @@ export function usePreferences({
     });
   }, [appBackgroundSetting, companionStyle, persistPreferencesState, themeMode]);
 
-  const handleBackgroundUpload = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+  const handleBackgroundUpload = useCallback(async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file || !isPro) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === "string") {
-        applyBackgroundSetting({ kind: "upload", value: reader.result });
-      }
-    };
-    reader.readAsDataURL(file);
     event.target.value = "";
-  }, [applyBackgroundSetting, isPro]);
+    if (!file || !isPro || !user) return;
+
+    const extension = file.name.includes(".")
+      ? file.name.slice(file.name.lastIndexOf(".")).toLowerCase()
+      : "";
+    const objectPath = `users/${user.uid}/preferences/background${extension}`;
+    const backgroundRef = storageRef(storage, objectPath);
+
+    await uploadBytes(backgroundRef, file, {
+      contentType: file.type || "application/octet-stream",
+      cacheControl: "public,max-age=31536000,immutable",
+    });
+
+    const downloadUrl = await getDownloadURL(backgroundRef);
+    applyBackgroundSetting({ kind: "upload", value: downloadUrl });
+  }, [applyBackgroundSetting, isPro, user]);
 
   const effectiveBackgroundSetting = useMemo(
     () => (isPro ? appBackgroundSetting : { kind: "default" as const }),

@@ -5,6 +5,8 @@ import { deleteObject, getDownloadURL, ref as storageRef, uploadBytesResumable }
 import { auth, storage } from "@/lib/firebase";
 import {
   loadNotes,
+  mergeNotesPreferNewest,
+  readLocalNotes,
   retryNotesSync,
   saveNotes,
   saveNotesLocally,
@@ -197,6 +199,10 @@ function describeAttachmentUploadError(error: unknown, bucketName: string) {
 function isDateKeyWithinRecentWindow(dateKey: string, days: number) {
   const cutoff = dayKeyLocal(addDaysLocal(new Date(), -(Math.max(1, days) - 1)));
   return dateKey >= cutoff;
+}
+
+function notesMatch(a: WorkspaceNote[], b: WorkspaceNote[]) {
+  return JSON.stringify(a) === JSON.stringify(b);
 }
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
@@ -448,6 +454,48 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     setNoteUndoItem(null);
     setSelectionPopup(null);
     setQuickCardForm(null);
+  }, []);
+
+  const applyNotesSnapshot = useCallback((remoteNotes: WorkspaceNote[]) => {
+    const currentUser = auth.currentUser;
+    const uid = currentUser?.uid;
+    const localNotes = uid ? readLocalNotes(uid) : [];
+    const inMemoryNotes = notesRef.current;
+    const newestLocalNotes = mergeNotesPreferNewest(localNotes, inMemoryNotes);
+    const mergedNotes = mergeNotesPreferNewest(newestLocalNotes, remoteNotes);
+    const selectedCandidateId = selectedNoteIdRef.current;
+    const selectedStillExists = selectedCandidateId
+      ? mergedNotes.some((note) => note.id === selectedCandidateId)
+      : false;
+    const remoteWasStale = !notesMatch(mergedNotes, remoteNotes);
+
+    notesRef.current = mergedNotes;
+    setNotes(mergedNotes);
+    setSelectedNoteId(selectedStillExists ? selectedCandidateId : (mergedNotes[0]?.id ?? null));
+    setNotesSyncStatus(remoteWasStale ? "syncing" : "synced");
+    setNotesSyncMessage(
+      remoteWasStale ? "Recovered newer local notes and syncing them to your account." : "",
+    );
+
+    if (!uid) return;
+
+    saveNotesLocally(uid, mergedNotes);
+
+    if (!currentUser || !remoteWasStale || syncInFlightRef.current) return;
+
+    syncInFlightRef.current = true;
+    void retryNotesSync(currentUser, mergedNotes)
+      .then((result) => {
+        setNotesSyncStatus(result.synced ? "synced" : "local-only");
+        setNotesSyncMessage(
+          result.synced
+            ? ""
+            : (result.message ?? "Saved locally only. Sync needed for other devices."),
+        );
+      })
+      .finally(() => {
+        syncInFlightRef.current = false;
+      });
   }, []);
 
   const clearPendingXpPop = useCallback(() => {
@@ -1069,6 +1117,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     refreshNotes,
     handleUserSignedIn,
     handleUserSignedOut,
+    applyNotesSnapshot,
     createWorkspaceNote,
     updateNoteById,
     updateSelectedNote,

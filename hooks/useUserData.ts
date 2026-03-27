@@ -3,7 +3,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { loadSessions } from "@/lib/session-store";
+import {
+  dedupeSessions,
+  loadSessions,
+  readLocalSessions,
+  syncMissingSessionsToCloud,
+} from "@/lib/session-store";
 import { computeStreak, type SessionDoc } from "@/lib/streak";
 import { bandanaColorFromStreak } from "@/lib/whelm-mascot";
 import { useMascot } from "@/hooks/useMascot";
@@ -60,6 +65,7 @@ export function useUserData({
   const sessionsSyncedRef = useRef(false);
   const authReadyRef = useRef(false);
   const appOpenTrackedRef = useRef<string | null>(null);
+  const sessionsSyncInFlightRef = useRef(false);
 
   // ── XP/streak animation state ──────────────────────────────────────────────
   const [xpPops, setXpPops] = useState<XPPop[]>([]);
@@ -75,6 +81,24 @@ export function useUserData({
   const removeXPPop = useCallback((id: string) => {
     setXpPops((prev) => prev.filter((p) => p.id !== id));
   }, []);
+
+  const applySessionsSnapshot = useCallback((remoteSessions: SessionDoc[]) => {
+    const currentUser = auth.currentUser;
+    const uid = currentUser?.uid;
+    const localSessions = uid ? readLocalSessions(uid) : [];
+    const merged = dedupeSessions([...remoteSessions, ...sessions, ...localSessions]);
+    const remoteWasStale = merged.length !== remoteSessions.length;
+
+    setSessions(merged);
+    sessionsSyncedRef.current = true;
+
+    if (!currentUser || !remoteWasStale || sessionsSyncInFlightRef.current) return;
+
+    sessionsSyncInFlightRef.current = true;
+    void syncMissingSessionsToCloud(currentUser, remoteSessions).finally(() => {
+      sessionsSyncInFlightRef.current = false;
+    });
+  }, [sessions]);
 
   // ── Auth listener ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -289,5 +313,6 @@ export function useUserData({
     currentUserPhotoUrl,
     currentUserId,
     currentUserCreatedAtISO,
+    applySessionsSnapshot,
   };
 }

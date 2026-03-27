@@ -133,7 +133,7 @@ function normalizeAttachments(attachments: WorkspaceNote["attachments"]) {
     .sort((a, b) => (a.uploadedAtISO < b.uploadedAtISO ? 1 : -1));
 }
 
-function readLocalNotes(uid: string) {
+export function readLocalNotes(uid: string) {
   try {
     const raw = window.localStorage.getItem(storageKey(uid));
     if (!raw) return [] as WorkspaceNote[];
@@ -149,7 +149,7 @@ function writeLocalNotes(uid: string, notes: WorkspaceNote[]) {
   window.localStorage.setItem(storageKey(uid), JSON.stringify(normalizeNotes(notes)));
 }
 
-function mergeNotesPreferNewest(localNotes: WorkspaceNote[], cloudNotes: WorkspaceNote[]) {
+export function mergeNotesPreferNewest(localNotes: WorkspaceNote[], cloudNotes: WorkspaceNote[]) {
   const merged = new Map<string, WorkspaceNote>();
 
   for (const note of cloudNotes) {

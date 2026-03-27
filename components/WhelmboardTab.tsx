@@ -50,7 +50,7 @@ type LeaderboardRowData = {
 
 function bandanaCursorAssetPath(color: string | null | undefined, size: 128 | 256 = 128) {
   if (!color) return "";
-  return `/bandana-cursors/${color}-${size}.png`;
+  return `/streak/cursor/bandana-${color}-${size}.png`;
 }
 
 function bandanaImageGlow(color: string | null | undefined): string {
@@ -92,6 +92,7 @@ function LeaderboardMovementIndicator({
   tab: LeaderboardMetricTab;
 }) {
   const label = leaderboardMovementLabel(movement, tab);
+  const magnitude = Math.abs(movement.delta);
   const directionClassName =
     movement.direction === "up"
       ? styles.leaderboardMovementUp
@@ -101,27 +102,44 @@ function LeaderboardMovementIndicator({
           ? styles.leaderboardMovementNew
           : styles.leaderboardMovementSame;
 
-  if (tab === "xp") {
-    return (
-      <span className={`${styles.leaderboardMovementBadge} ${directionClassName}`}>
-        <span className={styles.leaderboardMovementArrow}>
-          {movement.direction === "up"
-            ? "▲"
-            : movement.direction === "down"
-              ? "▼"
-              : movement.direction === "new"
-                ? "✦"
-                : "•"}
-        </span>
-        <span>{label}</span>
-      </span>
-    );
-  }
+  const icon =
+    movement.direction === "up"
+      ? "▲"
+      : movement.direction === "down"
+        ? "▼"
+        : movement.direction === "new"
+          ? "✦"
+          : "•";
+  const text =
+    movement.direction === "same"
+      ? tab === "xp"
+        ? "Flat"
+        : "Even"
+      : movement.direction === "new"
+        ? "New"
+        : `${movement.direction === "up" ? "+" : "-"}${magnitude}`;
 
   return (
-    <span className={`${styles.leaderboardMovementSubtle} ${directionClassName}`}>
-      {label}
-    </span>
+    <motion.span
+      className={`${styles.leaderboardMovementBadge} ${directionClassName}`}
+      initial={{ opacity: 0, scale: 0.92, y: 2 }}
+      animate={
+        movement.direction === "same"
+          ? { opacity: 1, scale: 1, y: 0 }
+          : { opacity: 1, scale: [0.96, 1.04, 1], y: [2, -1, 0] }
+      }
+      transition={{
+        duration: movement.direction === "same" ? 0.2 : 0.55,
+        ease: [0.22, 1, 0.36, 1],
+      }}
+      title={label}
+      aria-label={label}
+    >
+      <span className={styles.leaderboardMovementArrow} aria-hidden="true">
+        {icon}
+      </span>
+      <span className={styles.leaderboardMovementText}>{text}</span>
+    </motion.span>
   );
 }
 

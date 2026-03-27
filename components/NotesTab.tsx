@@ -550,7 +550,7 @@ export default function NotesTab({
         className={styles.hiddenAttachmentInput}
         onChange={onNoteAttachmentInput}
       />
-      <div className={sharedStyles.cardsHeader}>
+      <div className={`${sharedStyles.cardsHeader} ${styles.notesFullWidth}`}>
         <div>
           <p className={sharedStyles.sectionLabel}>Notes + Cards</p>
           <h2 className={sharedStyles.cardTitle}>Your writing studio</h2>
@@ -580,7 +580,9 @@ export default function NotesTab({
         </div>
       </div>
       {notesSurface === "cards" ? (
-        <CardsTab uid={uid} onXPEarned={onCardsXPEarned} />
+        <div className={styles.notesFullWidth}>
+          <CardsTab uid={uid} onXPEarned={onCardsXPEarned} />
+        </div>
       ) : (
         <>
           {isMobileViewport && <div className={styles.mobileNotesPanel}>

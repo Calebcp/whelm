@@ -9,7 +9,7 @@ function storageKey(uid: string) {
   return `${storagePrefix}${uid}`;
 }
 
-function sessionKey(session: SessionDoc) {
+export function sessionKey(session: SessionDoc) {
   return [
     session.uid,
     session.completedAtISO,
@@ -24,7 +24,7 @@ function sortSessions(sessions: SessionDoc[]) {
   return [...sessions].sort((a, b) => (a.completedAtISO < b.completedAtISO ? 1 : -1));
 }
 
-function dedupeSessions(sessions: SessionDoc[]) {
+export function dedupeSessions(sessions: SessionDoc[]) {
   const byKey = new Map<string, SessionDoc>();
 
   for (const session of sessions) {
@@ -34,7 +34,7 @@ function dedupeSessions(sessions: SessionDoc[]) {
   return sortSessions([...byKey.values()]);
 }
 
-function readLocalSessions(uid: string) {
+export function readLocalSessions(uid: string) {
   try {
     const raw = window.localStorage.getItem(storageKey(uid));
     const parsed = raw ? (JSON.parse(raw) as SessionDoc[]) : [];
@@ -89,6 +89,14 @@ async function saveSessionToCloud(user: User, session: SessionDoc) {
   });
 }
 
+export async function syncMissingSessionsToCloud(user: User, sessions: SessionDoc[]) {
+  const cloudKeys = new Set(sessions.map(sessionKey));
+  const localSessions = readLocalSessions(user.uid);
+  const missingInCloud = localSessions.filter((session) => !cloudKeys.has(sessionKey(session)));
+  if (missingInCloud.length === 0) return;
+  await Promise.all(missingInCloud.map((session) => saveSessionToCloud(user, session)));
+}
+
 export async function loadSessions(user: User) {
   const localSessions = readLocalSessions(user.uid);
 
@@ -103,11 +111,7 @@ export async function loadSessions(user: User) {
     const merged = dedupeSessions([...cloudSessions, ...localSessions]);
     writeLocalSessions(user.uid, merged);
 
-    const cloudKeys = new Set(cloudSessions.map(sessionKey));
-    const missingInCloud = localSessions.filter((session) => !cloudKeys.has(sessionKey(session)));
-    if (missingInCloud.length > 0) {
-      await Promise.all(missingInCloud.map((session) => saveSessionToCloud(user, session)));
-    }
+    await syncMissingSessionsToCloud(user, cloudSessions);
 
     return merged;
   } catch {

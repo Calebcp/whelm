@@ -1,9 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { auth } from "@/lib/firebase";
 import {
   loadPlannedBlocks as loadSyncedPlannedBlocks,
+  mergeBlocksPreferNewest,
+  readLocalBlocks,
   savePlannedBlocks as saveSyncedPlannedBlocks,
   savePlannedBlocksLocally,
 } from "@/lib/planned-blocks-store";
@@ -155,6 +157,10 @@ function normalizePlannableDateKey(dateKey: string) {
   return isDateKeyBeforeToday(dateKey) ? dayKeyLocal(new Date()) : dateKey;
 }
 
+function blocksMatch(a: PlannedBlock[], b: PlannedBlock[]) {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
 function createDailyRitualDrafts(existing: PlannedBlock[]): DailyRitualBlockDraft[] {
   const seeded: DailyRitualBlockDraft[] = existing.slice(0, 3).map((item, index) => ({
     id: `existing-${item.id}-${index}`,
@@ -273,6 +279,8 @@ export function usePlannedBlocks({
   const [mobileBlockSheetOpen, setMobileBlockSheetOpen] = useState(false);
   const [mobileCalendarControlsOpen, setMobileCalendarControlsOpen] = useState(false);
   const [mobileAgendaEntriesOpen, setMobileAgendaEntriesOpen] = useState(false);
+  const plannedBlocksRef = useRef<PlannedBlock[]>([]);
+  const blocksSyncInFlightRef = useRef(false);
 
   const completedBlocksByDay = useMemo(() => {
     const map = new Map<string, number>();
@@ -306,6 +314,10 @@ export function usePlannedBlocks({
         .sort((a, b) => a.sortOrder - b.sortOrder || a.timeOfDay.localeCompare(b.timeOfDay)),
     [plannedBlocks, selectedDateKey],
   );
+
+  useEffect(() => {
+    plannedBlocksRef.current = plannedBlocks;
+  }, [plannedBlocks]);
 
   useEffect(() => {
     if (!auth.currentUser) {
@@ -362,8 +374,26 @@ export function usePlannedBlocks({
   }, [dailyRitualDrafts]);
 
   const handleBlocksSnapshot = useCallback((blocks: PlannedBlock[]) => {
-    setPlannedBlocks(blocks);
+    const currentUser = auth.currentUser;
+    const uid = currentUser?.uid;
+    const localBlocks = uid ? readLocalBlocks(uid) : [];
+    const newestLocalBlocks = mergeBlocksPreferNewest(localBlocks, plannedBlocksRef.current);
+    const mergedBlocks = mergeBlocksPreferNewest(newestLocalBlocks, blocks) as PlannedBlock[];
+    const remoteWasStale = !blocksMatch(mergedBlocks, blocks);
+
+    plannedBlocksRef.current = mergedBlocks;
+    setPlannedBlocks(mergedBlocks);
     setPlannedBlocksHydrated(true);
+
+    if (!uid) return;
+    savePlannedBlocksLocally(uid, mergedBlocks);
+
+    if (!currentUser || !remoteWasStale || blocksSyncInFlightRef.current) return;
+
+    blocksSyncInFlightRef.current = true;
+    void saveSyncedPlannedBlocks(currentUser, mergedBlocks).finally(() => {
+      blocksSyncInFlightRef.current = false;
+    });
   }, []);
 
   const handleUserSignedOut = useCallback(() => {

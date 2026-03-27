@@ -40,7 +40,7 @@ export default function LeaderboardProfileModal({
   })();
 
   return (
-    <div className={styles.feedbackOverlay} onClick={onClose}>
+    <div className={sharedStyles.feedbackOverlay} onClick={onClose}>
       <div className={styles.lbProfileSheet} onClick={(event) => event.stopPropagation()}>
         <div className={styles.lbProfileHeader}>
           <span className={sharedStyles.sectionLabel}>Player Profile</span>
