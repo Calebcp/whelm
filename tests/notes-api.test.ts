@@ -18,6 +18,16 @@ test("notes route writes note body into Firestore notesJson payload", async () =
     const url =
       typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
 
+    if (/\/userNotes\/user-notes\/notes\?key=demo-key$/.test(url)) {
+      assert.equal(init?.method, "GET");
+      return createJsonResponse({ json: { documents: [] } });
+    }
+
+    if (/\/userNotes\/user-notes\?key=demo-key$/.test(url)) {
+      assert.equal(init?.method, "GET");
+      return createJsonResponse({ status: 404, json: { error: { message: "Not found" } } });
+    }
+
     assert.match(url, /\/userNotes\/user-notes\/notes\/note-1\?key=demo-key$/);
     assert.equal(init?.method, "PATCH");
     assert.equal(init?.headers && (init.headers as Record<string, string>).Authorization, "Bearer token-notes");
@@ -81,7 +91,20 @@ test("notes route writes attachments into Firestore subcollection documents", as
 
   let firestoreWriteBody: Record<string, unknown> | null = null;
 
-  const restoreFetch = installFetchMock(async (_input, init) => {
+  const restoreFetch = installFetchMock(async (input, init) => {
+    const url =
+      typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+
+    if (/\/userNotes\/user-notes\/notes\?key=demo-key$/.test(url)) {
+      assert.equal(init?.method, "GET");
+      return createJsonResponse({ json: { documents: [] } });
+    }
+
+    if (/\/userNotes\/user-notes\?key=demo-key$/.test(url)) {
+      assert.equal(init?.method, "GET");
+      return createJsonResponse({ status: 404, json: { error: { message: "Not found" } } });
+    }
+
     firestoreWriteBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
     return createJsonResponse({ json: { name: "projects/demo/documents/userNotes/user-notes/notes/note-2" } });
   });

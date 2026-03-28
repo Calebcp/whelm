@@ -578,7 +578,9 @@ export async function POST(request: NextRequest) {
     if (!Array.isArray(payload.notes)) return jsonError("Missing notes array.", 400);
 
     const normalized = normalizeNotes(payload.notes);
-    await Promise.all(normalized.map((note) => upsertNoteDocument(request, payload.uid, note)));
+    const existingNotes = await listNoteDocuments(request, payload.uid);
+    const merged = mergeNotesPreferNewest(normalized, existingNotes);
+    await Promise.all(merged.map((note) => upsertNoteDocument(request, payload.uid, note)));
     return NextResponse.json({ ok: true });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Failed to save notes.";

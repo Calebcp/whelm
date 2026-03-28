@@ -440,12 +440,35 @@ export async function saveNotes(user: User, notes: WorkspaceNote[]): Promise<Not
   writeLocalNotes(user.uid, normalized);
 
   try {
+    const existingSubcollectionSnap = await getDocs(collection(db, "userNotes", user.uid, "notes"));
+    const existingSubcollectionNotes = normalizeNotes(
+      existingSubcollectionSnap.docs.map((doc) => doc.data() as WorkspaceNote),
+    );
+    const existingLegacySnap = await getDoc(firestoreDoc(db, "userNotes", user.uid));
+    let existingLegacyNotes: WorkspaceNote[] = [];
+
+    if (existingLegacySnap.exists()) {
+      const rawLegacy = existingLegacySnap.data()?.notesJson;
+      if (typeof rawLegacy === "string") {
+        try {
+          const parsed = JSON.parse(rawLegacy) as WorkspaceNote[];
+          existingLegacyNotes = Array.isArray(parsed) ? normalizeNotes(parsed) : [];
+        } catch {
+          existingLegacyNotes = [];
+        }
+      }
+    }
+
+    const mergedCloudNotes = mergeNotesPreferNewest(existingLegacyNotes, existingSubcollectionNotes);
+    const mergedNotes = mergeNotesPreferNewest(normalized, mergedCloudNotes);
+
     await Promise.all(
-      normalized.map((note) =>
+      mergedNotes.map((note) =>
         setDoc(firestoreDoc(db, "userNotes", user.uid, "notes", note.id), note, { merge: true }),
       ),
     );
-    return { notes: normalized, synced: true };
+    writeLocalNotes(user.uid, mergedNotes);
+    return { notes: mergedNotes, synced: true };
   } catch {
     return {
       notes: normalized,
