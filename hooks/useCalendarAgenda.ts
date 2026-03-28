@@ -87,6 +87,29 @@ function stripCompletedBlockPrefix(value: string) {
   return value.replace(/^Planned block completed:\s*/i, "").trim();
 }
 
+function completedBlockSessionKey(input: {
+  dateKey: string;
+  timeOfDay: string;
+  durationMinutes: number;
+  title: string;
+}) {
+  return [
+    input.dateKey,
+    input.timeOfDay || "",
+    String(Math.max(0, input.durationMinutes)),
+    input.title.trim().toLowerCase(),
+  ].join("::");
+}
+
+function completedSessionMatchesPlanTitle(sessionTitle: string, planTitle: string) {
+  const normalizedSessionTitle = sessionTitle.trim().toLowerCase();
+  const normalizedPlanTitle = planTitle.trim().toLowerCase();
+  return (
+    normalizedSessionTitle === normalizedPlanTitle ||
+    normalizedSessionTitle.startsWith(`${normalizedPlanTitle} -`)
+  );
+}
+
 function normalizeTimeLabel(raw: string) {
   if (!raw) return "Any time";
   const parsed = new Date(`2000-01-01T${raw}:00`);
@@ -184,6 +207,18 @@ export function useCalendarAgenda({
 
   const calendarEntriesByDate = useMemo(() => {
     const entries = new Map<string, CalendarEntry[]>();
+    const completedPlanSessionKeys = new Set(
+      plannedBlocks
+        .filter((item) => item.status === "completed")
+        .map((item) =>
+          completedBlockSessionKey({
+            dateKey: item.dateKey,
+            timeOfDay: item.timeOfDay,
+            durationMinutes: item.durationMinutes,
+            title: item.title,
+          }),
+        ),
+    );
 
     function pushEntry(dateKey: string, entry: CalendarEntry) {
       const list = entries.get(dateKey) ?? [];
@@ -249,6 +284,23 @@ export function useCalendarAgenda({
       if (Number.isNaN(completed.getTime())) return;
       const dateKey = dayKeyLocal(completed);
       if (!isPro && !isDateKeyWithinRecentWindow(dateKey, proHistoryFreeDays)) return;
+      const strippedNote = session.note?.trim() ? stripCompletedBlockPrefix(session.note.trim()) : "";
+      const sortTime = `${String(completed.getHours()).padStart(2, "0")}:${String(completed.getMinutes()).padStart(2, "0")}`;
+      if (
+        session.note?.trim() &&
+        /^Planned block completed:\s*/i.test(session.note) &&
+        [...completedPlanSessionKeys].some((key) => {
+          const [planDateKey, planTimeOfDay, planDurationMinutes, planTitle] = key.split("::");
+          return (
+            planDateKey === dateKey &&
+            planTimeOfDay === sortTime &&
+            Number(planDurationMinutes) === session.minutes &&
+            completedSessionMatchesPlanTitle(strippedNote, planTitle)
+          );
+        })
+      ) {
+        return;
+      }
       const sessionLabel =
         session.category === "software"
           ? "Software"
@@ -262,11 +314,11 @@ export function useCalendarAgenda({
         source: "session",
         dateKey,
         timeLabel: completed.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
-        sortTime: `${String(completed.getHours()).padStart(2, "0")}:${String(completed.getMinutes()).padStart(2, "0")}`,
-        title: session.note?.trim() ? stripCompletedBlockPrefix(session.note.trim()) : `${sessionLabel} session`,
+        sortTime,
+        title: session.note?.trim() ? strippedNote : `${sessionLabel} session`,
         subtitle: `${session.minutes}m completed`,
         preview: session.note?.trim()
-          ? summarizePlainText(stripCompletedBlockPrefix(session.note), 160)
+          ? summarizePlainText(strippedNote, 160)
           : `Completed ${session.minutes} minute ${sessionLabel.toLowerCase()} session.`,
         tone: "Violet",
         startMinute,
