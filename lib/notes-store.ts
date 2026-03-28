@@ -11,6 +11,7 @@ import {
 } from "firebase/firestore";
 
 import { db } from "@/lib/firebase";
+import { resolveApiUrl } from "@/lib/api-base";
 
 export type WorkspaceNote = {
   id: string;
@@ -159,6 +160,43 @@ function writeLocalNotes(uid: string, notes: WorkspaceNote[]) {
   window.localStorage.setItem(storageKey(uid), JSON.stringify(normalizeNotes(notes)));
 }
 
+async function authorizedNotesRequest(user: User, input: string, init: RequestInit, timeoutMs = 12000) {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+  const token = await user.getIdToken();
+
+  try {
+    const response = await fetch(input, {
+      ...init,
+      signal: controller.signal,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        ...init.headers,
+      },
+    });
+
+    if (!response.ok) {
+      const body = (await response.json().catch(() => null)) as { error?: string } | null;
+      throw new Error(body?.error || response.statusText || "Notes request failed.");
+    }
+
+    return response;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
+
+async function loadNotesFromApi(user: User) {
+  const response = await authorizedNotesRequest(
+    user,
+    resolveApiUrl(`/api/notes?uid=${encodeURIComponent(user.uid)}`),
+    { method: "GET" },
+  );
+  const body = (await response.json()) as { notes?: WorkspaceNote[] };
+  return Array.isArray(body.notes) ? normalizeNotes(body.notes) : [];
+}
+
 function notesMatch(a: WorkspaceNote[], b: WorkspaceNote[]) {
   return JSON.stringify(normalizeNotes(a)) === JSON.stringify(normalizeNotes(b));
 }
@@ -251,14 +289,27 @@ export async function loadNotes(user: User): Promise<NotesSyncResult> {
 
     return { notes: mergedNotes, synced: true };
   } catch (error: unknown) {
-    return {
-      notes: localNotes,
-      synced: false,
-      message:
-        error instanceof Error
-          ? error.message
-          : "Cloud sync unavailable. Local notes are still saved.",
-    };
+    try {
+      const apiNotes = await loadNotesFromApi(user);
+      const mergedNotes = mergeNotesPreferNewest(localNotes, apiNotes);
+      writeLocalNotes(user.uid, mergedNotes);
+      return {
+        notes: mergedNotes,
+        synced: true,
+        message: "",
+      };
+    } catch (apiError: unknown) {
+      return {
+        notes: localNotes,
+        synced: false,
+        message:
+          apiError instanceof Error
+            ? apiError.message
+            : error instanceof Error
+              ? error.message
+              : "Cloud sync unavailable. Local notes are still saved.",
+      };
+    }
   }
 }
 
