@@ -1,20 +1,25 @@
 import { computeStreakEndingAtDateKey } from "@/lib/streak";
 import { getStreakBandanaTier } from "@/lib/streak-bandanas";
+import {
+  XP_COMPLETED_BLOCK_DAILY_CAP,
+  XP_COMPLETED_BLOCK_XP,
+  XP_COMBO_BONUS,
+  XP_DAILY_CAP,
+  XP_DAILY_TARGET,
+  XP_DEEP_WORK_BONUS,
+  XP_STREAK_DAILY_BONUS,
+  XP_WRITING_ENTRY_BONUS,
+  XP_WRITING_ENTRY_THRESHOLD,
+  XP_WRITING_BONUS_THRESHOLD,
+  XP_WRITING_DAILY_CAP,
+} from "@/lib/xp-engine";
 export const XP_CONFIG = {
-  dailyCap: 150,
+  dailyCap: XP_DAILY_CAP,
   streakBonusMultiplier: 1,
-  deepWorkBonus: 25,
-  writingBonus: 10,
-  comboBonus: 15,
+  deepWorkBonus: XP_DEEP_WORK_BONUS,
+  writingBonus: XP_WRITING_ENTRY_BONUS,
+  comboBonus: XP_COMBO_BONUS,
 } as const;
-const XP_DAILY_TARGET = 120;
-const XP_FOCUS_DAILY_CAP = 90;
-const XP_COMPLETED_BLOCK_XP = 25;
-const XP_COMPLETED_BLOCK_DAILY_CAP = 50;
-const XP_STREAK_DAILY_BONUS = 10;
-const XP_WRITING_ENTRY_THRESHOLD = 33;
-const XP_WRITING_BONUS_THRESHOLD = 100;
-const XP_WRITING_DAILY_CAP = 20;
 const STREAK_MILESTONE_BONUSES: Record<number, number> = { 7: 40, 30: 120, 100: 350 };
 export type XPEvent = "session_complete" | "deep_work" | "note_written" | "combo" | "card_correct" | "card_fast_recall" | "card_session_cleared";
 export interface XPResult { awarded: number; reason: string; cappedAt?: number }
@@ -101,7 +106,7 @@ export function buildDayXpSummaryForDate({
   const streakLength = computeStreakEndingAtDateKey([], dateKey, streakQualifiedDateKeys);
   const multiplier = getXpMultiplierForStreak(streakLength);
   const completedBlocksXp = Math.min(XP_COMPLETED_BLOCK_DAILY_CAP, completedBlocks * XP_COMPLETED_BLOCK_XP);
-  const focusXp = Math.min(XP_FOCUS_DAILY_CAP, focusMinutes);
+  const focusXp = Math.floor(focusMinutes / 30) * 20;
   const writingXp = getXpWritingBonus(noteWords);
   const baseActionXp = completedBlocksXp + focusXp + writingXp;
   const multipliedBaseXp = Math.round(baseActionXp * multiplier);
