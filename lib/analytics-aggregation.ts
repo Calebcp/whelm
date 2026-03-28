@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 
 import type { AnalyticsSubjectMode } from "@/lib/analytics-events";
+import { resolveFirestoreDatabaseId } from "@/lib/firestore-database";
 
 const SUBJECT_BREAKDOWN_KEYS = ["language", "school", "work", "general"] as const;
 
@@ -85,7 +86,7 @@ type DailyMetricComputation = {
 function requireConfig() {
   const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
   const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
-  const databaseId = process.env.FIREBASE_DATABASE_ID?.trim() || "(default)";
+  const databaseId = resolveFirestoreDatabaseId();
 
   if (!projectId || !apiKey) {
     throw new Error("Missing Firebase environment variables on the server.");

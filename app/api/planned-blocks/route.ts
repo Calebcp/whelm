@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { firestoreCleanupDatabaseIds, resolveFirestoreDatabaseId } from "@/lib/firestore-database";
 
 const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
 const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
-const databaseId = process.env.FIREBASE_DATABASE_ID?.trim() || "(default)";
+const databaseId = resolveFirestoreDatabaseId();
 
 type PlannedBlockDoc = {
   id: string;
@@ -54,7 +55,7 @@ function firestoreDocumentsBaseUrl(targetDatabaseId = databaseId) {
 }
 
 function deletionDatabaseIds() {
-  return [...new Set(["(default)", databaseId])];
+  return firestoreCleanupDatabaseIds();
 }
 
 function shouldIgnoreDeletionError(message: string) {

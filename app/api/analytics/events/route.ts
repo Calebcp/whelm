@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { aggregateAnalyticsDailyMetrics } from "@/lib/analytics-aggregation";
 import { parseTrackAnalyticsRequest } from "@/lib/analytics-events";
+import { resolveFirestoreDatabaseId } from "@/lib/firestore-database";
 
 const ANALYTICS_DEBUG_BUILD = "ANALYTICS_DEBUG_BUILD_2026_03_21_V1";
 
@@ -27,7 +28,7 @@ function requireConfig() {
   };
 }
 
-function firestoreDocumentsBaseUrl(targetDatabaseId = process.env.FIREBASE_DATABASE_ID?.trim() || "(default)") {
+function firestoreDocumentsBaseUrl(targetDatabaseId = resolveFirestoreDatabaseId()) {
   const { projectId } = requireConfig();
   return `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${targetDatabaseId}/documents`;
 }

@@ -12,6 +12,7 @@ import {
   type LeaderboardProfile,
   type LeaderboardSnapshotEntry,
 } from "@/lib/leaderboard";
+import { resolveFirestoreDatabaseId } from "@/lib/firestore-database";
 import { STREAK_BANDANA_TIERS, getStreakBandanaTier } from "@/lib/streak-bandanas";
 import { usernameKey } from "@/lib/username";
 
@@ -40,7 +41,7 @@ type ListDocumentsResponse = {
 function requireConfig() {
   const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
   const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
-  const databaseId = process.env.FIREBASE_DATABASE_ID?.trim() || "(default)";
+  const databaseId = resolveFirestoreDatabaseId();
 
   if (!projectId || !apiKey) {
     throw new Error("Missing Firebase environment variables on the server.");
