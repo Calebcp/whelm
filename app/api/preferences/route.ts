@@ -178,7 +178,7 @@ export async function GET(request: NextRequest) {
     const raw = document?.fields?.preferencesJson?.stringValue;
     let parsed: unknown = null;
     if (raw) {
-      try { parsed = JSON.parse(raw); } catch { /* fall through to defaults */ }
+      try { parsed = JSON.parse(raw); } catch (err) { console.error("[whelm] preferences/route: failed to parse preferencesJson — using defaults", err); }
     }
     return NextResponse.json(parsed && typeof parsed === "object" ? parsed : normalizePreferences({}));
   } catch (error: unknown) {

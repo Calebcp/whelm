@@ -401,6 +401,9 @@ async function deleteAllNoteDocuments(request: NextRequest, uid: string): Promis
   if (errors.length > 0 && errors.length === deletionDatabaseIds().length * 2) {
     throw new Error("Unable to verify note deletion in any Firestore database.");
   }
+  if (errors.length > 0) {
+    console.error("[whelm] notes/route DELETE: partial deletion failures:", errors);
+  }
 }
 
 // ── Legacy document helpers (read-only fallback) ──────────────────────────────

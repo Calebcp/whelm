@@ -97,7 +97,8 @@ function parseCardsFromDocument(document: FirestoreDocumentResponse) {
   try {
     const parsed = JSON.parse(raw) as WhelCard[];
     return Array.isArray(parsed) ? normalizeCards(parsed) : [];
-  } catch {
+  } catch (err) {
+    console.error("[whelm] cards/route: failed to parse cardsJson — returning empty to avoid data loss", err);
     return [];
   }
 }

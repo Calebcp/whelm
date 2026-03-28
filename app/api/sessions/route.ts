@@ -219,8 +219,11 @@ async function deleteSessionsForUid(request: NextRequest, uid: string) {
     }
   }
 
+  if (warnings.length > 0) {
+    console.error("[whelm] sessions/route DELETE: completed with warnings:", warnings);
+  }
   return NextResponse.json({
-    ok: true,
+    ok: warnings.length === 0,
     warnings,
   });
 }
