@@ -2547,6 +2547,8 @@ export default function HomePage() {
             xpDockStyle={xpDockStyle}
             currentLevel={lifetimeXpSummary.currentLevel}
             progressToNextLevel={lifetimeXpSummary.progressToNextLevel}
+            todayXp={lifetimeXpSummary.todayXp}
+            dailyCap={lifetimeXpSummary.dailyCap}
             formattedLifetimeXp={formattedLifetimeXp}
             formattedXpToNextLevel={formattedXpToNextLevel}
             tierColor={streakBandanaTier?.color}

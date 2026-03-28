@@ -36,6 +36,8 @@ type TopAppBarProps = {
   xpDockStyle: CSSProperties;
   currentLevel: number;
   progressToNextLevel: number;
+  todayXp: number;
+  dailyCap: number;
   formattedLifetimeXp: string;
   formattedXpToNextLevel: string;
   tierColor: string | null | undefined;
@@ -52,6 +54,8 @@ export default function TopAppBar({
   xpDockStyle,
   currentLevel,
   progressToNextLevel,
+  todayXp,
+  dailyCap,
   formattedLifetimeXp,
   formattedXpToNextLevel,
   tierColor,
@@ -101,6 +105,11 @@ export default function TopAppBar({
               <small>{formattedXpToNextLevel} to level {currentLevel + 1}</small>
             </div>
           </div>
+          {todayXp >= dailyCap ? (
+            <div className={styles.xpDockCapNotice}>
+              MAXXED TODAY POINTS {dailyCap}/{dailyCap}
+            </div>
+          ) : null}
         </motion.div>
         <button
           type="button"

@@ -388,6 +388,7 @@ body[data-theme="light"] {
 .xpDock {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
   min-width: 164px;
   --xp-accent: #59c7ff;
@@ -397,6 +398,31 @@ body[data-theme="light"] {
   --xp-shell: rgba(48, 106, 212, 0.24);
   --xp-text-strong: #f5fbff;
   --xp-text-soft: rgba(222, 241, 255, 0.86);
+}
+
+.xpDockCapNotice {
+  flex: 1 0 100%;
+  margin-top: 2px;
+  margin-left: 52px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  max-width: 168px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border: 1px solid rgba(255, 196, 92, 0.34);
+  background:
+    linear-gradient(180deg, rgba(56, 30, 7, 0.92), rgba(34, 18, 6, 0.94)),
+    radial-gradient(circle at top left, rgba(255, 206, 92, 0.2), transparent 55%);
+  color: #ffd978;
+  font-size: 0.56rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 247, 214, 0.16),
+    0 10px 20px rgba(24, 12, 3, 0.28),
+    0 0 18px rgba(255, 195, 84, 0.18);
 }
 
 .xpDockBadge {
@@ -7698,6 +7724,14 @@ body[data-theme="light"] {
   .xpDock {
     min-width: 0;
     gap: 4px;
+  }
+
+  .xpDockCapNotice {
+    margin-left: 44px;
+    max-width: 104px;
+    padding: 3px 6px;
+    font-size: 0.43rem;
+    letter-spacing: 0.06em;
   }
 
   .xpDockBadge {
