@@ -10,7 +10,7 @@ import {
   setDoc,
 } from "firebase/firestore";
 
-import { db } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
 import { resolveApiUrl } from "@/lib/api-base";
 
 export type WorkspaceNote = {
@@ -67,6 +67,7 @@ export type NotesSyncResult = {
 };
 
 const storagePrefix = "whelm:notes:";
+const NOTE_FIRESTORE_WRITE_TIMEOUT_MS = 4000;
 const legacyColorMap: Record<string, string> = {
   red: "#fecaca",
   green: "#bbf7d0",
@@ -230,6 +231,27 @@ function writeLocalNotes(uid: string, notes: WorkspaceNote[]) {
   window.localStorage.setItem(storageKey(uid), JSON.stringify(normalizeNotes(notes)));
 }
 
+function timeoutError(message: string) {
+  const error = new Error(message);
+  error.name = "TimeoutError";
+  return error;
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string) {
+  let timeoutId = 0;
+
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timeoutId = window.setTimeout(() => reject(timeoutError(message)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
+
 async function authorizedNotesRequest(user: User, input: string, init: RequestInit, timeoutMs = 12000) {
   const controller = new AbortController();
   const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
@@ -265,6 +287,21 @@ async function loadNotesFromApi(user: User) {
   );
   const body = (await response.json()) as { notes?: WorkspaceNote[] };
   return Array.isArray(body.notes) ? normalizeNotes(body.notes) : [];
+}
+
+async function saveNotesToApi(user: User, notes: WorkspaceNote[], timeoutMs = 8000) {
+  await authorizedNotesRequest(
+    user,
+    resolveApiUrl("/api/notes"),
+    {
+      method: "POST",
+      body: JSON.stringify({
+        uid: user.uid,
+        notes: normalizeNotes(notes),
+      }),
+    },
+    timeoutMs,
+  );
 }
 
 function notesMatch(a: WorkspaceNote[], b: WorkspaceNote[]) {
@@ -306,11 +343,25 @@ export async function saveNoteToFirestore(uid: string, note: WorkspaceNote): Pro
   const target = normalized[0];
   if (!target) return { notes: [note], synced: false };
   try {
-    await setDoc(firestoreDoc(db, "userNotes", uid, "notes", target.id), target, { merge: true });
+    await withTimeout(
+      setDoc(firestoreDoc(db, "userNotes", uid, "notes", target.id), target, { merge: true }),
+      NOTE_FIRESTORE_WRITE_TIMEOUT_MS,
+      "Firestore note write timed out.",
+    );
     console.log("[whelm] saveNoteToFirestore: wrote userNotes/" + uid + "/notes/" + target.id);
     return { notes: [target], synced: true };
   } catch (err) {
     console.error("[whelm] saveNoteToFirestore: FAILED for userNotes/" + uid + "/notes/" + target.id, err);
+    const currentUser = auth.currentUser;
+    if (currentUser?.uid === uid) {
+      try {
+        await saveNotesToApi(currentUser, [target]);
+        console.log("[whelm] saveNoteToFirestore: api fallback wrote userNotes/" + uid + "/notes/" + target.id);
+        return { notes: [target], synced: true };
+      } catch (apiErr) {
+        console.error("[whelm] saveNoteToFirestore: API FALLBACK failed for userNotes/" + uid + "/notes/" + target.id, apiErr);
+      }
+    }
     return { notes: [target], synced: false, message: "Saved locally. Cloud sync is currently unavailable." };
   }
 }
@@ -354,13 +405,31 @@ export async function saveNotePatchToFirestore(
   const normalizedPatch = normalizeNotePatch(patch);
 
   try {
-    await setDoc(firestoreDoc(db, "userNotes", uid, "notes", noteId), normalizedPatch, { merge: true });
+    await withTimeout(
+      setDoc(firestoreDoc(db, "userNotes", uid, "notes", noteId), normalizedPatch, { merge: true }),
+      NOTE_FIRESTORE_WRITE_TIMEOUT_MS,
+      "Firestore note patch timed out.",
+    );
     console.log("[whelm] saveNotePatchToFirestore: wrote userNotes/" + uid + "/notes/" + noteId, {
       fields: Object.keys(normalizedPatch),
     });
     return { notes: [], synced: true };
   } catch (err) {
     console.error("[whelm] saveNotePatchToFirestore: FAILED for userNotes/" + uid + "/notes/" + noteId, err);
+    const currentUser = auth.currentUser;
+    const currentLocalNotes = currentUser?.uid === uid ? readLocalNotes(uid) : [];
+    const fallbackNote = currentLocalNotes.find((note) => note.id === noteId);
+    if (currentUser?.uid === uid && fallbackNote) {
+      try {
+        await saveNotesToApi(currentUser, [fallbackNote]);
+        console.log("[whelm] saveNotePatchToFirestore: api fallback wrote userNotes/" + uid + "/notes/" + noteId, {
+          fields: Object.keys(normalizedPatch),
+        });
+        return { notes: [], synced: true };
+      } catch (apiErr) {
+        console.error("[whelm] saveNotePatchToFirestore: API FALLBACK failed for userNotes/" + uid + "/notes/" + noteId, apiErr);
+      }
+    }
     return { notes: [], synced: false, message: "Saved locally. Cloud sync is currently unavailable." };
   }
 }
