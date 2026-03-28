@@ -738,17 +738,17 @@ export default function ScheduleTab({
                       <h3 className={styles.dayPortalTitle}>{selectedDateSummary.title}</h3>
                     </div>
                     <div className={styles.dayPortalActions}>
-                      <button
-                        type="button"
-                        className={`${styles.planAddButton} ${styles.dayPortalBlockButton}`}
-                        disabled={!selectedDateCanAddBlocks}
-                        onClick={() => {
-                          if (!selectedDateCanAddBlocks) return;
-                          onOpenCalendarBlockComposer();
-                        }}
-                      >
-                        + Block
-                      </button>
+                      {selectedDateCanAddBlocks ? (
+                        <button
+                          type="button"
+                          className={`${styles.planAddButton} ${styles.dayPortalBlockButton}`}
+                          onClick={() => {
+                            onOpenCalendarBlockComposer();
+                          }}
+                        >
+                          + Block
+                        </button>
+                      ) : null}
                       <button
                         type="button"
                         className={styles.secondaryPlanButton}
@@ -790,7 +790,7 @@ export default function ScheduleTab({
                     isPro={isPro}
                     onUpgrade={onUpgrade}
                   />
-                  {!isMobileViewport && dayPortalComposerOpen && (
+                  {!isMobileViewport && selectedDateCanAddBlocks && dayPortalComposerOpen && (
                     <div id="calendar-planner" className={styles.dayPortalComposer}>
                       <div className={styles.dayPortalComposerHeader}>
                         <div>
@@ -895,11 +895,6 @@ export default function ScheduleTab({
                           Add Block
                         </button>
                       </div>
-                      {!selectedDateCanAddBlocks ? (
-                        <p className={styles.accountMeta}>
-                          Past days stay read-only. Blocks can only be added to today or a future day.
-                        </p>
-                      ) : null}
                     </div>
                   )}
                 </div>
@@ -1908,7 +1903,7 @@ export default function ScheduleTab({
       </article>
       )}
 
-      {isMobileViewport && mobileBlockSheetOpen && (
+      {isMobileViewport && mobileBlockSheetOpen && selectedDateCanAddBlocks && (
         <div
           className={styles.feedbackOverlay}
           onClick={() => onSetMobileBlockSheetOpen(false)}
@@ -2029,11 +2024,6 @@ export default function ScheduleTab({
                   Add block
                 </button>
               </div>
-              {!selectedDateCanAddBlocks ? (
-                <p className={styles.accountMeta}>
-                  Past days stay read-only. Blocks can only be added to today or a future day.
-                </p>
-              ) : null}
               {planStatus && <p className={styles.accountMeta}>{planStatus}</p>}
             </div>
             <div className={styles.mobileBlockList}>
