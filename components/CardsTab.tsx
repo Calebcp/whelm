@@ -47,6 +47,7 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
   const [front, setFront] = useState("");
   const [back, setBack] = useState("");
   const [reviewIndex, setReviewIndex] = useState(0);
+  const [cardFlipped, setCardFlipped] = useState(false);
   const [answerVisible, setAnswerVisible] = useState(false);
   const [answerOpenedAt, setAnswerOpenedAt] = useState<number | null>(null);
   const [sessionReviewed, setSessionReviewed] = useState(0);
@@ -115,6 +116,8 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
 
   const currentReviewCard = cardsDue[reviewIndex] ?? null;
 
+  const masteryPct = cards.length === 0 ? 0 : Math.round((cardsByZone.mastery.length / cards.length) * 100);
+
   async function persist(nextCards: WhelCard[], nextStatus = "") {
     setCards(nextCards);
     setStatus(nextStatus);
@@ -140,6 +143,7 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
 
   function startReviewSession() {
     setReviewIndex(0);
+    setCardFlipped(false);
     setAnswerVisible(false);
     setAnswerOpenedAt(null);
     setSessionReviewed(0);
@@ -185,6 +189,7 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
     setSessionReviewed((current) => current + 1);
     setSessionXp((current) => current + earned);
     setSessionZoneMoves((current) => current + (updatedCard.zone !== currentReviewCard.zone ? 1 : 0));
+    setCardFlipped(false);
     setAnswerVisible(false);
     setAnswerOpenedAt(null);
 
@@ -217,7 +222,7 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
               <div>
                 <button
                   type="button"
-                  className={styles.reportButton}
+                  className={`${styles.reportButton} ${cardsDue.length > 0 ? styles.cardsDueGlow : ""}`}
                   onClick={startReviewSession}
                   disabled={cardsDue.length === 0}
                 >
@@ -249,8 +254,29 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
             </article>
           ) : null}
 
+          {cards.length > 0 && (
+            <div className={styles.cardsMasteryWrap}>
+              <span className={styles.cardsMasteryLabel}>Mastery {masteryPct}%</span>
+              <div className={styles.cardsMasteryTrack}>
+                <div className={styles.cardsMasteryFill} style={{ width: `${masteryPct}%` }} />
+              </div>
+            </div>
+          )}
+
           {loading ? (
             <p className={styles.accountMeta}>Loading cards...</p>
+          ) : cards.length === 0 ? (
+            <div className={styles.cardsEmptyState}>
+              <img
+                src="/timer-whelms/yellow_whelm_leaning_watch-removebg-preview.png"
+                alt="Whelm mascot"
+                className={styles.cardsEmptyMascot}
+              />
+              <p className={styles.cardsEmptyTitle}>No cards yet</p>
+              <p className={styles.cardsEmptyBody}>
+                Add your first card and build a recall habit alongside your notes.
+              </p>
+            </div>
           ) : (
             <div className={styles.cardsBoardGrid}>
               {ZONE_ORDER.map((zone) => (
@@ -308,23 +334,31 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
 
           {currentReviewCard ? (
             <div className={styles.cardsReviewCenterStage}>
-              <p className={styles.cardsOverlayFront}>{currentReviewCard.front}</p>
-
-              {answerVisible ? (
-                <div className={styles.cardsOverlayAnswerPanel}>
-                  {currentReviewCard.back}
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  className={styles.cardsOverlayRevealBtn}
-                  onClick={() => {
+              {/* 3D flip card */}
+              <div
+                className={styles.cardsFlipScene}
+                onClick={() => {
+                  if (!cardFlipped) {
+                    setCardFlipped(true);
                     setAnswerVisible(true);
                     setAnswerOpenedAt(Date.now());
-                  }}
-                >
-                  Reveal Answer
-                </button>
+                  }
+                }}
+                role="button"
+                aria-label={cardFlipped ? "Card answer" : "Tap to reveal answer"}
+                style={{ minHeight: 200 }}
+              >
+                <div className={`${styles.cardsFlipCard} ${cardFlipped ? styles.cardsFlipCardFlipped : ""}`}>
+                  <div className={styles.cardsFlipFront}>
+                    <span className={styles.cardsFlipFrontText}>{currentReviewCard.front}</span>
+                  </div>
+                  <div className={styles.cardsFlipBack}>
+                    <span className={styles.cardsFlipBackText}>{currentReviewCard.back}</span>
+                  </div>
+                </div>
+              </div>
+              {!cardFlipped && (
+                <p className={styles.cardsFlipHint}>Tap card to flip</p>
               )}
 
               {answerVisible ? (

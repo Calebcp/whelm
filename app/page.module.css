@@ -8599,3 +8599,139 @@ body[data-theme="light"] {
 .cardsOverlayRevealBtn:hover {
   opacity: 0.88;
 }
+
+/* ── 3D flip card ─────────────────────────────────────────── */
+.cardsFlipScene {
+  perspective: 1200px;
+  width: 100%;
+  min-height: 200px;
+  cursor: pointer;
+}
+
+.cardsFlipCard {
+  position: relative;
+  width: 100%;
+  min-height: 200px;
+  transform-style: preserve-3d;
+  transition: transform 480ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.cardsFlipCard.cardsFlipCardFlipped {
+  transform: rotateY(180deg);
+}
+
+.cardsFlipFront,
+.cardsFlipBack {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28px 24px;
+  border-radius: 20px;
+  border: 1px solid rgba(136, 153, 208, 0.18);
+  text-align: center;
+}
+
+.cardsFlipFront {
+  background: rgba(16, 20, 48, 0.92);
+}
+
+.cardsFlipBack {
+  background: rgba(11, 16, 40, 0.94);
+  transform: rotateY(180deg);
+  border-color: rgba(88, 101, 242, 0.3);
+}
+
+.cardsFlipFrontText {
+  font-size: clamp(1.1rem, 3.5vw, 1.55rem);
+  font-weight: 700;
+  color: #f0f4ff;
+  line-height: 1.35;
+}
+
+.cardsFlipBackText {
+  font-size: clamp(0.95rem, 2.8vw, 1.2rem);
+  color: #d0daff;
+  line-height: 1.55;
+}
+
+.cardsFlipHint {
+  font-size: 0.72rem;
+  color: rgba(180, 195, 240, 0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-top: 12px;
+  text-align: center;
+}
+
+/* ── Mastery bar ──────────────────────────────────────────── */
+.cardsMasteryWrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cardsMasteryLabel {
+  font-size: 0.75rem;
+  color: rgba(180, 195, 240, 0.6);
+  white-space: nowrap;
+}
+
+.cardsMasteryTrack {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(136, 153, 208, 0.14);
+  overflow: hidden;
+}
+
+.cardsMasteryFill {
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #5865f2, #22c55e);
+  transition: width 400ms ease;
+}
+
+/* ── Due glow ─────────────────────────────────────────────── */
+.cardsDueGlow {
+  box-shadow: 0 0 0 3px rgba(88, 101, 242, 0.25), 0 4px 20px rgba(88, 101, 242, 0.35);
+  animation: cardsDuePulse 2s ease-in-out infinite;
+}
+
+@keyframes cardsDuePulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(88, 101, 242, 0.25), 0 4px 20px rgba(88, 101, 242, 0.35); }
+  50% { box-shadow: 0 0 0 6px rgba(88, 101, 242, 0.15), 0 4px 28px rgba(88, 101, 242, 0.5); }
+}
+
+/* ── Empty state ──────────────────────────────────────────── */
+.cardsEmptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.cardsEmptyMascot {
+  width: 100px;
+  height: 100px;
+  object-fit: contain;
+  opacity: 0.85;
+}
+
+.cardsEmptyTitle {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #f0f4ff;
+}
+
+.cardsEmptyBody {
+  font-size: 0.9rem;
+  color: rgba(180, 195, 240, 0.6);
+  max-width: 280px;
+  line-height: 1.5;
+}
