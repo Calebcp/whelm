@@ -505,7 +505,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
         setNotesSyncMessage(
           result.synced
             ? ""
-            : (result.message ?? "Saved locally only. Sync needed for other devices."),
+            : (result.message ?? "Saved locally. Cloud sync is currently pending."),
         );
       })
       .finally(() => {
@@ -834,7 +834,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
       setNotesSyncMessage("");
     } catch {
       setNotesSyncStatus("local-only");
-      setNotesSyncMessage("Deleted locally. Cloud sync is currently unavailable.");
+      setNotesSyncMessage("Deleted locally. Cloud sync is currently pending.");
     }
     setNoteUndoItem(deleted);
     window.setTimeout(() => setNoteUndoItem(null), 5000);

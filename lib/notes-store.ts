@@ -362,7 +362,7 @@ export async function saveNoteToFirestore(uid: string, note: WorkspaceNote): Pro
         console.error("[whelm] saveNoteToFirestore: API FALLBACK failed for userNotes/" + uid + "/notes/" + target.id, apiErr);
       }
     }
-    return { notes: [target], synced: false, message: "Saved locally. Cloud sync is currently unavailable." };
+    return { notes: [target], synced: false, message: "Saved locally. Cloud sync is currently pending." };
   }
 }
 
@@ -430,7 +430,7 @@ export async function saveNotePatchToFirestore(
         console.error("[whelm] saveNotePatchToFirestore: API FALLBACK failed for userNotes/" + uid + "/notes/" + noteId, apiErr);
       }
     }
-    return { notes: [], synced: false, message: "Saved locally. Cloud sync is currently unavailable." };
+    return { notes: [], synced: false, message: "Saved locally. Cloud sync is currently pending." };
   }
 }
 
@@ -545,7 +545,7 @@ export async function saveNotes(user: User, notes: WorkspaceNote[]): Promise<Not
     return {
       notes: normalized,
       synced: false,
-      message: "Saved locally. Cloud sync is currently unavailable.",
+      message: "Saved locally. Cloud sync is currently pending.",
     };
   }
 }

@@ -1094,7 +1094,7 @@ export default function NotesTab({
                       <span>
                         {notesSyncStatus === "syncing"
                           ? "Saving your note across devices…"
-                          : "This note is saved locally and still needs cloud sync."}
+                          : "This note is saved locally and cloud sync is currently pending."}
                         {notesSyncMessage ? ` ${notesSyncMessage}` : ""}
                       </span>
                     </div>
@@ -1850,7 +1850,7 @@ export default function NotesTab({
                         <span>
                           {notesSyncStatus === "syncing"
                             ? "Saving your note across devices…"
-                            : "This note is saved locally and still needs cloud sync."}
+                            : "This note is saved locally and cloud sync is currently pending."}
                           {notesSyncMessage ? ` ${notesSyncMessage}` : ""}
                         </span>
                       </div>
