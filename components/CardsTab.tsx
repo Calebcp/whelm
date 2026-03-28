@@ -70,6 +70,7 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
   const [sessionXp, setSessionXp] = useState(0);
   const [sessionZoneMoves, setSessionZoneMoves] = useState(0);
   const [reviewSummary, setReviewSummary] = useState<ReviewSummary | null>(null);
+  const [noDueNotice, setNoDueNotice] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -191,7 +192,9 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
 
   function startReviewSession() {
     if (cardsDue.length === 0) {
-      setStatus(buildNoDueStatus(cards));
+      const message = buildNoDueStatus(cards);
+      setStatus(message);
+      setNoDueNotice(message);
       return;
     }
     setReviewIndex(0);
@@ -253,6 +256,9 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
         zoneMoves: sessionZoneMoves + (updatedCard.zone !== currentReviewCard.zone ? 1 : 0),
       });
       setStatus(nextStatus);
+      if (nextStatus) {
+        setNoDueNotice(nextStatus);
+      }
       setView("board");
       return;
     }
@@ -262,6 +268,23 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
 
   return (
     <section className={styles.cardsTabShell}>
+      {noDueNotice ? (
+        <div className={styles.cardsNoticeOverlay} onClick={() => setNoDueNotice(null)}>
+          <div className={styles.cardsNoticeModal} onClick={(event) => event.stopPropagation()}>
+            <p className={styles.sectionLabel}>Review Queue</p>
+            <strong className={styles.cardsNoticeTitle}>No cards due right now</strong>
+            <p className={styles.accountMeta}>{noDueNotice}</p>
+            <button
+              type="button"
+              className={styles.secondaryPlanButton}
+              onClick={() => setNoDueNotice(null)}
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       {view === "board" ? (
         <div className={styles.cardsBoardStack}>
           <header className={styles.cardsHeader}>
