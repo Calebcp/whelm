@@ -11,7 +11,7 @@ import {
   getFriends,
   getIncomingRequests,
   removeFriend,
-  searchUsersByUsername,
+  searchUsersByUsernameAuthed,
   sendFriendRequest,
   type FriendDoc,
   type FriendProfile,
@@ -111,16 +111,23 @@ export function useFriends(user: User | null, profileDisplayName: string) {
   const handleSearch = useCallback(
     async (q: string) => {
       setSearchQuery(q);
+      setError("");
       if (!q.trim()) {
         setSearchResults([]);
         return;
       }
       setSearchLoading(true);
       try {
-        const results = await searchUsersByUsername(q.toLowerCase().trim());
+        if (!user) {
+          setSearchResults([]);
+          return;
+        }
+        const token = await user.getIdToken();
+        const results = await searchUsersByUsernameAuthed(q, token);
         setSearchResults(results.filter((r) => r.userId !== user?.uid));
-      } catch {
+      } catch (err) {
         setSearchResults([]);
+        setError(err instanceof Error ? err.message : "Failed to search users.");
       } finally {
         setSearchLoading(false);
       }

@@ -12,6 +12,7 @@ import {
 import type { AppTab } from "@/lib/app-tabs";
 import { resolveApiUrl } from "@/lib/api-base";
 import {
+  type LeaderboardBandanaHolder as RemoteLeaderboardBandanaHolder,
   type LeaderboardMetric,
   type LeaderboardPageResponse,
   type LeaderboardSnapshotEntry,
@@ -198,6 +199,9 @@ export function useLeaderboard({
   const [leaderboardSnapshotDate, setLeaderboardSnapshotDate] = useState<string | null>(null);
   const [leaderboardSource, setLeaderboardSource] = useState<LeaderboardPageResponse["source"]>("fallback");
   const [leaderboardTotalEntries, setLeaderboardTotalEntries] = useState(0);
+  const [leaderboardRemoteBandanaHolders, setLeaderboardRemoteBandanaHolders] = useState<
+    RemoteLeaderboardBandanaHolder[]
+  >([]);
   const [leaderboardError, setLeaderboardError] = useState("");
   const [leaderboardIsLive, setLeaderboardIsLive] = useState(false);
   const leaderboardIsLiveRef = useRef(false);
@@ -424,6 +428,28 @@ export function useLeaderboard({
     };
 
   const leaderboardBandanaHolders = useMemo<LeaderboardBandanaHolder[]>(() => {
+    if (leaderboardSource === "snapshot" && leaderboardRemoteBandanaHolders.length > 0) {
+      return leaderboardRemoteBandanaHolders.map((holder) => ({
+        color: holder.color,
+        label: holder.label,
+        entry: holder.entry
+          ? {
+              id: holder.entry.userId,
+              username: holder.entry.username,
+              createdAtISO: holder.entry.createdAtISO,
+              totalXp: holder.entry.totalXp,
+              currentStreak: holder.entry.currentStreak,
+              level: holder.entry.level,
+              bestStreak: holder.entry.bestStreak,
+              totalFocusHours: holder.entry.totalFocusHours,
+              avatarUrl: holder.entry.userId === currentUserId ? currentUserPhotoUrl : null,
+              isProStyle: holder.entry.userId === currentUserId ? isPro : false,
+              isCurrentUser: holder.entry.userId === currentUserId,
+            }
+          : null,
+      }));
+    }
+
     const sourceEntries =
       leaderboardSource === "snapshot" && leaderboardPageItems.length > 0
         ? leaderboardPageItems.map((entry) => {
@@ -460,6 +486,7 @@ export function useLeaderboard({
     isPro,
     leaderboardEntries,
     leaderboardPageItems,
+    leaderboardRemoteBandanaHolders,
     leaderboardSource,
     lifetimeXpSummary.currentLevel,
     lifetimeXpSummary.totalXp,
@@ -512,6 +539,7 @@ export function useLeaderboard({
       setLeaderboardSnapshotDate(payload.snapshotDate);
       setLeaderboardSource(payload.source);
       setLeaderboardTotalEntries(payload.totalEntries);
+      setLeaderboardRemoteBandanaHolders(payload.bandanaHolders ?? []);
 
       void trackLeaderboardPageLoaded(user, {
         metric: leaderboardMetricTab,
@@ -668,6 +696,7 @@ export function useLeaderboard({
         setLeaderboardSnapshotDate(payload.snapshotDate);
         setLeaderboardSource(payload.source);
         setLeaderboardTotalEntries(payload.totalEntries);
+        setLeaderboardRemoteBandanaHolders(payload.bandanaHolders ?? []);
 
         void trackLeaderboardPageLoaded(authedUser, {
           metric: leaderboardMetricTab,
@@ -695,6 +724,7 @@ export function useLeaderboard({
         setLeaderboardSnapshotDate(null);
         setLeaderboardSource("fallback");
         setLeaderboardTotalEntries(0);
+        setLeaderboardRemoteBandanaHolders([]);
         setLeaderboardError(error instanceof Error ? error.message : "Failed to load leaderboard.");
       } finally {
         if (!cancelled) {
@@ -712,6 +742,7 @@ export function useLeaderboard({
   useEffect(() => {
     leaderboardIsLiveRef.current = false;
     setLeaderboardIsLive(false);
+    setLeaderboardRemoteBandanaHolders([]);
   }, [activeTab, leaderboardMetricTab, user]);
 
   useEffect(() => {

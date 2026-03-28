@@ -1,15 +1,13 @@
 "use client";
 
+import { resolveApiUrl } from "@/lib/api-base";
 import {
   collection,
   deleteDoc,
   doc,
   getDoc,
   getDocs,
-  limit,
-  query,
   setDoc,
-  where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
@@ -101,24 +99,33 @@ export async function getFriendProfile(friendUid: string): Promise<FriendProfile
   };
 }
 
-export async function searchUsersByUsername(searchTerm: string): Promise<FriendProfile[]> {
+export async function searchUsersByUsernameAuthed(
+  searchTerm: string,
+  idToken: string,
+): Promise<FriendProfile[]> {
   if (!searchTerm.trim()) return [];
-  const term = searchTerm.trim().toLowerCase();
-  const q = query(
-    collection(db, "leaderboardProfiles"),
-    where("usernameLower", ">=", term),
-    where("usernameLower", "<=", term + "\uf8ff"),
-    limit(10),
-  );
-  const snap = await getDocs(q);
-  return snap.docs.map((d) => {
-    const data = d.data();
-    return {
-      userId: data.userId as string,
-      username: data.username as string,
-      totalXp: (data.totalXp as number) ?? 0,
-      currentStreak: (data.currentStreak as number) ?? 0,
-      weeklyXp: (data.weeklyXp as number) ?? 0,
-    };
+  const url = new URL(resolveApiUrl("/api/friends/search"), window.location.origin);
+  url.searchParams.set("q", searchTerm.trim());
+  url.searchParams.set("limit", "10");
+
+  const response = await fetch(url.toString(), {
+    headers: {
+      Authorization: `Bearer ${idToken}`,
+    },
   });
+  const body = (await response.json().catch(() => null)) as
+    | { items?: FriendProfile[]; error?: string }
+    | null;
+
+  if (!response.ok) {
+    throw new Error(body?.error || "Failed to search users.");
+  }
+
+  return (body?.items ?? []).map((item) => ({
+    userId: item.userId,
+    username: item.username,
+    totalXp: item.totalXp ?? 0,
+    currentStreak: item.currentStreak ?? 0,
+    weeklyXp: item.weeklyXp ?? 0,
+  }));
 }

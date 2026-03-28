@@ -6,11 +6,13 @@ import {
   movementDirection,
   snapshotEntryDocId,
   snapshotRunDocId,
+  type LeaderboardBandanaHolder,
   type LeaderboardMetric,
   type LeaderboardPageResponse,
   type LeaderboardProfile,
   type LeaderboardSnapshotEntry,
 } from "@/lib/leaderboard";
+import { STREAK_BANDANA_TIERS, getStreakBandanaTier } from "@/lib/streak-bandanas";
 
 type FirestoreValue =
   | { stringValue: string }
@@ -271,6 +273,46 @@ async function listAllProfiles(authHeader: string) {
   return [...byId.values()];
 }
 
+function buildBandanaHolders(profiles: LeaderboardProfile[]): LeaderboardBandanaHolder[] {
+  return STREAK_BANDANA_TIERS.map((tier) => {
+    const topEntry =
+      [...profiles]
+        .filter((profile) => getStreakBandanaTier(profile.currentStreak)?.color === tier.color)
+        .sort((left, right) => compareLeaderboardProfiles(left, right, "xp"))[0] ?? null;
+
+    return {
+      color: tier.color,
+      label: `Top ${tier.label.replace(" Bandana", "")}`,
+      entry: topEntry
+        ? {
+            userId: topEntry.userId,
+            username: topEntry.username,
+            createdAtISO: topEntry.createdAtISO,
+            totalXp: topEntry.totalXp,
+            currentStreak: topEntry.currentStreak,
+            level: topEntry.level,
+            bestStreak: topEntry.bestStreak,
+            totalFocusHours: topEntry.totalFocusHours,
+          }
+        : null,
+    };
+  });
+}
+
+export async function searchLeaderboardProfiles(authHeader: string, rawTerm: string, limit = 10) {
+  const term = rawTerm.trim().toLowerCase();
+  if (!term) return [];
+
+  const profiles = await listAllProfiles(authHeader);
+  return profiles
+    .filter((profile) => {
+      const username = profile.username.trim().toLowerCase();
+      return profile.usernameLower.startsWith(term) || username.startsWith(term);
+    })
+    .sort((left, right) => compareLeaderboardProfiles(left, right, "xp"))
+    .slice(0, Math.min(25, Math.max(1, limit)));
+}
+
 async function latestSnapshotDate(authHeader: string, metric: LeaderboardMetric) {
   const rows = await runQuery(authHeader, {
     from: [{ collectionId: "leaderboardSnapshotRuns" }],
@@ -394,6 +436,7 @@ export async function getLeaderboardPage(authHeader: string, input: {
       snapshotDate: null,
       items: [],
       aroundMe: [],
+      bandanaHolders: [],
       nextCursor: null,
       hasMore: false,
       totalEntries: 0,
@@ -461,6 +504,7 @@ export async function getLeaderboardPage(authHeader: string, input: {
     snapshotDate: today,
     items,
     aroundMe,
+    bandanaHolders: buildBandanaHolders(sorted),
     nextCursor:
       items.length === input.limit && lastRank !== null ? encodeCursor(lastRank) : null,
     hasMore: startIndex + input.limit < sorted.length,

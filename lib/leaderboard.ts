@@ -32,11 +32,23 @@ export type LeaderboardSnapshotEntry = LeaderboardProfile & {
   movementDirection: LeaderboardMovementDirection;
 };
 
+export type LeaderboardBandanaHolderEntry = Pick<
+  LeaderboardProfile,
+  "userId" | "username" | "createdAtISO" | "totalXp" | "currentStreak" | "level" | "bestStreak" | "totalFocusHours"
+>;
+
+export type LeaderboardBandanaHolder = {
+  color: string;
+  label: string;
+  entry: LeaderboardBandanaHolderEntry | null;
+};
+
 export type LeaderboardPageResponse = {
   metric: LeaderboardMetric;
   snapshotDate: string | null;
   items: LeaderboardSnapshotEntry[];
   aroundMe: LeaderboardSnapshotEntry[];
+  bandanaHolders: LeaderboardBandanaHolder[];
   nextCursor: string | null;
   hasMore: boolean;
   totalEntries: number;
