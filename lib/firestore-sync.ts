@@ -14,7 +14,7 @@
 import { collection, doc, onSnapshot, query, where } from "firebase/firestore";
 
 import { db } from "@/lib/firebase";
-import type { WorkspaceNote } from "@/lib/notes-store";
+import { mergeNotesPreferNewest, type WorkspaceNote } from "@/lib/notes-store";
 import type { PlannedBlockDoc } from "@/lib/planned-blocks-store";
 import type { PreferencesState } from "@/lib/preferences-store";
 import type { ReflectionState } from "@/lib/reflection-store";
@@ -56,24 +56,59 @@ function warn(area: string, err: Error) {
  */
 export function subscribeToUserData(uid: string, cb: FirestoreSyncCallbacks): () => void {
   const unsubs: (() => void)[] = [];
+  let liveSubcollectionNotes: WorkspaceNote[] = [];
+  let liveLegacyNotes: WorkspaceNote[] = [];
+
+  const emitMergedNotes = () => {
+    const remote = mergeNotesPreferNewest(liveLegacyNotes, liveSubcollectionNotes);
+
+    const editingId = cb.isEditingNote() ? cb.editingNoteId() : null;
+    const merged = editingId
+      ? remote.map((n) => (n.id === editingId ? (cb.localNote(editingId) ?? n) : n))
+      : remote;
+
+    cb.onNotes(merged);
+  };
 
   // ── Notes (subcollection — each note is its own document) ────
   unsubs.push(
     onSnapshot(
       collection(db, "userNotes", uid, "notes"),
       (snap) => {
-        const remote = snap.docs.map((d) => d.data() as WorkspaceNote);
-
-        // Preserve in-flight edit: keep the local version of the note currently
-        // being typed on this device so remote updates don't discard the draft.
-        const editingId = cb.isEditingNote() ? cb.editingNoteId() : null;
-        const merged = editingId
-          ? remote.map((n) => (n.id === editingId ? (cb.localNote(editingId) ?? n) : n))
-          : remote;
-
-        cb.onNotes(merged);
+        liveSubcollectionNotes = snap.docs.map((d) => d.data() as WorkspaceNote);
+        emitMergedNotes();
       },
       (err) => warn("notes", err),
+    ),
+  );
+
+  unsubs.push(
+    onSnapshot(
+      doc(db, "userNotes", uid),
+      (snap) => {
+        if (!snap.exists()) {
+          liveLegacyNotes = [];
+          emitMergedNotes();
+          return;
+        }
+
+        const raw = snap.data()?.notesJson;
+        if (typeof raw !== "string") {
+          liveLegacyNotes = [];
+          emitMergedNotes();
+          return;
+        }
+
+        try {
+          const parsed = JSON.parse(raw) as WorkspaceNote[];
+          liveLegacyNotes = Array.isArray(parsed) ? parsed : [];
+        } catch {
+          liveLegacyNotes = [];
+        }
+
+        emitMergedNotes();
+      },
+      (err) => warn("notes-legacy", err),
     ),
   );
 

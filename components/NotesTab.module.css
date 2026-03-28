@@ -175,6 +175,31 @@
   white-space: nowrap;
 }
 
+.noteSyncInlineNotice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 14px 14px 0;
+  padding: 10px 14px;
+  border-radius: 16px;
+  background: rgba(255, 251, 214, 0.88);
+  border: 1px solid rgba(42, 74, 122, 0.12);
+  color: rgba(35, 50, 82, 0.86);
+  font-size: 0.9rem;
+  line-height: 1.45;
+  box-shadow: 0 8px 24px rgba(20, 33, 61, 0.08);
+}
+
+.noteSyncInlineDot {
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  margin-top: 4px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #4f7fff 0%, #66d5ff 100%);
+  box-shadow: 0 0 0 4px rgba(102, 213, 255, 0.14);
+}
+
 .wordCountChip {
   display: inline-flex;
   align-items: center;

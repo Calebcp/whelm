@@ -1088,6 +1088,17 @@ export default function NotesTab({
                   className={styles.noteTitleInput}
                 />
                 <div className={styles.noteBodyShell} ref={noteBodyShellRef}>
+                  {notesSyncStatus !== "synced" ? (
+                    <div className={styles.noteSyncInlineNotice} role="status" aria-live="polite">
+                      <span className={styles.noteSyncInlineDot} />
+                      <span>
+                        {notesSyncStatus === "syncing"
+                          ? "Saving your note across devices…"
+                          : "This note is saved locally and still needs cloud sync."}
+                        {notesSyncMessage ? ` ${notesSyncMessage}` : ""}
+                      </span>
+                    </div>
+                  ) : null}
                   <div
                     ref={editorRef}
                     className={styles.noteBodyInput}
@@ -1164,11 +1175,7 @@ export default function NotesTab({
                       {selectedNoteWordCount >= 33 ? " · streak writing met" : ""}
                     </span>
                     <span className={styles.noteSyncIndicator}>
-                      {notesSyncStatus === "synced"
-                        ? "✓ Saved"
-                        : notesSyncStatus === "syncing"
-                          ? "Saving…"
-                          : "Saved locally"}
+                      {notesSyncStatus === "synced" ? "✓ Saved" : "Working…"}
                     </span>
                   </div>
                 </div>
@@ -1828,6 +1835,17 @@ export default function NotesTab({
                   </div>
 
                   <div className={styles.noteBodyShell} ref={noteBodyShellRef}>
+                    {notesSyncStatus !== "synced" ? (
+                      <div className={styles.noteSyncInlineNotice} role="status" aria-live="polite">
+                        <span className={styles.noteSyncInlineDot} />
+                        <span>
+                          {notesSyncStatus === "syncing"
+                            ? "Saving your note across devices…"
+                            : "This note is saved locally and still needs cloud sync."}
+                          {notesSyncMessage ? ` ${notesSyncMessage}` : ""}
+                        </span>
+                      </div>
+                    ) : null}
                     <div
                       ref={editorRef}
                       className={styles.noteBodyInput}
@@ -1899,14 +1917,7 @@ export default function NotesTab({
                         onOpen={onOpenNoteAttachment}
                         onRemove={(attachment) => void onRemoveNoteAttachment(attachment)}
                       />
-                      <span>
-                        {notesSyncStatus === "synced"
-                          ? "Synced to your account."
-                          : notesSyncStatus === "syncing"
-                            ? "Syncing notes..."
-                            : "Saved locally only. Sync needed for other devices."}
-                        {notesSyncMessage ? ` ${notesSyncMessage}` : ""}
-                      </span>
+                      <span>{notesSyncStatus === "synced" ? "Synced to your account." : "Working…"}</span>
                       <span className={styles.noteWordCount}>
                         {selectedNoteWordCount} word{selectedNoteWordCount === 1 ? "" : "s"}
                         {selectedNoteWordCount >= 33 ? " · streak writing met" : ""}

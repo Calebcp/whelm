@@ -205,7 +205,7 @@ function isDateKeyWithinRecentWindow(dateKey: string, days: number) {
 }
 
 function notesMatch(a: WorkspaceNote[], b: WorkspaceNote[]) {
-  return JSON.stringify(a) === JSON.stringify(b);
+  return JSON.stringify(mergeNotesPreferNewest([], a)) === JSON.stringify(mergeNotesPreferNewest([], b));
 }
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
