@@ -289,7 +289,7 @@ export function useCalendarAgenda({
   }, [isDateKeyWithinRecentWindow, isPro, notes, plannedBlocks, proHistoryFreeDays, sessions]);
 
   const selectedDateEntries = useMemo(
-    () => (calendarEntriesByDate.get(selectedDateKey) ?? []).filter((entry) => entry.source !== "session"),
+    () => calendarEntriesByDate.get(selectedDateKey) ?? [],
     [calendarEntriesByDate, selectedDateKey],
   );
   const selectedDateFocusedMinutes = sessionMinutesByDay.get(selectedDateKey) ?? 0;

@@ -185,6 +185,25 @@ export function useUserData({
     return map;
   }, [sessions]);
 
+  const inferredCompletedBlocksByDay = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const session of sessions) {
+      const note = session.note?.trim() ?? "";
+      if (!note.toLowerCase().startsWith("planned block completed:")) continue;
+      const key = dayKeyLocal(session.completedAtISO);
+      map.set(key, (map.get(key) ?? 0) + 1);
+    }
+    return map;
+  }, [sessions]);
+
+  const effectiveCompletedBlocksByDay = useMemo(() => {
+    const merged = new Map(completedBlocksByDay);
+    for (const [dateKey, count] of inferredCompletedBlocksByDay.entries()) {
+      merged.set(dateKey, Math.max(merged.get(dateKey) ?? 0, count));
+    }
+    return merged;
+  }, [completedBlocksByDay, inferredCompletedBlocksByDay]);
+
   const streakQualifiedDateKeys = useMemo(() => {
     const todayKey = dayKeyLocal(new Date());
     const qualifyingDays = new Set(protectedStreakDateKeys);
@@ -202,7 +221,7 @@ export function useUserData({
         continue;
       }
 
-      const completedBlocks = completedBlocksByDay.get(dateKey) ?? 0;
+      const completedBlocks = effectiveCompletedBlocksByDay.get(dateKey) ?? 0;
       const noteWords = noteWordsByDay.get(dateKey) ?? 0;
       if (dateKey <= todayKey && completedBlocks >= 1 && (minutes >= 30 || noteWords >= 33)) {
         qualifyingDays.add(dateKey);
@@ -210,7 +229,7 @@ export function useUserData({
     }
 
     return [...qualifyingDays].sort();
-  }, [completedBlocksByDay, noteWordsByDay, protectedStreakDateKeys, sessionMinutesByDay]);
+  }, [effectiveCompletedBlocksByDay, noteWordsByDay, protectedStreakDateKeys, sessionMinutesByDay]);
 
   // Defensive: preserve the last non-zero streak so a partial data load
   // (sessions resolved before plannedBlocks) never briefly flashes streak to 0.
@@ -258,13 +277,13 @@ export function useUserData({
         buildDayXpSummaryForDate({
           dateKey,
           sessionMinutesByDay,
-          completedBlocksByDay,
+          completedBlocksByDay: effectiveCompletedBlocksByDay,
           noteWordsByDay,
           streakQualifiedDateKeys,
         }),
       );
   }, [
-    completedBlocksByDay,
+    effectiveCompletedBlocksByDay,
     noteWordsByDay,
     streakQualifiedDateKeys,
     sessionMinutesByDay,
