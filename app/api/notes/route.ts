@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 
 const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
 const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
-const databaseId = process.env.FIREBASE_DATABASE_ID?.trim() || "(default)";
+const databaseId =
+  process.env.FIREBASE_DATABASE_ID?.trim() ||
+  process.env.NEXT_PUBLIC_FIREBASE_DATABASE_ID?.trim() ||
+  "(default)";
 
 type WorkspaceNote = {
   id: string;
@@ -301,6 +304,76 @@ function normalizeAttachments(attachments: WorkspaceNote["attachments"]) {
     .sort((a, b) => (a.uploadedAtISO < b.uploadedAtISO ? 1 : -1));
 }
 
+function mergeAttachments(first: WorkspaceNote["attachments"], second: WorkspaceNote["attachments"]) {
+  const merged = new Map<string, NoteAttachment>();
+
+  for (const attachment of normalizeAttachments(second)) {
+    merged.set(attachment.id, attachment);
+  }
+
+  for (const attachment of normalizeAttachments(first)) {
+    const existing = merged.get(attachment.id);
+    if (!existing || existing.uploadedAtISO < attachment.uploadedAtISO) {
+      merged.set(attachment.id, attachment);
+    }
+  }
+
+  return normalizeAttachments([...merged.values()]);
+}
+
+function pickPreferredTitle(newer: WorkspaceNote, older: WorkspaceNote) {
+  const newerTitle = newer.title.trim();
+  const olderTitle = older.title.trim();
+  if (!newerTitle && olderTitle) return older.title;
+  if (newerTitle === "Untitled note" && olderTitle && olderTitle !== "Untitled note") {
+    return older.title;
+  }
+  return newer.title;
+}
+
+function pickPreferredBody(newer: WorkspaceNote, older: WorkspaceNote) {
+  const newerBody = newer.body.trim();
+  const olderBody = older.body.trim();
+  if (!newerBody && olderBody) return older.body;
+  return newer.body;
+}
+
+function mergeNoteVersions(first: WorkspaceNote, second: WorkspaceNote) {
+  const [newer, older] =
+    first.updatedAtISO >= second.updatedAtISO ? [first, second] : [second, first];
+
+  return normalizeNotes([
+    {
+      ...older,
+      ...newer,
+      title: pickPreferredTitle(newer, older),
+      body: pickPreferredBody(newer, older),
+      attachments: mergeAttachments(newer.attachments, older.attachments),
+      createdAtISO: older.createdAtISO || newer.createdAtISO,
+      updatedAtISO: newer.updatedAtISO >= older.updatedAtISO ? newer.updatedAtISO : older.updatedAtISO,
+    },
+  ])[0];
+}
+
+function mergeNotesPreferNewest(primary: WorkspaceNote[], secondary: WorkspaceNote[]) {
+  const merged = new Map<string, WorkspaceNote>();
+
+  for (const note of secondary) {
+    merged.set(note.id, note);
+  }
+
+  for (const note of primary) {
+    const existing = merged.get(note.id);
+    if (!existing) {
+      merged.set(note.id, note);
+      continue;
+    }
+    merged.set(note.id, mergeNoteVersions(existing, note));
+  }
+
+  return normalizeNotes([...merged.values()]);
+}
+
 // ── Firestore REST helpers ────────────────────────────────────────────────────
 
 /** List all note documents in the `userNotes/{uid}/notes` subcollection. */
@@ -322,23 +395,21 @@ async function listNoteDocuments(
       cache: "no-store",
     },
   );
+  const legacyDocument = await fetchLegacyDocument(request, uid).catch(() => null);
+  const legacyNotes = legacyDocument ? parseLegacyNotes(legacyDocument) : [];
 
-  if (response.status === 404) return [];
+  if (response.status === 404) return legacyNotes;
 
   if (!response.ok) {
-    // Fall back to the legacy single-document format so old clients still work.
-    const legacyNotes = await fetchLegacyDocument(request, uid);
-    return legacyNotes ? parseLegacyNotes(legacyNotes) : [];
+    return legacyNotes;
   }
 
   const body = (await response.json()) as FirestoreListResponse;
-  if (!body.documents || body.documents.length === 0) {
-    // Subcollection is empty — try legacy document as fallback.
-    const legacyNotes = await fetchLegacyDocument(request, uid).catch(() => null);
-    return legacyNotes ? parseLegacyNotes(legacyNotes) : [];
-  }
+  const subcollectionNotes = (body.documents ?? [])
+    .map(noteFromDocument)
+    .filter((n): n is WorkspaceNote => n !== null);
 
-  return body.documents.map(noteFromDocument).filter((n): n is WorkspaceNote => n !== null);
+  return mergeNotesPreferNewest(legacyNotes, subcollectionNotes);
 }
 
 /** Write a single note document to `userNotes/{uid}/notes/{noteId}`. */
