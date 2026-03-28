@@ -27,6 +27,7 @@ type FriendsTabProps = {
   onRemoveFriend: (friendUid: string) => void;
   onNudge: (friendUid: string) => void;
   canNudgeFriend: (friendUid: string) => boolean;
+  nudgeAvailableInMinutes: (friendUid: string) => number;
 };
 
 function formatXp(xp: number) {
@@ -51,6 +52,7 @@ export default function FriendsTab({
   onRemoveFriend,
   onNudge,
   canNudgeFriend,
+  nudgeAvailableInMinutes,
 }: FriendsTabProps) {
   const [searchFocused, setSearchFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -195,6 +197,11 @@ export default function FriendsTab({
           <div className={styles.friendList}>
             {friends.map((friend, index) => {
               const canNudge = canNudgeFriend(friend.friendUid);
+              const nudgeMinsLeft = nudgeAvailableInMinutes(friend.friendUid);
+              const nudgeCooldownLabel =
+                nudgeMinsLeft >= 60
+                  ? `Available in ${Math.floor(nudgeMinsLeft / 60)}h ${nudgeMinsLeft % 60}m`
+                  : `Available in ${nudgeMinsLeft}m`;
               return (
                 <motion.div
                   key={friend.friendUid}
@@ -222,9 +229,9 @@ export default function FriendsTab({
                         className={`${styles.nudgeButton} ${!canNudge ? styles.nudgeButtonCooling : ""}`}
                         disabled={!canNudge}
                         onClick={() => onNudge(friend.friendUid)}
-                        title={canNudge ? "Nudge friend" : "Nudge on cooldown (24h)"}
+                        title={canNudge ? "Send a nudge" : nudgeCooldownLabel}
                       >
-                        {canNudge ? "👋 Nudge" : "Sent"}
+                        {canNudge ? "👋 Nudge" : nudgeCooldownLabel}
                       </button>
                       <button
                         type="button"

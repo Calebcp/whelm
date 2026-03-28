@@ -276,6 +276,7 @@ export type WhelmboardTabProps = {
   onRemoveFriend: (friendUid: string) => void;
   onNudgeFriend: (friendUid: string) => void;
   canNudgeFriend: (friendUid: string) => boolean;
+  nudgeAvailableInMinutes: (friendUid: string) => number;
 };
 
 const SURFACE_TABS: Array<{ id: WhelmboardSurfaceTab; label: string }> = [
@@ -319,6 +320,7 @@ export default function WhelmboardTab({
   onRemoveFriend,
   onNudgeFriend,
   canNudgeFriend,
+  nudgeAvailableInMinutes,
 }: WhelmboardTabProps) {
   const [surfaceTab, setSurfaceTab] = useState<WhelmboardSurfaceTab>("global");
 
@@ -514,6 +516,7 @@ export default function WhelmboardTab({
           onRemoveFriend={onRemoveFriend}
           onNudge={onNudgeFriend}
           canNudgeFriend={canNudgeFriend}
+          nudgeAvailableInMinutes={nudgeAvailableInMinutes}
         />
       )}
 

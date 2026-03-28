@@ -2389,6 +2389,7 @@ export default function HomePage() {
     handleRemoveFriend,
     handleNudge: handleNudgeFriend,
     canNudgeFriend,
+    nudgeAvailableInMinutes,
   } = useFriends(user, profileDisplayName);
 
   const notificationsBlocked = dailyPlanningLocked || dailyPlanningOpen || dailyPlanningPreviewOpen;
@@ -2761,6 +2762,7 @@ export default function HomePage() {
               onRemoveFriend={handleRemoveFriend}
               onNudgeFriend={handleNudgeFriend}
               canNudgeFriend={canNudgeFriend}
+              nudgeAvailableInMinutes={nudgeAvailableInMinutes}
             />
           )}
 

@@ -201,6 +201,17 @@ export function useFriends(user: User | null, profileDisplayName: string) {
     [nudgeCooldowns],
   );
 
+  const nudgeAvailableInMinutes = useCallback(
+    (friendUid: string): number => {
+      const sentAt = nudgeCooldowns.get(friendUid);
+      if (!sentAt) return 0;
+      const msLeft = NUDGE_COOLDOWN_MS - (Date.now() - sentAt);
+      if (msLeft <= 0) return 0;
+      return Math.ceil(msLeft / 60000);
+    },
+    [nudgeCooldowns],
+  );
+
   const alreadyFriendUids = new Set(friends.map((f) => f.friendUid));
 
   return {
@@ -220,5 +231,6 @@ export function useFriends(user: User | null, profileDisplayName: string) {
     handleRemoveFriend,
     handleNudge,
     canNudgeFriend,
+    nudgeAvailableInMinutes,
   };
 }

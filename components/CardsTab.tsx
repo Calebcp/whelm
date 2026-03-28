@@ -89,6 +89,18 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
 
   const cardsDue = useMemo(() => getCardsForReview(cards), [cards]);
   const todayCardsXp = reviewSummary?.xpEarned ?? sessionXp;
+
+  const nextCardDueLabel = useMemo(() => {
+    if (cardsDue.length > 0 || cards.length === 0) return null;
+    const earliest = cards.reduce((min, c) => (c.dueDate < min ? c.dueDate : min), Infinity);
+    if (!isFinite(earliest)) return null;
+    const diff = earliest - Date.now();
+    if (diff <= 0) return null;
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const mins = Math.ceil((diff % (1000 * 60 * 60)) / (1000 * 60));
+    return hours > 0 ? `Next due in ${hours}h ${mins}m` : `Next due in ${mins}m`;
+  }, [cards, cardsDue]);
+
   const cardsByZone = useMemo(() => {
     const grouped: Record<(typeof ZONE_ORDER)[number], WhelCard[]> = {
       learning: [],
@@ -163,12 +175,13 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
         }).awarded
       : 0;
     const earned = correctXp + fastRecallXp + sessionBonusXp;
+    const capReached = earned === 0;
 
     if (earned > 0) {
       onXPEarned(earned);
     }
 
-    await persist(nextCards, "");
+    await persist(nextCards, capReached ? "XP cap reached for this action today" : "");
     setSessionReviewed((current) => current + 1);
     setSessionXp((current) => current + earned);
     setSessionZoneMoves((current) => current + (updatedCard.zone !== currentReviewCard.zone ? 1 : 0));
@@ -201,17 +214,24 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
               </p>
             </div>
             <div className={styles.cardsHeaderActions}>
-              <button
-                type="button"
-                className={styles.reportButton}
-                onClick={startReviewSession}
-                disabled={cardsDue.length === 0}
-              >
-                Start Review Session
-                {cardsDue.length > 0 ? (
-                  <span className={styles.cardsDueBadge}>{cardsDue.length}</span>
+              <div>
+                <button
+                  type="button"
+                  className={styles.reportButton}
+                  onClick={startReviewSession}
+                  disabled={cardsDue.length === 0}
+                >
+                  Start Review Session
+                  {cardsDue.length > 0 ? (
+                    <span className={styles.cardsDueBadge}>{cardsDue.length}</span>
+                  ) : null}
+                </button>
+                {cardsDue.length === 0 && nextCardDueLabel ? (
+                  <p className={styles.accountMeta} style={{ marginTop: 4, fontSize: "0.75rem" }}>
+                    {nextCardDueLabel}
+                  </p>
                 ) : null}
-              </button>
+              </div>
               <button type="button" className={styles.secondaryPlanButton} onClick={() => setView("editor")}>
                 Add Card
               </button>
