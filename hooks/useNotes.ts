@@ -525,6 +525,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     notesRef.current = nextNotes;
     setNotes(nextNotes);
     setSelectedNoteId(nextNote.id);
+    saveNotesLocally(currentUser.uid, nextNotes);
     onNavigateToNotes?.();
     setNotesSyncStatus("syncing");
     setNotesSyncMessage("");
@@ -562,6 +563,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     );
     notesRef.current = nextNotes;
     setNotes(nextNotes);
+    saveNotesLocally(currentUser.uid, nextNotes);
     setNotesSyncStatus("syncing");
     setNotesSyncMessage("");
     const updatedNote = nextNotes.find((n) => n.id === noteId);
@@ -663,6 +665,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     );
     notesRef.current = nextNotes;
     setNotes(nextNotes);
+    saveNotesLocally(currentUser.uid, nextNotes);
     setNotesSyncStatus("syncing");
     setNotesSyncMessage("");
     const pinnedNote = nextNotes.find((n) => n.id === noteId);
@@ -838,6 +841,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     setNotes(nextNotes);
     setSelectedNoteId((current) => (current === noteId ? nextNotes[0]?.id ?? null : current));
     clearLocalNoteDraft(currentUser.uid, noteId);
+    saveNotesLocally(currentUser.uid, nextNotes);
     setNotesSyncStatus("syncing");
     setNotesSyncMessage("");
     try {
@@ -859,6 +863,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     notesRef.current = restored;
     setNotes(restored);
     setSelectedNoteId(noteUndoItem.id);
+    saveNotesLocally(currentUser.uid, restored);
     setNotesSyncStatus("syncing");
     setNotesSyncMessage("");
     const result = await saveNoteToFirestore(currentUser.uid, noteUndoItem);

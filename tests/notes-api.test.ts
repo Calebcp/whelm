@@ -71,3 +71,81 @@ test("notes route writes note body into Firestore notesJson payload", async () =
     restoreFetch();
   }
 });
+
+test("notes route writes attachments into Firestore subcollection documents", async () => {
+  process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID = "demo-project";
+  process.env.NEXT_PUBLIC_FIREBASE_API_KEY = "demo-key";
+  process.env.FIREBASE_DATABASE_ID = "(default)";
+
+  const { POST: saveNotesRoute } = await import("@/app/api/notes/route");
+
+  let firestoreWriteBody: Record<string, unknown> | null = null;
+
+  const restoreFetch = installFetchMock(async (_input, init) => {
+    firestoreWriteBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    return createJsonResponse({ json: { name: "projects/demo/documents/userNotes/user-notes/notes/note-2" } });
+  });
+
+  try {
+    const request = new NextRequest("http://localhost/api/notes", {
+      method: "POST",
+      headers: {
+        authorization: "Bearer token-notes",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        uid: "user-notes",
+        notes: [
+          {
+            id: "note-2",
+            title: "With attachment",
+            body: "<p>Body</p>",
+            attachments: [
+              {
+                id: "att-1",
+                name: "spec.pdf",
+                mimeType: "application/pdf",
+                sizeBytes: 2048,
+                kind: "document",
+                storagePath: "users/u/notes/note-2/spec.pdf",
+                downloadUrl: "https://example.com/spec.pdf",
+                uploadedAtISO: "2026-03-25T09:05:00.000Z",
+              },
+            ],
+            color: "#e7e5e4",
+            shellColor: "#fff7d6",
+            surfaceStyle: "solid",
+            isPinned: false,
+            fontFamily: "Avenir Next",
+            fontSizePx: 16,
+            category: "personal",
+            reminderAtISO: "",
+            updatedAtISO: "2026-03-25T10:00:00.000Z",
+            createdAtISO: "2026-03-25T09:00:00.000Z",
+          },
+        ],
+      }),
+    });
+
+    const response = await saveNotesRoute(request);
+    assert.equal(response.status, 200);
+    assert.ok(firestoreWriteBody);
+
+    const fields = (firestoreWriteBody as {
+      fields: {
+        attachments?: {
+          arrayValue?: {
+            values?: Array<{
+              mapValue?: { fields?: Record<string, { stringValue?: string; integerValue?: string }> };
+            }>;
+          };
+        };
+      };
+    }).fields;
+    const firstAttachment = fields.attachments?.arrayValue?.values?.[0]?.mapValue?.fields;
+    assert.equal(firstAttachment?.name?.stringValue, "spec.pdf");
+    assert.equal(firstAttachment?.storagePath?.stringValue, "users/u/notes/note-2/spec.pdf");
+  } finally {
+    restoreFetch();
+  }
+});

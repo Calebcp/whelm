@@ -132,6 +132,53 @@ function int(v: FirestoreFieldValue | undefined, fallback = 0): number {
   return iv !== undefined ? parseInt(iv, 10) || fallback : fallback;
 }
 
+function attachmentToValue(attachment: NoteAttachment): FirestoreFieldValue {
+  return {
+    mapValue: {
+      fields: {
+        id: { stringValue: attachment.id },
+        name: { stringValue: attachment.name },
+        mimeType: { stringValue: attachment.mimeType },
+        sizeBytes: { integerValue: String(attachment.sizeBytes) },
+        kind: { stringValue: attachment.kind },
+        storagePath: { stringValue: attachment.storagePath },
+        downloadUrl: { stringValue: attachment.downloadUrl },
+        uploadedAtISO: { stringValue: attachment.uploadedAtISO },
+      },
+    },
+  };
+}
+
+function attachmentsToFieldValue(attachments: NoteAttachment[]): FirestoreFieldValue {
+  return {
+    arrayValue: {
+      values: normalizeAttachments(attachments).map(attachmentToValue),
+    },
+  };
+}
+
+function attachmentsFromFieldValue(value: FirestoreFieldValue | undefined): NoteAttachment[] {
+  const rawValues = (value as FirestoreArrayValue | undefined)?.arrayValue?.values ?? [];
+  return normalizeAttachments(
+    rawValues
+      .map((entry) => {
+        const fields = (entry as FirestoreMapValue)?.mapValue?.fields;
+        if (!fields) return null;
+        return {
+          id: str(fields.id),
+          name: str(fields.name),
+          mimeType: str(fields.mimeType),
+          sizeBytes: int(fields.sizeBytes),
+          kind: str(fields.kind, "other") as NoteAttachment["kind"],
+          storagePath: str(fields.storagePath),
+          downloadUrl: str(fields.downloadUrl),
+          uploadedAtISO: str(fields.uploadedAtISO),
+        } satisfies NoteAttachment;
+      })
+      .filter((attachment): attachment is NoteAttachment => Boolean(attachment)),
+  );
+}
+
 function noteToFields(note: WorkspaceNote): FirestoreNoteFields {
   return {
     id: { stringValue: note.id },
@@ -147,6 +194,7 @@ function noteToFields(note: WorkspaceNote): FirestoreNoteFields {
     reminderAtISO: { stringValue: note.reminderAtISO },
     updatedAtISO: { stringValue: note.updatedAtISO },
     createdAtISO: { stringValue: note.createdAtISO },
+    attachments: attachmentsToFieldValue(note.attachments),
   };
 }
 
@@ -177,7 +225,7 @@ function noteFromDocument(doc: FirestoreNoteDocument): WorkspaceNote | null {
     reminderAtISO: str(f.reminderAtISO),
     updatedAtISO: str(f.updatedAtISO),
     createdAtISO: str(f.createdAtISO),
-    attachments: [],
+    attachments: attachmentsFromFieldValue(f.attachments),
   };
 }
 
