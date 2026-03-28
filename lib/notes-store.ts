@@ -197,8 +197,10 @@ export async function saveNoteToFirestore(uid: string, note: WorkspaceNote): Pro
   if (!target) return { notes: [note], synced: false };
   try {
     await setDoc(firestoreDoc(db, "userNotes", uid, "notes", target.id), target, { merge: true });
+    console.log("[whelm] saveNoteToFirestore: wrote userNotes/" + uid + "/notes/" + target.id);
     return { notes: [target], synced: true };
-  } catch {
+  } catch (err) {
+    console.error("[whelm] saveNoteToFirestore: FAILED for userNotes/" + uid + "/notes/" + target.id, err);
     return { notes: [target], synced: false, message: "Saved locally. Cloud sync is currently unavailable." };
   }
 }
