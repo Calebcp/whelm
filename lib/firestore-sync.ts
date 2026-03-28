@@ -60,7 +60,10 @@ export function subscribeToUserData(uid: string, cb: FirestoreSyncCallbacks): ()
   let liveLegacyNotes: WorkspaceNote[] = [];
 
   const emitMergedNotes = () => {
-    const remote = mergeNotesPreferNewest(liveLegacyNotes, liveSubcollectionNotes);
+    const remote =
+      liveSubcollectionNotes.length > 0
+        ? liveSubcollectionNotes
+        : mergeNotesPreferNewest(liveLegacyNotes, liveSubcollectionNotes);
 
     const editingId = cb.isEditingNote() ? cb.editingNoteId() : null;
     const merged = editingId

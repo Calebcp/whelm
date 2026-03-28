@@ -407,7 +407,9 @@ async function listNoteDocuments(
     .map(noteFromDocument)
     .filter((n): n is WorkspaceNote => n !== null);
 
-  return mergeNotesPreferNewest(legacyNotes, subcollectionNotes);
+  return subcollectionNotes.length > 0
+    ? subcollectionNotes
+    : mergeNotesPreferNewest(legacyNotes, subcollectionNotes);
 }
 
 /** Write a single note document to `userNotes/{uid}/notes/{noteId}`. */

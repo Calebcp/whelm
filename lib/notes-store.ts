@@ -393,7 +393,10 @@ export async function loadNotes(user: User): Promise<NotesSyncResult> {
       }
     }
 
-    const cloudNotes = mergeNotesPreferNewest(legacyNotes, subcollectionNotes);
+    const cloudNotes =
+      subcollectionNotes.length > 0
+        ? subcollectionNotes
+        : mergeNotesPreferNewest(legacyNotes, subcollectionNotes);
     const mergedNotes = mergeNotesPreferNewest(localNotes, cloudNotes);
     writeLocalNotes(user.uid, mergedNotes);
 
