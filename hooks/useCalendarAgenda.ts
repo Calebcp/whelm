@@ -166,12 +166,13 @@ export function useCalendarAgenda({
   isDateKeyBeforeToday,
   isDateKeyWithinRecentWindow,
 }: UseCalendarAgendaOptions) {
-  const selectedDatePlanGroups = useMemo(() => ({
-    active: selectedDatePlans.filter((item) => item.status === "active" && !isDateKeyBeforeToday(item.dateKey)),
-    completed: selectedDatePlans.filter((item) => item.status === "completed"),
-    incomplete: selectedDatePlans.filter((item) => item.status === "active" && isDateKeyBeforeToday(item.dateKey)),
-    visible: selectedDatePlans,
-  }), [isDateKeyBeforeToday, selectedDatePlans]);
+  const selectedDatePlanGroups = useMemo(() => {
+    const allForDate = plannedBlocks.filter((item) => item.dateKey === selectedDateKey);
+    const active = allForDate.filter((item) => item.status === "active" && !isDateKeyBeforeToday(item.dateKey));
+    const completed = allForDate.filter((item) => item.status === "completed");
+    const incomplete = allForDate.filter((item) => item.status === "active" && isDateKeyBeforeToday(item.dateKey));
+    return { active, completed, incomplete, visible: [...active, ...completed, ...incomplete] };
+  }, [isDateKeyBeforeToday, plannedBlocks, selectedDateKey]);
 
   const selectedDateDayTone = isPro ? (dayTones[selectedDateKey] ?? null) : null;
   const visiblePlanTone = (tone: CalendarTone | null | undefined) => (isPro ? (tone ?? null) : null);

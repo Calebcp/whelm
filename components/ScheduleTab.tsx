@@ -1810,7 +1810,7 @@ export default function ScheduleTab({
                       </div>
                       <div className={styles.planActions}>
                         {completed ? (
-                          <div className={styles.planStatusPill}>Completed</div>
+                          <div className={styles.planStatusPill}>✓ Done</div>
                         ) : (
                           <>
                             <button

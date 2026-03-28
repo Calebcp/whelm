@@ -527,6 +527,16 @@ export function usePlannedBlocks({
     }
 
     const nextTime = planTime || "09:00";
+
+    // Prevent scheduling in the past on today's date
+    if (selectedDateKey === liveTodayKey && nextTime) {
+      const now = new Date();
+      const nowMinutes = now.getHours() * 60 + now.getMinutes();
+      if (parseTimeToMinutes(nextTime) < nowMinutes) {
+        showToast("Can't schedule in the past.", "warning");
+        return false;
+      }
+    }
     const conflicts = findPlanSpacingConflicts(selectedDatePlans, {
       dateKey: selectedDateKey,
       timeOfDay: nextTime,
@@ -582,6 +592,7 @@ export function usePlannedBlocks({
     planTitle,
     planTone,
     plannedBlocks,
+    liveTodayKey,
     selectedDateCanAddBlocks,
     selectedDateKey,
     selectedDatePlans,
