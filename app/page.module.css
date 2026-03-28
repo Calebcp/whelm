@@ -8414,28 +8414,101 @@ body[data-theme="light"] {
 .cardsOutcomeHard,
 .cardsOutcomeGood,
 .cardsOutcomeEasy {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  justify-items: center;
+  gap: 3px;
   min-height: 44px;
   border: 0;
-  border-radius: 14px;
+  border-radius: 16px;
   padding: 12px 14px;
   font: inherit;
   color: #f5f7ff;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 12px 24px rgba(6, 10, 20, 0.24);
+  transition:
+    transform 140ms ease,
+    box-shadow 140ms ease,
+    filter 140ms ease;
+}
+
+.cardsOutcomeForgot::after,
+.cardsOutcomeHard::after,
+.cardsOutcomeGood::after,
+.cardsOutcomeEasy::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 48%);
+  pointer-events: none;
 }
 
 .cardsOutcomeForgot {
-  background: linear-gradient(180deg, rgba(157, 41, 57, 0.94), rgba(124, 24, 41, 0.96));
+  background:
+    radial-gradient(circle at top, rgba(255, 156, 170, 0.2), transparent 58%),
+    linear-gradient(180deg, rgba(187, 56, 74, 0.98), rgba(122, 26, 46, 0.98));
 }
 
 .cardsOutcomeHard {
-  background: linear-gradient(180deg, rgba(178, 108, 24, 0.94), rgba(142, 78, 11, 0.96));
+  background:
+    radial-gradient(circle at top, rgba(255, 210, 143, 0.2), transparent 58%),
+    linear-gradient(180deg, rgba(196, 125, 32, 0.98), rgba(132, 77, 12, 0.98));
 }
 
 .cardsOutcomeGood {
-  background: linear-gradient(180deg, rgba(24, 128, 152, 0.94), rgba(11, 96, 120, 0.96));
+  background:
+    radial-gradient(circle at top, rgba(146, 240, 255, 0.2), transparent 58%),
+    linear-gradient(180deg, rgba(42, 142, 177, 0.98), rgba(18, 90, 122, 0.98));
 }
 
 .cardsOutcomeEasy {
-  background: linear-gradient(180deg, rgba(33, 128, 70, 0.94), rgba(18, 99, 51, 0.96));
+  background:
+    radial-gradient(circle at top, rgba(171, 255, 198, 0.2), transparent 58%),
+    linear-gradient(180deg, rgba(47, 148, 84, 0.98), rgba(20, 100, 52, 0.98));
+}
+
+.cardsOutcomeForgot:hover,
+.cardsOutcomeHard:hover,
+.cardsOutcomeGood:hover,
+.cardsOutcomeEasy:hover {
+  transform: translateY(-1px);
+  filter: saturate(1.06) brightness(1.03);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 16px 28px rgba(6, 10, 20, 0.32);
+}
+
+.cardsOutcomeForgot:active,
+.cardsOutcomeHard:active,
+.cardsOutcomeGood:active,
+.cardsOutcomeEasy:active {
+  transform: translateY(0);
+}
+
+.cardsOutcomeLabel {
+  position: relative;
+  z-index: 1;
+}
+
+.cardsOutcomeHint {
+  position: relative;
+  z-index: 1;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: rgba(244, 247, 255, 0.8);
+}
+
+.cardsReviewButtonIdle {
+  opacity: 0.88;
+}
+
+.cardsReviewButtonIdle:hover {
+  opacity: 1;
 }
 
 .cardsDueBadge {

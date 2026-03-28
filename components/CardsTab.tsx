@@ -30,7 +30,20 @@ type ReviewSummary = {
   zoneMoves: number;
 };
 
+type OutcomeButtonMeta = {
+  outcome: ReviewOutcome;
+  label: string;
+  hint: string;
+  className: string;
+};
+
 const ZONE_ORDER = ["learning", "practice", "mastery", "weak"] as const;
+const OUTCOME_BUTTONS: OutcomeButtonMeta[] = [
+  { outcome: "forgot", label: "Again", hint: "Reset it", className: "cardsOutcomeForgot" },
+  { outcome: "hard", label: "Hard", hint: "Needs work", className: "cardsOutcomeHard" },
+  { outcome: "good", label: "Good", hint: "Solid recall", className: "cardsOutcomeGood" },
+  { outcome: "easy", label: "Easy", hint: "Locked in", className: "cardsOutcomeEasy" },
+];
 
 function formatDueDate(timestamp: number): string {
   const diff = timestamp - Date.now();
@@ -135,6 +148,24 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
 
   const masteryPct = cards.length === 0 ? 0 : Math.round((cardsByZone.mastery.length / cards.length) * 100);
 
+  function buildNoDueStatus(nextCards: WhelCard[]) {
+    const dueCards = getCardsForReview(nextCards);
+    if (dueCards.length > 0) return "";
+    if (nextCards.length === 0) return "No cards yet. Add one to start reviewing.";
+
+    const earliest = nextCards.reduce((min, card) => (card.dueDate < min ? card.dueDate : min), Infinity);
+    if (!isFinite(earliest)) return "No cards are due right now.";
+
+    const diff = earliest - Date.now();
+    if (diff <= 0) return "No cards are due right now.";
+
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const mins = Math.ceil((diff % (1000 * 60 * 60)) / (1000 * 60));
+    return hours > 0
+      ? `No cards are due right now. Next review opens in ${hours}h ${mins}m.`
+      : `No cards are due right now. Next review opens in ${mins}m.`;
+  }
+
   async function persist(nextCards: WhelCard[], nextStatus = "") {
     setCards(nextCards);
     setStatus(nextStatus);
@@ -159,6 +190,10 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
   }
 
   function startReviewSession() {
+    if (cardsDue.length === 0) {
+      setStatus(buildNoDueStatus(cards));
+      return;
+    }
     setReviewIndex(0);
     setCardFlipped(false);
     setAnswerVisible(false);
@@ -211,11 +246,13 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
     setAnswerOpenedAt(null);
 
     if (sessionDone) {
+      const nextStatus = buildNoDueStatus(nextCards);
       setReviewSummary({
         reviewed: sessionReviewed + 1,
         xpEarned: sessionXp + earned,
         zoneMoves: sessionZoneMoves + (updatedCard.zone !== currentReviewCard.zone ? 1 : 0),
       });
+      setStatus(nextStatus);
       setView("board");
       return;
     }
@@ -239,9 +276,8 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
               <div>
                 <button
                   type="button"
-                  className={`${styles.reportButton} ${cardsDue.length > 0 ? styles.cardsDueGlow : ""}`}
+                  className={`${styles.reportButton} ${cardsDue.length > 0 ? styles.cardsDueGlow : styles.cardsReviewButtonIdle}`}
                   onClick={startReviewSession}
-                  disabled={cardsDue.length === 0}
                 >
                   Start Review Session
                   {cardsDue.length > 0 ? (
@@ -380,18 +416,17 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
 
               {answerVisible ? (
                 <div className={styles.cardsOutcomeRow}>
-                  <button type="button" className={styles.cardsOutcomeForgot} onClick={() => void handleOutcome("forgot")}>
-                    Again
-                  </button>
-                  <button type="button" className={styles.cardsOutcomeHard} onClick={() => void handleOutcome("hard")}>
-                    Hard
-                  </button>
-                  <button type="button" className={styles.cardsOutcomeGood} onClick={() => void handleOutcome("good")}>
-                    Good
-                  </button>
-                  <button type="button" className={styles.cardsOutcomeEasy} onClick={() => void handleOutcome("easy")}>
-                    Easy
-                  </button>
+                  {OUTCOME_BUTTONS.map((button) => (
+                    <button
+                      key={button.outcome}
+                      type="button"
+                      className={styles[button.className as keyof typeof styles]}
+                      onClick={() => void handleOutcome(button.outcome)}
+                    >
+                      <span className={styles.cardsOutcomeLabel}>{button.label}</span>
+                      <span className={styles.cardsOutcomeHint}>{button.hint}</span>
+                    </button>
+                  ))}
                 </div>
               ) : null}
             </div>
