@@ -9,13 +9,13 @@ import { getStreakBandanaTier } from "@/lib/streak-bandanas";
 // ── Constants ──────────────────────────────────────────────────────────────────
 export const XP_DAILY_CAP = 150;
 export const XP_FOCUS_DAILY_CAP = 90;
-export const XP_COMPLETED_BLOCK_XP = 25;
+export const XP_COMPLETED_BLOCK_XP = 10;
 export const XP_COMPLETED_BLOCK_DAILY_CAP = 50;
 export const XP_STREAK_DAILY_BONUS = 10;
 export const XP_COMBO_BONUS = 15;
 export const XP_DEEP_WORK_BONUS = 25;
 export const XP_WRITING_ENTRY_THRESHOLD = 33;
-export const XP_WRITING_ENTRY_BONUS = 10;
+export const XP_WRITING_ENTRY_BONUS = 5;
 export const XP_WRITING_BONUS_THRESHOLD = 100;
 export const XP_WRITING_DAILY_CAP = 20;
 
@@ -106,7 +106,7 @@ export function buildDayXpSummary({
   const streakLength = computeStreakEndingAtDateKey([], dateKey, streakQualifiedDateKeys);
   const multiplier = getXpMultiplierForStreak(streakLength);
   const completedBlocksXp = Math.min(XP_COMPLETED_BLOCK_DAILY_CAP, completedBlocks * XP_COMPLETED_BLOCK_XP);
-  const focusXp = Math.min(XP_FOCUS_DAILY_CAP, focusMinutes);
+  const focusXp = Math.floor(focusMinutes / 30) * 20;
   const writingXp = getXpWritingBonus(noteWords);
   const baseActionXp = completedBlocksXp + focusXp + writingXp;
   const multipliedBaseXp = Math.round(baseActionXp * multiplier);

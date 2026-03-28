@@ -30,6 +30,7 @@ function xpRequiredToReachLevel(level: number) {
 }
 
 test("a completed session awards correct base XP", () => {
+  // 45 min = 1 full 30-min block → 20 XP (uncapped)
   const result = calculateXP("session_complete", {
     currentDailyXP: 0,
     streakDays: 3,
@@ -37,12 +38,13 @@ test("a completed session awards correct base XP", () => {
   });
 
   assert.deepEqual(result, {
-    awarded: 45,
+    awarded: 20,
     reason: "session_complete",
   });
 });
 
-test("daily cap is enforced when awarding XP", () => {
+test("focus session XP is uncapped regardless of daily total", () => {
+  // session_complete is now uncapped — 30 min = 20 XP even when near daily cap
   const result = calculateXP("session_complete", {
     currentDailyXP: 140,
     streakDays: 12,
@@ -50,9 +52,8 @@ test("daily cap is enforced when awarding XP", () => {
   });
 
   assert.deepEqual(result, {
-    awarded: 10,
+    awarded: 20,
     reason: "session_complete",
-    cappedAt: 150,
   });
 });
 

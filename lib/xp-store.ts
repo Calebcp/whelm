@@ -53,9 +53,8 @@ export function calculateXP(
 
   switch (event) {
     case "session_complete":
-      awarded = Math.min(XP_FOCUS_DAILY_CAP, context.sessionDurationMinutes ?? 0);
-      reason = "session_complete";
-      break;
+      // 20 XP per 30-min session, uncapped — return directly before daily cap check
+      return { awarded: Math.floor((context.sessionDurationMinutes ?? 0) / 30) * 20, reason: "session_complete" };
     case "deep_work":
       awarded = (context.sessionDurationMinutes ?? 0) >= 90 ? XP_CONFIG.deepWorkBonus : 0;
       reason = "deep_work";
@@ -69,15 +68,13 @@ export function calculateXP(
       reason = "combo";
       break;
     case "card_correct":
-      awarded = 5;
-      reason = "card_correct";
-      break;
+      // Flashcard XP is uncapped — return directly before daily cap check
+      return { awarded: 5, reason: "card_correct" };
     case "card_fast_recall":
       return { awarded: 0, reason: "card fast recall" };
     case "card_session_cleared":
-      awarded = 20;
-      reason = "card_session_cleared";
-      break;
+      // Clear-all bonus is uncapped — return directly before daily cap check
+      return { awarded: 20, reason: "card_session_cleared" };
   }
 
   const cappedAward = Math.min(remaining, awarded);
