@@ -8414,13 +8414,15 @@ body[data-theme="light"] {
 .cardsOutcomeHard,
 .cardsOutcomeGood,
 .cardsOutcomeEasy {
+  --cards-outcome-border: rgba(255, 255, 255, 0.28);
+  --cards-outcome-glow: rgba(255, 255, 255, 0.18);
   position: relative;
   overflow: hidden;
   display: grid;
   justify-items: center;
   gap: 3px;
   min-height: 44px;
-  border: 0;
+  border: 1px solid var(--cards-outcome-border);
   border-radius: 16px;
   padding: 12px 14px;
   font: inherit;
@@ -8429,12 +8431,15 @@ body[data-theme="light"] {
   letter-spacing: 0.01em;
   cursor: pointer;
   box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--cards-outcome-border) 52%, transparent),
     inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 0 18px var(--cards-outcome-glow),
     0 12px 24px rgba(6, 10, 20, 0.24);
   transition:
     transform 140ms ease,
     box-shadow 140ms ease,
-    filter 140ms ease;
+    filter 140ms ease,
+    border-color 140ms ease;
 }
 
 .cardsOutcomeForgot::after,
@@ -8449,24 +8454,32 @@ body[data-theme="light"] {
 }
 
 .cardsOutcomeForgot {
+  --cards-outcome-border: rgba(90, 214, 255, 0.9);
+  --cards-outcome-glow: rgba(90, 214, 255, 0.28);
   background:
     radial-gradient(circle at top, rgba(255, 156, 170, 0.2), transparent 58%),
     linear-gradient(180deg, rgba(187, 56, 74, 0.98), rgba(122, 26, 46, 0.98));
 }
 
 .cardsOutcomeHard {
+  --cards-outcome-border: rgba(124, 189, 255, 0.9);
+  --cards-outcome-glow: rgba(124, 189, 255, 0.24);
   background:
     radial-gradient(circle at top, rgba(255, 210, 143, 0.2), transparent 58%),
     linear-gradient(180deg, rgba(196, 125, 32, 0.98), rgba(132, 77, 12, 0.98));
 }
 
 .cardsOutcomeGood {
+  --cards-outcome-border: rgba(255, 188, 115, 0.9);
+  --cards-outcome-glow: rgba(255, 188, 115, 0.24);
   background:
     radial-gradient(circle at top, rgba(146, 240, 255, 0.2), transparent 58%),
     linear-gradient(180deg, rgba(42, 142, 177, 0.98), rgba(18, 90, 122, 0.98));
 }
 
 .cardsOutcomeEasy {
+  --cards-outcome-border: rgba(255, 163, 214, 0.9);
+  --cards-outcome-glow: rgba(255, 163, 214, 0.24);
   background:
     radial-gradient(circle at top, rgba(171, 255, 198, 0.2), transparent 58%),
     linear-gradient(180deg, rgba(47, 148, 84, 0.98), rgba(20, 100, 52, 0.98));
@@ -8479,7 +8492,9 @@ body[data-theme="light"] {
   transform: translateY(-1px);
   filter: saturate(1.06) brightness(1.03);
   box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--cards-outcome-border) 74%, white 26%),
     inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 0 22px var(--cards-outcome-glow),
     0 16px 28px rgba(6, 10, 20, 0.32);
 }
 
