@@ -1,17 +1,24 @@
 "use client";
 
-import { type CSSProperties, type Ref } from "react";
+import { type CSSProperties, type Ref, useState } from "react";
 import { motion } from "motion/react";
 
 import sharedStyles from "@/app/page.module.css";
 import AnimatedTabSection from "@/components/AnimatedTabSection";
+import FriendsTab from "@/components/FriendsTab";
 import WhelmProfileAvatar from "@/components/WhelmProfileAvatar";
 import styles from "@/components/WhelmboardTab.module.css";
 import { getStreakBandanaTier } from "@/lib/streak-bandanas";
 import { getStreakTierColorTheme } from "@/lib/xp-utils";
+import type {
+  FriendProfile,
+  FriendRequestDoc,
+  FriendWithXp,
+} from "@/hooks/useFriends";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
+type WhelmboardSurfaceTab = "global" | "friends" | "bandana";
 type LeaderboardMetricTab = "xp" | "streak";
 
 type LeaderboardEntry = {
@@ -252,7 +259,30 @@ export type WhelmboardTabProps = {
   seenChallengerIds: Set<string>;
   onSelectProfile: (row: { entry: LeaderboardEntry; rank: number }) => void;
   onLoadMore: () => void;
+  // Friends tab props
+  friends: FriendWithXp[];
+  incomingRequests: FriendRequestDoc[];
+  searchResults: FriendProfile[];
+  searchQuery: string;
+  searchLoading: boolean;
+  friendsLoading: boolean;
+  friendsError: string;
+  sentRequestUids: Set<string>;
+  alreadyFriendUids: Set<string>;
+  onFriendSearch: (q: string) => void;
+  onSendFriendRequest: (toUserId: string) => void;
+  onAcceptFriendRequest: (req: FriendRequestDoc) => void;
+  onDeclineFriendRequest: (req: FriendRequestDoc) => void;
+  onRemoveFriend: (friendUid: string) => void;
+  onNudgeFriend: (friendUid: string) => void;
+  canNudgeFriend: (friendUid: string) => boolean;
 };
+
+const SURFACE_TABS: Array<{ id: WhelmboardSurfaceTab; label: string }> = [
+  { id: "global", label: "Global" },
+  { id: "friends", label: "Friends" },
+  { id: "bandana", label: "Bandana Tiers" },
+];
 
 export default function WhelmboardTab({
   sectionRef,
@@ -273,7 +303,25 @@ export default function WhelmboardTab({
   seenChallengerIds,
   onSelectProfile,
   onLoadMore,
+  friends,
+  incomingRequests,
+  searchResults,
+  searchQuery,
+  searchLoading,
+  friendsLoading,
+  friendsError,
+  sentRequestUids,
+  alreadyFriendUids,
+  onFriendSearch,
+  onSendFriendRequest,
+  onAcceptFriendRequest,
+  onDeclineFriendRequest,
+  onRemoveFriend,
+  onNudgeFriend,
+  canNudgeFriend,
 }: WhelmboardTabProps) {
+  const [surfaceTab, setSurfaceTab] = useState<WhelmboardSurfaceTab>("global");
+
   return (
     <AnimatedTabSection
       className={`${styles.leaderboardShell} ${styles.wbThemeShell}`}
@@ -283,121 +331,117 @@ export default function WhelmboardTab({
       <div className={styles.wbHeader} ref={primaryRef as React.RefObject<HTMLDivElement>}>
         <div>
           <p className={sharedStyles.sectionLabel}>Whelmboard</p>
-          <h2 className={styles.wbTitle}>Global Whelm rank</h2>
+          <h2 className={styles.wbTitle}>
+            {surfaceTab === "global"
+              ? "Global Whelm rank"
+              : surfaceTab === "friends"
+                ? "Friends"
+                : "Bandana Tiers"}
+          </h2>
         </div>
-        <div className={styles.wbHeaderRight}>
-          <div className={styles.wbRankBadge}>
-            <span>{leaderboardMetricTab === "xp" ? "XP" : "Streak"}</span>
-            <strong>#{leaderboardCurrentUserRank || "--"}</strong>
+        {surfaceTab === "global" && (
+          <div className={styles.wbHeaderRight}>
+            <div className={styles.wbRankBadge}>
+              <span>{leaderboardMetricTab === "xp" ? "XP" : "Streak"}</span>
+              <strong>#{leaderboardCurrentUserRank || "--"}</strong>
+            </div>
+            <LeaderboardMovementIndicator
+              movement={leaderboardCurrentUserMovement}
+              tab={leaderboardMetricTab}
+            />
           </div>
-          <LeaderboardMovementIndicator
-            movement={leaderboardCurrentUserMovement}
-            tab={leaderboardMetricTab}
-          />
-        </div>
+        )}
+        {surfaceTab === "friends" && incomingRequests.length > 0 && (
+          <div className={styles.wbHeaderRight}>
+            <span className={styles.wbFriendRequestBadge}>{incomingRequests.length} pending</span>
+          </div>
+        )}
       </div>
 
-      {/* XP / Streak toggle */}
-      <div className={styles.leaderboardToggle} role="tablist" aria-label="Whelmboard views">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={leaderboardMetricTab === "xp"}
-          className={`${styles.leaderboardToggleButton} ${
-            leaderboardMetricTab === "xp" ? styles.leaderboardToggleButtonActive : ""
-          }`}
-          onClick={() => {
-            if (leaderboardMetricTab === "xp") return;
-            onSetMetricTab("xp");
-          }}
-        >
-          XP
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={leaderboardMetricTab === "streak"}
-          className={`${styles.leaderboardToggleButton} ${
-            leaderboardMetricTab === "streak" ? styles.leaderboardToggleButtonActive : ""
-          }`}
-          onClick={() => {
-            if (leaderboardMetricTab === "streak") return;
-            onSetMetricTab("streak");
-          }}
-        >
-          Streak
-        </button>
+      {/* Surface tab nav: Global | Friends | Bandana Tiers */}
+      <div className={styles.wbSurfaceTabs} role="tablist" aria-label="Whelmboard surfaces">
+        {SURFACE_TABS.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            aria-selected={surfaceTab === tab.id}
+            className={`${styles.wbSurfaceTab} ${
+              surfaceTab === tab.id ? styles.wbSurfaceTabActive : ""
+            }`}
+            onClick={() => setSurfaceTab(tab.id)}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
-      {/* Desktop 2-col: leaderboard list | bandana tiers */}
-      <div className={styles.wbDesktopGrid}>
-
-        {/* Main leaderboard + around-you */}
-        <div className={styles.wbLeaderboardPane}>
-          <div className={styles.wbPaneHeader}>
-            <span className={sharedStyles.sectionLabel}>Standings</span>
-            <span className={styles.leaderboardCountPill}>
-              {(leaderboardSource === "snapshot" ? leaderboardTotalEntries : leaderboardRows.length)} players
-            </span>
+      {/* ── Global surface ── */}
+      {surfaceTab === "global" && (
+        <>
+          {/* XP / Streak metric toggle */}
+          <div className={styles.leaderboardToggle} role="tablist" aria-label="Leaderboard metric">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={leaderboardMetricTab === "xp"}
+              className={`${styles.leaderboardToggleButton} ${
+                leaderboardMetricTab === "xp" ? styles.leaderboardToggleButtonActive : ""
+              }`}
+              onClick={() => {
+                if (leaderboardMetricTab === "xp") return;
+                onSetMetricTab("xp");
+              }}
+            >
+              XP
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={leaderboardMetricTab === "streak"}
+              className={`${styles.leaderboardToggleButton} ${
+                leaderboardMetricTab === "streak" ? styles.leaderboardToggleButtonActive : ""
+              }`}
+              onClick={() => {
+                if (leaderboardMetricTab === "streak") return;
+                onSetMetricTab("streak");
+              }}
+            >
+              Streak
+            </button>
           </div>
 
-          {leaderboardError ? (
-            <p className={sharedStyles.analyticsEmptyState}>{leaderboardError}</p>
-          ) : null}
+          {/* Leaderboard list */}
+          <div className={styles.wbLeaderboardPane}>
+            <div className={styles.wbPaneHeader}>
+              <span className={sharedStyles.sectionLabel}>Standings</span>
+              <span className={styles.leaderboardCountPill}>
+                {(leaderboardSource === "snapshot" ? leaderboardTotalEntries : leaderboardRows.length)} players
+              </span>
+            </div>
 
-          {leaderboardLoading ? (
-            <div className={styles.leaderboardLoadingList}>
-              {Array.from({ length: 5 }).map((_, index) => (
-                <div key={index} className={styles.leaderboardLoadingRow} aria-hidden="true" />
-              ))}
-            </div>
-          ) : !leaderboardHasEntries ? (
-            <div className={styles.leaderboardEmptyState}>
-              <strong>No Whelmboard data yet</strong>
-              <p className={sharedStyles.accountMeta}>
-                Once competitive data is available, the global Whelmboard will populate here.
-              </p>
-            </div>
-          ) : (
-            <div className={styles.leaderboardBoardList}>
-              {leaderboardRows.map((row) => (
-                <LeaderboardRow
-                  key={row.entry.id}
-                  entry={row.entry}
-                  rank={row.rank}
-                  movement={
-                    row.movement.direction === "new" && seenChallengerIds.has(row.entry.id)
-                      ? { ...row.movement, direction: "same" as const }
-                      : row.movement
-                  }
-                  tab={leaderboardMetricTab}
-                  onClick={() => onSelectProfile({ entry: row.entry, rank: row.rank })}
-                />
-              ))}
-            </div>
-          )}
+            {leaderboardError ? (
+              <p className={sharedStyles.analyticsEmptyState}>{leaderboardError}</p>
+            ) : null}
 
-          {!leaderboardLoading && leaderboardHasMore ? (
-            <div className={styles.leaderboardFooter}>
-              <button
-                type="button"
-                className={sharedStyles.secondaryPlanButton}
-                onClick={onLoadMore}
-              >
-                Load more
-              </button>
-            </div>
-          ) : null}
-
-          {!leaderboardLoading && leaderboardAroundRows.length > 0 ? (
-            <div className={styles.wbAroundSection}>
-              <div className={styles.wbPaneHeader}>
-                <span className={sharedStyles.sectionLabel}>Around you</span>
+            {leaderboardLoading ? (
+              <div className={styles.leaderboardLoadingList}>
+                {Array.from({ length: 5 }).map((_, index) => (
+                  <div key={index} className={styles.leaderboardLoadingRow} aria-hidden="true" />
+                ))}
               </div>
+            ) : !leaderboardHasEntries ? (
+              <div className={styles.leaderboardEmptyState}>
+                <strong>No Whelmboard data yet</strong>
+                <p className={sharedStyles.accountMeta}>
+                  Once competitive data is available, the global Whelmboard will populate here.
+                </p>
+              </div>
+            ) : (
               <div className={styles.leaderboardBoardList}>
-                {leaderboardAroundRows.map((row) => (
+                {leaderboardRows.map((row) => (
                   <LeaderboardRow
-                    key={`around-${row.entry.id}-${row.rank}`}
+                    key={row.entry.id}
                     entry={row.entry}
                     rank={row.rank}
                     movement={
@@ -410,11 +454,71 @@ export default function WhelmboardTab({
                   />
                 ))}
               </div>
-            </div>
-          ) : null}
-        </div>
+            )}
 
-        {/* Bandana tier list */}
+            {!leaderboardLoading && leaderboardHasMore ? (
+              <div className={styles.leaderboardFooter}>
+                <button
+                  type="button"
+                  className={sharedStyles.secondaryPlanButton}
+                  onClick={onLoadMore}
+                >
+                  Load more
+                </button>
+              </div>
+            ) : null}
+
+            {!leaderboardLoading && leaderboardAroundRows.length > 0 ? (
+              <div className={styles.wbAroundSection}>
+                <div className={styles.wbPaneHeader}>
+                  <span className={sharedStyles.sectionLabel}>Around you</span>
+                </div>
+                <div className={styles.leaderboardBoardList}>
+                  {leaderboardAroundRows.map((row) => (
+                    <LeaderboardRow
+                      key={`around-${row.entry.id}-${row.rank}`}
+                      entry={row.entry}
+                      rank={row.rank}
+                      movement={
+                        row.movement.direction === "new" && seenChallengerIds.has(row.entry.id)
+                          ? { ...row.movement, direction: "same" as const }
+                          : row.movement
+                      }
+                      tab={leaderboardMetricTab}
+                      onClick={() => onSelectProfile({ entry: row.entry, rank: row.rank })}
+                    />
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </>
+      )}
+
+      {/* ── Friends surface ── */}
+      {surfaceTab === "friends" && (
+        <FriendsTab
+          friends={friends}
+          incomingRequests={incomingRequests}
+          searchResults={searchResults}
+          searchQuery={searchQuery}
+          searchLoading={searchLoading}
+          friendsLoading={friendsLoading}
+          error={friendsError}
+          sentRequestUids={sentRequestUids}
+          alreadyFriendUids={alreadyFriendUids}
+          onSearch={onFriendSearch}
+          onSendRequest={onSendFriendRequest}
+          onAccept={onAcceptFriendRequest}
+          onDecline={onDeclineFriendRequest}
+          onRemoveFriend={onRemoveFriend}
+          onNudge={onNudgeFriend}
+          canNudgeFriend={canNudgeFriend}
+        />
+      )}
+
+      {/* ── Bandana Tiers surface ── */}
+      {surfaceTab === "bandana" && (
         <div className={styles.wbBandanaPane}>
           <div className={styles.wbPaneHeader}>
             <span className={sharedStyles.sectionLabel}>Bandana tiers</span>
@@ -437,8 +541,7 @@ export default function WhelmboardTab({
             ))}
           </div>
         </div>
-
-      </div>
+      )}
     </AnimatedTabSection>
   );
 }

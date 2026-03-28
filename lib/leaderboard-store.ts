@@ -173,6 +173,7 @@ function decodeProfile(document: FirestoreDocument): LeaderboardProfile | null {
     updatedAtISO: String(decodeFirestoreValue(fields.updatedAtISO) ?? new Date().toISOString()),
     bestStreak: Number(decodeFirestoreValue(fields.bestStreak) ?? 0),
     totalFocusHours: Number(decodeFirestoreValue(fields.totalFocusHours) ?? 0),
+    weeklyXp: Number(decodeFirestoreValue(fields.weeklyXp) ?? 0),
   });
 }
 
@@ -193,6 +194,7 @@ function decodeSnapshotEntry(document: FirestoreDocument): LeaderboardSnapshotEn
     bandanaLabel: (decodeFirestoreValue(fields.bandanaLabel) as string | null) ?? null,
     bestStreak: Number(decodeFirestoreValue(fields.bestStreak) ?? 0),
     totalFocusHours: Number(decodeFirestoreValue(fields.totalFocusHours) ?? 0),
+    weeklyXp: Number(decodeFirestoreValue(fields.weeklyXp) ?? 0),
     snapshotDate: String(decodeFirestoreValue(fields.snapshotDate) ?? ""),
     metric: (decodeFirestoreValue(fields.metric) as LeaderboardMetric) ?? "xp",
     rank: Number(decodeFirestoreValue(fields.rank) ?? 0),

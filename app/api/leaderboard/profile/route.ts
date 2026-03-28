@@ -20,6 +20,7 @@ export async function POST(request: NextRequest) {
       createdAtISO?: string;
       bestStreak?: number;
       totalFocusHours?: number;
+      weeklyXp?: number;
     };
 
     if (!body.userId || typeof body.userId !== "string") {
@@ -42,6 +43,7 @@ export async function POST(request: NextRequest) {
           : new Date().toISOString(),
       bestStreak: typeof body.bestStreak === "number" ? body.bestStreak : 0,
       totalFocusHours: typeof body.totalFocusHours === "number" ? body.totalFocusHours : 0,
+      weeklyXp: typeof body.weeklyXp === "number" ? body.weeklyXp : 0,
     });
 
     await saveLeaderboardProfile(authHeader, profile);

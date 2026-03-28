@@ -111,6 +111,7 @@ import {
 } from "@/lib/xp-engine";
 import { useNotes } from "@/hooks/useNotes";
 import { useLeaderboard } from "@/hooks/useLeaderboard";
+import { useFriends } from "@/hooks/useFriends";
 import { usePageShellViewModel } from "@/hooks/usePageShellViewModel";
 import { usePlannedBlocks } from "@/hooks/usePlannedBlocks";
 import { useAccountSettings } from "@/hooks/useAccountSettings";
@@ -1642,6 +1643,7 @@ export default function HomePage() {
     showMascot,
     dismissMascot,
     xpByDay,
+    weeklyXp,
     lifetimeXpSummary,
     xpPops,
     triggerXPPop,
@@ -2368,7 +2370,27 @@ export default function HomePage() {
     historicalStreaksByDay,
     sessions,
     sessionsSynced,
+    weeklyXp,
   });
+  const {
+    friends,
+    incomingRequests: friendIncomingRequests,
+    searchResults: friendSearchResults,
+    searchQuery: friendSearchQuery,
+    searchLoading: friendSearchLoading,
+    friendsLoading,
+    error: friendsError,
+    sentRequestUids,
+    alreadyFriendUids,
+    handleSearch: handleFriendSearch,
+    handleSendRequest: handleSendFriendRequest,
+    handleAccept: handleAcceptFriendRequest,
+    handleDecline: handleDeclineFriendRequest,
+    handleRemoveFriend,
+    handleNudge: handleNudgeFriend,
+    canNudgeFriend,
+  } = useFriends(user, profileDisplayName);
+
   const notificationsBlocked = dailyPlanningLocked || dailyPlanningOpen || dailyPlanningPreviewOpen;
   const {
     showIntroSplash,
@@ -2723,6 +2745,22 @@ export default function HomePage() {
               seenChallengerIds={seenChallengerIds}
               onSelectProfile={setSelectedLbProfile}
               onLoadMore={() => void handleLeaderboardLoadMore()}
+              friends={friends}
+              incomingRequests={friendIncomingRequests}
+              searchResults={friendSearchResults}
+              searchQuery={friendSearchQuery}
+              searchLoading={friendSearchLoading}
+              friendsLoading={friendsLoading}
+              friendsError={friendsError}
+              sentRequestUids={sentRequestUids}
+              alreadyFriendUids={alreadyFriendUids}
+              onFriendSearch={handleFriendSearch}
+              onSendFriendRequest={handleSendFriendRequest}
+              onAcceptFriendRequest={handleAcceptFriendRequest}
+              onDeclineFriendRequest={handleDeclineFriendRequest}
+              onRemoveFriend={handleRemoveFriend}
+              onNudgeFriend={handleNudgeFriend}
+              canNudgeFriend={canNudgeFriend}
             />
           )}
 

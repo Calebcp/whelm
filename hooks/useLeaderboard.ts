@@ -69,6 +69,7 @@ type UseLeaderboardOptions = {
   historicalStreaksByDay: Map<string, number>;
   sessions: SessionDoc[];
   sessionsSynced: boolean;
+  weeklyXp: number;
 };
 
 const LEADERBOARD_SEED_DATA: ReadonlyArray<{
@@ -186,6 +187,7 @@ export function useLeaderboard({
   historicalStreaksByDay,
   sessions,
   sessionsSynced,
+  weeklyXp,
 }: UseLeaderboardOptions) {
   const [leaderboardMetricTab, setLeaderboardMetricTab] = useState<LeaderboardMetricTab>("xp");
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
@@ -594,6 +596,7 @@ export function useLeaderboard({
               : new Date().toISOString(),
             bestStreak: myBestStreak,
             totalFocusHours: myTotalFocusHours,
+            weeklyXp,
           }),
           signal: controller.signal,
         });
@@ -618,6 +621,7 @@ export function useLeaderboard({
     lifetimeXpSummary.totalXp,
     myBestStreak,
     myTotalFocusHours,
+    weeklyXp,
     profileDisplayName,
     user,
   ]);

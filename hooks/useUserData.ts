@@ -264,6 +264,19 @@ export function useUserData({
     protectedStreakDateKeys,
   ]);
 
+  const weeklyXp = useMemo(() => {
+    const now = new Date();
+    const dayOfWeek = now.getDay();
+    const daysFromMonday = (dayOfWeek + 6) % 7;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - daysFromMonday);
+    const mondayKey = monday.toISOString().slice(0, 10);
+    const todayKey = dayKeyLocal(now);
+    return xpByDay
+      .filter((day) => day.dateKey >= mondayKey && day.dateKey <= todayKey)
+      .reduce((sum, day) => sum + day.totalXp, 0);
+  }, [xpByDay]);
+
   const lifetimeXpSummary = useMemo<LifetimeXpSummary>(() => {
     const totalXp = xpByDay.reduce((sum, day) => sum + day.totalXp, 0);
     const todayKey = dayKeyLocal(new Date());
@@ -313,6 +326,7 @@ export function useUserData({
     dismissMascot,
     // XP
     xpByDay,
+    weeklyXp,
     lifetimeXpSummary,
     // Reward / celebration state
     xpPops,

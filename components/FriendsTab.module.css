@@ -1,0 +1,391 @@
+.friendsRoot {
+  display: grid;
+  gap: 16px;
+}
+
+/* ── Search ─────────────────────────────────────────── */
+
+.searchWrap {
+  position: relative;
+}
+
+.searchField {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  height: 46px;
+  border-radius: 14px;
+  border: 1px solid rgba(180, 160, 255, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+  transition: border-color 140ms ease;
+}
+
+.searchFieldFocused {
+  border-color: rgba(180, 140, 255, 0.48);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.searchIcon {
+  font-size: 0.88rem;
+  flex-shrink: 0;
+  opacity: 0.65;
+}
+
+.searchInput {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #fff;
+  font-size: 0.9rem;
+  font-family: inherit;
+}
+
+.searchInput::placeholder {
+  color: rgba(200, 185, 255, 0.4);
+}
+
+.searchDropdown {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 6px);
+  border-radius: 14px;
+  border: 1px solid rgba(180, 160, 255, 0.2);
+  background: rgba(22, 14, 52, 0.97);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.48);
+  overflow: hidden;
+  z-index: 40;
+}
+
+.searchHint {
+  padding: 14px 16px;
+  color: rgba(180, 165, 255, 0.55);
+  font-size: 0.84rem;
+  margin: 0;
+}
+
+.searchResultRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(180, 160, 255, 0.1);
+}
+
+.searchResultRow:last-child {
+  border-bottom: none;
+}
+
+.searchResultInfo {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.searchResultName {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.searchResultMeta {
+  font-size: 0.74rem;
+  color: rgba(180, 165, 255, 0.6);
+}
+
+.addButton {
+  border: 1px solid rgba(160, 120, 255, 0.5);
+  border-radius: 999px;
+  padding: 6px 14px;
+  background: rgba(160, 100, 255, 0.12);
+  color: rgba(210, 185, 255, 0.9);
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  transition: background 120ms ease;
+  flex-shrink: 0;
+}
+
+.addButton:hover {
+  background: rgba(160, 100, 255, 0.24);
+}
+
+.alreadyFriendChip,
+.requestSentChip {
+  border-radius: 999px;
+  padding: 5px 11px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+.alreadyFriendChip {
+  background: rgba(80, 180, 130, 0.16);
+  color: rgba(120, 230, 180, 0.8);
+  border: 1px solid rgba(100, 220, 160, 0.2);
+}
+
+.requestSentChip {
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(200, 185, 255, 0.55);
+  border: 1px solid rgba(180, 160, 255, 0.14);
+}
+
+/* ── Section ─────────────────────────────────────────── */
+
+.section {
+  display: grid;
+  gap: 8px;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 4px;
+}
+
+.countBadge {
+  border: 1px solid rgba(180, 160, 255, 0.18);
+  border-radius: 999px;
+  padding: 4px 10px;
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(210, 195, 255, 0.8);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+/* ── Requests ─────────────────────────────────────────── */
+
+.requestList {
+  display: grid;
+  gap: 6px;
+}
+
+.requestRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 220, 100, 0.18);
+  background: rgba(255, 210, 80, 0.06);
+}
+
+.requestUsername {
+  flex: 1;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.requestActions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.acceptButton,
+.declineButton {
+  border-radius: 999px;
+  padding: 6px 13px;
+  font-size: 0.76rem;
+  font-weight: 800;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  transition: background 120ms ease;
+}
+
+.acceptButton {
+  border: 1px solid rgba(100, 220, 160, 0.4);
+  background: rgba(80, 180, 120, 0.18);
+  color: rgba(140, 240, 190, 0.9);
+}
+
+.acceptButton:hover {
+  background: rgba(80, 180, 120, 0.3);
+}
+
+.declineButton {
+  border: 1px solid rgba(255, 155, 155, 0.22);
+  background: rgba(200, 60, 60, 0.1);
+  color: rgba(255, 170, 170, 0.8);
+}
+
+.declineButton:hover {
+  background: rgba(200, 60, 60, 0.18);
+}
+
+/* ── Friends list ─────────────────────────────────────── */
+
+.friendList {
+  display: grid;
+  gap: 6px;
+}
+
+.friendRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  padding: 0 12px 0 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(180, 160, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.friendRank {
+  flex-shrink: 0;
+  width: 28px;
+  font-size: 0.76rem;
+  font-weight: 900;
+  color: rgba(220, 210, 255, 0.6);
+  text-align: center;
+}
+
+.friendInfo {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.friendUsername {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.friendMeta {
+  font-size: 0.72rem;
+  color: rgba(180, 165, 255, 0.55);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.friendRight {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.friendWeeklyXp {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: rgba(220, 210, 255, 0.9);
+  white-space: nowrap;
+}
+
+.friendActions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.nudgeButton {
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  cursor: pointer;
+  letter-spacing: 0.03em;
+  transition: background 120ms ease, opacity 120ms ease;
+  border: 1px solid rgba(160, 120, 255, 0.36);
+  background: rgba(140, 90, 255, 0.14);
+  color: rgba(210, 185, 255, 0.9);
+  white-space: nowrap;
+}
+
+.nudgeButton:hover:not(:disabled) {
+  background: rgba(140, 90, 255, 0.26);
+}
+
+.nudgeButtonCooling {
+  opacity: 0.42;
+  cursor: default;
+  border-color: rgba(180, 160, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(200, 185, 255, 0.45);
+}
+
+.removeButton {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 155, 155, 0.16);
+  background: rgba(200, 60, 60, 0.08);
+  color: rgba(255, 170, 170, 0.55);
+  font-size: 0.62rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 120ms ease, color 120ms ease;
+  flex-shrink: 0;
+}
+
+.removeButton:hover {
+  background: rgba(200, 60, 60, 0.2);
+  color: rgba(255, 170, 170, 0.85);
+}
+
+/* ── Loading / Empty ─────────────────────────────────── */
+
+.loadingList {
+  display: grid;
+  gap: 6px;
+}
+
+.loadingRow {
+  height: 52px;
+  border-radius: 14px;
+  background:
+    linear-gradient(90deg, rgba(60, 40, 120, 0.5), rgba(120, 80, 200, 0.3), rgba(60, 40, 120, 0.5));
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.emptyState {
+  border: 1px dashed rgba(180, 160, 255, 0.22);
+  border-radius: 18px;
+  padding: 24px 20px;
+  background: rgba(255, 255, 255, 0.04);
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  text-align: center;
+}
+
+.emptyState strong {
+  color: #fff;
+  font-size: 1rem;
+}
+
+.errorText {
+  font-size: 0.84rem;
+  color: rgba(255, 170, 170, 0.8);
+  padding: 0 4px;
+  margin: 0;
+}

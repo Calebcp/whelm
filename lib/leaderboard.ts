@@ -17,6 +17,8 @@ export type LeaderboardProfile = {
   bestStreak: number;
   /** Lifetime focus minutes ÷ 60, rounded — used in public profile cards. */
   totalFocusHours: number;
+  /** XP earned in the current ISO week (Mon–Sun). Reset every Monday. */
+  weeklyXp: number;
 };
 
 export type LeaderboardMovementDirection = "up" | "down" | "same" | "new";
@@ -78,6 +80,7 @@ export function buildLeaderboardProfile(input: {
   updatedAtISO?: string;
   bestStreak?: number;
   totalFocusHours?: number;
+  weeklyXp?: number;
 }): LeaderboardProfile {
   const bandana = getStreakBandanaTier(input.currentStreak);
 
@@ -94,6 +97,7 @@ export function buildLeaderboardProfile(input: {
     bandanaLabel: bandana?.label ?? null,
     bestStreak: Math.max(0, Math.round(input.bestStreak ?? 0)),
     totalFocusHours: Math.max(0, Math.round(input.totalFocusHours ?? 0)),
+    weeklyXp: Math.max(0, Math.round(input.weeklyXp ?? 0)),
   };
 }
 
