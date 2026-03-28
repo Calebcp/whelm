@@ -468,6 +468,7 @@ export function usePlannedBlocks({
       return;
     }
     setDayPortalComposerOpen(true);
+    setMobileBlockSheetOpen(true);
     setPlanTitle("");
     setPlanNote("");
     setPlanAttachmentCount(0);
