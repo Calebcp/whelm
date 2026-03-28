@@ -256,6 +256,7 @@ export type WhelmboardTabProps = {
   leaderboardLoading: boolean;
   leaderboardHasEntries: boolean;
   leaderboardHasMore: boolean;
+  leaderboardIsLive: boolean;
   seenChallengerIds: Set<string>;
   onSelectProfile: (row: { entry: LeaderboardEntry; rank: number }) => void;
   onLoadMore: () => void;
@@ -301,6 +302,7 @@ export default function WhelmboardTab({
   leaderboardLoading,
   leaderboardHasEntries,
   leaderboardHasMore,
+  leaderboardIsLive,
   seenChallengerIds,
   onSelectProfile,
   onLoadMore,
@@ -343,6 +345,12 @@ export default function WhelmboardTab({
         </div>
         {surfaceTab === "global" && (
           <div className={styles.wbHeaderRight}>
+            {leaderboardIsLive && (
+              <div className={styles.wbLiveDot} title="Live updates" aria-label="Live">
+                <span className={styles.wbLivePulse} aria-hidden="true" />
+                <span className={styles.wbLiveLabel}>Live</span>
+              </div>
+            )}
             <div className={styles.wbRankBadge}>
               <span>{leaderboardMetricTab === "xp" ? "XP" : "Streak"}</span>
               <strong>#{leaderboardCurrentUserRank || "--"}</strong>

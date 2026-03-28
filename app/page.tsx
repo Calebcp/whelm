@@ -2355,6 +2355,7 @@ export default function HomePage() {
     leaderboardLoading,
     leaderboardHasEntries,
     leaderboardHasMore,
+    leaderboardIsLive,
     seenChallengerIds,
     handleLeaderboardLoadMore,
   } = useLeaderboard({
@@ -2743,6 +2744,7 @@ export default function HomePage() {
               leaderboardLoading={leaderboardLoading}
               leaderboardHasEntries={leaderboardHasEntries}
               leaderboardHasMore={leaderboardHasMore}
+              leaderboardIsLive={leaderboardIsLive}
               seenChallengerIds={seenChallengerIds}
               onSelectProfile={setSelectedLbProfile}
               onLoadMore={() => void handleLeaderboardLoadMore()}
