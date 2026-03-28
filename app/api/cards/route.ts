@@ -4,7 +4,7 @@ const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
 const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
 const databaseId = process.env.FIREBASE_DATABASE_ID?.trim() || "(default)";
 
-type ReviewOutcome = "forgot" | "hard" | "easy";
+type ReviewOutcome = "forgot" | "hard" | "good" | "easy";
 type CardZone = "learning" | "practice" | "mastery" | "weak";
 type CardLevel = 1 | 2 | 3 | 4;
 
@@ -21,6 +21,11 @@ type WhelCard = {
   reviewCount: number;
   correctCount: number;
   lastOutcome: ReviewOutcome | null;
+  easeFactor?: number;
+  interval?: number;
+  repetitions?: number;
+  dueDate?: number;
+  lastReviewed?: number | null;
 };
 
 type CardsPayload = {
@@ -83,8 +88,25 @@ function normalizeCards(cards: WhelCard[]) {
       reviewCount: Math.max(0, Math.round(Number(card.reviewCount) || 0)),
       correctCount: Math.max(0, Math.round(Number(card.correctCount) || 0)),
       lastOutcome:
-        card.lastOutcome === "forgot" || card.lastOutcome === "hard" || card.lastOutcome === "easy"
+        card.lastOutcome === "forgot" ||
+        card.lastOutcome === "hard" ||
+        card.lastOutcome === "good" ||
+        card.lastOutcome === "easy"
           ? card.lastOutcome
+          : null,
+      easeFactor:
+        Number.isFinite(Number(card.easeFactor)) && Number(card.easeFactor) >= 1.3
+          ? Number(card.easeFactor)
+          : 2.5,
+      interval:
+        Number.isFinite(Number(card.interval)) && Number(card.interval) >= 1
+          ? Math.round(Number(card.interval))
+          : 1,
+      repetitions: Math.max(0, Math.round(Number(card.repetitions) || 0)),
+      dueDate: Number.isFinite(Number(card.dueDate)) ? Math.round(Number(card.dueDate)) : Date.now(),
+      lastReviewed:
+        card.lastReviewed === null || Number.isFinite(Number(card.lastReviewed))
+          ? (card.lastReviewed ?? null)
           : null,
     }))
     .sort((a, b) => a.createdAt - b.createdAt);

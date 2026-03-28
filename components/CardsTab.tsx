@@ -7,6 +7,8 @@ import {
   applyReview,
   createCard,
   getCardsForReview,
+  loadCards,
+  normalizeCards,
   saveCards,
   type ReviewOutcome,
   type WhelCard,
@@ -57,6 +59,14 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
 
   useEffect(() => {
     setLoading(true);
+    void loadCards(uid)
+      .then((loaded) => {
+        setCards(loaded);
+        setStatus("");
+      })
+      .catch(() => undefined)
+      .finally(() => setLoading(false));
+
     const unsub = onSnapshot(
       doc(db, "userCards", uid),
       (snap) => {
@@ -72,7 +82,7 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
         try {
           const parsed = JSON.parse(json) as WhelCard[];
           if (Array.isArray(parsed)) {
-            setCards(parsed);
+            setCards(normalizeCards(parsed));
             setStatus("");
           }
         } catch {

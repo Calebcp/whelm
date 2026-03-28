@@ -188,10 +188,17 @@ export function useUserData({
   const streakQualifiedDateKeys = useMemo(() => {
     const todayKey = dayKeyLocal(new Date());
     const qualifyingDays = new Set(protectedStreakDateKeys);
+    const candidateDays = new Set<string>([
+      ...sessionMinutesByDay.keys(),
+      ...completedBlocksByDay.keys(),
+      ...noteWordsByDay.keys(),
+      ...protectedStreakDateKeys,
+    ]);
 
-    for (const [dateKey, minutes] of sessionMinutesByDay.entries()) {
+    for (const dateKey of candidateDays) {
+      const minutes = sessionMinutesByDay.get(dateKey) ?? 0;
       if (dateKey < STREAK_RULE_V2_START_DATE) {
-        qualifyingDays.add(dateKey);
+        if (minutes > 0) qualifyingDays.add(dateKey);
         continue;
       }
 
@@ -270,7 +277,7 @@ export function useUserData({
     const daysFromMonday = (dayOfWeek + 6) % 7;
     const monday = new Date(now);
     monday.setDate(now.getDate() - daysFromMonday);
-    const mondayKey = monday.toISOString().slice(0, 10);
+    const mondayKey = dayKeyLocal(monday);
     const todayKey = dayKeyLocal(now);
     return xpByDay
       .filter((day) => day.dateKey >= mondayKey && day.dateKey <= todayKey)

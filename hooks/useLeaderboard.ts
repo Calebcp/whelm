@@ -12,8 +12,10 @@ import {
 } from "@/lib/analytics-tracker";
 import type { AppTab } from "@/lib/app-tabs";
 import { resolveApiUrl } from "@/lib/api-base";
+import { dayKeyLocal } from "@/lib/date-utils";
 import { db } from "@/lib/firebase";
 import {
+  buildLeaderboardProfile,
   type LeaderboardMetric,
   type LeaderboardPageResponse,
   type LeaderboardSnapshotEntry,
@@ -632,7 +634,7 @@ export function useLeaderboard({
 
   // ── Real-time onSnapshot listener ──────────────────────────────────────────
   useEffect(() => {
-    if (activeTab !== "leaderboard" || !user) {
+    if (activeTab !== "leaderboard" || !user || leaderboardMetricTab !== "xp") {
       leaderboardIsLiveRef.current = false;
       setLeaderboardIsLive(false);
       return;
@@ -642,32 +644,44 @@ export function useLeaderboard({
     const q = query(
       collection(db, "leaderboardProfiles"),
       orderBy("totalXp", "desc"),
-      limit(50),
+      limit(200),
     );
 
     setLeaderboardLoading(true);
     const unsub = onSnapshot(
       q,
       (snapshot) => {
-        const todayKey = new Date().toISOString().slice(0, 10);
+        const todayKey = dayKeyLocal(new Date());
         const sorted = snapshot.docs.map((docSnap) => {
           const d = docSnap.data() as Record<string, unknown>;
-          return {
+          return buildLeaderboardProfile({
             userId: docSnap.id,
-            username: typeof d.username === "string" ? d.username : "",
-            usernameLower: typeof d.usernameLower === "string" ? d.usernameLower : "",
-            totalXp: typeof d.totalXp === "number" ? Math.max(0, d.totalXp) : 0,
-            currentStreak: typeof d.currentStreak === "number" ? Math.max(0, d.currentStreak) : 0,
-            level: typeof d.level === "number" ? Math.max(1, d.level) : 1,
+            username: typeof d.username === "string" ? d.username : "Whelm user",
+            totalXp: typeof d.totalXp === "number" ? d.totalXp : 0,
+            currentStreak: typeof d.currentStreak === "number" ? d.currentStreak : 0,
+            level: typeof d.level === "number" ? d.level : 1,
             createdAtISO: typeof d.createdAtISO === "string" ? d.createdAtISO : new Date().toISOString(),
             updatedAtISO: typeof d.updatedAtISO === "string" ? d.updatedAtISO : new Date().toISOString(),
-            bandanaColor: typeof d.bandanaColor === "string" ? d.bandanaColor : null,
-            bandanaLabel: typeof d.bandanaLabel === "string" ? d.bandanaLabel : null,
             bestStreak: typeof d.bestStreak === "number" ? d.bestStreak : 0,
             totalFocusHours: typeof d.totalFocusHours === "number" ? d.totalFocusHours : 0,
-            weeklyXp: typeof d.weeklyXp === "number" ? Math.max(0, d.weeklyXp) : 0,
-          };
-        });
+            weeklyXp: typeof d.weeklyXp === "number" ? d.weeklyXp : 0,
+          });
+        })
+        .sort((left, right) => compareLeaderboardEntries({
+          id: left.userId,
+          username: left.username,
+          createdAtISO: left.createdAtISO,
+          level: left.level,
+          totalXp: left.totalXp,
+          currentStreak: left.currentStreak,
+        }, {
+          id: right.userId,
+          username: right.username,
+          createdAtISO: right.createdAtISO,
+          level: right.level,
+          totalXp: right.totalXp,
+          currentStreak: right.currentStreak,
+        }, "xp"));
 
         const entries: LeaderboardSnapshotEntry[] = sorted.map((profile, index) => ({
           ...profile,
@@ -710,7 +724,7 @@ export function useLeaderboard({
       leaderboardIsLiveRef.current = false;
       setLeaderboardIsLive(false);
     };
-  }, [activeTab, user, currentUserId]);
+  }, [activeTab, currentUserId, leaderboardMetricTab, user]);
 
   useEffect(() => {
     if (activeTab !== "leaderboard") return;

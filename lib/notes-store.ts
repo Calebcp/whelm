@@ -220,7 +220,21 @@ export async function loadNotes(user: User): Promise<NotesSyncResult> {
 
   try {
     const snap = await getDocs(collection(db, "userNotes", user.uid, "notes"));
-    const cloudNotes = normalizeNotes(snap.docs.map((d) => d.data() as WorkspaceNote));
+    let cloudNotes = normalizeNotes(snap.docs.map((d) => d.data() as WorkspaceNote));
+
+    if (cloudNotes.length === 0) {
+      const legacySnap = await getDoc(firestoreDoc(db, "userNotes", user.uid));
+      const raw = legacySnap.data()?.notesJson;
+      if (typeof raw === "string") {
+        try {
+          const parsed = JSON.parse(raw) as WorkspaceNote[];
+          cloudNotes = Array.isArray(parsed) ? normalizeNotes(parsed) : [];
+        } catch {
+          cloudNotes = [];
+        }
+      }
+    }
+
     const mergedNotes = mergeNotesPreferNewest(localNotes, cloudNotes);
     writeLocalNotes(user.uid, mergedNotes);
 
@@ -232,6 +246,14 @@ export async function loadNotes(user: User): Promise<NotesSyncResult> {
       await Promise.allSettled(
         toSync.map((n) =>
           setDoc(firestoreDoc(db, "userNotes", user.uid, "notes", n.id), n, { merge: true }),
+        ),
+      );
+    }
+
+    if (snap.empty && cloudNotes.length > 0) {
+      await Promise.allSettled(
+        cloudNotes.map((note) =>
+          setDoc(firestoreDoc(db, "userNotes", user.uid, "notes", note.id), note, { merge: true }),
         ),
       );
     }

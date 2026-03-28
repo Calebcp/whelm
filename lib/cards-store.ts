@@ -65,6 +65,10 @@ function storageKey(uid: string) {
   return `whelm_cards_${uid}`;
 }
 
+function legacyStorageKey(uid: string) {
+  return `whelm:cards:${uid}`;
+}
+
 function clampLevel(level: number): CardLevel {
   return Math.min(4, Math.max(1, Math.round(level))) as CardLevel;
 }
@@ -115,7 +119,7 @@ function normalizeCard(input: WhelCard): WhelCard {
   };
 }
 
-function normalizeCards(cards: WhelCard[]) {
+export function normalizeCards(cards: WhelCard[]) {
   if (!Array.isArray(cards)) return [] as WhelCard[];
 
   const merged = new Map<string, WhelCard>();
@@ -138,7 +142,7 @@ function normalizeCards(cards: WhelCard[]) {
 
 function readLocalCards(uid: string) {
   try {
-    const raw = window.localStorage.getItem(storageKey(uid));
+    const raw = window.localStorage.getItem(storageKey(uid)) ?? window.localStorage.getItem(legacyStorageKey(uid));
     const parsed = raw ? (JSON.parse(raw) as WhelCard[]) : [];
     return normalizeCards(parsed);
   } catch {
@@ -147,7 +151,9 @@ function readLocalCards(uid: string) {
 }
 
 function writeLocalCards(uid: string, cards: WhelCard[]) {
-  window.localStorage.setItem(storageKey(uid), JSON.stringify(normalizeCards(cards)));
+  const normalized = JSON.stringify(normalizeCards(cards));
+  window.localStorage.setItem(storageKey(uid), normalized);
+  window.localStorage.setItem(legacyStorageKey(uid), normalized);
 }
 
 async function authorizedCardsRequest(uid: string, input: string, init: RequestInit, timeoutMs = 12000) {

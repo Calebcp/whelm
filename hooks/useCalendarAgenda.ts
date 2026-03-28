@@ -299,10 +299,10 @@ export function useCalendarAgenda({
       calendarDaySummary({
         dateKey: selectedDateKey,
         entries: selectedDateEntries,
-        plannedBlocks: selectedDatePlans,
+        plannedBlocks: selectedDatePlanGroups.visible,
         focusedMinutes: selectedDateFocusedMinutes,
       }),
-    [selectedDateEntries, selectedDateFocusedMinutes, selectedDateKey, selectedDatePlans],
+    [selectedDateEntries, selectedDateFocusedMinutes, selectedDateKey, selectedDatePlanGroups.visible],
   );
 
   const isSelectedDateToday = selectedDateKey === dayKeyLocal(new Date());
