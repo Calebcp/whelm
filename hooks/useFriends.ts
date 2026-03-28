@@ -117,7 +117,7 @@ export function useFriends(user: User | null, profileDisplayName: string) {
       }
       setSearchLoading(true);
       try {
-        const results = await searchUsersByUsername(q);
+        const results = await searchUsersByUsername(q.toLowerCase().trim());
         setSearchResults(results.filter((r) => r.userId !== user?.uid));
       } catch {
         setSearchResults([]);

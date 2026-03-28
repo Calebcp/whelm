@@ -99,9 +99,6 @@ service cloud.firestore {
         && request.resource.data.userId == request.auth.uid
         && request.resource.data.username is string
         && request.resource.data.usernameLower is string
-        && request.resource.data.totalXp is int
-        && request.resource.data.currentStreak is int
-        && request.resource.data.level is int
         && request.resource.data.createdAtISO is string
         && request.resource.data.updatedAtISO is string;
 

@@ -259,7 +259,16 @@ async function listAllProfiles(authHeader: string) {
     pageToken = page.nextPageToken || undefined;
   } while (pageToken);
 
-  return all;
+  // Deduplicate by userId — REST API pagination can return the same doc at a
+  // page boundary if a write happens between pages. Keep highest-XP version.
+  const byId = new Map<string, LeaderboardProfile>();
+  for (const profile of all) {
+    const existing = byId.get(profile.userId);
+    if (!existing || profile.totalXp > existing.totalXp) {
+      byId.set(profile.userId, profile);
+    }
+  }
+  return [...byId.values()];
 }
 
 async function latestSnapshotDate(authHeader: string, metric: LeaderboardMetric) {
