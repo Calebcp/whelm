@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   createUserWithEmailAndPassword,
+  deleteUser,
   onAuthStateChanged,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
@@ -13,6 +14,8 @@ import {
 import SenseiFigure from "@/components/SenseiFigure";
 import WhelmRitualScene from "@/components/WhelmRitualScene";
 import { auth } from "@/lib/firebase";
+import { resolveApiUrl } from "@/lib/api-base";
+import { validateUsername } from "@/lib/username";
 import styles from "./page.module.css";
 
 const AUTH_REQUEST_TIMEOUT_MS = 15000;
@@ -48,9 +51,12 @@ export default function LoginPage() {
       return;
     }
 
-    if (mode === "signup" && trimmedUsername.length > 16) {
-      setStatus("Username must be 16 characters or less.");
-      return;
+    if (mode === "signup") {
+      const validation = validateUsername(trimmedUsername);
+      if (!validation.ok) {
+        setStatus(validation.message);
+        return;
+      }
     }
 
     if (!password.trim()) {
@@ -78,8 +84,32 @@ export default function LoginPage() {
                 password,
               );
 
+              const normalizedUsername = validateUsername(trimmedUsername);
+              if (!normalizedUsername.ok) {
+                await deleteUser(credentials.user).catch(() => undefined);
+                throw new Error(normalizedUsername.message);
+              }
+
+              const token = await credentials.user.getIdToken();
+              const checkUrl = new URL(resolveApiUrl("/api/username/check"), window.location.origin);
+              checkUrl.searchParams.set("username", normalizedUsername.username);
+              checkUrl.searchParams.set("excludeUserId", credentials.user.uid);
+              const usernameCheckResponse = await fetch(checkUrl.toString(), {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
+              });
+              const usernameCheckBody = (await usernameCheckResponse.json().catch(() => null)) as
+                | { available?: boolean; message?: string }
+                | null;
+
+              if (!usernameCheckResponse.ok || !usernameCheckBody?.available) {
+                await deleteUser(credentials.user).catch(() => undefined);
+                throw new Error(usernameCheckBody?.message || "That username is already taken.");
+              }
+
               await updateProfile(credentials.user, {
-                displayName: trimmedUsername,
+                displayName: normalizedUsername.username,
               });
             })()
           : signInWithEmailAndPassword(auth, trimmedEmail, password);
@@ -276,6 +306,7 @@ export default function LoginPage() {
                     placeholder="yourname"
                     className={styles.input}
                     autoComplete="username"
+                    maxLength={16}
                   />
                 </>
               )}

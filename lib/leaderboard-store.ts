@@ -13,6 +13,7 @@ import {
   type LeaderboardSnapshotEntry,
 } from "@/lib/leaderboard";
 import { STREAK_BANDANA_TIERS, getStreakBandanaTier } from "@/lib/streak-bandanas";
+import { usernameKey } from "@/lib/username";
 
 type FirestoreValue =
   | { stringValue: string }
@@ -277,7 +278,12 @@ function buildBandanaHolders(profiles: LeaderboardProfile[]): LeaderboardBandana
   return STREAK_BANDANA_TIERS.map((tier) => {
     const topEntry =
       [...profiles]
-        .filter((profile) => getStreakBandanaTier(profile.currentStreak)?.color === tier.color)
+        .filter((profile) => {
+          if (tier.color === "yellow") {
+            return profile.currentStreak <= 1;
+          }
+          return getStreakBandanaTier(profile.currentStreak)?.color === tier.color;
+        })
         .sort((left, right) => compareLeaderboardProfiles(left, right, "xp"))[0] ?? null;
 
     return {
@@ -311,6 +317,20 @@ export async function searchLeaderboardProfiles(authHeader: string, rawTerm: str
     })
     .sort((left, right) => compareLeaderboardProfiles(left, right, "xp"))
     .slice(0, Math.min(25, Math.max(1, limit)));
+}
+
+export async function isLeaderboardUsernameAvailable(
+  authHeader: string,
+  rawUsername: string,
+  excludeUserId?: string | null,
+) {
+  const key = usernameKey(rawUsername);
+  if (!key) return false;
+
+  const profiles = await listAllProfiles(authHeader);
+  return !profiles.some(
+    (profile) => profile.userId !== excludeUserId && usernameKey(profile.username) === key,
+  );
 }
 
 async function latestSnapshotDate(authHeader: string, metric: LeaderboardMetric) {

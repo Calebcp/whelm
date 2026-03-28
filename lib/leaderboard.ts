@@ -1,4 +1,5 @@
 import { getStreakBandanaTier } from "@/lib/streak-bandanas";
+import { normalizeUsername, usernameKey } from "@/lib/username";
 
 export type LeaderboardMetric = "xp" | "streak";
 
@@ -95,11 +96,12 @@ export function buildLeaderboardProfile(input: {
   weeklyXp?: number;
 }): LeaderboardProfile {
   const bandana = getStreakBandanaTier(input.currentStreak);
+  const username = normalizeUsername(input.username) || "Whelm user";
 
   return {
     userId: input.userId,
-    username: input.username.trim() || "Whelm user",
-    usernameLower: (input.username.trim() || "Whelm user").toLowerCase(),
+    username,
+    usernameLower: usernameKey(username),
     totalXp: Math.max(0, Math.round(input.totalXp)),
     currentStreak: Math.max(0, Math.round(input.currentStreak)),
     level: Math.max(1, Math.round(input.level)),

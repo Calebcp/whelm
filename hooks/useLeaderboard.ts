@@ -175,6 +175,13 @@ function resolvePersistentMovement(
   return current;
 }
 
+function matchesBandanaBucket(streak: number, color: string) {
+  if (color === "yellow") {
+    return streak <= 1;
+  }
+  return getStreakBandanaTier(streak)?.color === color;
+}
+
 export function useLeaderboard({
   activeTab,
   user,
@@ -470,7 +477,7 @@ export function useLeaderboard({
     return STREAK_BANDANA_TIERS.map((tier) => {
       const topEntry =
         [...sourceEntries]
-          .filter((entry) => getStreakBandanaTier(entry.currentStreak)?.color === tier.color)
+          .filter((entry) => matchesBandanaBucket(entry.currentStreak, tier.color))
           .sort((left, right) => compareLeaderboardEntries(left, right, "xp"))[0] ?? null;
 
       return {

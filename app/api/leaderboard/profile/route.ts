@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { buildLeaderboardProfile } from "@/lib/leaderboard";
-import { saveLeaderboardProfile } from "@/lib/leaderboard-store";
+import { isLeaderboardUsernameAvailable, saveLeaderboardProfile } from "@/lib/leaderboard-store";
 import { requireAnalyticsAuthHeader } from "@/lib/analytics-aggregation";
+import { validateUsername } from "@/lib/username";
 
 function jsonError(message: string, status = 500) {
   return NextResponse.json({ error: message }, { status });
@@ -31,9 +32,23 @@ export async function POST(request: NextRequest) {
       return jsonError("Missing username.", 400);
     }
 
+    const validation = validateUsername(body.username);
+    if (!validation.ok) {
+      return jsonError(validation.message, 400);
+    }
+
+    const available = await isLeaderboardUsernameAvailable(
+      authHeader,
+      validation.username,
+      body.userId,
+    );
+    if (!available) {
+      return jsonError("That username is already taken.", 409);
+    }
+
     const profile = buildLeaderboardProfile({
       userId: body.userId,
-      username: body.username,
+      username: validation.username,
       totalXp: typeof body.totalXp === "number" ? body.totalXp : 0,
       currentStreak: typeof body.currentStreak === "number" ? body.currentStreak : 0,
       level: typeof body.level === "number" ? body.level : 1,
