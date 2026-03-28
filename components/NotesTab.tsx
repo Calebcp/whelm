@@ -435,8 +435,8 @@ export type NotesTabProps = {
   onOpenAttachmentPicker: () => void;
   onOpenNoteAttachment: (attachment: NoteAttachment) => void;
   onRemoveNoteAttachment: (attachment: NoteAttachment) => void;
-  onConvertNoteToBlock: (note: WorkspaceNote) => void;
-  onDeleteNote: (noteId: string) => void;
+  onConvertNoteToBlock: (note: WorkspaceNote) => void | Promise<void>;
+  onDeleteNote: (noteId: string) => void | Promise<void>;
   onCreateNote: () => void;
   onTogglePinned: (noteId: string) => void;
   onUpdateSelectedNote: (patch: Partial<WorkspaceNote>) => void;
@@ -445,11 +445,11 @@ export type NotesTabProps = {
   onApplyEditorCommand: (command: string, value?: string) => void;
   onCheckEditorSelection: () => void;
   onUpdateEditorBandanaCaret: () => void;
-  onFlushNoteDraft: () => void;
-  onMobileCreateNote: () => void;
-  onOpenMobileEditor: (noteId: string) => void;
-  onOpenCurrentMobileNote: () => void;
-  onRetrySync: () => void;
+  onFlushNoteDraft: () => void | Promise<void>;
+  onMobileCreateNote: () => void | Promise<void>;
+  onOpenMobileEditor: (noteId: string) => void | Promise<void>;
+  onOpenCurrentMobileNote: () => void | Promise<void>;
+  onRetrySync: () => void | Promise<void>;
   onApplyHighlightColor: (value: string) => void;
   onScrollToSection: (target: HTMLElement | null) => void;
   onSetSelectedNoteId: (id: string | null) => void;
@@ -1184,8 +1184,10 @@ export default function NotesTab({
                     type="button"
                     className={`${sharedStyles.secondaryPlanButton} ${styles.noteDoneButton}`}
                     onClick={() => {
-                      void onFlushNoteDraft();
-                      onSetSelectedNoteId(null);
+                      void (async () => {
+                        await onFlushNoteDraft();
+                        onSetSelectedNoteId(null);
+                      })();
                     }}
                   >
                     Done
@@ -1193,7 +1195,12 @@ export default function NotesTab({
                   <button
                     type="button"
                     className={`${sharedStyles.reportButton} ${sharedStyles.blockActionButton}`}
-                    onClick={() => onConvertNoteToBlock(selectedNote)}
+                    onClick={() => {
+                      void (async () => {
+                        await onFlushNoteDraft();
+                        await onConvertNoteToBlock(selectedNote);
+                      })();
+                    }}
                   >
                     Turn into block
                   </button>
@@ -1282,8 +1289,10 @@ export default function NotesTab({
                       style={notePreviewStyle(note.shellColor || "#fff7d6")}
                       data-note-fill={note.surfaceStyle ?? "solid"}
                       onClick={() => {
-                        onFlushNoteDraft();
-                        onSetSelectedNoteId(note.id);
+                        void (async () => {
+                          await onFlushNoteDraft();
+                          onSetSelectedNoteId(note.id);
+                        })();
                       }}
                       whileHover={{ y: -2, scale: 1.01 }}
                       whileTap={{ scale: 0.99 }}
@@ -1926,12 +1935,21 @@ export default function NotesTab({
                         <button
                           type="button"
                           className={`${sharedStyles.reportButton} ${sharedStyles.blockActionButton}`}
-                          onClick={() => onConvertNoteToBlock(selectedNote)}
+                          onClick={() => {
+                            void (async () => {
+                              await onFlushNoteDraft();
+                              await onConvertNoteToBlock(selectedNote);
+                            })();
+                          }}
                         >
                           Turn into block
                         </button>
                         {notesSyncStatus !== "synced" && (
-                          <button type="button" className={sharedStyles.retrySyncButton} onClick={() => void onRetrySync()}>
+                          <button
+                            type="button"
+                            className={sharedStyles.retrySyncButton}
+                            onClick={() => void onRetrySync()}
+                          >
                             Retry notes sync
                           </button>
                         )}
