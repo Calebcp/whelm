@@ -10,6 +10,7 @@ import {
   migrateNotesFromJson,
   readLocalNotes,
   retryNotesSync,
+  saveNotePatchToFirestore,
   saveNoteToFirestore,
   saveNotesLocally,
   type NoteAttachment,
@@ -568,7 +569,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     setNotesSyncMessage("");
     const updatedNote = nextNotes.find((n) => n.id === noteId);
     const result = updatedNote
-      ? await saveNoteToFirestore(currentUser.uid, updatedNote)
+      ? await saveNotePatchToFirestore(currentUser.uid, noteId, { ...patch, updatedAtISO: now })
       : { synced: false, notes: [], message: "Note not found." };
     setNotesSyncStatus(result.synced ? "synced" : "local-only");
     setNotesSyncMessage(result.message ?? "");
@@ -643,10 +644,10 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     setNotesSyncStatus("syncing");
     setNotesSyncMessage("");
     console.log("[whelm] flush body to Firestore:", { noteId: currentSelectedNoteId, bodyLength: nextBody.length });
-    const flushedNote = nextNotes.find((n) => n.id === currentSelectedNoteId);
-    const result = flushedNote
-      ? await saveNoteToFirestore(currentUser.uid, flushedNote)
-      : { synced: false, notes: [], message: "Note not found." };
+    const result = await saveNotePatchToFirestore(currentUser.uid, currentSelectedNoteId, {
+      body: nextBody,
+      updatedAtISO: now,
+    });
     setNotesSyncStatus(result.synced ? "synced" : "local-only");
     setNotesSyncMessage(result.message ?? "");
   }
@@ -656,24 +657,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     if (!currentUser) return;
     const target = notesRef.current.find((note) => note.id === noteId);
     if (!target) return;
-
-    const now = new Date().toISOString();
-    const nextNotes = notesRef.current.map((note) =>
-      note.id === noteId
-        ? { ...note, isPinned: !note.isPinned, updatedAtISO: now }
-        : note,
-    );
-    notesRef.current = nextNotes;
-    setNotes(nextNotes);
-    saveNotesLocally(currentUser.uid, nextNotes);
-    setNotesSyncStatus("syncing");
-    setNotesSyncMessage("");
-    const pinnedNote = nextNotes.find((n) => n.id === noteId);
-    const result = pinnedNote
-      ? await saveNoteToFirestore(currentUser.uid, pinnedNote)
-      : { synced: false, notes: [], message: "Note not found." };
-    setNotesSyncStatus(result.synced ? "synced" : "local-only");
-    setNotesSyncMessage(result.message ?? "");
+    await updateNoteById(noteId, { isPinned: !target.isPinned });
   }
 
   function captureEditorDraft() {

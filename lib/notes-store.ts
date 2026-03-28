@@ -41,6 +41,25 @@ export type NoteAttachment = {
   uploadedAtISO: string;
 };
 
+export type NoteUpdatePatch = Partial<
+  Pick<
+    WorkspaceNote,
+    | "title"
+    | "body"
+    | "attachments"
+    | "color"
+    | "shellColor"
+    | "surfaceStyle"
+    | "isPinned"
+    | "fontFamily"
+    | "fontSizePx"
+    | "category"
+    | "reminderAtISO"
+    | "updatedAtISO"
+    | "createdAtISO"
+  >
+>;
+
 export type NotesSyncResult = {
   notes: WorkspaceNote[];
   synced: boolean;
@@ -144,6 +163,57 @@ function normalizeAttachments(attachments: WorkspaceNote["attachments"]) {
     .sort((a, b) => (a.uploadedAtISO < b.uploadedAtISO ? 1 : -1));
 }
 
+function mergeAttachments(first: WorkspaceNote["attachments"], second: WorkspaceNote["attachments"]) {
+  const merged = new Map<string, NoteAttachment>();
+
+  for (const attachment of normalizeAttachments(second)) {
+    merged.set(attachment.id, attachment);
+  }
+
+  for (const attachment of normalizeAttachments(first)) {
+    const existing = merged.get(attachment.id);
+    if (!existing || existing.uploadedAtISO < attachment.uploadedAtISO) {
+      merged.set(attachment.id, attachment);
+    }
+  }
+
+  return normalizeAttachments([...merged.values()]);
+}
+
+function pickPreferredTitle(newer: WorkspaceNote, older: WorkspaceNote) {
+  const newerTitle = newer.title.trim();
+  const olderTitle = older.title.trim();
+  if (!newerTitle && olderTitle) return older.title;
+  if (newerTitle === "Untitled note" && olderTitle && olderTitle !== "Untitled note") {
+    return older.title;
+  }
+  return newer.title;
+}
+
+function pickPreferredBody(newer: WorkspaceNote, older: WorkspaceNote) {
+  const newerBody = newer.body.trim();
+  const olderBody = older.body.trim();
+  if (!newerBody && olderBody) return older.body;
+  return newer.body;
+}
+
+function mergeNoteVersions(first: WorkspaceNote, second: WorkspaceNote) {
+  const [newer, older] =
+    first.updatedAtISO >= second.updatedAtISO ? [first, second] : [second, first];
+
+  return normalizeNotes([
+    {
+      ...older,
+      ...newer,
+      title: pickPreferredTitle(newer, older),
+      body: pickPreferredBody(newer, older),
+      attachments: mergeAttachments(newer.attachments, older.attachments),
+      createdAtISO: older.createdAtISO || newer.createdAtISO,
+      updatedAtISO: newer.updatedAtISO >= older.updatedAtISO ? newer.updatedAtISO : older.updatedAtISO,
+    },
+  ])[0];
+}
+
 export function readLocalNotes(uid: string) {
   try {
     const raw = window.localStorage.getItem(storageKey(uid));
@@ -210,9 +280,11 @@ export function mergeNotesPreferNewest(localNotes: WorkspaceNote[], cloudNotes: 
 
   for (const note of localNotes) {
     const existing = merged.get(note.id);
-    if (!existing || existing.updatedAtISO < note.updatedAtISO) {
+    if (!existing) {
       merged.set(note.id, note);
+      continue;
     }
+    merged.set(note.id, mergeNoteVersions(existing, note));
   }
 
   return normalizeNotes([...merged.values()]);
@@ -240,6 +312,56 @@ export async function saveNoteToFirestore(uid: string, note: WorkspaceNote): Pro
   } catch (err) {
     console.error("[whelm] saveNoteToFirestore: FAILED for userNotes/" + uid + "/notes/" + target.id, err);
     return { notes: [target], synced: false, message: "Saved locally. Cloud sync is currently unavailable." };
+  }
+}
+
+function normalizeNotePatch(patch: NoteUpdatePatch): NoteUpdatePatch {
+  const normalized: NoteUpdatePatch = {};
+
+  if ("title" in patch && typeof patch.title === "string") normalized.title = patch.title.slice(0, 200);
+  if ("body" in patch && typeof patch.body === "string") normalized.body = patch.body.slice(0, 20000);
+  if ("attachments" in patch && Array.isArray(patch.attachments)) {
+    normalized.attachments = normalizeAttachments(patch.attachments);
+  }
+  if ("color" in patch && typeof patch.color === "string") normalized.color = legacyColorMap[patch.color] || patch.color;
+  if ("shellColor" in patch && typeof patch.shellColor === "string") {
+    normalized.shellColor = legacyColorMap[patch.shellColor] || patch.shellColor;
+  }
+  if ("surfaceStyle" in patch) normalized.surfaceStyle = patch.surfaceStyle === "airy" ? "airy" : "solid";
+  if ("isPinned" in patch && typeof patch.isPinned === "boolean") normalized.isPinned = patch.isPinned;
+  if ("fontFamily" in patch && typeof patch.fontFamily === "string") normalized.fontFamily = patch.fontFamily;
+  if ("fontSizePx" in patch && typeof patch.fontSizePx === "number" && Number.isFinite(patch.fontSizePx)) {
+    normalized.fontSizePx = Math.min(32, Math.max(12, Math.round(patch.fontSizePx)));
+  }
+  if ("category" in patch) {
+    normalized.category =
+      patch.category === "school" || patch.category === "work" || patch.category === "personal"
+        ? patch.category
+        : "personal";
+  }
+  if ("reminderAtISO" in patch && typeof patch.reminderAtISO === "string") normalized.reminderAtISO = patch.reminderAtISO;
+  if ("updatedAtISO" in patch && typeof patch.updatedAtISO === "string") normalized.updatedAtISO = patch.updatedAtISO;
+  if ("createdAtISO" in patch && typeof patch.createdAtISO === "string") normalized.createdAtISO = patch.createdAtISO;
+
+  return normalized;
+}
+
+export async function saveNotePatchToFirestore(
+  uid: string,
+  noteId: string,
+  patch: NoteUpdatePatch,
+): Promise<NotesSyncResult> {
+  const normalizedPatch = normalizeNotePatch(patch);
+
+  try {
+    await setDoc(firestoreDoc(db, "userNotes", uid, "notes", noteId), normalizedPatch, { merge: true });
+    console.log("[whelm] saveNotePatchToFirestore: wrote userNotes/" + uid + "/notes/" + noteId, {
+      fields: Object.keys(normalizedPatch),
+    });
+    return { notes: [], synced: true };
+  } catch (err) {
+    console.error("[whelm] saveNotePatchToFirestore: FAILED for userNotes/" + uid + "/notes/" + noteId, err);
+    return { notes: [], synced: false, message: "Saved locally. Cloud sync is currently unavailable." };
   }
 }
 

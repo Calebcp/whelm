@@ -656,7 +656,7 @@ export default function NotesTab({
                           ...notePreviewStyle(note.shellColor || "#fff7d6"),
                           backgroundColor: note.shellColor || "#fff7d6",
                         }}
-                        onClick={() => onOpenMobileEditor(note.id)}
+                        onClick={() => void onOpenMobileEditor(note.id)}
                       >
                         <strong className={styles.noteListTitle}>
                           {note.title || "Untitled note"}
@@ -1274,7 +1274,10 @@ export default function NotesTab({
                       className={`${styles.noteListItem} ${selectedNoteId === note.id ? styles.noteListItemActive : ""}`}
                       style={notePreviewStyle(note.shellColor || "#fff7d6")}
                       data-note-fill={note.surfaceStyle ?? "solid"}
-                      onClick={() => onSetSelectedNoteId(note.id)}
+                      onClick={() => {
+                        onFlushNoteDraft();
+                        onSetSelectedNoteId(note.id);
+                      }}
                       whileHover={{ y: -2, scale: 1.01 }}
                       whileTap={{ scale: 0.99 }}
                     >

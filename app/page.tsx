@@ -2216,6 +2216,7 @@ export default function HomePage() {
     dismissSickDaySavePrompt,
     openStreakSaveQuestionnaire,
     createWorkspaceNote,
+    flushSelectedNoteDraft,
     setSelectedNoteId,
     setMobileNotesEditorOpen,
     setMobileNotesToolsOpen,

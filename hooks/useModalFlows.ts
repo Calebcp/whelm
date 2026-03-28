@@ -14,6 +14,7 @@ type UseModalFlowsOptions = {
   dismissSickDaySavePrompt: () => void;
   openStreakSaveQuestionnaire: () => void;
   createWorkspaceNote: () => Promise<unknown>;
+  flushSelectedNoteDraft: () => Promise<void>;
   setSelectedNoteId: (value: string | null) => void;
   setMobileNotesEditorOpen: (value: boolean) => void;
   setMobileNotesToolsOpen: (value: "format" | "type" | "color" | null) => void;
@@ -53,6 +54,7 @@ export function useModalFlows({
   dismissSickDaySavePrompt,
   openStreakSaveQuestionnaire,
   createWorkspaceNote,
+  flushSelectedNoteDraft,
   setSelectedNoteId,
   setMobileNotesEditorOpen,
   setMobileNotesToolsOpen,
@@ -78,12 +80,19 @@ export function useModalFlows({
   calendarTimelineRef,
   calendarSectionRef,
 }: UseModalFlowsOptions) {
-  const openMobileNoteEditor = useCallback((noteId: string) => {
+  const openMobileNoteEditor = useCallback(async (noteId: string) => {
+    await flushSelectedNoteDraft();
     setSelectedNoteId(noteId);
     setMobileNotesEditorOpen(true);
     setMobileNotesToolsOpen(null);
     setMobileNotesRecentOpen(false);
-  }, [setMobileNotesEditorOpen, setMobileNotesRecentOpen, setMobileNotesToolsOpen, setSelectedNoteId]);
+  }, [
+    flushSelectedNoteDraft,
+    setMobileNotesEditorOpen,
+    setMobileNotesRecentOpen,
+    setMobileNotesToolsOpen,
+    setSelectedNoteId,
+  ]);
 
   const handleMobileCreateNote = useCallback(async () => {
     await createWorkspaceNote();
