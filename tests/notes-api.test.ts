@@ -18,13 +18,13 @@ test("notes route writes note body into Firestore notesJson payload", async () =
     const url =
       typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
 
-    assert.match(url, /\/userNotes\/user-notes\?key=demo-key$/);
+    assert.match(url, /\/userNotes\/user-notes\/notes\/note-1\?key=demo-key$/);
     assert.equal(init?.method, "PATCH");
     assert.equal(init?.headers && (init.headers as Record<string, string>).Authorization, "Bearer token-notes");
 
     firestoreWriteBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
 
-    return createJsonResponse({ json: { name: "projects/demo/documents/userNotes/user-notes" } });
+    return createJsonResponse({ json: { name: "projects/demo/documents/userNotes/user-notes/notes/note-1" } });
   });
 
   try {
@@ -65,8 +65,8 @@ test("notes route writes note body into Firestore notesJson payload", async () =
     assert.ok(firestoreWriteBody);
 
     const fields = (firestoreWriteBody as { fields: Record<string, { stringValue?: string }> }).fields;
-    const notesJson = fields.notesJson?.stringValue ?? "";
-    assert.match(notesJson, /Persistent note body/);
+    const body = fields.body?.stringValue ?? "";
+    assert.match(body, /Persistent note body/);
   } finally {
     restoreFetch();
   }
