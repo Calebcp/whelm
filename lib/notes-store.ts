@@ -220,40 +220,31 @@ export async function loadNotes(user: User): Promise<NotesSyncResult> {
 
   try {
     const snap = await getDocs(collection(db, "userNotes", user.uid, "notes"));
-    let cloudNotes = normalizeNotes(snap.docs.map((d) => d.data() as WorkspaceNote));
-
-    if (cloudNotes.length === 0) {
-      const legacySnap = await getDoc(firestoreDoc(db, "userNotes", user.uid));
-      const raw = legacySnap.data()?.notesJson;
-      if (typeof raw === "string") {
-        try {
-          const parsed = JSON.parse(raw) as WorkspaceNote[];
-          cloudNotes = Array.isArray(parsed) ? normalizeNotes(parsed) : [];
-        } catch {
-          cloudNotes = [];
-        }
+    const subcollectionNotes = normalizeNotes(snap.docs.map((d) => d.data() as WorkspaceNote));
+    let legacyNotes: WorkspaceNote[] = [];
+    const legacySnap = await getDoc(firestoreDoc(db, "userNotes", user.uid));
+    const raw = legacySnap.data()?.notesJson;
+    if (typeof raw === "string") {
+      try {
+        const parsed = JSON.parse(raw) as WorkspaceNote[];
+        legacyNotes = Array.isArray(parsed) ? normalizeNotes(parsed) : [];
+      } catch {
+        legacyNotes = [];
       }
     }
 
+    const cloudNotes = mergeNotesPreferNewest(legacyNotes, subcollectionNotes);
     const mergedNotes = mergeNotesPreferNewest(localNotes, cloudNotes);
     writeLocalNotes(user.uid, mergedNotes);
 
     // Push any local-only or newer-local notes up to Firestore.
-    if (!notesMatch(mergedNotes, cloudNotes)) {
+    if (!notesMatch(mergedNotes, subcollectionNotes)) {
       const toSync = mergedNotes.filter(
-        (n) => !cloudNotes.some((c) => c.id === n.id && c.updatedAtISO >= n.updatedAtISO),
+        (n) => !subcollectionNotes.some((c) => c.id === n.id && c.updatedAtISO >= n.updatedAtISO),
       );
       await Promise.allSettled(
         toSync.map((n) =>
           setDoc(firestoreDoc(db, "userNotes", user.uid, "notes", n.id), n, { merge: true }),
-        ),
-      );
-    }
-
-    if (snap.empty && cloudNotes.length > 0) {
-      await Promise.allSettled(
-        cloudNotes.map((note) =>
-          setDoc(firestoreDoc(db, "userNotes", user.uid, "notes", note.id), note, { merge: true }),
         ),
       );
     }
@@ -307,14 +298,9 @@ export async function retryNotesSync(user: User, notes: WorkspaceNote[]) {
  * This avoids depending on `userPreferences` which has no security rule.
  */
 export async function migrateNotesFromJson(uid: string): Promise<void> {
-  // If the subcollection already has any documents, nothing to migrate.
   const existingSnap = await getDocs(collection(db, "userNotes", uid, "notes"));
-  if (!existingSnap.empty) {
-    console.log("[whelm:migration] subcollection already has docs — skipping", existingSnap.size);
-    return;
-  }
-
-  console.log("[whelm:migration] subcollection is empty — reading legacy notesJson blob");
+  const existingNotes = normalizeNotes(existingSnap.docs.map((doc) => doc.data() as WorkspaceNote));
+  console.log("[whelm:migration] reading legacy notesJson blob for merge", existingNotes.length);
 
   // Read the old single-document format.
   const oldSnap = await getDoc(firestoreDoc(db, "userNotes", uid));
@@ -342,14 +328,23 @@ export async function migrateNotesFromJson(uid: string): Promise<void> {
     return;
   }
 
-  console.log(`[whelm:migration] migrating ${oldNotes.length} notes to subcollection`);
+  const mergedNotes = mergeNotesPreferNewest(oldNotes, existingNotes).filter(
+    (note) => !existingNotes.some((existing) => existing.id === note.id && existing.updatedAtISO >= note.updatedAtISO),
+  );
+
+  if (mergedNotes.length === 0) {
+    console.log("[whelm:migration] subcollection already has equal or newer notes — nothing to migrate");
+    return;
+  }
+
+  console.log(`[whelm:migration] migrating ${mergedNotes.length} merged notes to subcollection`);
 
   const results = await Promise.allSettled(
-    oldNotes.map((note) =>
+    mergedNotes.map((note) =>
       setDoc(firestoreDoc(db, "userNotes", uid, "notes", note.id), note, { merge: true }),
     ),
   );
 
   const failed = results.filter((r) => r.status === "rejected").length;
-  console.log(`[whelm:migration] done — ${oldNotes.length - failed} written, ${failed} failed`);
+  console.log(`[whelm:migration] done — ${mergedNotes.length - failed} written, ${failed} failed`);
 }

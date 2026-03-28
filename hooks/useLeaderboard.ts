@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { User } from "firebase/auth";
-import { collection, limit, onSnapshot, orderBy, query } from "firebase/firestore";
 
 import {
   trackLeaderboardAroundMeLoaded,
@@ -12,10 +11,7 @@ import {
 } from "@/lib/analytics-tracker";
 import type { AppTab } from "@/lib/app-tabs";
 import { resolveApiUrl } from "@/lib/api-base";
-import { dayKeyLocal } from "@/lib/date-utils";
-import { db } from "@/lib/firebase";
 import {
-  buildLeaderboardProfile,
   type LeaderboardMetric,
   type LeaderboardPageResponse,
   type LeaderboardSnapshotEntry,
@@ -632,108 +628,11 @@ export function useLeaderboard({
     user,
   ]);
 
-  // ── Real-time onSnapshot listener ──────────────────────────────────────────
-  useEffect(() => {
-    if (activeTab !== "leaderboard" || !user || leaderboardMetricTab !== "xp") {
-      leaderboardIsLiveRef.current = false;
-      setLeaderboardIsLive(false);
-      return;
-    }
-
-    const meId = currentUserId;
-    const q = query(
-      collection(db, "leaderboardProfiles"),
-      orderBy("totalXp", "desc"),
-      limit(200),
-    );
-
-    setLeaderboardLoading(true);
-    const unsub = onSnapshot(
-      q,
-      (snapshot) => {
-        const todayKey = dayKeyLocal(new Date());
-        const sorted = snapshot.docs.map((docSnap) => {
-          const d = docSnap.data() as Record<string, unknown>;
-          return buildLeaderboardProfile({
-            userId: docSnap.id,
-            username: typeof d.username === "string" ? d.username : "Whelm user",
-            totalXp: typeof d.totalXp === "number" ? d.totalXp : 0,
-            currentStreak: typeof d.currentStreak === "number" ? d.currentStreak : 0,
-            level: typeof d.level === "number" ? d.level : 1,
-            createdAtISO: typeof d.createdAtISO === "string" ? d.createdAtISO : new Date().toISOString(),
-            updatedAtISO: typeof d.updatedAtISO === "string" ? d.updatedAtISO : new Date().toISOString(),
-            bestStreak: typeof d.bestStreak === "number" ? d.bestStreak : 0,
-            totalFocusHours: typeof d.totalFocusHours === "number" ? d.totalFocusHours : 0,
-            weeklyXp: typeof d.weeklyXp === "number" ? d.weeklyXp : 0,
-          });
-        })
-        .sort((left, right) => compareLeaderboardEntries({
-          id: left.userId,
-          username: left.username,
-          createdAtISO: left.createdAtISO,
-          level: left.level,
-          totalXp: left.totalXp,
-          currentStreak: left.currentStreak,
-        }, {
-          id: right.userId,
-          username: right.username,
-          createdAtISO: right.createdAtISO,
-          level: right.level,
-          totalXp: right.totalXp,
-          currentStreak: right.currentStreak,
-        }, "xp"));
-
-        const entries: LeaderboardSnapshotEntry[] = sorted.map((profile, index) => ({
-          ...profile,
-          rank: index + 1,
-          snapshotDate: todayKey,
-          metric: "xp" as LeaderboardMetric,
-          previousRank: null,
-          movement: 0,
-          movementDirection: "same" as const,
-        }));
-
-        setLeaderboardPageItems(entries);
-        const meIndex = entries.findIndex((e) => e.userId === meId);
-        if (meIndex >= 0) {
-          const start = Math.max(0, meIndex - 2);
-          const end = Math.min(entries.length, meIndex + 3);
-          setLeaderboardAroundMeItems(entries.slice(start, end));
-        } else {
-          setLeaderboardAroundMeItems([]);
-        }
-        setLeaderboardSource("snapshot");
-        setLeaderboardTotalEntries(entries.length);
-        setLeaderboardSnapshotDate(todayKey);
-        setLeaderboardHasMore(false);
-        setLeaderboardCursor(null);
-        setLeaderboardLoading(false);
-        setLeaderboardError("");
-        leaderboardIsLiveRef.current = true;
-        setLeaderboardIsLive(true);
-      },
-      () => {
-        leaderboardIsLiveRef.current = false;
-        setLeaderboardIsLive(false);
-        setLeaderboardLoading(false);
-      },
-    );
-
-    return () => {
-      unsub();
-      leaderboardIsLiveRef.current = false;
-      setLeaderboardIsLive(false);
-    };
-  }, [activeTab, currentUserId, leaderboardMetricTab, user]);
-
   useEffect(() => {
     if (activeTab !== "leaderboard") return;
     const currentUser = user;
     if (!currentUser) return;
     const authedUser = currentUser;
-
-    // Skip REST fetch if real-time onSnapshot is active
-    if (leaderboardIsLiveRef.current) return;
 
     let cancelled = false;
 
@@ -808,6 +707,11 @@ export function useLeaderboard({
     return () => {
       cancelled = true;
     };
+  }, [activeTab, leaderboardMetricTab, user]);
+
+  useEffect(() => {
+    leaderboardIsLiveRef.current = false;
+    setLeaderboardIsLive(false);
   }, [activeTab, leaderboardMetricTab, user]);
 
   useEffect(() => {
