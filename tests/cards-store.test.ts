@@ -21,6 +21,7 @@ let createCard: (noteId: string, front: string, back: string) => WhelCard;
 let applyReview: (card: WhelCard, outcome: ReviewOutcome) => WhelCard;
 let getCardsForReview: (cards: WhelCard[]) => WhelCard[];
 let saveCards: (uid: string, cards: WhelCard[]) => Promise<void>;
+let reconcileCardsSnapshot: (uid: string, cloudCards: WhelCard[]) => Promise<WhelCard[]>;
 
 before(async () => {
   process.env.NEXT_PUBLIC_FIREBASE_API_KEY ??= "demo-key";
@@ -35,6 +36,7 @@ before(async () => {
   applyReview = store.applyReview;
   getCardsForReview = store.getCardsForReview;
   saveCards = store.saveCards;
+  reconcileCardsSnapshot = store.reconcileCardsSnapshot;
 });
 
 test("createCard returns a valid WhelCard with level 1 and zone learning", () => {
@@ -160,4 +162,20 @@ test("saveCards writes to localStorage immediately before attempting the API cal
   const parsed = JSON.parse(stored) as WhelCard[];
   assert.equal(parsed.length, 1);
   assert.equal(parsed[0].front, "Q");
+});
+
+test("reconcileCardsSnapshot keeps fuller local cards when cloud is missing older items", async () => {
+  mockStorage.clear();
+  const first = createCard("note-1", "Older", "A");
+  const second = createCard("note-2", "Newer", "B");
+
+  mockStorage.set("whelm_cards_test-uid", JSON.stringify([first, second]));
+
+  const merged = await reconcileCardsSnapshot("test-uid", [second]);
+
+  assert.equal(merged.length, 2);
+  assert.deepEqual(
+    merged.map((card) => card.front).sort(),
+    ["Newer", "Older"],
+  );
 });

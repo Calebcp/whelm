@@ -156,6 +156,32 @@ function writeLocalCards(uid: string, cards: WhelCard[]) {
   window.localStorage.setItem(legacyStorageKey(uid), normalized);
 }
 
+function cardsEqualByContent(left: WhelCard[], right: WhelCard[]) {
+  if (left.length !== right.length) return false;
+  for (let index = 0; index < left.length; index += 1) {
+    if (JSON.stringify(left[index]) !== JSON.stringify(right[index])) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function mergeCardsForUser(uid: string, cloudCards: WhelCard[]) {
+  const localCards = readLocalCards(uid);
+  const normalizedCloudCards = normalizeCards(cloudCards);
+  const mergedCards = normalizeCards([...normalizedCloudCards, ...localCards]);
+  writeLocalCards(uid, mergedCards);
+
+  return {
+    localCards,
+    cloudCards: normalizedCloudCards,
+    mergedCards,
+    cloudNeedsHeal:
+      mergedCards.length > normalizedCloudCards.length ||
+      !cardsEqualByContent(mergedCards, normalizedCloudCards),
+  };
+}
+
 async function authorizedCardsRequest(uid: string, input: string, init: RequestInit, timeoutMs = 12000) {
   const user = auth.currentUser;
   if (!user || user.uid !== uid) {
@@ -271,9 +297,16 @@ export async function loadCards(uid: string): Promise<WhelCard[]> {
       { method: "GET" },
     );
     const body = (await response.json()) as { cards?: WhelCard[] };
-    const cloudCards = Array.isArray(body.cards) ? normalizeCards(body.cards) : [];
-    const mergedCards = normalizeCards([...cloudCards, ...localCards]);
-    writeLocalCards(uid, mergedCards);
+    const {
+      cloudCards,
+      mergedCards,
+      cloudNeedsHeal,
+    } = mergeCardsForUser(uid, Array.isArray(body.cards) ? body.cards : []);
+
+    if (cloudNeedsHeal && mergedCards.length > cloudCards.length) {
+      void saveCards(uid, mergedCards).catch(() => undefined);
+    }
+
     return mergedCards;
   } catch {
     return localCards;
@@ -295,4 +328,14 @@ export async function saveCards(uid: string, cards: WhelCard[]): Promise<void> {
   } catch (error) {
     console.error("Cards sync failed. Local cards remain the source of truth.", error);
   }
+}
+
+export async function reconcileCardsSnapshot(uid: string, cloudCards: WhelCard[]) {
+  const { cloudCards: normalizedCloudCards, mergedCards, cloudNeedsHeal } = mergeCardsForUser(uid, cloudCards);
+
+  if (cloudNeedsHeal && mergedCards.length > normalizedCloudCards.length) {
+    void saveCards(uid, mergedCards).catch(() => undefined);
+  }
+
+  return mergedCards;
 }

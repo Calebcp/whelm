@@ -69,7 +69,7 @@ function normalizeCards(cards: WhelCard[]) {
 
   return cards
     .filter((card) => card && typeof card.id === "string" && typeof card.noteId === "string")
-    .map((card) => ({
+    .map((card): WhelCard => ({
       id: String(card.id).slice(0, 200),
       noteId: String(card.noteId).slice(0, 200),
       front: String(card.front ?? "").slice(0, 500),
@@ -158,7 +158,10 @@ async function upsertDocument(request: NextRequest, payload: CardsPayload) {
 
   const baseUrl = firestoreDocumentsBaseUrl();
   const { apiKey } = requireConfig();
-  const normalizedCards = normalizeCards(payload.cards);
+  const incomingCards = normalizeCards(payload.cards);
+  const existingDocument = await fetchDocument(request, payload.uid);
+  const existingCards = existingDocument ? parseCardsFromDocument(existingDocument) : [];
+  const normalizedCards = normalizeCards([...existingCards, ...incomingCards]);
   const now = new Date().toISOString();
 
   const response = await fetch(`${baseUrl}/userCards/${encodeURIComponent(payload.uid)}?key=${apiKey}`, {

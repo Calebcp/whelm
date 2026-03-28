@@ -9,6 +9,7 @@ import {
   getCardsForReview,
   loadCards,
   normalizeCards,
+  reconcileCardsSnapshot,
   saveCards,
   type ReviewOutcome,
   type WhelCard,
@@ -82,7 +83,13 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
         try {
           const parsed = JSON.parse(json) as WhelCard[];
           if (Array.isArray(parsed)) {
-            setCards(normalizeCards(parsed));
+            void reconcileCardsSnapshot(uid, parsed)
+              .then((merged) => {
+                setCards(merged);
+              })
+              .catch(() => {
+                setCards(normalizeCards(parsed));
+              });
             setStatus("");
           }
         } catch {
