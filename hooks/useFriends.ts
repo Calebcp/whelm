@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { User } from "firebase/auth";
+import { doc, getDoc, setDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import {
   acceptFriendRequest,
   declineFriendRequest,
@@ -24,25 +26,25 @@ export type FriendWithXp = FriendDoc & {
   weeklyXp: number;
 };
 
-function nudgeCooldownKey(myUid: string, friendUid: string) {
-  return `whelm:nudge-sent:${myUid}:${friendUid}`;
+async function loadNudgeCooldownsFromFirestore(uid: string): Promise<Map<string, number>> {
+  const snap = await getDoc(doc(db, "userPreferences", uid));
+  const cooldowns = snap.data()?.nudgeCooldowns as Record<string, string> | undefined;
+  if (!cooldowns) return new Map();
+  return new Map(
+    Object.entries(cooldowns).map(([friendUid, iso]) => [friendUid, new Date(iso).getTime()]),
+  );
 }
 
-function readNudgeSentAt(myUid: string, friendUid: string): number | null {
-  try {
-    const raw = localStorage.getItem(nudgeCooldownKey(myUid, friendUid));
-    return raw ? Number(raw) : null;
-  } catch {
-    return null;
-  }
-}
-
-function recordNudge(myUid: string, friendUid: string): void {
-  try {
-    localStorage.setItem(nudgeCooldownKey(myUid, friendUid), String(Date.now()));
-  } catch {
-    // ignore
-  }
+async function writeNudgeCooldownToFirestore(
+  uid: string,
+  friendUid: string,
+  iso: string,
+): Promise<void> {
+  await setDoc(
+    doc(db, "userPreferences", uid),
+    { nudgeCooldowns: { [friendUid]: iso } },
+    { merge: true },
+  );
 }
 
 const NUDGE_COOLDOWN_MS = 24 * 60 * 60 * 1000;
@@ -83,11 +85,9 @@ export function useFriends(user: User | null, profileDisplayName: string) {
       setFriends(friendsWithXp.sort((a, b) => b.weeklyXp - a.weeklyXp));
       setIncomingRequests(requestDocs);
 
-      const cooldowns = new Map<string, number>();
-      for (const friend of friendDocs) {
-        const sentAt = readNudgeSentAt(user.uid, friend.friendUid);
-        if (sentAt !== null) cooldowns.set(friend.friendUid, sentAt);
-      }
+      const cooldowns = await loadNudgeCooldownsFromFirestore(user.uid).catch(
+        () => new Map<string, number>(),
+      );
       setNudgeCooldowns(cooldowns);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load friends.");
@@ -185,8 +185,9 @@ export function useFriends(user: User | null, profileDisplayName: string) {
       if (!user) return;
       const sentAt = nudgeCooldowns.get(friendUid);
       if (sentAt && Date.now() - sentAt < NUDGE_COOLDOWN_MS) return;
-      recordNudge(user.uid, friendUid);
+      const iso = new Date().toISOString();
       setNudgeCooldowns((prev) => new Map(prev).set(friendUid, Date.now()));
+      void writeNudgeCooldownToFirestore(user.uid, friendUid, iso).catch(() => undefined);
     },
     [user, nudgeCooldowns],
   );
