@@ -21,6 +21,16 @@ const firebaseConfig = {
 
 const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
 
+function shouldForceFirestoreLongPolling() {
+  const explicitOverride = process.env.NEXT_PUBLIC_FIREBASE_FORCE_LONG_POLLING?.trim();
+  if (explicitOverride === "true") return true;
+  if (explicitOverride === "false") return false;
+
+  if (typeof window === "undefined") return false;
+  const protocol = window.location.protocol;
+  return protocol === "capacitor:" || protocol === "ionic:" || protocol === "file:";
+}
+
 function createAuth() {
   try {
     return initializeAuth(app, {
@@ -39,10 +49,9 @@ export const auth = createAuth();
 export const db = initializeFirestore(
   app,
   {
-    // VPNs, proxies, and some hosted/browser environments can break Firestore's
-    // default transport stack. Forced long polling is slower, but substantially
-    // more reliable for this app's small payloads.
-    experimentalForceLongPolling: true,
+    // Use the default transport on the website. Force long polling only for
+    // native/webview protocols or when explicitly enabled via env.
+    experimentalForceLongPolling: shouldForceFirestoreLongPolling(),
   },
   resolveFirestoreDatabaseId(),
 );
