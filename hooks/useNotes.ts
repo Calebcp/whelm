@@ -459,9 +459,16 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
       if (local.length > 0) {
         setNotes(local);
         setSelectedNoteId((current) => current ?? local[0]?.id ?? null);
+        setNotesSyncStatus("local-only");
+        setNotesSyncMessage("Opening your local notes first while cloud sync catches up.");
+      } else {
+        setNotesSyncStatus("syncing");
+        setNotesSyncMessage("Loading your notes from your account...");
       }
     } catch {
       // keep going; Firestore refresh below is the source of truth
+      setNotesSyncStatus("syncing");
+      setNotesSyncMessage("Loading your notes from your account...");
     }
 
     // One-time migration: move any notes from the legacy notesJson blob into
@@ -482,7 +489,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
   const handleUserSignedOut = useCallback(() => {
     setNotes([]);
     setSelectedNoteId(null);
-    setNotesSyncStatus("local-only");
+    setNotesSyncStatus("syncing");
     setNotesSyncMessage("");
     setEditorBodyDraft("");
     setPendingNoteAttachments([]);

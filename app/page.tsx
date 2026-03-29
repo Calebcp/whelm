@@ -2516,19 +2516,6 @@ export default function HomePage() {
     );
   }
 
-  if (!preferencesHydrated || !accountStateHydrated || !sessionsSynced || !plannedBlocksHydrated) {
-    return (
-      <main className={styles.pageShell}>
-        <div className={styles.loadingCard}>
-          <p className={styles.loadingLabel}>Syncing your Whelm workspace...</p>
-          <p className={styles.accountMeta}>
-            Restoring your notes, streaks, cards, and account style before the shell opens.
-          </p>
-        </div>
-      </main>
-    );
-  }
-
   function handleCardsXPEarned(amount: number) {
     if (amount <= 0) return;
     showMascot("cards_session_done");

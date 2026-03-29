@@ -540,6 +540,14 @@ export default function NotesTab({
   onStartProPreview,
   onOpenUpgradeFlow,
 }: NotesTabProps) {
+  const syncStatusLabel =
+    notesSyncStatus === "synced"
+      ? "Synced to your account."
+      : notesSyncStatus === "syncing"
+        ? "Syncing your latest note changes..."
+        : "Using local notes while cloud sync catches up.";
+  const syncButtonLabel = notesSyncStatus === "synced" ? "Sync now" : "Retry sync";
+
   return (
     <AnimatedTabSection className={styles.notesWorkspace} sectionRef={sectionRef}>
       <input
@@ -1101,10 +1109,10 @@ export default function NotesTab({
                         <button
                           type="button"
                           className={sharedStyles.retrySyncButton}
-                          style={{ marginLeft: 8, padding: "2px 10px", fontSize: "0.75rem" }}
+                          style={{ marginLeft: 8 }}
                           onClick={() => void onRetrySync()}
                         >
-                          Retry sync
+                          {syncButtonLabel}
                         </button>
                       )}
                     </div>
@@ -1184,9 +1192,7 @@ export default function NotesTab({
                       {selectedNoteWordCount} word{selectedNoteWordCount === 1 ? "" : "s"}
                       {selectedNoteWordCount >= 33 ? " · streak writing met" : ""}
                     </span>
-                    <span className={styles.noteSyncIndicator}>
-                      {notesSyncStatus === "synced" ? "✓ Saved" : "Working…"}
-                    </span>
+                    <span className={styles.noteSyncIndicator}>{syncStatusLabel}</span>
                   </div>
                 </div>
                 <div className={sharedStyles.noteFooterActions}>
@@ -1214,15 +1220,13 @@ export default function NotesTab({
                   >
                     Turn into block
                   </button>
-                  {notesSyncStatus !== "synced" && (
-                    <button
-                      type="button"
-                      className={sharedStyles.retrySyncButton}
-                      onClick={() => void onRetrySync()}
-                    >
-                      Retry sync
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    className={sharedStyles.retrySyncButton}
+                    onClick={() => void onRetrySync()}
+                  >
+                    {syncButtonLabel}
+                  </button>
                   <button
                     type="button"
                     className={sharedStyles.deleteNoteButton}
@@ -1876,10 +1880,10 @@ export default function NotesTab({
                           <button
                             type="button"
                             className={sharedStyles.retrySyncButton}
-                            style={{ marginLeft: 8, padding: "2px 10px", fontSize: "0.75rem" }}
+                            style={{ marginLeft: 8 }}
                             onClick={() => void onRetrySync()}
                           >
-                            Retry sync
+                            {syncButtonLabel}
                           </button>
                         )}
                       </div>
@@ -1955,7 +1959,7 @@ export default function NotesTab({
                         onOpen={onOpenNoteAttachment}
                         onRemove={(attachment) => void onRemoveNoteAttachment(attachment)}
                       />
-                      <span>{notesSyncStatus === "synced" ? "Synced to your account." : "Working…"}</span>
+                      <span>{syncStatusLabel}</span>
                       <span className={styles.noteWordCount}>
                         {selectedNoteWordCount} word{selectedNoteWordCount === 1 ? "" : "s"}
                         {selectedNoteWordCount >= 33 ? " · streak writing met" : ""}
@@ -1973,15 +1977,13 @@ export default function NotesTab({
                         >
                           Turn into block
                         </button>
-                        {notesSyncStatus !== "synced" && (
-                          <button
-                            type="button"
-                            className={sharedStyles.retrySyncButton}
-                            onClick={() => void onRetrySync()}
-                          >
-                            Retry notes sync
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          className={sharedStyles.retrySyncButton}
+                          onClick={() => void onRetrySync()}
+                        >
+                          {syncButtonLabel}
+                        </button>
                         <button type="button" className={sharedStyles.deleteNoteButton} onClick={() => void onDeleteNote(selectedNote.id)}>
                           Remove note
                         </button>
