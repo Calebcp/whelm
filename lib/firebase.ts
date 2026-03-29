@@ -8,6 +8,7 @@ import {
 } from "firebase/auth";
 import { initializeFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
+import { isNativeAppShell } from "@/lib/client-platform";
 import { resolveFirestoreDatabaseId } from "@/lib/firestore-database";
 
 const firebaseConfig = {
@@ -26,9 +27,7 @@ function shouldForceFirestoreLongPolling() {
   if (explicitOverride === "true") return true;
   if (explicitOverride === "false") return false;
 
-  if (typeof window === "undefined") return false;
-  const protocol = window.location.protocol;
-  return protocol === "capacitor:" || protocol === "ionic:" || protocol === "file:";
+  return isNativeAppShell();
 }
 
 function createAuth() {

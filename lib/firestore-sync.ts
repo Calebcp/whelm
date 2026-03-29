@@ -46,6 +46,10 @@ export type FirestoreSyncCallbacks = {
   localNote(id: string): WorkspaceNote | undefined;
 };
 
+export type FirestoreSyncOptions = {
+  enableNotesRealtime?: boolean;
+};
+
 function warn(area: string, err: Error) {
   console.warn(`[whelm:sync] ${area} listener error:`, err.message);
 }
@@ -54,10 +58,15 @@ function warn(area: string, err: Error) {
  * Set up real-time listeners for all user-data collections.
  * Returns an unsubscribe function.
  */
-export function subscribeToUserData(uid: string, cb: FirestoreSyncCallbacks): () => void {
+export function subscribeToUserData(
+  uid: string,
+  cb: FirestoreSyncCallbacks,
+  options: FirestoreSyncOptions = {},
+): () => void {
   const unsubs: (() => void)[] = [];
   let liveSubcollectionNotes: WorkspaceNote[] = [];
   let liveLegacyNotes: WorkspaceNote[] = [];
+  const enableNotesRealtime = options.enableNotesRealtime ?? true;
 
   const emitMergedNotes = () => {
     const remote =
@@ -74,46 +83,48 @@ export function subscribeToUserData(uid: string, cb: FirestoreSyncCallbacks): ()
   };
 
   // ── Notes (subcollection — each note is its own document) ────
-  unsubs.push(
-    onSnapshot(
-      collection(db, "userNotes", uid, "notes"),
-      (snap) => {
-        liveSubcollectionNotes = snap.docs.map((d) => d.data() as WorkspaceNote);
-        emitMergedNotes();
-      },
-      (err) => warn("notes", err),
-    ),
-  );
-
-  unsubs.push(
-    onSnapshot(
-      doc(db, "userNotes", uid),
-      (snap) => {
-        if (!snap.exists()) {
-          liveLegacyNotes = [];
+  if (enableNotesRealtime) {
+    unsubs.push(
+      onSnapshot(
+        collection(db, "userNotes", uid, "notes"),
+        (snap) => {
+          liveSubcollectionNotes = snap.docs.map((d) => d.data() as WorkspaceNote);
           emitMergedNotes();
-          return;
-        }
+        },
+        (err) => warn("notes", err),
+      ),
+    );
 
-        const raw = snap.data()?.notesJson;
-        if (typeof raw !== "string") {
-          liveLegacyNotes = [];
+    unsubs.push(
+      onSnapshot(
+        doc(db, "userNotes", uid),
+        (snap) => {
+          if (!snap.exists()) {
+            liveLegacyNotes = [];
+            emitMergedNotes();
+            return;
+          }
+
+          const raw = snap.data()?.notesJson;
+          if (typeof raw !== "string") {
+            liveLegacyNotes = [];
+            emitMergedNotes();
+            return;
+          }
+
+          try {
+            const parsed = JSON.parse(raw) as WorkspaceNote[];
+            liveLegacyNotes = Array.isArray(parsed) ? parsed : [];
+          } catch {
+            liveLegacyNotes = [];
+          }
+
           emitMergedNotes();
-          return;
-        }
-
-        try {
-          const parsed = JSON.parse(raw) as WorkspaceNote[];
-          liveLegacyNotes = Array.isArray(parsed) ? parsed : [];
-        } catch {
-          liveLegacyNotes = [];
-        }
-
-        emitMergedNotes();
-      },
-      (err) => warn("notes-legacy", err),
-    ),
-  );
+        },
+        (err) => warn("notes-legacy", err),
+      ),
+    );
+  }
 
   // ── Planned blocks ────────────────────────────────────────────
   unsubs.push(
