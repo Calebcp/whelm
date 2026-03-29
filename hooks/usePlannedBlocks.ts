@@ -436,6 +436,23 @@ export function usePlannedBlocks({
     setPlannedBlocksHydrated(true);
   }, []);
 
+  const handleUserSignedIn = useCallback((uid: string) => {
+    try {
+      const localBlocks = readLocalBlocks(uid) as PlannedBlock[];
+      if (localBlocks.length > 0) {
+        plannedBlocksRef.current = localBlocks;
+        setPlannedBlocks(localBlocks);
+        setPlannedBlocksHydrated(true);
+      }
+    } catch {
+      // Keep going; cloud refresh below is authoritative.
+    }
+
+    void refreshPlannedBlocks(uid).catch(() => {
+      // Preserve locally seeded blocks if remote refresh fails.
+    });
+  }, [refreshPlannedBlocks]);
+
   const persistPlannedBlocks = useCallback(async (nextBlocks: PlannedBlock[]) => {
     const currentUser = auth.currentUser;
     if (!currentUser) return;
@@ -854,6 +871,7 @@ export function usePlannedBlocks({
     selectedDateCanAddBlocks,
     selectedDatePlans,
     handleBlocksSnapshot,
+    handleUserSignedIn,
     handleUserSignedOut,
     refreshPlannedBlocks,
     persistPlannedBlocks,

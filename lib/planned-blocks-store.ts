@@ -172,6 +172,12 @@ export async function loadPlannedBlocks(user: User) {
     const mergedBlocks = mergeBlocksPreferNewest(localBlocks, cloudBlocks);
     writeLocalBlocks(user.uid, mergedBlocks);
 
+    if (JSON.stringify(mergedBlocks) !== JSON.stringify(cloudBlocks)) {
+      void pushBlocksToCloud(user, mergedBlocks).catch((error) => {
+        console.warn("[whelm:planned-blocks] failed to heal cloud snapshot after merge", error);
+      });
+    }
+
     return {
       blocks: mergedBlocks,
       synced: true,

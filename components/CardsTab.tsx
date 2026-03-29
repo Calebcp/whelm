@@ -30,6 +30,14 @@ type ReviewSummary = {
   zoneMoves: number;
 };
 
+type CardGroup = {
+  id: string;
+  title: string;
+  description: string;
+  cards: WhelCard[];
+  defaultOpen?: boolean;
+};
+
 type OutcomeButtonMeta = {
   outcome: ReviewOutcome;
   label: string;
@@ -62,7 +70,6 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
   const [status, setStatus] = useState("");
   const [front, setFront] = useState("");
   const [back, setBack] = useState("");
-  const [reviewIndex, setReviewIndex] = useState(0);
   const [cardFlipped, setCardFlipped] = useState(false);
   const [answerVisible, setAnswerVisible] = useState(false);
   const [answerOpenedAt, setAnswerOpenedAt] = useState<number | null>(null);
@@ -71,6 +78,8 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
   const [sessionZoneMoves, setSessionZoneMoves] = useState(0);
   const [reviewSummary, setReviewSummary] = useState<ReviewSummary | null>(null);
   const [noDueNotice, setNoDueNotice] = useState<string | null>(null);
+  const [reviewQueueIds, setReviewQueueIds] = useState<string[]>([]);
+  const [reviewSessionTotal, setReviewSessionTotal] = useState(0);
 
   useEffect(() => {
     setLoading(true);
@@ -121,6 +130,12 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
 
   const cardsDue = useMemo(() => getCardsForReview(cards), [cards]);
   const todayCardsXp = reviewSummary?.xpEarned ?? sessionXp;
+  const reviewQueue = useMemo(
+    () => reviewQueueIds
+      .map((id) => cards.find((card) => card.id === id) ?? null)
+      .filter((card): card is WhelCard => card !== null && card.nextReviewAt <= Date.now()),
+    [cards, reviewQueueIds],
+  );
 
   const nextCardDueLabel = useMemo(() => {
     if (cardsDue.length > 0 || cards.length === 0) return null;
@@ -145,7 +160,36 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
     return grouped;
   }, [cards]);
 
-  const currentReviewCard = cardsDue[reviewIndex] ?? null;
+  const currentReviewCard = reviewQueue[0] ?? null;
+
+  const cardGroups = useMemo<CardGroup[]>(() => {
+    const groups: CardGroup[] = [
+      { id: "due-now", title: "Due now", description: "Cards ready for review right now.", cards: [], defaultOpen: true },
+      { id: "new", title: "New", description: "Fresh cards that have not been reviewed yet.", cards: [], defaultOpen: true },
+      { id: "hard", title: "Hard", description: "Cards that are still resisting recall.", cards: [], defaultOpen: true },
+      { id: "learning", title: "Learning", description: "Cards still moving through the active ladder.", cards: [] },
+      { id: "easy", title: "Easy", description: "Cards you recently rated easy.", cards: [] },
+      { id: "mastery", title: "Mastery", description: "Cards that are mostly settled.", cards: [] },
+    ];
+
+    for (const card of cards) {
+      if (card.nextReviewAt <= Date.now()) {
+        groups[0].cards.push(card);
+      } else if (card.reviewCount === 0) {
+        groups[1].cards.push(card);
+      } else if (card.zone === "weak" || card.lastOutcome === "hard" || card.lastOutcome === "forgot") {
+        groups[2].cards.push(card);
+      } else if (card.zone === "mastery") {
+        groups[5].cards.push(card);
+      } else if (card.lastOutcome === "easy") {
+        groups[4].cards.push(card);
+      } else {
+        groups[3].cards.push(card);
+      }
+    }
+
+    return groups;
+  }, [cards]);
 
   const masteryPct = cards.length === 0 ? 0 : Math.round((cardsByZone.mastery.length / cards.length) * 100);
 
@@ -197,7 +241,8 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
       setNoDueNotice(message);
       return;
     }
-    setReviewIndex(0);
+    setReviewQueueIds(cardsDue.map((card) => card.id));
+    setReviewSessionTotal(cardsDue.length);
     setCardFlipped(false);
     setAnswerVisible(false);
     setAnswerOpenedAt(null);
@@ -225,8 +270,15 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
             streakDays: 0,
           }).awarded
         : 0;
-    const nextIndex = reviewIndex + 1;
-    const sessionDone = nextIndex >= cardsDue.length;
+    const nextDueCards = getCardsForReview(nextCards);
+    const remainingQueueIds = reviewQueueIds.filter(
+      (id) => id !== currentReviewCard.id && nextDueCards.some((card) => card.id === id),
+    );
+    const additionalDueIds = nextDueCards
+      .map((card) => card.id)
+      .filter((id) => !remainingQueueIds.includes(id));
+    const nextQueueIds = [...remainingQueueIds, ...additionalDueIds];
+    const sessionDone = nextQueueIds.length === 0;
     const sessionBonusXp = sessionDone
       ? calculateXP("card_session_cleared", {
           currentDailyXP: sessionXp + correctXp + fastRecallXp,
@@ -241,6 +293,7 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
     }
 
     await persist(nextCards, capReached ? "XP cap reached for this action today" : "");
+    setReviewQueueIds(nextQueueIds);
     setSessionReviewed((current) => current + 1);
     setSessionXp((current) => current + earned);
     setSessionZoneMoves((current) => current + (updatedCard.zone !== currentReviewCard.zone ? 1 : 0));
@@ -259,11 +312,12 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
       if (nextStatus) {
         setNoDueNotice(nextStatus);
       }
+      setReviewQueueIds([]);
+      setReviewSessionTotal(0);
       setView("board");
       return;
     }
 
-    setReviewIndex(nextIndex);
   }
 
   return (
@@ -302,7 +356,7 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
                   className={`${styles.reportButton} ${cardsDue.length > 0 ? styles.cardsDueGlow : styles.cardsReviewButtonIdle}`}
                   onClick={startReviewSession}
                 >
-                  Start Review Session
+                  Review Due Now
                   {cardsDue.length > 0 ? (
                     <span className={styles.cardsDueBadge}>{cardsDue.length}</span>
                   ) : null}
@@ -355,25 +409,22 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
             </div>
           ) : (
             <div className={styles.cardsBoardGrid}>
-              {ZONE_ORDER.map((zone) => (
-                <article key={zone} className={styles.cardsZoneColumn}>
-                  <div className={styles.cardsZoneHeader}>
-                    <span className={styles.sectionLabel}>
-                      {zone === "learning"
-                        ? "Learning"
-                        : zone === "practice"
-                          ? "Practice"
-                          : zone === "mastery"
-                            ? "Mastery"
-                            : "Weak"}
+              {cardGroups.map((group) => (
+                <details key={group.id} className={styles.cardsZoneColumn} open={group.defaultOpen}>
+                  <summary className={styles.cardsZoneHeader}>
+                    <span>
+                      <span className={styles.sectionLabel}>{group.title}</span>
+                      <span className={styles.accountMeta} style={{ display: "block", marginTop: 4 }}>
+                        {group.description}
+                      </span>
                     </span>
-                    <strong>{cardsByZone[zone].length}</strong>
-                  </div>
+                    <strong>{group.cards.length}</strong>
+                  </summary>
                   <div className={styles.cardsZoneList}>
-                    {cardsByZone[zone].length === 0 ? (
-                      <p className={styles.emptyText}>No cards here yet.</p>
+                    {group.cards.length === 0 ? (
+                      <p className={styles.emptyText}>No cards here right now.</p>
                     ) : (
-                      cardsByZone[zone].map((card) => (
+                      group.cards.map((card) => (
                         <article key={card.id} className={styles.cardsTile}>
                           <strong>{card.front || "Untitled card"}</strong>
                           <span className={styles.accountMeta}>
@@ -384,7 +435,7 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
                       ))
                     )}
                   </div>
-                </article>
+                </details>
               ))}
             </div>
           )}
@@ -396,13 +447,17 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
           <div className={styles.cardsOverlayTopBar}>
             <span className={styles.cardsOverlayProgress}>
               {currentReviewCard
-                ? `${reviewIndex + 1} / ${cardsDue.length}`
+                ? `${sessionReviewed + 1} / ${Math.max(reviewSessionTotal, sessionReviewed + reviewQueue.length)}`
                 : "Done"}
             </span>
             <button
               type="button"
               className={styles.cardsOverlayExitBtn}
-              onClick={() => setView("board")}
+              onClick={() => {
+                setReviewQueueIds([]);
+                setReviewSessionTotal(0);
+                setView("board");
+              }}
             >
               ← Exit
             </button>

@@ -551,8 +551,32 @@ export async function saveNotes(user: User, notes: WorkspaceNote[]): Promise<Not
 }
 
 export async function retryNotesSync(user: User, notes: WorkspaceNote[]) {
-  const result = await saveNotes(user, notes);
-  return { synced: result.synced, message: result.message };
+  const currentLocalNotes = mergeNotesPreferNewest(readLocalNotes(user.uid), notes);
+  writeLocalNotes(user.uid, currentLocalNotes);
+
+  console.info("[whelm:notes] retry sync started", {
+    uid: user.uid,
+    localCount: currentLocalNotes.length,
+  });
+
+  const loaded = await loadNotes(user);
+  const reconciledNotes = mergeNotesPreferNewest(currentLocalNotes, loaded.notes);
+  writeLocalNotes(user.uid, reconciledNotes);
+
+  if (notesMatch(reconciledNotes, loaded.notes)) {
+    return {
+      notes: reconciledNotes,
+      synced: loaded.synced,
+      message: loaded.message,
+    };
+  }
+
+  const saved = await saveNotes(user, reconciledNotes);
+  return {
+    notes: saved.notes,
+    synced: saved.synced,
+    message: saved.message,
+  };
 }
 
 // ── One-time migration ────────────────────────────────────────────────────────

@@ -1457,6 +1457,7 @@ export default function HomePage() {
     selectedDateCanAddBlocks,
     selectedDatePlans,
     handleBlocksSnapshot,
+    handleUserSignedIn: handlePlannedBlocksSignedIn,
     handleUserSignedOut: handlePlannedBlocksSignedOut,
     persistPlannedBlocks,
     selectCalendarDate,
@@ -1621,6 +1622,11 @@ export default function HomePage() {
   });
 
   // ── useUserData: auth, sessions, XP, streak, bandana, mascot ───────────────
+  const onSignIn = useCallback((uid: string) => {
+    handlePlannedBlocksSignedIn(uid);
+    handleUserSignedIn(uid);
+  }, [handlePlannedBlocksSignedIn, handleUserSignedIn]);
+
   const onSignOut = useCallback(() => {
     handlePlannedBlocksSignedOut();
     handleUserSignedOut();
@@ -1663,7 +1669,7 @@ export default function HomePage() {
     noteWordsByDay,
     protectedStreakDateKeys,
     plannedBlocksHydrated,
-    onSignIn: handleUserSignedIn,
+    onSignIn,
     onSignOut,
   });
 

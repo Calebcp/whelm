@@ -438,8 +438,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
 
   const handleUserSignedIn = useCallback((uid: string) => {
     try {
-      const raw = window.localStorage.getItem(`whelm:notes:${uid}`);
-      const local = raw ? (JSON.parse(raw) as WorkspaceNote[]) : [];
+      const local = readLocalNotes(uid);
       if (local.length > 0) {
         setNotes(local);
         setSelectedNoteId((current) => current ?? local[0]?.id ?? null);
@@ -859,12 +858,24 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
   async function handleRetrySync() {
     const currentUser = auth.currentUser;
     if (!currentUser) return;
+    await flushSelectedNoteDraft();
     setNotesSyncStatus("syncing");
+    setNotesSyncMessage("Retrying your latest notes and checking cloud state...");
     const result = await retryNotesSync(currentUser, notesRef.current);
 
+    if (result.notes.length > 0) {
+      notesRef.current = result.notes;
+      setNotes(result.notes);
+      setSelectedNoteId((current) =>
+        current && result.notes.some((note) => note.id === current)
+          ? current
+          : (result.notes[0]?.id ?? null),
+      );
+    }
+
     if (result.synced) {
-    setNotesSyncStatus("synced");
-    setNotesSyncMessage("");
+      setNotesSyncStatus("synced");
+      setNotesSyncMessage("");
     } else {
       setNotesSyncStatus("local-only");
       setNotesSyncMessage(result.message ?? "Retry failed.");
