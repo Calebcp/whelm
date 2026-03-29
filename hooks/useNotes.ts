@@ -482,7 +482,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
   const handleUserSignedOut = useCallback(() => {
     setNotes([]);
     setSelectedNoteId(null);
-    setNotesSyncStatus("syncing");
+    setNotesSyncStatus("local-only");
     setNotesSyncMessage("");
     setEditorBodyDraft("");
     setPendingNoteAttachments([]);

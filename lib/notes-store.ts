@@ -448,14 +448,24 @@ export async function deleteNoteFromFirestore(uid: string, noteId: string): Prom
 
 // ── Bulk helpers (used for initial load and retry sync) ───────────────────────
 
+const NOTE_FIRESTORE_READ_TIMEOUT_MS = 8000;
+
 export async function loadNotes(user: User): Promise<NotesSyncResult> {
   const localNotes = readLocalNotes(user.uid);
 
   try {
-    const snap = await getDocs(collection(db, "userNotes", user.uid, "notes"));
+    const snap = await withTimeout(
+      getDocs(collection(db, "userNotes", user.uid, "notes")),
+      NOTE_FIRESTORE_READ_TIMEOUT_MS,
+      "Firestore note list timed out.",
+    );
     const subcollectionNotes = normalizeNotes(snap.docs.map((d) => d.data() as WorkspaceNote));
     let legacyNotes: WorkspaceNote[] = [];
-    const legacySnap = await getDoc(firestoreDoc(db, "userNotes", user.uid));
+    const legacySnap = await withTimeout(
+      getDoc(firestoreDoc(db, "userNotes", user.uid)),
+      NOTE_FIRESTORE_READ_TIMEOUT_MS,
+      "Firestore legacy note read timed out.",
+    );
     const raw = legacySnap.data()?.notesJson;
     if (typeof raw === "string") {
       try {

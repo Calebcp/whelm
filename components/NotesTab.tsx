@@ -1094,9 +1094,19 @@ export default function NotesTab({
                       <span>
                         {notesSyncStatus === "syncing"
                           ? "Saving your note across devices…"
-                          : "This note is saved locally and cloud sync is currently pending."}
+                          : "Saved locally — cloud sync pending."}
                         {notesSyncMessage ? ` ${notesSyncMessage}` : ""}
                       </span>
+                      {notesSyncStatus === "local-only" && (
+                        <button
+                          type="button"
+                          className={sharedStyles.retrySyncButton}
+                          style={{ marginLeft: 8, padding: "2px 10px", fontSize: "0.75rem" }}
+                          onClick={() => void onRetrySync()}
+                        >
+                          Retry sync
+                        </button>
+                      )}
                     </div>
                   ) : null}
                   <div
@@ -1204,6 +1214,15 @@ export default function NotesTab({
                   >
                     Turn into block
                   </button>
+                  {notesSyncStatus !== "synced" && (
+                    <button
+                      type="button"
+                      className={sharedStyles.retrySyncButton}
+                      onClick={() => void onRetrySync()}
+                    >
+                      Retry sync
+                    </button>
+                  )}
                   <button
                     type="button"
                     className={sharedStyles.deleteNoteButton}
@@ -1850,9 +1869,19 @@ export default function NotesTab({
                         <span>
                           {notesSyncStatus === "syncing"
                             ? "Saving your note across devices…"
-                            : "This note is saved locally and cloud sync is currently pending."}
+                            : "Saved locally — cloud sync pending."}
                           {notesSyncMessage ? ` ${notesSyncMessage}` : ""}
                         </span>
+                        {notesSyncStatus === "local-only" && (
+                          <button
+                            type="button"
+                            className={sharedStyles.retrySyncButton}
+                            style={{ marginLeft: 8, padding: "2px 10px", fontSize: "0.75rem" }}
+                            onClick={() => void onRetrySync()}
+                          >
+                            Retry sync
+                          </button>
+                        )}
                       </div>
                     ) : null}
                     <div
