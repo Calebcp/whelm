@@ -628,6 +628,8 @@
   overflow: auto;
   min-height: calc(45vh - 78px);
   font: inherit;
+  color: inherit;
+  -webkit-text-fill-color: currentColor;
   line-height: 1.82;
   white-space: pre-wrap;
   word-break: break-word;
