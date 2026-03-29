@@ -628,12 +628,12 @@
   overflow: auto;
   min-height: calc(45vh - 78px);
   font: inherit;
-  color: inherit;
+  color: #102033;
   -webkit-text-fill-color: currentColor;
   line-height: 1.82;
   white-space: pre-wrap;
   word-break: break-word;
-  caret-color: transparent;
+  caret-color: var(--note-bandana-accent-strong, #2f86ff);
 }
 
 .noteBodyShell {

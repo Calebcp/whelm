@@ -20,6 +20,13 @@ import { type WhelBandanaColor } from "@/lib/whelm-mascot";
 const MIN_PLANNED_BLOCK_MINUTES = 15;
 const MAX_PLANNED_BLOCK_MINUTES = 240;
 
+function previewDuplicatesTitle(title: string, preview: string) {
+  const normalize = (value: string) => value.replace(/\s+/g, " ").trim().toLowerCase();
+  const normalizedTitle = normalize(title);
+  const normalizedPreview = normalize(preview);
+  return Boolean(normalizedTitle) && normalizedTitle === normalizedPreview;
+}
+
 // ── Types ────────────────────────────────────────────────────────────────────
 
 type CalendarView = "month" | "day";
@@ -1103,7 +1110,9 @@ export default function ScheduleTab({
                     </div>
                   </div>
                 )}
-                {!isMobileViewport && activeCalendarPreview && activeDayViewPreviewItem && (
+                {activeCalendarPreview &&
+                  activeDayViewPreviewItem &&
+                  (!isMobileViewport || activeCalendarPreview.source === "session") && (
                   <div
                     className={`${styles.calendarEntryPopover} ${
                       calendarPinnedEntryId ? styles.calendarEntryPopoverPinned : ""
@@ -1127,12 +1136,12 @@ export default function ScheduleTab({
                           }
                     }
                     onMouseEnter={() => {
-                      if (!calendarPinnedEntryId) {
+                      if (!isMobileViewport && !calendarPinnedEntryId) {
                         onShowCalendarHoverPreview(activeCalendarPreview.id);
                       }
                     }}
                     onMouseLeave={() => {
-                      if (!calendarPinnedEntryId) {
+                      if (!isMobileViewport && !calendarPinnedEntryId) {
                         onScheduleCalendarHoverPreviewClear(activeCalendarPreview.id);
                       }
                     }}
@@ -1149,9 +1158,14 @@ export default function ScheduleTab({
                       <h3 className={styles.calendarEntryPreviewTitle}>
                         {activeCalendarPreview.title}
                       </h3>
-                      <p className={styles.calendarEntryPreviewBody}>
-                        {activeCalendarPreview.preview}
-                      </p>
+                      {!previewDuplicatesTitle(
+                        activeCalendarPreview.title,
+                        activeCalendarPreview.preview,
+                      ) && (
+                        <p className={styles.calendarEntryPreviewBody}>
+                          {activeCalendarPreview.preview}
+                        </p>
+                      )}
                     </div>
                     <div className={styles.calendarEntryPreviewActions}>
                       {activeCalendarPreview.source === "reminder" && activeCalendarPreview.noteId && (
@@ -1208,7 +1222,7 @@ export default function ScheduleTab({
                 )}
               </div>
             </div>
-            {isMobileViewport && activeCalendarPreview && (
+            {isMobileViewport && activeCalendarPreview && activeCalendarPreview.source !== "session" && (
               <div className={styles.calendarEntryPreview}>
                 <div>
                   <p className={styles.calendarEntryPreviewLabel}>
@@ -1221,9 +1235,14 @@ export default function ScheduleTab({
                   <h3 className={styles.calendarEntryPreviewTitle}>
                     {activeCalendarPreview.title}
                   </h3>
-                  <p className={styles.calendarEntryPreviewBody}>
-                    {activeCalendarPreview.preview}
-                  </p>
+                  {!previewDuplicatesTitle(
+                    activeCalendarPreview.title,
+                    activeCalendarPreview.preview,
+                  ) && (
+                    <p className={styles.calendarEntryPreviewBody}>
+                      {activeCalendarPreview.preview}
+                    </p>
+                  )}
                 </div>
                 <div className={styles.calendarEntryPreviewActions}>
                   {activeCalendarPreview.source === "reminder" && activeCalendarPreview.noteId && (
@@ -1259,15 +1278,6 @@ export default function ScheduleTab({
                       Complete
                     </button>
                   )}
-                  {activeCalendarPreview.source === "session" && (
-                    <button
-                      type="button"
-                      className={styles.secondaryPlanButton}
-                      onClick={onSetActiveTabHistory}
-                    >
-                      View history
-                    </button>
-                  )}
                   <button
                     type="button"
                     className={styles.secondaryPlanButton}
@@ -1293,9 +1303,14 @@ export default function ScheduleTab({
               <h3 className={styles.calendarEntryPreviewTitle}>
                 {activeCalendarPreview.title}
               </h3>
-              <p className={styles.calendarEntryPreviewBody}>
-                {activeCalendarPreview.preview}
-              </p>
+              {!previewDuplicatesTitle(
+                activeCalendarPreview.title,
+                activeCalendarPreview.preview,
+              ) && (
+                <p className={styles.calendarEntryPreviewBody}>
+                  {activeCalendarPreview.preview}
+                </p>
+              )}
             </div>
             <div className={styles.calendarEntryPreviewActions}>
               {activeCalendarPreview.source === "reminder" && activeCalendarPreview.noteId && (
