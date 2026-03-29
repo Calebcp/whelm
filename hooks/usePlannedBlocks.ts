@@ -638,23 +638,10 @@ export function usePlannedBlocks({
   const deletePlannedBlock = useCallback((id: string) => {
     const removed = plannedBlocks.find((item) => item.id === id) || null;
     if (!removed) return;
-    const nextClaimedCount = claimedBlocksToday.filter((item) => item.id !== id).length;
-    if (
-      removed.dateKey === dayKeyLocal(new Date()) &&
-      removed.durationMinutes >= 15 &&
-      nextClaimedCount < 3
-    ) {
-      const confirmed = window.confirm(
-        "Removing this block will reopen today's lock because you will fall below 3 required blocks. Continue?",
-      );
-      if (!confirmed) return;
-      setDailyPlanningOpen(true);
-      setDailyPlanningStatus("Today needs 3 active blocks. Replace the removed block to unlock the workspace again.");
-    }
     void persistPlannedBlocks(plannedBlocks.filter((item) => item.id !== id));
     setDeletedPlanUndo(removed);
     window.setTimeout(() => setDeletedPlanUndo(null), 5000);
-  }, [claimedBlocksToday, persistPlannedBlocks, plannedBlocks]);
+  }, [persistPlannedBlocks, plannedBlocks]);
 
   const undoDeletePlannedBlock = useCallback(() => {
     if (!deletedPlanUndo) return;
