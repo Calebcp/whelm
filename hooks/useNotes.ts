@@ -159,7 +159,67 @@ function normalizeBodyForEditor(body: string) {
   if (!hasHtmlTags) {
     return body.replaceAll("\n", "<br/>");
   }
-  return body;
+  if (typeof document === "undefined") return body;
+
+  const template = document.createElement("template");
+  template.innerHTML = body;
+  const allowedTags = new Set([
+    "A",
+    "B",
+    "BLOCKQUOTE",
+    "BR",
+    "DIV",
+    "EM",
+    "H1",
+    "H2",
+    "H3",
+    "HR",
+    "I",
+    "LI",
+    "MARK",
+    "OL",
+    "P",
+    "SPAN",
+    "STRONG",
+    "U",
+    "UL",
+  ]);
+
+  const sanitizeNode = (node: Node) => {
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+    const element = node as HTMLElement;
+
+    if (!allowedTags.has(element.tagName)) {
+      const parent = element.parentNode;
+      if (!parent) return;
+      const promotedChildren = [...element.childNodes];
+      for (const child of promotedChildren) {
+        parent.insertBefore(child, element);
+      }
+      parent.removeChild(element);
+      for (const child of promotedChildren) {
+        sanitizeNode(child);
+      }
+      return;
+    }
+
+    for (const attribute of [...element.attributes]) {
+      const keepHref = element.tagName === "A" && attribute.name === "href";
+      if (!keepHref) {
+        element.removeAttribute(attribute.name);
+      }
+    }
+
+    for (const child of [...element.childNodes]) {
+      sanitizeNode(child);
+    }
+  };
+
+  for (const child of [...template.content.childNodes]) {
+    sanitizeNode(child);
+  }
+
+  return template.innerHTML;
 }
 
 function isEffectivelyEmptyEditorHtml(value: string) {
@@ -415,7 +475,17 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
   // ── Sync editorBodyDraft → editor.innerHTML ────────────────────────────────
   useEffect(() => {
     if (!editorRef.current) return;
-    if (bodyDirtyRef.current && bodyDirtyNoteIdRef.current === selectedNoteId) return;
+    const editorNeedsHydration =
+      isEffectivelyEmptyEditorHtml(editorRef.current.innerHTML) &&
+      !isEffectivelyEmptyEditorHtml(editorBodyDraft);
+
+    if (
+      bodyDirtyRef.current &&
+      bodyDirtyNoteIdRef.current === selectedNoteId &&
+      !editorNeedsHydration
+    ) {
+      return;
+    }
     if (editorRef.current.innerHTML !== editorBodyDraft) {
       editorRef.current.innerHTML = editorBodyDraft;
     }
@@ -697,8 +767,8 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     const currentNote = notesRef.current.find((note) => note.id === currentSelectedNoteId);
     if (!currentNote) return;
 
-    const editorHtml = editorRef.current?.innerHTML ?? "";
-    const draftBody = editorBodyDraft;
+    const editorHtml = normalizeBodyForEditor(editorRef.current?.innerHTML ?? "");
+    const draftBody = normalizeBodyForEditor(editorBodyDraft);
     const currentBody = currentNote.body;
     const nextBody =
       isEffectivelyEmptyEditorHtml(editorHtml) &&
@@ -754,7 +824,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
 
   function captureEditorDraft() {
     if (!editorRef.current) return;
-    const nextBody = editorRef.current.innerHTML;
+    const nextBody = normalizeBodyForEditor(editorRef.current.innerHTML);
     setEditorBodyDraft(nextBody);
 
     const currentUser = auth.currentUser;
