@@ -8,6 +8,7 @@ import {
 } from "firebase/auth";
 import { initializeFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
+import { resolveFirestoreDatabaseId } from "@/lib/firestore-database";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
@@ -43,6 +44,6 @@ export const db = initializeFirestore(
     // more reliable for this app's small payloads.
     experimentalForceLongPolling: true,
   },
-  process.env.NEXT_PUBLIC_FIREBASE_DATABASE_ID || "(default)",
+  resolveFirestoreDatabaseId(),
 );
 export const storage = getStorage(app);

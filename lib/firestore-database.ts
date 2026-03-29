@@ -1,9 +1,17 @@
+function normalizeDatabaseId(databaseId: string | undefined) {
+  const trimmed = databaseId?.trim();
+  return trimmed ? trimmed : null;
+}
+
 export function resolveFirestoreDatabaseId() {
-  return (
-    process.env.FIREBASE_DATABASE_ID?.trim() ||
-    process.env.NEXT_PUBLIC_FIREBASE_DATABASE_ID?.trim() ||
-    "(default)"
-  );
+  const explicitDatabaseId =
+    normalizeDatabaseId(process.env.FIREBASE_DATABASE_ID) ||
+    normalizeDatabaseId(process.env.NEXT_PUBLIC_FIREBASE_DATABASE_ID);
+
+  if (explicitDatabaseId) return explicitDatabaseId;
+
+  const projectId = normalizeDatabaseId(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID);
+  return projectId || "(default)";
 }
 
 export function firestoreCleanupDatabaseIds() {
