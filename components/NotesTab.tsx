@@ -544,7 +544,7 @@ export default function NotesTab({
     notesSyncStatus === "synced"
       ? "Synced to your account."
       : notesSyncStatus === "syncing"
-        ? "Syncing your latest note changes..."
+        ? "Saving in background..."
         : "Using local notes while cloud sync catches up.";
   const syncButtonLabel = notesSyncStatus === "synced" ? "Sync now" : "Retry sync";
 
@@ -1096,25 +1096,21 @@ export default function NotesTab({
                   className={styles.noteTitleInput}
                 />
                 <div className={styles.noteBodyShell} ref={noteBodyShellRef}>
-                  {notesSyncStatus !== "synced" ? (
+                  {notesSyncStatus === "local-only" ? (
                     <div className={styles.noteSyncInlineNotice} role="status" aria-live="polite">
                       <span className={styles.noteSyncInlineDot} />
                       <span>
-                        {notesSyncStatus === "syncing"
-                          ? "Saving your note across devices…"
-                          : "Saved locally — cloud sync pending."}
+                        Saved locally — cloud sync pending.
                         {notesSyncMessage ? ` ${notesSyncMessage}` : ""}
                       </span>
-                      {notesSyncStatus === "local-only" && (
-                        <button
-                          type="button"
-                          className={sharedStyles.retrySyncButton}
-                          style={{ marginLeft: 8 }}
-                          onClick={() => void onRetrySync()}
-                        >
-                          {syncButtonLabel}
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        className={sharedStyles.retrySyncButton}
+                        style={{ marginLeft: 8 }}
+                        onClick={() => void onRetrySync()}
+                      >
+                        {syncButtonLabel}
+                      </button>
                     </div>
                   ) : null}
                   <div
@@ -1867,25 +1863,21 @@ export default function NotesTab({
                   </div>
 
                   <div className={styles.noteBodyShell} ref={noteBodyShellRef}>
-                    {notesSyncStatus !== "synced" ? (
+                    {notesSyncStatus === "local-only" ? (
                       <div className={styles.noteSyncInlineNotice} role="status" aria-live="polite">
                         <span className={styles.noteSyncInlineDot} />
                         <span>
-                          {notesSyncStatus === "syncing"
-                            ? "Saving your note across devices…"
-                            : "Saved locally — cloud sync pending."}
+                          Saved locally — cloud sync pending.
                           {notesSyncMessage ? ` ${notesSyncMessage}` : ""}
                         </span>
-                        {notesSyncStatus === "local-only" && (
-                          <button
-                            type="button"
-                            className={sharedStyles.retrySyncButton}
-                            style={{ marginLeft: 8 }}
-                            onClick={() => void onRetrySync()}
-                          >
-                            {syncButtonLabel}
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          className={sharedStyles.retrySyncButton}
+                          style={{ marginLeft: 8 }}
+                          onClick={() => void onRetrySync()}
+                        >
+                          {syncButtonLabel}
+                        </button>
                       </div>
                     ) : null}
                     <div
