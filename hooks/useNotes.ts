@@ -219,17 +219,24 @@ function notesMatch(a: WorkspaceNote[], b: WorkspaceNote[]) {
 // ── Hook ──────────────────────────────────────────────────────────────────────
 
 export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
+  const initialUser = typeof window !== "undefined" ? auth.currentUser : null;
+  const initialLocalNotes = initialUser ? readLocalNotes(initialUser.uid) : [];
+
   // ── State ──────────────────────────────────────────────────────────────────
-  const [notes, setNotes] = useState<WorkspaceNote[]>([]);
-  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
+  const [notes, setNotes] = useState<WorkspaceNote[]>(initialLocalNotes);
+  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(initialLocalNotes[0]?.id ?? null);
   const [notesSurface, setNotesSurface] = useState<"notes" | "cards">("notes");
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
   const [shellColorPickerOpen, setShellColorPickerOpen] = useState(false);
   const [textColorPickerOpen, setTextColorPickerOpen] = useState(false);
   const [highlightPickerOpen, setHighlightPickerOpen] = useState(false);
   const [editorBodyDraft, setEditorBodyDraft] = useState("");
-  const [notesSyncStatus, setNotesSyncStatus] = useState<"synced" | "local-only" | "syncing">("syncing");
-  const [notesSyncMessage, setNotesSyncMessage] = useState("");
+  const [notesSyncStatus, setNotesSyncStatus] = useState<"synced" | "local-only" | "syncing">(
+    initialLocalNotes.length > 0 ? "local-only" : "syncing",
+  );
+  const [notesSyncMessage, setNotesSyncMessage] = useState(
+    initialLocalNotes.length > 0 ? "Opening your local notes first while cloud sync catches up." : "",
+  );
   const [noteAttachmentBusy, setNoteAttachmentBusy] = useState(false);
   const [noteAttachmentStatus, setNoteAttachmentStatus] = useState("");
   const [pendingNoteAttachments, setPendingNoteAttachments] = useState<PendingNoteAttachment[]>([]);
