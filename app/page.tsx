@@ -1432,6 +1432,7 @@ export default function HomePage() {
     setPlanTime,
     planStatus,
     setPlanStatus,
+    editingPlannedBlockId,
     planConflictWarning,
     setPlanConflictWarning,
     calendarJumpDate,
@@ -1465,6 +1466,7 @@ export default function HomePage() {
     selectCalendarDate,
     jumpToToday,
     openCalendarBlockComposer,
+    closeBlockComposer,
     openPrefilledBlockComposer,
     closeDailyPlanningPreview,
     addPlannedBlock,
@@ -2706,6 +2708,7 @@ export default function HomePage() {
               planTime={planTime}
               planDuration={planDuration}
               planStatus={planStatus}
+              editingPlannedBlockId={editingPlannedBlockId}
               plannerSectionsOpen={plannerSectionsOpen}
               selectedDatePlanGroups={selectedDatePlanGroups}
               selectedDateAgendaStateSummary={selectedDateAgendaStateSummary}
@@ -2738,7 +2741,7 @@ export default function HomePage() {
               onOpenPlannedBlockDetail={openPlannedBlockDetail}
               onApplyDayTone={applyDayTone}
               onOpenCalendarBlockComposer={openCalendarBlockComposer}
-              onSetDayPortalComposerOpen={setDayPortalComposerOpen}
+              onCloseBlockComposer={closeBlockComposer}
               onScrollCalendarTimelineToNow={scrollCalendarTimelineToNow}
               onShowCalendarHoverPreview={showCalendarHoverPreview}
               onScheduleCalendarHoverPreviewClear={scheduleCalendarHoverPreviewClear}
@@ -2761,7 +2764,6 @@ export default function HomePage() {
               onSetDraggedPlanId={setDraggedPlanId}
               onSetPlannerSectionsOpen={setPlannerSectionsOpen}
               onSetMobileAgendaEntriesOpen={setMobileAgendaEntriesOpen}
-              onSetMobileBlockSheetOpen={setMobileBlockSheetOpen}
               onUpgrade={openUpgradeFlow}
             />
           )}
@@ -3157,6 +3159,20 @@ export default function HomePage() {
             />
           ) : null
         }
+        onEdit={() => {
+          if (!selectedPlanDetail || selectedPlanDetail.status === "completed") return;
+          openPrefilledBlockComposer({
+            id: selectedPlanDetail.id,
+            dateKey: selectedPlanDetail.dateKey,
+            title: selectedPlanDetail.title,
+            note: selectedPlanDetail.note,
+            timeOfDay: selectedPlanDetail.timeOfDay,
+            durationMinutes: selectedPlanDetail.durationMinutes,
+            tone: visiblePlanTone(selectedPlanDetail.tone),
+            attachmentCount: selectedPlanDetail.attachmentCount,
+          });
+          closePlannedBlockDetail();
+        }}
         onComplete={() => {
           if (!selectedPlanDetail) return;
           void completePlannedBlock(selectedPlanDetail);

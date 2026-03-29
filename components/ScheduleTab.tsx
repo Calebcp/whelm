@@ -279,6 +279,7 @@ export type ScheduleTabProps = {
   planTime: string;
   planDuration: number;
   planStatus: string;
+  editingPlannedBlockId: string | null;
   // Planner sections
   plannerSectionsOpen: PlannerSectionsOpen;
   selectedDatePlanGroups: SelectedDatePlanGroups;
@@ -311,7 +312,7 @@ export type ScheduleTabProps = {
   // Handlers — day view
   onApplyDayTone: (dateKey: string, tone: CalendarTone | null) => void;
   onOpenCalendarBlockComposer: () => void;
-  onSetDayPortalComposerOpen: (open: boolean) => void;
+  onCloseBlockComposer: () => void;
   onScrollCalendarTimelineToNow: () => void;
   onShowCalendarHoverPreview: (id: string) => void;
   onScheduleCalendarHoverPreviewClear: (id: string) => void;
@@ -336,7 +337,6 @@ export type ScheduleTabProps = {
   // Handlers — planner sections
   onSetPlannerSectionsOpen: (updater: (current: PlannerSectionsOpen) => PlannerSectionsOpen) => void;
   onSetMobileAgendaEntriesOpen: (open: boolean | ((current: boolean) => boolean)) => void;
-  onSetMobileBlockSheetOpen: (open: boolean) => void;
   // Upgrade
   onUpgrade: () => void;
 };
@@ -389,6 +389,7 @@ export default function ScheduleTab({
   planTime,
   planDuration,
   planStatus,
+  editingPlannedBlockId,
   plannerSectionsOpen,
   selectedDatePlanGroups,
   selectedDateAgendaStateSummary,
@@ -415,7 +416,7 @@ export default function ScheduleTab({
   onOpenPlannedBlockDetail,
   onApplyDayTone,
   onOpenCalendarBlockComposer,
-  onSetDayPortalComposerOpen,
+  onCloseBlockComposer,
   onScrollCalendarTimelineToNow,
   onShowCalendarHoverPreview,
   onScheduleCalendarHoverPreviewClear,
@@ -438,7 +439,6 @@ export default function ScheduleTab({
   onSetDraggedPlanId,
   onSetPlannerSectionsOpen,
   onSetMobileAgendaEntriesOpen,
-  onSetMobileBlockSheetOpen,
   onUpgrade,
 }: ScheduleTabProps) {
   const visiblePlanTone = (tone: CalendarTone | null | undefined) => (isPro ? (tone ?? null) : null);
@@ -807,7 +807,7 @@ export default function ScheduleTab({
                         <button
                           type="button"
                           className={styles.secondaryPlanButton}
-                          onClick={() => onSetDayPortalComposerOpen(false)}
+                          onClick={onCloseBlockComposer}
                         >
                           Close
                         </button>
@@ -893,7 +893,7 @@ export default function ScheduleTab({
                           onClick={() => {
                             const added = onAddPlannedBlock();
                             if (added) {
-                              onSetDayPortalComposerOpen(false);
+                              onCloseBlockComposer();
                             }
                           }}
                         >
@@ -1914,7 +1914,7 @@ export default function ScheduleTab({
       {isMobileViewport && mobileBlockSheetOpen && selectedDateCanAddBlocks && (
         <div
           className={styles.feedbackOverlay}
-          onClick={() => onSetMobileBlockSheetOpen(false)}
+          onClick={onCloseBlockComposer}
         >
           <div
             className={styles.mobileBlockModal}
@@ -1935,7 +1935,7 @@ export default function ScheduleTab({
               <button
                 type="button"
                 className={styles.feedbackClose}
-                onClick={() => onSetMobileBlockSheetOpen(false)}
+                onClick={onCloseBlockComposer}
               >
                 Close
               </button>
@@ -2025,11 +2025,11 @@ export default function ScheduleTab({
                   onClick={() => {
                     const added = onAddPlannedBlock();
                     if (added) {
-                      onSetMobileBlockSheetOpen(false);
+                      onCloseBlockComposer();
                     }
                   }}
                 >
-                  Add block
+                  {editingPlannedBlockId ? "Save changes" : "Add block"}
                 </button>
               </div>
               {planStatus && <p className={styles.accountMeta}>{planStatus}</p>}

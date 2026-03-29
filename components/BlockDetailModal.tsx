@@ -22,6 +22,7 @@ export default function BlockDetailModal({
   normalizeTimeLabel,
   attachmentIndicatorLabel,
   tonePicker,
+  onEdit,
   onComplete,
   onOpenDayView,
   onRemove,
@@ -32,6 +33,7 @@ export default function BlockDetailModal({
   normalizeTimeLabel: (raw: string) => string;
   attachmentIndicatorLabel: (count: number) => string;
   tonePicker: ReactNode;
+  onEdit: () => void;
   onComplete: () => void;
   onOpenDayView: () => void;
   onRemove: () => void;
@@ -71,6 +73,11 @@ export default function BlockDetailModal({
         )}
         <div className={styles.calendarTonePanel}>{tonePicker}</div>
         <div className={styles.noteFooterActions}>
+          {selectedPlanDetail.status !== "completed" ? (
+            <button type="button" className={styles.secondaryPlanButton} onClick={onEdit}>
+              Edit block
+            </button>
+          ) : null}
           {selectedPlanDetail.status !== "completed" ? (
             <button type="button" className={styles.planCompleteButton} onClick={onComplete}>
               Complete block
