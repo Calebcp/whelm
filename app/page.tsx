@@ -49,7 +49,6 @@ import {
 } from "@/lib/analytics-tracker";
 import { resolveApiUrl } from "@/lib/api-base";
 import { getCalendarToneMeta, type CalendarTone } from "@/lib/calendar-tones";
-import { shouldUseRealtimeNotesSync } from "@/lib/client-platform";
 import { auth, db, storage } from "@/lib/firebase";
 import {
   type WorkspaceNote,
@@ -1558,7 +1557,6 @@ export default function HomePage() {
     noteAttachmentBusy,
     noteAttachmentStatus,
     pendingNoteAttachments,
-    refreshNotes,
     applyNotesSnapshot,
     handleUserSignedIn,
     handleUserSignedOut,
@@ -1968,16 +1966,9 @@ export default function HomePage() {
   }, [setSickDaySavePromptOpen, sickDaySaveEligible, sickDaySavePromptPreview, user]);
 
   useEffect(() => {
-    const useRealtimeNotes = shouldUseRealtimeNotesSync();
-
     function onVisibilityChange() {
       if (document.visibilityState === "hidden") {
         void flushSelectedNoteDraft();
-        return;
-      }
-
-      if (user && !useRealtimeNotes) {
-        void refreshNotes(user.uid).catch(() => undefined);
       }
     }
 
@@ -1985,29 +1976,13 @@ export default function HomePage() {
       void flushSelectedNoteDraft();
     }
 
-    function onWindowFocus() {
-      if (user && !useRealtimeNotes) {
-        void refreshNotes(user.uid).catch(() => undefined);
-      }
-    }
-
-    function onWindowOnline() {
-      if (user && !useRealtimeNotes) {
-        void refreshNotes(user.uid).catch(() => undefined);
-      }
-    }
-
     document.addEventListener("visibilitychange", onVisibilityChange);
     window.addEventListener("pagehide", onPageHide);
-    window.addEventListener("focus", onWindowFocus);
-    window.addEventListener("online", onWindowOnline);
 
     if (!user) {
       return () => {
         document.removeEventListener("visibilitychange", onVisibilityChange);
         window.removeEventListener("pagehide", onPageHide);
-        window.removeEventListener("focus", onWindowFocus);
-        window.removeEventListener("online", onWindowOnline);
       };
     }
 
@@ -2039,18 +2014,14 @@ export default function HomePage() {
       isEditingNote: () => bodyDirtyRef.current,
       editingNoteId: () => selectedNoteIdRef.current,
       localNote: (id) => notesRef.current.find((n) => n.id === id),
-    }, {
-      enableNotesRealtime: useRealtimeNotes,
     });
 
     return () => {
       unsub();
       document.removeEventListener("visibilitychange", onVisibilityChange);
       window.removeEventListener("pagehide", onPageHide);
-      window.removeEventListener("focus", onWindowFocus);
-      window.removeEventListener("online", onWindowOnline);
     };
-  }, [flushSelectedNoteDraft, handleReflectionSnapshot, refreshNotes, user]);
+  }, [handleReflectionSnapshot, user]);
 
   function fireAndForgetTracking(work: Promise<unknown>) {
     void work.catch(() => {
