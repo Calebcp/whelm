@@ -286,6 +286,7 @@ export function usePlannedBlocks({
   const [mobileAgendaEntriesOpen, setMobileAgendaEntriesOpen] = useState(false);
   const plannedBlocksRef = useRef<PlannedBlock[]>([]);
   const blocksSyncInFlightRef = useRef(false);
+  const pendingDeletedPlanIdsRef = useRef<Set<string>>(new Set());
 
   const completedBlocksByDay = useMemo(() => {
     const map = new Map<string, number>();
@@ -383,8 +384,18 @@ export function usePlannedBlocks({
     const uid = currentUser?.uid;
     const localBlocks = uid ? readLocalBlocks(uid) : [];
     const newestLocalBlocks = mergeBlocksPreferNewest(localBlocks, plannedBlocksRef.current);
-    const mergedBlocks = mergeBlocksPreferNewest(newestLocalBlocks, blocks) as PlannedBlock[];
-    const remoteWasStale = !blocksMatch(mergedBlocks, blocks);
+    const pendingDeletedIds = pendingDeletedPlanIdsRef.current;
+    const filteredRemoteBlocks = blocks.filter((block) => {
+      if (!pendingDeletedIds.has(block.id)) return true;
+      return newestLocalBlocks.some((localBlock) => localBlock.id === block.id);
+    });
+    for (const blockId of [...pendingDeletedIds]) {
+      if (!blocks.some((block) => block.id === blockId)) {
+        pendingDeletedIds.delete(blockId);
+      }
+    }
+    const mergedBlocks = mergeBlocksPreferNewest(newestLocalBlocks, filteredRemoteBlocks) as PlannedBlock[];
+    const remoteWasStale = !blocksMatch(mergedBlocks, filteredRemoteBlocks);
 
     plannedBlocksRef.current = mergedBlocks;
     setPlannedBlocks(mergedBlocks);
@@ -403,6 +414,7 @@ export function usePlannedBlocks({
 
   const handleUserSignedOut = useCallback(() => {
     plannedBlocksRef.current = [];
+    pendingDeletedPlanIdsRef.current.clear();
     setPlannedBlocks([]);
     setPlannedBlocksHydrated(false);
     setDailyPlanningOpen(false);
@@ -448,12 +460,19 @@ export function usePlannedBlocks({
       message: result.message ?? "",
       online: typeof navigator !== "undefined" ? navigator.onLine : undefined,
     });
+    const syncedIds = new Set(result.blocks.map((block) => block.id));
+    for (const blockId of [...pendingDeletedPlanIdsRef.current]) {
+      if (!syncedIds.has(blockId)) {
+        pendingDeletedPlanIdsRef.current.delete(blockId);
+      }
+    }
     plannedBlocksRef.current = result.blocks as PlannedBlock[];
     setPlannedBlocks(result.blocks as PlannedBlock[]);
     setPlannedBlocksHydrated(true);
   }, []);
 
   const handleUserSignedIn = useCallback((uid: string) => {
+    pendingDeletedPlanIdsRef.current.clear();
     try {
       const localBlocks = readLocalBlocks(uid) as PlannedBlock[];
       if (localBlocks.length > 0) {
@@ -478,12 +497,30 @@ export function usePlannedBlocks({
   const persistPlannedBlocks = useCallback(async (nextBlocks: PlannedBlock[]) => {
     const currentUser = auth.currentUser;
     if (!currentUser) return;
+    const previousBlocks = plannedBlocksRef.current;
+    const nextIds = new Set(nextBlocks.map((block) => block.id));
+    for (const block of previousBlocks) {
+      if (!nextIds.has(block.id)) {
+        pendingDeletedPlanIdsRef.current.add(block.id);
+      }
+    }
+    for (const block of nextBlocks) {
+      pendingDeletedPlanIdsRef.current.delete(block.id);
+    }
 
     plannedBlocksRef.current = nextBlocks;
     setPlannedBlocks(nextBlocks);
     savePlannedBlocksLocally(currentUser.uid, nextBlocks);
     const result = await saveSyncedPlannedBlocks(currentUser, nextBlocks);
     plannedBlocksRef.current = result.blocks as PlannedBlock[];
+    if (result.synced) {
+      const syncedIds = new Set(result.blocks.map((block) => block.id));
+      for (const blockId of [...pendingDeletedPlanIdsRef.current]) {
+        if (!syncedIds.has(blockId)) {
+          pendingDeletedPlanIdsRef.current.delete(blockId);
+        }
+      }
+    }
     setPlannedBlocks(result.blocks as PlannedBlock[]);
   }, []);
 
