@@ -62,6 +62,7 @@ export function useAccountSettings({
   const [screenTimeBusy, setScreenTimeBusy] = useState(false);
   const [accountDangerStatus, setAccountDangerStatus] = useState("");
   const [deletingAccount, setDeletingAccount] = useState(false);
+  const [accountStateHydrated, setAccountStateHydrated] = useState(false);
 
   const applyProState = useCallback((next: PreferencesProState) => {
     setIsPro(next.isPro);
@@ -69,13 +70,18 @@ export function useAccountSettings({
   }, []);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setAccountStateHydrated(false);
+      return;
+    }
 
     let active = true;
     applyProState(readLocalPreferences(user.uid).proState);
+    setAccountStateHydrated(true);
     void loadPreferences(user).then((prefs) => {
       if (!active) return;
       applyProState(prefs.proState);
+      setAccountStateHydrated(true);
     });
     return () => {
       active = false;
@@ -371,6 +377,7 @@ export function useAccountSettings({
     submitFeedback,
     handleRestoreFreeTier,
     handleStartProPreview,
+    accountStateHydrated,
     handleRequestScreenTimeAuth,
     handleOpenScreenTimeSettings,
     handleDeleteAccount,

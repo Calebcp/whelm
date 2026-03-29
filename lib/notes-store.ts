@@ -228,7 +228,11 @@ export function readLocalNotes(uid: string) {
 }
 
 function writeLocalNotes(uid: string, notes: WorkspaceNote[]) {
-  window.localStorage.setItem(storageKey(uid), JSON.stringify(normalizeNotes(notes)));
+  try {
+    window.localStorage.setItem(storageKey(uid), JSON.stringify(normalizeNotes(notes)));
+  } catch {
+    // localStorage can be unavailable in private browsing; keep in-memory notes alive.
+  }
 }
 
 function timeoutError(message: string) {

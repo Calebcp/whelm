@@ -45,6 +45,7 @@ export function usePreferences({
   });
   const [backgroundSkin, setBackgroundSkin] = useState<PreferencesBackgroundSkin>(defaultBackgroundSkin);
   const [proState, setProState] = useState<PreferencesProState>({ isPro: true, source: "preview" });
+  const [preferencesHydrated, setPreferencesHydrated] = useState(false);
 
   const resolvedTheme: "dark" | "light" =
     themeMode === "system" ? (systemIsDark ? "dark" : "light") : themeMode;
@@ -76,14 +77,19 @@ export function usePreferences({
   }, [user]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setPreferencesHydrated(false);
+      return;
+    }
 
     applyPreferencesSnapshot(readLocalPreferences(user.uid));
+    setPreferencesHydrated(true);
 
     let cancelled = false;
     void loadPreferences(user).then((prefs) => {
       if (cancelled) return;
       applyPreferencesSnapshot(prefs);
+      setPreferencesHydrated(true);
     });
 
     return () => {
@@ -199,6 +205,7 @@ export function usePreferences({
     backgroundSkin,
     effectiveBackgroundSetting,
     backgroundSkinActive,
+    preferencesHydrated,
     setThemePromptOpen,
     applyPreferencesSnapshot,
     applyThemeMode,

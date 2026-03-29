@@ -90,7 +90,11 @@ export function readLocalBlocks(uid: string) {
 }
 
 function writeLocalBlocks(uid: string, blocks: PlannedBlockDoc[]) {
-  window.localStorage.setItem(storageKey(uid), JSON.stringify(normalizeBlocks(blocks)));
+  try {
+    window.localStorage.setItem(storageKey(uid), JSON.stringify(normalizeBlocks(blocks)));
+  } catch {
+    // localStorage can be unavailable in private browsing; keep in-memory blocks alive.
+  }
 }
 
 export function mergeBlocksPreferNewest(localBlocks: PlannedBlockDoc[], cloudBlocks: PlannedBlockDoc[]) {

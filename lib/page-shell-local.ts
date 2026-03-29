@@ -29,17 +29,21 @@ function sickDaySaveDismissalsStorageKey(uid: string) {
 }
 
 export function clearLocalAccountData(uid: string) {
-  window.localStorage.removeItem(`whelm:notes:${uid}`);
-  window.localStorage.removeItem(`whelm:sessions:${uid}`);
-  window.localStorage.removeItem(plannedBlocksStorageKey(uid));
-  window.localStorage.removeItem(`whelm:preferences:${uid}`);
-  window.localStorage.removeItem(dayToneStorageKey(uid));
-  window.localStorage.removeItem(monthToneStorageKey(uid));
-  window.localStorage.removeItem(senseiStyleStorageKey(uid));
-  window.localStorage.removeItem(streakMirrorStorageKey(uid));
-  window.localStorage.removeItem(sickDaySaveStorageKey(uid));
-  window.localStorage.removeItem(sickDaySaveDismissalsStorageKey(uid));
-  window.localStorage.removeItem("whelm-pro-state-v1");
+  try {
+    window.localStorage.removeItem(`whelm:notes:${uid}`);
+    window.localStorage.removeItem(`whelm:sessions:${uid}`);
+    window.localStorage.removeItem(plannedBlocksStorageKey(uid));
+    window.localStorage.removeItem(`whelm:preferences:${uid}`);
+    window.localStorage.removeItem(dayToneStorageKey(uid));
+    window.localStorage.removeItem(monthToneStorageKey(uid));
+    window.localStorage.removeItem(senseiStyleStorageKey(uid));
+    window.localStorage.removeItem(streakMirrorStorageKey(uid));
+    window.localStorage.removeItem(sickDaySaveStorageKey(uid));
+    window.localStorage.removeItem(sickDaySaveDismissalsStorageKey(uid));
+    window.localStorage.removeItem("whelm-pro-state-v1");
+  } catch {
+    // Ignore storage cleanup failures in private / constrained webviews.
+  }
 }
 
 export function loadDayTones(uid: string): Record<string, CalendarTone> {
@@ -61,7 +65,11 @@ export function loadDayTones(uid: string): Record<string, CalendarTone> {
 }
 
 export function saveDayTones(uid: string, tones: Record<string, CalendarTone>) {
-  window.localStorage.setItem(dayToneStorageKey(uid), JSON.stringify(tones));
+  try {
+    window.localStorage.setItem(dayToneStorageKey(uid), JSON.stringify(tones));
+  } catch {
+    // Ignore storage failures in private / constrained webviews.
+  }
 }
 
 export function loadMonthTones(uid: string): Record<string, CalendarTone> {
@@ -83,5 +91,9 @@ export function loadMonthTones(uid: string): Record<string, CalendarTone> {
 }
 
 export function saveMonthTones(uid: string, tones: Record<string, CalendarTone>) {
-  window.localStorage.setItem(monthToneStorageKey(uid), JSON.stringify(tones));
+  try {
+    window.localStorage.setItem(monthToneStorageKey(uid), JSON.stringify(tones));
+  } catch {
+    // Ignore storage failures in private / constrained webviews.
+  }
 }

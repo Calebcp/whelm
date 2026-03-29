@@ -1375,6 +1375,7 @@ export default function HomePage() {
     screenTimeBusy,
     deletingAccount,
     accountDangerStatus,
+    accountStateHydrated,
     submitFeedback,
     handleRestoreFreeTier,
     handleStartProPreview,
@@ -1734,6 +1735,7 @@ export default function HomePage() {
     backgroundSkin,
     effectiveBackgroundSetting,
     backgroundSkinActive,
+    preferencesHydrated,
     setThemePromptOpen,
     applyPreferencesSnapshot,
     applyThemeMode,
@@ -2489,6 +2491,19 @@ export default function HomePage() {
           >
             Go to login
           </button>
+        </div>
+      </main>
+    );
+  }
+
+  if (!preferencesHydrated || !accountStateHydrated || !sessionsSynced || !plannedBlocksHydrated) {
+    return (
+      <main className={styles.pageShell}>
+        <div className={styles.loadingCard}>
+          <p className={styles.loadingLabel}>Syncing your Whelm workspace...</p>
+          <p className={styles.accountMeta}>
+            Restoring your notes, streaks, cards, and account style before the shell opens.
+          </p>
         </div>
       </main>
     );

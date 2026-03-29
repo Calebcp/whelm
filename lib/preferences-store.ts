@@ -103,7 +103,11 @@ function readLocalState(uid: string) {
 }
 
 function writeLocalState(uid: string, state: PreferencesState) {
-  window.localStorage.setItem(storageKey(uid), JSON.stringify(normalizeState(state)));
+  try {
+    window.localStorage.setItem(storageKey(uid), JSON.stringify(normalizeState(state)));
+  } catch {
+    // Private browsing or constrained webviews can reject storage writes.
+  }
 }
 
 export function readLocalPreferences(uid: string) {

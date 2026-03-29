@@ -135,14 +135,22 @@ function readLocalNoteDraft(uid: string, noteId: string) {
 }
 
 function writeLocalNoteDraft(uid: string, noteId: string, body: string, updatedAtISO: string) {
-  window.localStorage.setItem(
-    noteDraftStorageKey(uid, noteId),
-    JSON.stringify({ body, updatedAtISO } satisfies LocalNoteDraft),
-  );
+  try {
+    window.localStorage.setItem(
+      noteDraftStorageKey(uid, noteId),
+      JSON.stringify({ body, updatedAtISO } satisfies LocalNoteDraft),
+    );
+  } catch {
+    // localStorage can be unavailable in private browsing; rely on in-memory draft state.
+  }
 }
 
 function clearLocalNoteDraft(uid: string, noteId: string) {
-  window.localStorage.removeItem(noteDraftStorageKey(uid, noteId));
+  try {
+    window.localStorage.removeItem(noteDraftStorageKey(uid, noteId));
+  } catch {
+    // Ignore storage cleanup failures.
+  }
 }
 
 function normalizeBodyForEditor(body: string) {

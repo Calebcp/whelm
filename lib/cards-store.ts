@@ -152,8 +152,12 @@ function readLocalCards(uid: string) {
 
 function writeLocalCards(uid: string, cards: WhelCard[]) {
   const normalized = JSON.stringify(normalizeCards(cards));
-  window.localStorage.setItem(storageKey(uid), normalized);
-  window.localStorage.setItem(legacyStorageKey(uid), normalized);
+  try {
+    window.localStorage.setItem(storageKey(uid), normalized);
+    window.localStorage.setItem(legacyStorageKey(uid), normalized);
+  } catch {
+    // localStorage can be unavailable in private browsing; keep in-memory cards alive.
+  }
 }
 
 function cardsEqualByContent(left: WhelCard[], right: WhelCard[]) {

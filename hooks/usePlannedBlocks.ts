@@ -80,7 +80,11 @@ function readDailyPlanningPromptSeen(uid: string, dateKey: string) {
 }
 
 function markDailyPlanningPromptSeen(uid: string, dateKey: string) {
-  window.localStorage.setItem(dailyPlanningPromptSeenStorageKey(uid, dateKey), "1");
+  try {
+    window.localStorage.setItem(dailyPlanningPromptSeenStorageKey(uid, dateKey), "1");
+  } catch {
+    // Ignore storage failures in private / constrained webviews.
+  }
 }
 
 function parseTimeToMinutes(raw: string) {

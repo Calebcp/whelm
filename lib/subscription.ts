@@ -12,7 +12,12 @@ function readFromStorage(): ProState {
     return { isPro: true, source: "preview" };
   }
 
-  const raw = window.localStorage.getItem(PRO_STATE_KEY);
+  let raw: string | null = null;
+  try {
+    raw = window.localStorage.getItem(PRO_STATE_KEY);
+  } catch {
+    return { isPro: true, source: "preview" };
+  }
   if (!raw) return { isPro: true, source: "preview" };
 
   try {
@@ -28,7 +33,11 @@ function readFromStorage(): ProState {
 
 function writeToStorage(state: ProState) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(PRO_STATE_KEY, JSON.stringify(state));
+  try {
+    window.localStorage.setItem(PRO_STATE_KEY, JSON.stringify(state));
+  } catch {
+    // Ignore storage failures in private / constrained webviews.
+  }
 }
 
 export async function getProState() {
