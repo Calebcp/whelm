@@ -164,12 +164,12 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
 
   const cardGroups = useMemo<CardGroup[]>(() => {
     const groups: CardGroup[] = [
-      { id: "due-now", title: "Due now", description: "Cards ready for review right now.", cards: [], defaultOpen: true },
-      { id: "new", title: "New", description: "Fresh cards that have not been reviewed yet.", cards: [], defaultOpen: true },
-      { id: "hard", title: "Hard", description: "Cards that are still resisting recall.", cards: [], defaultOpen: true },
-      { id: "learning", title: "Learning", description: "Cards still moving through the active ladder.", cards: [] },
-      { id: "easy", title: "Easy", description: "Cards you recently rated easy.", cards: [] },
-      { id: "mastery", title: "Mastery", description: "Cards that are mostly settled.", cards: [] },
+      { id: "due-now", title: "Due now", description: "Cards ready for review right now.", cards: [], defaultOpen: false },
+      { id: "new", title: "New", description: "Fresh cards that have not been reviewed yet.", cards: [], defaultOpen: false },
+      { id: "hard", title: "Hard", description: "Cards that are still resisting recall.", cards: [], defaultOpen: false },
+      { id: "learning", title: "Learning", description: "Cards still moving through the active ladder.", cards: [], defaultOpen: false },
+      { id: "easy", title: "Easy", description: "Cards you recently rated easy.", cards: [], defaultOpen: false },
+      { id: "mastery", title: "Mastery", description: "Cards that are mostly settled.", cards: [], defaultOpen: false },
     ];
 
     for (const card of cards) {

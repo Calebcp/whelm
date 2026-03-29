@@ -68,6 +68,7 @@ export type NotesSyncResult = {
 
 const storagePrefix = "whelm:notes:";
 const NOTE_FIRESTORE_WRITE_TIMEOUT_MS = 4000;
+const NOTE_FIRESTORE_READ_TIMEOUT_MS = 8000;
 const legacyColorMap: Record<string, string> = {
   red: "#fecaca",
   green: "#bbf7d0",
@@ -443,12 +444,14 @@ export async function saveNotePatchToFirestore(
  * Throws on failure so the caller can handle the sync-status update.
  */
 export async function deleteNoteFromFirestore(uid: string, noteId: string): Promise<void> {
-  await deleteDoc(firestoreDoc(db, "userNotes", uid, "notes", noteId));
+  await withTimeout(
+    deleteDoc(firestoreDoc(db, "userNotes", uid, "notes", noteId)),
+    NOTE_FIRESTORE_WRITE_TIMEOUT_MS,
+    "Firestore note delete timed out.",
+  );
 }
 
 // ── Bulk helpers (used for initial load and retry sync) ───────────────────────
-
-const NOTE_FIRESTORE_READ_TIMEOUT_MS = 8000;
 
 export async function loadNotes(user: User): Promise<NotesSyncResult> {
   const localNotes = readLocalNotes(user.uid);
@@ -488,10 +491,14 @@ export async function loadNotes(user: User): Promise<NotesSyncResult> {
       const toSync = mergedNotes.filter(
         (n) => !subcollectionNotes.some((c) => c.id === n.id && c.updatedAtISO >= n.updatedAtISO),
       );
-      await Promise.allSettled(
-        toSync.map((n) =>
-          setDoc(firestoreDoc(db, "userNotes", user.uid, "notes", n.id), n, { merge: true }),
+      await withTimeout(
+        Promise.allSettled(
+          toSync.map((n) =>
+            setDoc(firestoreDoc(db, "userNotes", user.uid, "notes", n.id), n, { merge: true }),
+          ),
         ),
+        NOTE_FIRESTORE_READ_TIMEOUT_MS,
+        "Firestore note healing write timed out.",
       );
     }
 
@@ -526,11 +533,19 @@ export async function saveNotes(user: User, notes: WorkspaceNote[]): Promise<Not
   writeLocalNotes(user.uid, normalized);
 
   try {
-    const existingSubcollectionSnap = await getDocs(collection(db, "userNotes", user.uid, "notes"));
+    const existingSubcollectionSnap = await withTimeout(
+      getDocs(collection(db, "userNotes", user.uid, "notes")),
+      NOTE_FIRESTORE_READ_TIMEOUT_MS,
+      "Firestore note list timed out while syncing.",
+    );
     const existingSubcollectionNotes = normalizeNotes(
       existingSubcollectionSnap.docs.map((doc) => doc.data() as WorkspaceNote),
     );
-    const existingLegacySnap = await getDoc(firestoreDoc(db, "userNotes", user.uid));
+    const existingLegacySnap = await withTimeout(
+      getDoc(firestoreDoc(db, "userNotes", user.uid)),
+      NOTE_FIRESTORE_READ_TIMEOUT_MS,
+      "Firestore legacy note read timed out while syncing.",
+    );
     let existingLegacyNotes: WorkspaceNote[] = [];
 
     if (existingLegacySnap.exists()) {
@@ -548,14 +563,24 @@ export async function saveNotes(user: User, notes: WorkspaceNote[]): Promise<Not
     const mergedCloudNotes = mergeNotesPreferNewest(existingLegacyNotes, existingSubcollectionNotes);
     const mergedNotes = mergeNotesPreferNewest(normalized, mergedCloudNotes);
 
-    await Promise.all(
-      mergedNotes.map((note) =>
-        setDoc(firestoreDoc(db, "userNotes", user.uid, "notes", note.id), note, { merge: true }),
+    await withTimeout(
+      Promise.all(
+        mergedNotes.map((note) =>
+          setDoc(firestoreDoc(db, "userNotes", user.uid, "notes", note.id), note, { merge: true }),
+        ),
       ),
+      NOTE_FIRESTORE_READ_TIMEOUT_MS,
+      "Firestore note write timed out while syncing.",
     );
     writeLocalNotes(user.uid, mergedNotes);
     return { notes: mergedNotes, synced: true };
-  } catch {
+  } catch (error) {
+    try {
+      await saveNotesToApi(user, normalized);
+      return { notes: normalized, synced: true };
+    } catch {
+      console.warn("[whelm:notes] saveNotes fell back to local-only", error);
+    }
     return {
       notes: normalized,
       synced: false,
@@ -577,7 +602,7 @@ export async function retryNotesSync(user: User, notes: WorkspaceNote[]) {
   const reconciledNotes = mergeNotesPreferNewest(currentLocalNotes, loaded.notes);
   writeLocalNotes(user.uid, reconciledNotes);
 
-  if (notesMatch(reconciledNotes, loaded.notes)) {
+  if (notesMatch(reconciledNotes, loaded.notes) && loaded.synced) {
     return {
       notes: reconciledNotes,
       synced: loaded.synced,
@@ -586,10 +611,17 @@ export async function retryNotesSync(user: User, notes: WorkspaceNote[]) {
   }
 
   const saved = await saveNotes(user, reconciledNotes);
+  const verified = await loadNotes(user);
+  const finalNotes = mergeNotesPreferNewest(reconciledNotes, verified.notes);
+  writeLocalNotes(user.uid, finalNotes);
+
   return {
-    notes: saved.notes,
-    synced: saved.synced,
-    message: saved.message,
+    notes: finalNotes,
+    synced: saved.synced && verified.synced,
+    message:
+      saved.synced && verified.synced
+        ? ""
+        : (verified.message ?? saved.message ?? "Cloud sync is still pending."),
   };
 }
 
@@ -604,12 +636,20 @@ export async function retryNotesSync(user: User, notes: WorkspaceNote[]) {
  * This avoids depending on `userPreferences` which has no security rule.
  */
 export async function migrateNotesFromJson(uid: string): Promise<void> {
-  const existingSnap = await getDocs(collection(db, "userNotes", uid, "notes"));
+  const existingSnap = await withTimeout(
+    getDocs(collection(db, "userNotes", uid, "notes")),
+    NOTE_FIRESTORE_READ_TIMEOUT_MS,
+    "Firestore note migration read timed out.",
+  );
   const existingNotes = normalizeNotes(existingSnap.docs.map((doc) => doc.data() as WorkspaceNote));
   console.log("[whelm:migration] reading legacy notesJson blob for merge", existingNotes.length);
 
   // Read the old single-document format.
-  const oldSnap = await getDoc(firestoreDoc(db, "userNotes", uid));
+  const oldSnap = await withTimeout(
+    getDoc(firestoreDoc(db, "userNotes", uid)),
+    NOTE_FIRESTORE_READ_TIMEOUT_MS,
+    "Firestore legacy note migration read timed out.",
+  );
   if (!oldSnap.exists()) {
     console.log("[whelm:migration] no legacy document found — nothing to migrate");
     return;
@@ -645,10 +685,14 @@ export async function migrateNotesFromJson(uid: string): Promise<void> {
 
   console.log(`[whelm:migration] migrating ${mergedNotes.length} merged notes to subcollection`);
 
-  const results = await Promise.allSettled(
-    mergedNotes.map((note) =>
-      setDoc(firestoreDoc(db, "userNotes", uid, "notes", note.id), note, { merge: true }),
+  const results = await withTimeout(
+    Promise.allSettled(
+      mergedNotes.map((note) =>
+        setDoc(firestoreDoc(db, "userNotes", uid, "notes", note.id), note, { merge: true }),
+      ),
     ),
+    NOTE_FIRESTORE_READ_TIMEOUT_MS,
+    "Firestore note migration write timed out.",
   );
 
   const failed = results.filter((r) => r.status === "rejected").length;

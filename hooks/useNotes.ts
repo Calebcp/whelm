@@ -889,7 +889,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     if (!currentUser) return;
     await flushSelectedNoteDraft();
     setNotesSyncStatus("syncing");
-    setNotesSyncMessage("Retrying your latest notes and checking cloud state...");
+    setNotesSyncMessage("Force syncing your notes, refetching cloud data, and repairing local text if needed...");
     const result = await retryNotesSync(currentUser, notesRef.current);
 
     if (result.notes.length > 0) {
