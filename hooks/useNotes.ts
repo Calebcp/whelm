@@ -188,6 +188,16 @@ function resolvePreferredEditorHtml(
   return nextHtml;
 }
 
+function withPreferredDraftBody(uid: string | null, note: WorkspaceNote): WorkspaceNote {
+  const preferredBody = resolvePreferredEditorHtml(uid, note, note.body);
+  return preferredBody === note.body ? note : { ...note, body: preferredBody };
+}
+
+function shouldClearLocalDraft(note: WorkspaceNote, uid: string) {
+  const localDraft = readLocalNoteDraft(uid, note.id);
+  return Boolean(localDraft && localDraft.body === note.body);
+}
+
 function resolveFirebaseStorageBucket() {
   return typeof storage.app.options.storageBucket === "string"
     ? storage.app.options.storageBucket.trim()
@@ -289,24 +299,30 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
   const notesEditorRef = useRef<HTMLElement | null>(null);
 
   // ── Derived state ──────────────────────────────────────────────────────────
+  const currentUid = auth.currentUser?.uid ?? null;
+  const draftAwareNotes = useMemo(
+    () => notes.map((note) => withPreferredDraftBody(currentUid, note)),
+    [currentUid, notes],
+  );
+
   const selectedNote = useMemo(
-    () => notes.find((note) => note.id === selectedNoteId) ?? null,
-    [notes, selectedNoteId],
+    () => draftAwareNotes.find((note) => note.id === selectedNoteId) ?? null,
+    [draftAwareNotes, selectedNoteId],
   );
 
   const selectedNoteSurfaceColor = isPro ? selectedNote?.shellColor : undefined;
   const selectedNotePageColor = isPro ? selectedNote?.color : undefined;
   const selectedNoteWordCount = selectedNote
-    ? countWords(editorBodyDraft || selectedNote.body)
+    ? countWords(selectedNote.body)
     : 0;
 
   const orderedNotes = useMemo(
     () =>
-      [...notes].sort((a, b) => {
+      [...draftAwareNotes].sort((a, b) => {
         if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
         return a.updatedAtISO < b.updatedAtISO ? 1 : -1;
       }),
-    [notes],
+    [draftAwareNotes],
   );
 
   const visibleNotes = useMemo(
@@ -351,12 +367,12 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
 
   const noteWordsByDay = useMemo(() => {
     const map = new Map<string, number>();
-    for (const note of notes) {
+    for (const note of draftAwareNotes) {
       const dateKey = dayKeyLocal(note.updatedAtISO);
       map.set(dateKey, (map.get(dateKey) ?? 0) + countWords(note.body));
     }
     return map;
-  }, [notes]);
+  }, [draftAwareNotes]);
 
   // ── Sync refs ──────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -463,6 +479,11 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
       message: result.message ?? "",
       online: typeof navigator !== "undefined" ? navigator.onLine : undefined,
     });
+    result.notes.forEach((note) => {
+      if (shouldClearLocalDraft(note, uid)) {
+        clearLocalNoteDraft(uid, note.id);
+      }
+    });
     setNotes(result.notes);
     setSelectedNoteId((current) => current ?? result.notes[0]?.id ?? null);
     setNotesSyncStatus(result.synced ? "synced" : "local-only");
@@ -539,6 +560,11 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     if (!uid) return;
 
     saveNotesLocally(uid, mergedNotes);
+    mergedNotes.forEach((note) => {
+      if (shouldClearLocalDraft(note, uid)) {
+        clearLocalNoteDraft(uid, note.id);
+      }
+    });
 
     if (!currentUser || !remoteWasStale || syncInFlightRef.current) return;
 
@@ -615,6 +641,12 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     const result = updatedNote
       ? await saveNotePatchToFirestore(currentUser.uid, noteId, { ...patch, updatedAtISO: now })
       : { synced: false, notes: [], message: "Note not found." };
+    if (result.synced) {
+      const syncedNote = nextNotes.find((note) => note.id === noteId);
+      if (syncedNote && shouldClearLocalDraft(syncedNote, currentUser.uid)) {
+        clearLocalNoteDraft(currentUser.uid, noteId);
+      }
+    }
     setNotesSyncStatus(result.synced ? "synced" : "local-only");
     setNotesSyncMessage(result.message ?? "");
   }
@@ -692,6 +724,12 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
       body: nextBody,
       updatedAtISO: now,
     });
+    if (result.synced) {
+      const syncedNote = nextNotes.find((note) => note.id === currentSelectedNoteId);
+      if (syncedNote && shouldClearLocalDraft(syncedNote, currentUser.uid)) {
+        clearLocalNoteDraft(currentUser.uid, currentSelectedNoteId);
+      }
+    }
     setNotesSyncStatus(result.synced ? "synced" : "local-only");
     setNotesSyncMessage(result.message ?? "");
   }
@@ -772,7 +810,8 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     const trimmedFront = quickCardForm.front.trim();
     const trimmedBack = quickCardForm.back.trim();
     if (!trimmedFront || !trimmedBack) return;
-    const newCard = createCard(selectedNoteId ?? "notes-tab", trimmedFront, trimmedBack);
+    const currentSelectedNoteId = selectedNoteIdRef.current ?? selectedNoteId ?? "notes-tab";
+    const newCard = createCard(currentSelectedNoteId, trimmedFront, trimmedBack);
     const existing = await loadCards(currentUser.uid);
     await saveCards(currentUser.uid, [...existing, newCard]);
     setQuickCardForm(null);
@@ -909,6 +948,11 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     const result = await retryNotesSync(currentUser, notesRef.current);
 
     if (result.notes.length > 0) {
+      result.notes.forEach((note) => {
+        if (shouldClearLocalDraft(note, currentUser.uid)) {
+          clearLocalNoteDraft(currentUser.uid, note.id);
+        }
+      });
       notesRef.current = result.notes;
       setNotes(result.notes);
       const nextSelectedNoteId =
@@ -955,8 +999,9 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     const currentUser = auth.currentUser;
     const files = Array.from(event.target.files ?? []);
     event.target.value = "";
+    const targetNoteId = selectedNoteIdRef.current;
 
-    if (!currentUser || !selectedNote || files.length === 0) return;
+    if (!currentUser || !targetNoteId || files.length === 0) return;
 
     const oversized = files.find((file) => file.size > NOTE_ATTACHMENT_MAX_BYTES);
     if (oversized) {
@@ -992,7 +1037,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
         files.map(async (file, index) => {
           const attachmentId = pendingEntries[index].id;
           const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g, "-").slice(0, 120) || "file";
-          const storagePath = `users/${currentUser.uid}/notes/${selectedNote.id}/${attachmentId}-${safeName}`;
+          const storagePath = `users/${currentUser.uid}/notes/${targetNoteId}/${attachmentId}-${safeName}`;
           const attachmentRef = storageRef(storage, storagePath);
           const uploadTask = uploadBytesResumable(attachmentRef, file, {
             contentType: file.type || "application/octet-stream",
@@ -1079,14 +1124,14 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
             uploadedAtISO,
           } satisfies NoteAttachment;
 
-          const latestTargetNote = notesRef.current.find((note) => note.id === selectedNote.id);
+          const latestTargetNote = notesRef.current.find((note) => note.id === targetNoteId);
           const existingAttachments = latestTargetNote?.attachments ?? [];
           const dedupedAttachments = [uploadedAttachment, ...existingAttachments].filter(
             (attachment, dedupeIndex, all) =>
               all.findIndex((item) => item.id === attachment.id) === dedupeIndex,
           );
 
-          await updateNoteById(selectedNote.id, { attachments: dedupedAttachments });
+          await updateNoteById(targetNoteId, { attachments: dedupedAttachments });
           setPendingNoteAttachments((current) => current.filter((item) => item.id !== attachmentId));
           setNoteAttachmentStatus(`${file.name} attached.`);
           return uploadedAttachment;
@@ -1107,15 +1152,16 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
 
   async function removeNoteAttachment(attachment: NoteAttachment) {
     const currentUser = auth.currentUser;
-    if (!currentUser || !selectedNote) return;
+    const targetNoteId = selectedNoteIdRef.current;
+    if (!currentUser || !targetNoteId) return;
 
     setNoteAttachmentBusy(true);
     setNoteAttachmentStatus(`Removing ${attachment.name}...`);
 
     try {
       await deleteObject(storageRef(storage, attachment.storagePath)).catch(() => undefined);
-      const latestTargetNote = notesRef.current.find((note) => note.id === selectedNote.id);
-      await updateNoteById(selectedNote.id, {
+      const latestTargetNote = notesRef.current.find((note) => note.id === targetNoteId);
+      await updateNoteById(targetNoteId, {
         attachments: (latestTargetNote?.attachments ?? []).filter((item) => item.id !== attachment.id),
       });
       setNoteAttachmentStatus(`${attachment.name} removed.`);

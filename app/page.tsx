@@ -2061,7 +2061,9 @@ export default function HomePage() {
     return () => window.clearTimeout(timeoutId);
   }, [streakCelebration]);
 
-  function convertNoteToPlannedBlock(note: WorkspaceNote) {
+  function convertNoteToPlannedBlock(noteId: string) {
+    const note = notesRef.current.find((entry) => entry.id === noteId);
+    if (!note) return;
     const reminderDate = note.reminderAtISO ? new Date(note.reminderAtISO) : null;
     const rawDateKey = reminderDate ? dayKeyLocal(reminderDate) : selectedDateKey;
     const dateKey = normalizePlannableDateKey(rawDateKey);
@@ -2206,6 +2208,14 @@ export default function HomePage() {
       mobileDayTimelineScrollRef,
     },
   });
+  const openSpecificNote = useCallback((noteId: string | null) => {
+    void (async () => {
+      await flushSelectedNoteDraft();
+      setSelectedNoteId(noteId);
+      openNotesTab();
+    })();
+  }, [flushSelectedNoteDraft, openNotesTab, setSelectedNoteId]);
+
   const {
     openMobileNoteEditor,
     handleMobileCreateNote,
@@ -2638,8 +2648,7 @@ export default function HomePage() {
               }
               onToggleMobileTodayOverview={() => setMobileTodayOverviewOpen((open) => !open)}
               onTodayPrimaryAction={handleTodayPrimaryAction}
-              onSetSelectedNoteId={setSelectedNoteId}
-              onOpenNotesTab={openNotesTab}
+              onOpenNote={openSpecificNote}
               onCreateWorkspaceNote={() => void createWorkspaceNote()}
               onCopyWeeklyReport={() => void copyWeeklyReport()}
               onUpgrade={openUpgradeFlow}
@@ -2735,8 +2744,7 @@ export default function HomePage() {
               onScheduleCalendarHoverPreviewClear={scheduleCalendarHoverPreviewClear}
               onClearCalendarHoverPreviewDelay={clearCalendarHoverPreviewDelay}
               onSetOverlapPickerEntryId={setOverlapPickerEntryId}
-              onOpenNotesTab={openNotesTab}
-              onSetSelectedNoteId={setSelectedNoteId}
+              onOpenNote={openSpecificNote}
               onSetActiveTabHistory={() => setActiveTab("history")}
               onCompletePlannedBlock={completePlannedBlock}
               onSetPlanTitle={setPlanTitle}
@@ -2899,7 +2907,7 @@ export default function HomePage() {
               onApplyEditorCommand={applyEditorCommand}
               onCheckEditorSelection={checkEditorSelection}
               onUpdateEditorBandanaCaret={updateEditorBandanaCaret}
-              onFlushNoteDraft={() => void flushSelectedNoteDraft()}
+              onFlushNoteDraft={flushSelectedNoteDraft}
               onMobileCreateNote={() => void handleMobileCreateNote()}
               onOpenMobileEditor={openMobileNoteEditor}
               onOpenCurrentMobileNote={handleOpenCurrentMobileNote}

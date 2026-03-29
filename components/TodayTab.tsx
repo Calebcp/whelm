@@ -149,8 +149,7 @@ export type TodayTabProps = {
   onSessionComplete: (note: string, minutesSpent: number, context?: TimerSessionContext) => void;
   onToggleMobileTodayOverview: () => void;
   onTodayPrimaryAction: () => void;
-  onSetSelectedNoteId: (id: string | null) => void;
-  onOpenNotesTab: () => void;
+  onOpenNote: (id: string | null) => void;
   onCreateWorkspaceNote: () => void;
   onCopyWeeklyReport: () => void;
   onUpgrade: () => void;
@@ -189,8 +188,7 @@ export default function TodayTab({
   onSessionComplete,
   onToggleMobileTodayOverview,
   onTodayPrimaryAction,
-  onSetSelectedNoteId,
-  onOpenNotesTab,
+  onOpenNote,
   onCreateWorkspaceNote,
   onCopyWeeklyReport,
   onUpgrade,
@@ -497,8 +495,7 @@ export default function TodayTab({
                   type="button"
                   className={styles.quickNoteItem}
                     onClick={() => {
-                      onSetSelectedNoteId(note.id);
-                      onOpenNotesTab();
+                      onOpenNote(note.id);
                     }}
                   style={{ backgroundColor: note.color || "#f8fafc" }}
                 >
@@ -529,8 +526,7 @@ export default function TodayTab({
                     type="button"
                     className={styles.reminderItem}
                     onClick={() => {
-                      onSetSelectedNoteId(note.id);
-                      onOpenNotesTab();
+                      onOpenNote(note.id);
                     }}
                   >
                     <strong>{note.title || "Untitled note"}</strong>

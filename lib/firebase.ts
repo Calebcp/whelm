@@ -27,7 +27,7 @@ function shouldForceFirestoreLongPolling() {
   if (explicitOverride === "false") return false;
 
   if (typeof window === "undefined") return false;
-  const protocol = window.location.protocol;
+  const protocol = typeof window.location?.protocol === "string" ? window.location.protocol : "";
   return protocol === "capacitor:" || protocol === "ionic:" || protocol === "file:";
 }
 

@@ -435,7 +435,7 @@ export type NotesTabProps = {
   onOpenAttachmentPicker: () => void;
   onOpenNoteAttachment: (attachment: NoteAttachment) => void;
   onRemoveNoteAttachment: (attachment: NoteAttachment) => void;
-  onConvertNoteToBlock: (note: WorkspaceNote) => void | Promise<void>;
+  onConvertNoteToBlock: (noteId: string) => void | Promise<void>;
   onDeleteNote: (noteId: string) => void | Promise<void>;
   onCreateNote: () => void;
   onTogglePinned: (noteId: string) => void;
@@ -1210,7 +1210,7 @@ export default function NotesTab({
                     onClick={() => {
                       void (async () => {
                         await onFlushNoteDraft();
-                        await onConvertNoteToBlock(selectedNote);
+                        await onConvertNoteToBlock(selectedNote.id);
                       })();
                     }}
                   >
@@ -1963,7 +1963,7 @@ export default function NotesTab({
                           onClick={() => {
                             void (async () => {
                               await onFlushNoteDraft();
-                              await onConvertNoteToBlock(selectedNote);
+                              await onConvertNoteToBlock(selectedNote.id);
                             })();
                           }}
                         >

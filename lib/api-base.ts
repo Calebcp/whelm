@@ -16,7 +16,12 @@ export function getApiBaseUrl() {
     return trimTrailingSlash(configured);
   }
 
-  if (typeof window !== "undefined" && isNativeWebViewProtocol(window.location.protocol)) {
+  const protocol =
+    typeof window !== "undefined" && typeof window.location?.protocol === "string"
+      ? window.location.protocol
+      : "";
+
+  if (isNativeWebViewProtocol(protocol)) {
     return DEFAULT_API_BASE_URL;
   }
 

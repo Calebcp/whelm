@@ -310,8 +310,7 @@ export type ScheduleTabProps = {
   onScheduleCalendarHoverPreviewClear: (id: string) => void;
   onClearCalendarHoverPreviewDelay: () => void;
   onSetOverlapPickerEntryId: (id: string | null | ((current: string | null) => string | null)) => void;
-  onOpenNotesTab: () => void;
-  onSetSelectedNoteId: (id: string | null) => void;
+  onOpenNote: (id: string | null) => void;
   onSetActiveTabHistory: () => void;
   onCompletePlannedBlock: (plan: PlannedBlock) => Promise<void>;
   // Handlers — plan form
@@ -415,8 +414,7 @@ export default function ScheduleTab({
   onScheduleCalendarHoverPreviewClear,
   onClearCalendarHoverPreviewDelay,
   onSetOverlapPickerEntryId,
-  onOpenNotesTab,
-  onSetSelectedNoteId,
+  onOpenNote,
   onSetActiveTabHistory,
   onCompletePlannedBlock,
   onSetPlanTitle,
@@ -1161,8 +1159,7 @@ export default function ScheduleTab({
                           type="button"
                           className={styles.secondaryPlanButton}
                           onClick={() => {
-                            onSetSelectedNoteId(activeCalendarPreview.noteId ?? null);
-                            onOpenNotesTab();
+                            onOpenNote(activeCalendarPreview.noteId ?? null);
                           }}
                         >
                           Open note
@@ -1234,8 +1231,7 @@ export default function ScheduleTab({
                       type="button"
                       className={styles.secondaryPlanButton}
                       onClick={() => {
-                        onSetSelectedNoteId(activeCalendarPreview.noteId ?? null);
-                        onOpenNotesTab();
+                        onOpenNote(activeCalendarPreview.noteId ?? null);
                       }}
                     >
                       Open note
@@ -1307,8 +1303,7 @@ export default function ScheduleTab({
                   type="button"
                   className={styles.secondaryPlanButton}
                   onClick={() => {
-                    onSetSelectedNoteId(activeCalendarPreview.noteId ?? null);
-                    onOpenNotesTab();
+                    onOpenNote(activeCalendarPreview.noteId ?? null);
                   }}
                 >
                   Open note
@@ -1574,8 +1569,7 @@ export default function ScheduleTab({
                                   type="button"
                                   className={styles.secondaryPlanButton}
                                   onClick={() => {
-                                    onSetSelectedNoteId(entry.noteId ?? null);
-                                    onOpenNotesTab();
+                                    onOpenNote(entry.noteId ?? null);
                                   }}
                                 >
                                   Open note
@@ -1673,8 +1667,7 @@ export default function ScheduleTab({
                             type="button"
                             className={styles.secondaryPlanButton}
                             onClick={() => {
-                              onSetSelectedNoteId(entry.noteId ?? null);
-                              onOpenNotesTab();
+                              onOpenNote(entry.noteId ?? null);
                             }}
                           >
                             Open note
