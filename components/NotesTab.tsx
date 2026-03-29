@@ -14,6 +14,7 @@ import CardsTab from "@/components/CardsTab";
 import styles from "@/components/NotesTab.module.css";
 import ProUnlockCard from "@/components/ProUnlockCard";
 import SenseiFigure from "@/components/SenseiFigure";
+import { countWords } from "@/lib/date-utils";
 import { type WorkspaceNote, type NoteAttachment } from "@/lib/notes-store";
 import { type StreakBandanaTier } from "@/lib/streak-bandanas";
 import { type WhelBandanaColor } from "@/lib/whelm-mascot";
@@ -188,10 +189,6 @@ function bandanaCursorAssetPath(color: string | null | undefined, size: 128 | 25
 
 function attachmentIndicatorLabel(count: number) {
   return `📎 ${count}`;
-}
-
-function noteWordCount(body: string): number {
-  return body.trim() === "" ? 0 : body.trim().split(/\s+/).length;
 }
 
 function noteAttachmentBadgeLabel(attachment: NoteAttachment) {
@@ -656,6 +653,9 @@ export default function NotesTab({
                   />
                   <div className={styles.mobileRecentList}>
                     {filteredNotes.map((note) => (
+                      (() => {
+                        const wordCount = countWords(note.body);
+                        return (
                       <button
                         key={note.id}
                         type="button"
@@ -666,26 +666,33 @@ export default function NotesTab({
                         }}
                         onClick={() => void onOpenMobileEditor(note.id)}
                       >
-                        <strong className={styles.noteListTitle}>
-                          {note.title || "Untitled note"}
-                          {note.attachments.length > 0 ? (
-                            <span className={sharedStyles.attachmentIndicatorChip}>
-                              {attachmentIndicatorLabel(note.attachments.length)}
-                            </span>
-                          ) : null}
-                          {noteWordCount(note.body) > 0 ? (
-                            <span className={styles.wordCountChip}>
-                              {noteWordCount(note.body)}w
-                            </span>
-                          ) : null}
-                        </strong>
-                        <span>
+                        <div className={styles.mobileRecentNoteHeader}>
+                          <strong className={styles.mobileRecentNoteTitle}>
+                            {note.title || "Untitled note"}
+                          </strong>
+                          <div className={styles.mobileRecentNoteBadges}>
+                            {note.attachments.length > 0 ? (
+                              <span className={sharedStyles.attachmentIndicatorChip}>
+                                {attachmentIndicatorLabel(note.attachments.length)}
+                              </span>
+                            ) : null}
+                            {wordCount > 0 ? (
+                              <span className={styles.wordCountChip}>
+                                {wordCount}w
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
+                        <span className={styles.mobileRecentMeta}>
                           {new Date(note.updatedAtISO).toLocaleDateString()}
+                          {note.category ? ` · ${note.category.toUpperCase()}` : ""}
                           {note.attachments.length > 0
                             ? ` · ${note.attachments.length} file${note.attachments.length === 1 ? "" : "s"}`
                             : ""}
                         </span>
                       </button>
+                        );
+                      })()
                     ))}
                     {filteredNotes.length === 0 && (
                       <p className={sharedStyles.emptyText}>No notes yet. Start your first one.</p>
@@ -1324,9 +1331,9 @@ export default function NotesTab({
                             {attachmentIndicatorLabel(note.attachments.length)}
                           </span>
                         ) : null}
-                        {noteWordCount(note.body) > 0 ? (
+                        {countWords(note.body) > 0 ? (
                           <span className={styles.wordCountChip}>
-                            {noteWordCount(note.body)}w
+                            {countWords(note.body)}w
                           </span>
                         ) : null}
                       </span>

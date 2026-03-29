@@ -192,10 +192,18 @@ function pickPreferredTitle(newer: WorkspaceNote, older: WorkspaceNote) {
   return newer.title;
 }
 
+function isEffectivelyEmptyNoteBody(value: string) {
+  return value
+    .replace(/<br\s*\/?>/gi, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/<[^>]*>/g, "")
+    .trim().length === 0;
+}
+
 function pickPreferredBody(newer: WorkspaceNote, older: WorkspaceNote) {
-  const newerBody = newer.body.trim();
-  const olderBody = older.body.trim();
-  if (!newerBody && olderBody) return older.body;
+  const newerBodyEmpty = isEffectivelyEmptyNoteBody(newer.body);
+  const olderBodyEmpty = isEffectivelyEmptyNoteBody(older.body);
+  if (newerBodyEmpty && !olderBodyEmpty) return older.body;
   return newer.body;
 }
 
@@ -479,10 +487,7 @@ export async function loadNotes(user: User): Promise<NotesSyncResult> {
       }
     }
 
-    const cloudNotes =
-      subcollectionNotes.length > 0
-        ? subcollectionNotes
-        : mergeNotesPreferNewest(legacyNotes, subcollectionNotes);
+    const cloudNotes = mergeNotesPreferNewest(legacyNotes, subcollectionNotes);
     const mergedNotes = mergeNotesPreferNewest(localNotes, cloudNotes);
     writeLocalNotes(user.uid, mergedNotes);
 

@@ -329,10 +329,18 @@ function pickPreferredTitle(newer: WorkspaceNote, older: WorkspaceNote) {
   return newer.title;
 }
 
+function isEffectivelyEmptyNoteBody(value: string) {
+  return value
+    .replace(/<br\s*\/?>/gi, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/<[^>]*>/g, "")
+    .trim().length === 0;
+}
+
 function pickPreferredBody(newer: WorkspaceNote, older: WorkspaceNote) {
-  const newerBody = newer.body.trim();
-  const olderBody = older.body.trim();
-  if (!newerBody && olderBody) return older.body;
+  const newerBodyEmpty = isEffectivelyEmptyNoteBody(newer.body);
+  const olderBodyEmpty = isEffectivelyEmptyNoteBody(older.body);
+  if (newerBodyEmpty && !olderBodyEmpty) return older.body;
   return newer.body;
 }
 
@@ -407,9 +415,7 @@ async function listNoteDocuments(
     .map(noteFromDocument)
     .filter((n): n is WorkspaceNote => n !== null);
 
-  return subcollectionNotes.length > 0
-    ? subcollectionNotes
-    : mergeNotesPreferNewest(legacyNotes, subcollectionNotes);
+  return mergeNotesPreferNewest(legacyNotes, subcollectionNotes);
 }
 
 /** Write a single note document to `userNotes/{uid}/notes/{noteId}`. */

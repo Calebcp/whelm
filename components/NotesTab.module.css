@@ -1139,19 +1139,34 @@
   color: var(--note-item-title, #f2f6ff);
 }
 
-.mobileRecentNote strong {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  color: var(--note-item-title, #f2f6ff);
-  text-shadow: var(--note-item-text-shadow, none);
+.mobileRecentNoteHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
 }
 
-.mobileRecentNote span {
+.mobileRecentNoteTitle {
+  min-width: 0;
+  flex: 1 1 auto;
+  color: var(--note-item-title, #f2f6ff);
+  text-shadow: var(--note-item-text-shadow, none);
+  line-height: 1.28;
+}
+
+.mobileRecentNoteBadges {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.mobileRecentMeta {
   color: var(--note-item-meta, #9aa8c7);
   font-size: 0.8rem;
   text-shadow: var(--note-item-text-shadow, none);
+  line-height: 1.35;
 }
 
 .mobileNotesControls {

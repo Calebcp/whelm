@@ -182,7 +182,13 @@ function resolvePreferredEditorHtml(
 
   const localDraft = readLocalNoteDraft(uid, note.id);
   if (localDraft && localDraft.updatedAtISO >= note.updatedAtISO) {
-    nextHtml = normalizeBodyForEditor(localDraft.body);
+    const localDraftHtml = normalizeBodyForEditor(localDraft.body);
+    const syncedNoteHasContent = !isEffectivelyEmptyEditorHtml(nextHtml);
+    const localDraftIsBlank = isEffectivelyEmptyEditorHtml(localDraftHtml);
+
+    if (!(localDraftIsBlank && syncedNoteHasContent)) {
+      nextHtml = localDraftHtml;
+    }
   }
 
   return nextHtml;
@@ -195,7 +201,13 @@ function withPreferredDraftBody(uid: string | null, note: WorkspaceNote): Worksp
 
 function shouldClearLocalDraft(note: WorkspaceNote, uid: string) {
   const localDraft = readLocalNoteDraft(uid, note.id);
-  return Boolean(localDraft && localDraft.body === note.body);
+  if (!localDraft) return false;
+
+  if (localDraft.body === note.body) return true;
+
+  const syncedNoteHasContent = !isEffectivelyEmptyEditorHtml(normalizeBodyForEditor(note.body));
+  const localDraftIsBlank = isEffectivelyEmptyEditorHtml(normalizeBodyForEditor(localDraft.body));
+  return localDraftIsBlank && syncedNoteHasContent;
 }
 
 function resolveFirebaseStorageBucket() {
@@ -697,10 +709,8 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
 
     if (nextBody === currentNote.body && !bodyDirtyRef.current) return;
 
-    const countWordsInline = (html: string) =>
-      html.replace(/<[^>]+>/g, " ").trim().split(/\s+/).filter(Boolean).length;
-    const prevWordCount = countWordsInline(currentNote.body);
-    const nextWordCount = countWordsInline(nextBody);
+    const prevWordCount = countWords(currentNote.body);
+    const nextWordCount = countWords(nextBody);
     if (prevWordCount < XP_WRITING_ENTRY_THRESHOLD && nextWordCount >= XP_WRITING_ENTRY_THRESHOLD) {
       setPendingXpPop({
         id: `note-xp-${currentSelectedNoteId}-${Date.now()}`,
