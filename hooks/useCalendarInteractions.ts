@@ -182,7 +182,10 @@ export function useCalendarInteractions<
   }
 
   useEffect(() => {
-    if (selectedPlanDetailId && !plannedBlockById.has(selectedPlanDetailId)) {
+    if (
+      selectedPlanDetailId &&
+      (!plannedBlockById.has(selectedPlanDetailId) || plannedBlockById.get(selectedPlanDetailId)?.status === "deleted")
+    ) {
       setSelectedPlanDetailId(null);
     }
   }, [plannedBlockById, selectedPlanDetailId, setSelectedPlanDetailId]);

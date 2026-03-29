@@ -73,7 +73,7 @@ type PlannedBlock = {
   sortOrder: number;
   createdAtISO: string;
   updatedAtISO: string;
-  status: "active" | "completed";
+  status: "active" | "completed" | "deleted";
   completedAtISO?: string;
 };
 

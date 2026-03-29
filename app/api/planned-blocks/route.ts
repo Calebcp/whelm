@@ -17,7 +17,7 @@ type PlannedBlockDoc = {
   sortOrder: number;
   createdAtISO: string;
   updatedAtISO: string;
-  status: "active" | "completed";
+  status: "active" | "completed" | "deleted";
   completedAtISO?: string;
 };
 
@@ -106,7 +106,7 @@ function normalizeBlocks(blocks: PlannedBlockDoc[]) {
         sortOrder: Number.isFinite(Number(item.sortOrder)) ? Number(item.sortOrder) : index,
         createdAtISO,
         updatedAtISO,
-        status: item.status === "completed" ? "completed" : "active",
+        status: item.status === "completed" ? "completed" : item.status === "deleted" ? "deleted" : "active",
         completedAtISO:
           item.status === "completed" && typeof item.completedAtISO === "string" && item.completedAtISO
             ? item.completedAtISO

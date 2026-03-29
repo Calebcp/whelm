@@ -463,9 +463,20 @@ type PlannedBlock = {
   sortOrder: number;
   createdAtISO: string;
   updatedAtISO: string;
-  status: "active" | "completed";
+  status: "active" | "completed" | "deleted";
   completedAtISO?: string;
 };
+
+function shiftBlockTime(timeOfDay: string, durationMinutes: number) {
+  const [rawHours, rawMinutes] = timeOfDay.split(":").map((part) => Number(part));
+  const hours = Number.isFinite(rawHours) ? rawHours : 9;
+  const minutes = Number.isFinite(rawMinutes) ? rawMinutes : 0;
+  const startMinutes = Math.min(24 * 60 - 1, Math.max(0, hours * 60 + minutes));
+  const shiftedMinutes = Math.min(24 * 60 - 15, startMinutes + Math.max(15, durationMinutes) + 10);
+  const nextHours = Math.floor(shiftedMinutes / 60);
+  const nextMinutes = shiftedMinutes % 60;
+  return `${String(nextHours).padStart(2, "0")}:${String(nextMinutes).padStart(2, "0")}`;
+}
 
 type DayToneMap = Record<string, CalendarTone>;
 type MonthToneMap = Record<string, CalendarTone>;
@@ -3160,13 +3171,26 @@ export default function HomePage() {
           ) : null
         }
         onEdit={() => {
-          if (!selectedPlanDetail || selectedPlanDetail.status === "completed") return;
+          if (!selectedPlanDetail || selectedPlanDetail.status !== "active") return;
           openPrefilledBlockComposer({
             id: selectedPlanDetail.id,
             dateKey: selectedPlanDetail.dateKey,
             title: selectedPlanDetail.title,
             note: selectedPlanDetail.note,
             timeOfDay: selectedPlanDetail.timeOfDay,
+            durationMinutes: selectedPlanDetail.durationMinutes,
+            tone: visiblePlanTone(selectedPlanDetail.tone),
+            attachmentCount: selectedPlanDetail.attachmentCount,
+          });
+          closePlannedBlockDetail();
+        }}
+        onDuplicate={() => {
+          if (!selectedPlanDetail || selectedPlanDetail.status !== "active") return;
+          openPrefilledBlockComposer({
+            dateKey: selectedPlanDetail.dateKey,
+            title: selectedPlanDetail.title,
+            note: selectedPlanDetail.note,
+            timeOfDay: shiftBlockTime(selectedPlanDetail.timeOfDay, selectedPlanDetail.durationMinutes),
             durationMinutes: selectedPlanDetail.durationMinutes,
             tone: visiblePlanTone(selectedPlanDetail.tone),
             attachmentCount: selectedPlanDetail.attachmentCount,
@@ -3185,7 +3209,7 @@ export default function HomePage() {
           closePlannedBlockDetail();
         }}
         onRemove={() => {
-          if (!selectedPlanDetail) return;
+          if (!selectedPlanDetail || selectedPlanDetail.status !== "active") return;
           deletePlannedBlock(selectedPlanDetail.id);
           closePlannedBlockDetail();
         }}

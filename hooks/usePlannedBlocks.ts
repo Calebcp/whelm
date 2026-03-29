@@ -29,7 +29,7 @@ export type PlannedBlock = {
   sortOrder: number;
   createdAtISO: string;
   updatedAtISO: string;
-  status: "active" | "completed";
+  status: "active" | "completed" | "deleted";
   completedAtISO?: string;
 };
 
@@ -298,7 +298,7 @@ export function usePlannedBlocks({
   }, [plannedBlocks]);
 
   const todayPlannedBlocks = useMemo(
-    () => plannedBlocks.filter((item) => item.dateKey === dayKeyLocal(new Date())),
+    () => plannedBlocks.filter((item) => item.dateKey === dayKeyLocal(new Date()) && item.status !== "deleted"),
     [plannedBlocks],
   );
   const todayActivePlannedBlocks = useMemo(
@@ -724,7 +724,19 @@ export function usePlannedBlocks({
   const deletePlannedBlock = useCallback((id: string) => {
     const removed = plannedBlocks.find((item) => item.id === id) || null;
     if (!removed) return;
-    void persistPlannedBlocks(plannedBlocks.filter((item) => item.id !== id));
+    const deletedAt = new Date().toISOString();
+    void persistPlannedBlocks(
+      plannedBlocks.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              status: "deleted" as PlannedBlock["status"],
+              completedAtISO: undefined,
+              updatedAtISO: deletedAt,
+            }
+          : item,
+      ),
+    );
     setDeletedPlanUndo(removed);
     window.setTimeout(() => setDeletedPlanUndo(null), 5000);
   }, [persistPlannedBlocks, plannedBlocks]);
@@ -732,7 +744,16 @@ export function usePlannedBlocks({
   const undoDeletePlannedBlock = useCallback(() => {
     if (!deletedPlanUndo) return;
     const restoredAt = new Date().toISOString();
-    void persistPlannedBlocks([...plannedBlocks, { ...deletedPlanUndo, updatedAtISO: restoredAt }]);
+    const restoredBlock = {
+      ...deletedPlanUndo,
+      status: "active" as PlannedBlock["status"],
+      completedAtISO: undefined,
+      updatedAtISO: restoredAt,
+    };
+    const nextBlocks = plannedBlocks.some((item) => item.id === deletedPlanUndo.id)
+      ? plannedBlocks.map((item) => (item.id === deletedPlanUndo.id ? restoredBlock : item))
+      : [...plannedBlocks, restoredBlock];
+    void persistPlannedBlocks(nextBlocks);
     setDeletedPlanUndo(null);
   }, [deletedPlanUndo, persistPlannedBlocks, plannedBlocks]);
 

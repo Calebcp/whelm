@@ -12,7 +12,7 @@ type SelectedPlanDetail = {
   durationMinutes: number;
   attachmentCount?: number;
   note: string;
-  status: "active" | "completed";
+  status: "active" | "completed" | "deleted";
 };
 
 export default function BlockDetailModal({
@@ -23,6 +23,7 @@ export default function BlockDetailModal({
   attachmentIndicatorLabel,
   tonePicker,
   onEdit,
+  onDuplicate,
   onComplete,
   onOpenDayView,
   onRemove,
@@ -34,6 +35,7 @@ export default function BlockDetailModal({
   attachmentIndicatorLabel: (count: number) => string;
   tonePicker: ReactNode;
   onEdit: () => void;
+  onDuplicate: () => void;
   onComplete: () => void;
   onOpenDayView: () => void;
   onRemove: () => void;
@@ -73,12 +75,17 @@ export default function BlockDetailModal({
         )}
         <div className={styles.calendarTonePanel}>{tonePicker}</div>
         <div className={styles.noteFooterActions}>
-          {selectedPlanDetail.status !== "completed" ? (
+          {selectedPlanDetail.status === "active" ? (
             <button type="button" className={styles.secondaryPlanButton} onClick={onEdit}>
               Edit block
             </button>
           ) : null}
-          {selectedPlanDetail.status !== "completed" ? (
+          {selectedPlanDetail.status === "active" ? (
+            <button type="button" className={styles.secondaryPlanButton} onClick={onDuplicate}>
+              Duplicate block
+            </button>
+          ) : null}
+          {selectedPlanDetail.status === "active" ? (
             <button type="button" className={styles.planCompleteButton} onClick={onComplete}>
               Complete block
             </button>
@@ -86,7 +93,7 @@ export default function BlockDetailModal({
           <button type="button" className={styles.secondaryPlanButton} onClick={onOpenDayView}>
             Open in day view
           </button>
-          {selectedPlanDetail.status !== "completed" ? (
+          {selectedPlanDetail.status === "active" ? (
             <button type="button" className={styles.planDeleteButton} onClick={onRemove}>
               Remove
             </button>

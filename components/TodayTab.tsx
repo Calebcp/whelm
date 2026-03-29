@@ -33,7 +33,7 @@ type PlannedBlock = {
   title: string;
   timeOfDay: string;
   durationMinutes: number;
-  status: "active" | "completed";
+  status: "active" | "completed" | "deleted";
 };
 
 type FocusMetrics = {

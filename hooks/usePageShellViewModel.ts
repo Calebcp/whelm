@@ -23,7 +23,7 @@ type PlannedBlockLike = {
   sortOrder: number;
   createdAtISO: string;
   updatedAtISO: string;
-  status: "active" | "completed";
+  status: "active" | "completed" | "deleted";
   completedAtISO?: string;
   attachmentCount?: number;
   tone?: "Clear" | "Push" | "Deep" | "Sharp" | "Steady" | "Recover";

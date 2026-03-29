@@ -34,7 +34,7 @@ type PlannedBlockLike = {
   durationMinutes: number;
   timeOfDay: string;
   sortOrder: number;
-  status: "active" | "completed";
+  status: "active" | "completed" | "deleted";
 };
 
 type HistorySectionsOpen = {

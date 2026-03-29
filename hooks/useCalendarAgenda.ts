@@ -37,7 +37,7 @@ type PlannedBlockLike = {
   sortOrder: number;
   createdAtISO: string;
   updatedAtISO: string;
-  status: "active" | "completed";
+  status: "active" | "completed" | "deleted";
   completedAtISO?: string;
   attachmentCount?: number;
 };
@@ -190,7 +190,7 @@ export function useCalendarAgenda({
   isDateKeyWithinRecentWindow,
 }: UseCalendarAgendaOptions) {
   const selectedDatePlanGroups = useMemo(() => {
-    const allForDate = plannedBlocks.filter((item) => item.dateKey === selectedDateKey);
+    const allForDate = plannedBlocks.filter((item) => item.dateKey === selectedDateKey && item.status !== "deleted");
     const active = allForDate.filter((item) => item.status === "active" && !isDateKeyBeforeToday(item.dateKey));
     const completed = allForDate.filter((item) => item.status === "completed");
     const incomplete = allForDate.filter((item) => item.status === "active" && isDateKeyBeforeToday(item.dateKey));
@@ -227,6 +227,7 @@ export function useCalendarAgenda({
     }
 
     plannedBlocks.forEach((item) => {
+      if (item.status === "deleted") return;
       if (!isPro && !isDateKeyWithinRecentWindow(item.dateKey, proHistoryFreeDays)) return;
       const startMinute = parseTimeToMinutes(item.timeOfDay || "09:00");
       const endMinute = Math.min(24 * 60, startMinute + Math.max(10, item.durationMinutes));
