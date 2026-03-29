@@ -437,7 +437,16 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
       throw new Error("Your login session is missing. Sign in again.");
     }
 
+    const refreshStartedAt = performance.now();
     const result = await loadNotes(currentUser);
+    console.info("[whelm:notes] refresh complete", {
+      uid,
+      noteCount: result.notes.length,
+      synced: result.synced,
+      durationMs: Math.round(performance.now() - refreshStartedAt),
+      message: result.message ?? "",
+      online: typeof navigator !== "undefined" ? navigator.onLine : undefined,
+    });
     setNotes(result.notes);
     setSelectedNoteId((current) => current ?? result.notes[0]?.id ?? null);
     setNotesSyncStatus(result.synced ? "synced" : "local-only");
@@ -460,7 +469,12 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     // runs exactly once and is otherwise a no-op.
     void migrateNotesFromJson(uid).catch(() => { /* non-critical — notes are still in localStorage */ });
 
-    void refreshNotes(uid).catch(() => {
+    void refreshNotes(uid).catch((error) => {
+      console.warn("[whelm:notes] refresh failed after sign-in", {
+        uid,
+        message: error instanceof Error ? error.message : "Unknown error",
+        online: typeof navigator !== "undefined" ? navigator.onLine : undefined,
+      });
       // keep locally seeded notes visible if refresh fails
     });
   }, [refreshNotes]);

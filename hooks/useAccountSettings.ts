@@ -76,12 +76,19 @@ export function useAccountSettings({
     }
 
     let active = true;
+    const loadStartedAt = performance.now();
     applyProState(readLocalPreferences(user.uid).proState);
     setAccountStateHydrated(true);
     void loadPreferences(user).then((prefs) => {
       if (!active) return;
       applyProState(prefs.proState);
       setAccountStateHydrated(true);
+      console.info("[whelm:account] pro-state hydrated", {
+        uid: user.uid,
+        isPro: prefs.proState.isPro,
+        source: prefs.proState.source,
+        durationMs: Math.round(performance.now() - loadStartedAt),
+      });
     });
     return () => {
       active = false;

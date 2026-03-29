@@ -82,6 +82,7 @@ import {
 } from "@/lib/streak-bandanas";
 import { buildPerformanceNotificationPlan } from "@/lib/performance-notifications";
 import { subscribeToUserData } from "@/lib/firestore-sync";
+import { logClientRuntime } from "@/lib/client-runtime";
 import type { AppTab } from "@/lib/app-tabs";
 import { monthKeyLocal } from "@/lib/date-utils";
 import {
@@ -2403,6 +2404,25 @@ export default function HomePage() {
   } = useFriends(user, profileDisplayName);
 
   const notificationsBlocked = dailyPlanningLocked || dailyPlanningOpen || dailyPlanningPreviewOpen;
+  useEffect(() => {
+    if (!authChecked || !user) return;
+    logClientRuntime("workspace-shell");
+  }, [authChecked, user]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handleOnline = () => console.info("[whelm:network] online");
+    const handleOffline = () => console.warn("[whelm:network] offline");
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
   const {
     showIntroSplash,
     setIntroFinished,

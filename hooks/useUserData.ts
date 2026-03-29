@@ -14,6 +14,7 @@ import { bandanaColorFromStreak } from "@/lib/whelm-mascot";
 import { useMascot } from "@/hooks/useMascot";
 import { trackAppOpened } from "@/lib/analytics-tracker";
 import { dayKeyLocal } from "@/lib/date-utils";
+import { logClientRuntime } from "@/lib/client-runtime";
 import {
   buildDayXpSummaryForDate,
   getLifetimeXpSummary,
@@ -105,7 +106,9 @@ export function useUserData({
   // ── Auth listener ──────────────────────────────────────────────────────────
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (nextUser) => {
+      const authEventStartedAt = performance.now();
       if (!nextUser) {
+        console.info("[whelm:auth] signed out", { online: typeof navigator !== "undefined" ? navigator.onLine : undefined });
         appOpenTrackedRef.current = null;
         sessionsSyncedRef.current = false;
         setSessionsSynced(false);
@@ -119,6 +122,7 @@ export function useUserData({
       }
 
       authReadyRef.current = true;
+      logClientRuntime("auth-ready");
       setUser(nextUser);
 
       if (appOpenTrackedRef.current !== nextUser.uid) {
@@ -144,11 +148,24 @@ export function useUserData({
       if (currentUser && currentUser.uid === nextUser.uid) {
         void loadSessions(currentUser)
           .then((synced) => {
+            console.info("[whelm:auth] sessions loaded", {
+              uid: nextUser.uid,
+              sessionCount: synced.length,
+              durationMs: Math.round(performance.now() - authEventStartedAt),
+            });
             setSessions(synced);
             sessionsSyncedRef.current = true;
             setSessionsSynced(true);
           })
-          .catch(() => { sessionsSyncedRef.current = true; setSessionsSynced(true); });
+          .catch((error) => {
+            console.warn("[whelm:auth] sessions load failed", {
+              uid: nextUser.uid,
+              durationMs: Math.round(performance.now() - authEventStartedAt),
+              message: error instanceof Error ? error.message : "Unknown error",
+            });
+            sessionsSyncedRef.current = true;
+            setSessionsSynced(true);
+          });
       }
 
       // Delegate notes + other domain state to page.tsx.

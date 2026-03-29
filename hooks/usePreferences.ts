@@ -82,6 +82,7 @@ export function usePreferences({
       return;
     }
 
+    const loadStartedAt = performance.now();
     applyPreferencesSnapshot(readLocalPreferences(user.uid));
     setPreferencesHydrated(true);
 
@@ -90,6 +91,13 @@ export function usePreferences({
       if (cancelled) return;
       applyPreferencesSnapshot(prefs);
       setPreferencesHydrated(true);
+      console.info("[whelm:preferences] refresh complete", {
+        uid: user.uid,
+        synced: prefs.synced,
+        durationMs: Math.round(performance.now() - loadStartedAt),
+        message: prefs.message ?? "",
+        online: typeof navigator !== "undefined" ? navigator.onLine : undefined,
+      });
     });
 
     return () => {

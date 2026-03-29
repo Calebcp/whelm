@@ -435,7 +435,16 @@ export function usePlannedBlocks({
       throw new Error("Your login session is missing. Sign in again.");
     }
 
+    const refreshStartedAt = performance.now();
     const result = await loadSyncedPlannedBlocks(currentUser);
+    console.info("[whelm:planned-blocks] refresh complete", {
+      uid,
+      blockCount: result.blocks.length,
+      synced: result.synced,
+      durationMs: Math.round(performance.now() - refreshStartedAt),
+      message: result.message ?? "",
+      online: typeof navigator !== "undefined" ? navigator.onLine : undefined,
+    });
     setPlannedBlocks(result.blocks as PlannedBlock[]);
     setPlannedBlocksHydrated(true);
   }, []);
@@ -452,7 +461,12 @@ export function usePlannedBlocks({
       // Keep going; cloud refresh below is authoritative.
     }
 
-    void refreshPlannedBlocks(uid).catch(() => {
+    void refreshPlannedBlocks(uid).catch((error) => {
+      console.warn("[whelm:planned-blocks] refresh failed after sign-in", {
+        uid,
+        message: error instanceof Error ? error.message : "Unknown error",
+        online: typeof navigator !== "undefined" ? navigator.onLine : undefined,
+      });
       // Preserve locally seeded blocks if remote refresh fails.
     });
   }, [refreshPlannedBlocks]);
