@@ -170,6 +170,24 @@ function isEffectivelyEmptyEditorHtml(value: string) {
     .trim().length === 0;
 }
 
+function resolvePreferredEditorHtml(
+  uid: string | null,
+  note: WorkspaceNote | null,
+  fallbackHtml: string,
+) {
+  if (!note) return "";
+
+  let nextHtml = note.body ? normalizeBodyForEditor(note.body) : fallbackHtml;
+  if (!uid) return nextHtml;
+
+  const localDraft = readLocalNoteDraft(uid, note.id);
+  if (localDraft && localDraft.updatedAtISO >= note.updatedAtISO) {
+    nextHtml = normalizeBodyForEditor(localDraft.body);
+  }
+
+  return nextHtml;
+}
+
 function resolveFirebaseStorageBucket() {
   return typeof storage.app.options.storageBucket === "string"
     ? storage.app.options.storageBucket.trim()
@@ -363,16 +381,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     if (bodyDirtyRef.current && bodyDirtyNoteIdRef.current === selectedNoteId) return;
 
     const currentUser = auth.currentUser;
-    let nextHtml = selectedNote ? normalizeBodyForEditor(selectedNote.body) : "";
-
-    if (currentUser && selectedNote) {
-      const localDraft = readLocalNoteDraft(currentUser.uid, selectedNote.id);
-      if (localDraft && localDraft.updatedAtISO >= selectedNote.updatedAtISO) {
-        nextHtml = normalizeBodyForEditor(localDraft.body);
-      }
-    }
-
-    setEditorBodyDraft(nextHtml);
+    setEditorBodyDraft(resolvePreferredEditorHtml(currentUser?.uid ?? null, selectedNote, ""));
   }, [selectedNote, selectedNoteId]);
 
   // ── Sync editorBodyDraft → editor.innerHTML ────────────────────────────────
@@ -902,11 +911,26 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     if (result.notes.length > 0) {
       notesRef.current = result.notes;
       setNotes(result.notes);
-      setSelectedNoteId((current) =>
-        current && result.notes.some((note) => note.id === current)
-          ? current
-          : (result.notes[0]?.id ?? null),
+      const nextSelectedNoteId =
+        selectedNoteIdRef.current && result.notes.some((note) => note.id === selectedNoteIdRef.current)
+          ? selectedNoteIdRef.current
+          : (result.notes[0]?.id ?? null);
+      setSelectedNoteId(nextSelectedNoteId);
+
+      const selectedAfterRetry =
+        result.notes.find((note) => note.id === nextSelectedNoteId) ?? null;
+      const repairedEditorHtml = resolvePreferredEditorHtml(
+        currentUser.uid,
+        selectedAfterRetry,
+        editorRef.current?.innerHTML ?? editorBodyDraft,
       );
+
+      if (selectedAfterRetry && repairedEditorHtml !== editorBodyDraft) {
+        setEditorBodyDraft(repairedEditorHtml);
+        if (editorRef.current && editorRef.current.innerHTML !== repairedEditorHtml) {
+          editorRef.current.innerHTML = repairedEditorHtml;
+        }
+      }
     }
 
     if (result.synced) {
