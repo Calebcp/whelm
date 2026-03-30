@@ -3,10 +3,12 @@
 import sharedStyles from "@/app/page.module.css";
 import WhelmProfileAvatar from "@/components/WhelmProfileAvatar";
 import styles from "@/components/WhelmboardTab.module.css";
+import type { FriendProfile } from "@/hooks/useFriends";
 import { getStreakBandanaTier } from "@/lib/streak-bandanas";
 import { getStreakTierColorTheme } from "@/lib/xp-utils";
 
 type LeaderboardEntry = {
+  id: string;
   username: string;
   avatarUrl?: string | null;
   isProStyle?: boolean;
@@ -22,9 +24,17 @@ type LeaderboardEntry = {
 export default function LeaderboardProfileModal({
   selected,
   onClose,
+  alreadyFriendUids,
+  sentRequestUids,
+  incomingRequestUids,
+  onSendFriendRequest,
 }: {
   selected: { entry: LeaderboardEntry; rank: number } | null;
   onClose: () => void;
+  alreadyFriendUids: Set<string>;
+  sentRequestUids: Set<string>;
+  incomingRequestUids: Set<string>;
+  onSendFriendRequest: (target: FriendProfile) => void;
 }) {
   if (!selected) return null;
 
@@ -38,6 +48,17 @@ export default function LeaderboardProfileModal({
       return null;
     }
   })();
+  const canFriend = !entry.isCurrentUser && Boolean(entry.id);
+  const alreadyFriend = canFriend && alreadyFriendUids.has(entry.id);
+  const hasIncomingRequest = canFriend && incomingRequestUids.has(entry.id);
+  const hasSentRequest = canFriend && sentRequestUids.has(entry.id);
+  const profileTarget: FriendProfile = {
+    userId: entry.id,
+    username: entry.username,
+    totalXp: entry.totalXp,
+    currentStreak: entry.currentStreak,
+    weeklyXp: 0,
+  };
 
   return (
     <div className={sharedStyles.feedbackOverlay} onClick={onClose}>
@@ -106,6 +127,32 @@ export default function LeaderboardProfileModal({
               <span className={styles.lbProfileStatLabel}>Focus hours</span>
             </div>
           ) : null}
+        </div>
+
+        <div className={styles.lbProfileActions}>
+          {entry.isCurrentUser ? (
+            <span className={styles.lbProfileStaticChip}>You</span>
+          ) : alreadyFriend ? (
+            <span className={styles.lbProfileStaticChip}>Friends</span>
+          ) : hasSentRequest ? (
+            <span className={styles.lbProfileStaticChip}>Sent</span>
+          ) : hasIncomingRequest ? (
+            <button
+              type="button"
+              className={styles.lbProfilePrimaryAction}
+              onClick={() => onSendFriendRequest(profileTarget)}
+            >
+              Accept friend request
+            </button>
+          ) : (
+            <button
+              type="button"
+              className={styles.lbProfilePrimaryAction}
+              onClick={() => onSendFriendRequest(profileTarget)}
+            >
+              Add friend
+            </button>
+          )}
         </div>
 
         {joinDate ? <p className={styles.lbProfileJoinDate}>Member since {joinDate}</p> : null}

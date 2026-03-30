@@ -3342,6 +3342,10 @@ export default function HomePage() {
       <LeaderboardProfileModal
         selected={selectedLbProfile}
         onClose={() => setSelectedLbProfile(null)}
+        alreadyFriendUids={alreadyFriendUids}
+        sentRequestUids={sentRequestUids}
+        incomingRequestUids={incomingRequestUids}
+        onSendFriendRequest={handleSendFriendRequest}
       />
     </>
   );

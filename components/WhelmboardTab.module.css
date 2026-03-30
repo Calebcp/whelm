@@ -804,6 +804,39 @@
   text-align: center;
 }
 
+.lbProfileActions {
+  display: flex;
+  justify-content: center;
+}
+
+.lbProfilePrimaryAction,
+.lbProfileStaticChip {
+  min-width: 152px;
+  min-height: 42px;
+  border-radius: 999px;
+  padding: 10px 18px;
+  font-size: 0.84rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lbProfilePrimaryAction {
+  border: 1px solid rgba(150, 205, 255, 0.36);
+  background: linear-gradient(180deg, rgba(116, 193, 255, 0.26), rgba(63, 116, 255, 0.28));
+  color: #eef8ff;
+  box-shadow: 0 10px 24px rgba(41, 74, 198, 0.24);
+  cursor: pointer;
+}
+
+.lbProfileStaticChip {
+  border: 1px solid rgba(180, 160, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(218, 208, 255, 0.86);
+}
+
 .leaderboardHeroMovement {
   display: inline-flex;
   align-items: center;
