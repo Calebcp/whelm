@@ -23,6 +23,12 @@ export type FriendRequestDoc = {
   sentAtISO: string;
 };
 
+export type OutgoingFriendRequestDoc = {
+  toUid: string;
+  toUsername: string;
+  sentAtISO: string;
+};
+
 export type FriendProfile = {
   userId: string;
   username: string;
@@ -34,18 +40,35 @@ export type FriendProfile = {
 export async function sendFriendRequest(
   fromUid: string,
   fromUsername: string,
+  toUsername: string,
   toUid: string,
 ): Promise<void> {
-  await setDoc(doc(db, "friendRequests", toUid, "incoming", fromUid), {
-    fromUid,
-    fromUsername,
-    sentAtISO: new Date().toISOString(),
-  });
+  if (!fromUid || !toUid || fromUid === toUid) {
+    throw new Error("Invalid friend request target.");
+  }
+  const sentAtISO = new Date().toISOString();
+  await Promise.all([
+    setDoc(doc(db, "friendRequests", toUid, "incoming", fromUid), {
+      fromUid,
+      fromUsername,
+      sentAtISO,
+    }),
+    setDoc(doc(db, "friendRequests", fromUid, "outgoing", toUid), {
+      toUid,
+      toUsername,
+      sentAtISO,
+    }),
+  ]);
 }
 
 export async function getIncomingRequests(uid: string): Promise<FriendRequestDoc[]> {
   const snap = await getDocs(collection(db, "friendRequests", uid, "incoming"));
   return snap.docs.map((d) => d.data() as FriendRequestDoc);
+}
+
+export async function getOutgoingRequests(uid: string): Promise<OutgoingFriendRequestDoc[]> {
+  const snap = await getDocs(collection(db, "friendRequests", uid, "outgoing"));
+  return snap.docs.map((d) => d.data() as OutgoingFriendRequestDoc);
 }
 
 export async function acceptFriendRequest(
@@ -67,11 +90,15 @@ export async function acceptFriendRequest(
       addedAtISO: now,
     }),
     deleteDoc(doc(db, "friendRequests", myUid, "incoming", fromUid)),
+    deleteDoc(doc(db, "friendRequests", fromUid, "outgoing", myUid)),
   ]);
 }
 
 export async function declineFriendRequest(myUid: string, fromUid: string): Promise<void> {
-  await deleteDoc(doc(db, "friendRequests", myUid, "incoming", fromUid));
+  await Promise.all([
+    deleteDoc(doc(db, "friendRequests", myUid, "incoming", fromUid)),
+    deleteDoc(doc(db, "friendRequests", fromUid, "outgoing", myUid)),
+  ]);
 }
 
 export async function getFriends(uid: string): Promise<FriendDoc[]> {

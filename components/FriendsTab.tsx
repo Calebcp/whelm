@@ -8,11 +8,13 @@ import type {
   FriendProfile,
   FriendRequestDoc,
   FriendWithXp,
+  OutgoingFriendRequestDoc,
 } from "@/hooks/useFriends";
 
 type FriendsTabProps = {
   friends: FriendWithXp[];
   incomingRequests: FriendRequestDoc[];
+  outgoingRequests: OutgoingFriendRequestDoc[];
   searchResults: FriendProfile[];
   searchQuery: string;
   searchLoading: boolean;
@@ -20,8 +22,9 @@ type FriendsTabProps = {
   error: string;
   sentRequestUids: Set<string>;
   alreadyFriendUids: Set<string>;
+  incomingRequestUids: Set<string>;
   onSearch: (q: string) => void;
-  onSendRequest: (toUserId: string) => void;
+  onSendRequest: (target: FriendProfile) => void;
   onAccept: (req: FriendRequestDoc) => void;
   onDecline: (req: FriendRequestDoc) => void;
   onRemoveFriend: (friendUid: string) => void;
@@ -38,6 +41,7 @@ function formatXp(xp: number) {
 export default function FriendsTab({
   friends,
   incomingRequests,
+  outgoingRequests,
   searchResults,
   searchQuery,
   searchLoading,
@@ -45,6 +49,7 @@ export default function FriendsTab({
   error,
   sentRequestUids,
   alreadyFriendUids,
+  incomingRequestUids,
   onSearch,
   onSendRequest,
   onAccept,
@@ -103,6 +108,7 @@ export default function FriendsTab({
                 searchResults.map((result) => {
                   const alreadyFriend = alreadyFriendUids.has(result.userId);
                   const requestSent = sentRequestUids.has(result.userId);
+                  const incomingRequest = incomingRequestUids.has(result.userId);
                   return (
                     <div key={result.userId} className={styles.searchResultRow}>
                       <div className={styles.searchResultInfo}>
@@ -113,13 +119,21 @@ export default function FriendsTab({
                       </div>
                       {alreadyFriend ? (
                         <span className={styles.alreadyFriendChip}>Friends</span>
+                      ) : incomingRequest ? (
+                        <button
+                          type="button"
+                          className={styles.acceptButton}
+                          onClick={() => onSendRequest(result)}
+                        >
+                          Accept
+                        </button>
                       ) : requestSent ? (
                         <span className={styles.requestSentChip}>Sent</span>
                       ) : (
                         <button
                           type="button"
                           className={styles.addButton}
-                          onClick={() => onSendRequest(result.userId)}
+                          onClick={() => onSendRequest(result)}
                         >
                           Add
                         </button>
@@ -136,12 +150,20 @@ export default function FriendsTab({
       {error ? <p className={styles.errorText}>{error}</p> : null}
 
       {/* Incoming requests */}
-      {incomingRequests.length > 0 && (
-        <div className={styles.section}>
-          <div className={styles.sectionHeader}>
+      <div className={styles.section}>
+        <div className={styles.sectionHeader}>
+          <span className={styles.requestSectionLabel}>
+            <img src="/whelmboard-icons/friends-icon.png" alt="" aria-hidden="true" className={styles.requestSectionIcon} />
             <span className={sharedStyles.sectionLabel}>Requests</span>
-            <span className={styles.countBadge}>{incomingRequests.length}</span>
+          </span>
+          <span className={styles.countBadge}>{incomingRequests.length}</span>
+        </div>
+        {incomingRequests.length === 0 ? (
+          <div className={styles.emptyRequestState}>
+            <strong>No incoming requests</strong>
+            <p className={sharedStyles.accountMeta}>When someone adds you, it will show up here.</p>
           </div>
+        ) : (
           <div className={styles.requestList}>
             {incomingRequests.map((req) => (
               <motion.div
@@ -170,8 +192,33 @@ export default function FriendsTab({
               </motion.div>
             ))}
           </div>
+        )}
+      </div>
+
+      <div className={styles.section}>
+        <div className={styles.sectionHeader}>
+          <span className={styles.requestSectionLabel}>
+            <img src="/whelmboard-icons/friends-icon.png" alt="" aria-hidden="true" className={styles.requestSectionIcon} />
+            <span className={sharedStyles.sectionLabel}>Sent</span>
+          </span>
+          <span className={styles.countBadge}>{outgoingRequests.length}</span>
         </div>
-      )}
+        {outgoingRequests.length === 0 ? (
+          <div className={styles.emptyRequestState}>
+            <strong>No sent requests</strong>
+            <p className={sharedStyles.accountMeta}>People you add will appear here until they accept.</p>
+          </div>
+        ) : (
+          <div className={styles.requestList}>
+            {outgoingRequests.map((req) => (
+              <div key={req.toUid} className={styles.requestRowMuted}>
+                <span className={styles.requestUsername}>{req.toUsername}</span>
+                <span className={styles.requestPendingChip}>Pending</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Friends list */}
       <div className={styles.section}>

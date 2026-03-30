@@ -14,6 +14,7 @@ import type {
   FriendProfile,
   FriendRequestDoc,
   FriendWithXp,
+  OutgoingFriendRequestDoc,
 } from "@/hooks/useFriends";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -263,6 +264,7 @@ export type WhelmboardTabProps = {
   // Friends tab props
   friends: FriendWithXp[];
   incomingRequests: FriendRequestDoc[];
+  outgoingRequests: OutgoingFriendRequestDoc[];
   searchResults: FriendProfile[];
   searchQuery: string;
   searchLoading: boolean;
@@ -270,8 +272,9 @@ export type WhelmboardTabProps = {
   friendsError: string;
   sentRequestUids: Set<string>;
   alreadyFriendUids: Set<string>;
+  incomingRequestUids: Set<string>;
   onFriendSearch: (q: string) => void;
-  onSendFriendRequest: (toUserId: string) => void;
+  onSendFriendRequest: (target: FriendProfile) => void;
   onAcceptFriendRequest: (req: FriendRequestDoc) => void;
   onDeclineFriendRequest: (req: FriendRequestDoc) => void;
   onRemoveFriend: (friendUid: string) => void;
@@ -280,10 +283,10 @@ export type WhelmboardTabProps = {
   nudgeAvailableInMinutes: (friendUid: string) => number;
 };
 
-const SURFACE_TABS: Array<{ id: WhelmboardSurfaceTab; label: string }> = [
-  { id: "global", label: "Global" },
-  { id: "friends", label: "Friends" },
-  { id: "bandana", label: "Bandana Tiers" },
+const SURFACE_TABS: Array<{ id: WhelmboardSurfaceTab; label: string; iconSrc: string; iconAlt: string }> = [
+  { id: "global", label: "Global", iconSrc: "/whelmboard-icons/globe-icon.png", iconAlt: "Global" },
+  { id: "friends", label: "Friends", iconSrc: "/whelmboard-icons/friends-icon.png", iconAlt: "Friends" },
+  { id: "bandana", label: "Bandana Tiers", iconSrc: "/streak/cursor/bandana-white-128.png", iconAlt: "Bandana tiers" },
 ];
 
 export default function WhelmboardTab({
@@ -308,6 +311,7 @@ export default function WhelmboardTab({
   onLoadMore,
   friends,
   incomingRequests,
+  outgoingRequests,
   searchResults,
   searchQuery,
   searchLoading,
@@ -315,6 +319,7 @@ export default function WhelmboardTab({
   friendsError,
   sentRequestUids,
   alreadyFriendUids,
+  incomingRequestUids,
   onFriendSearch,
   onSendFriendRequest,
   onAcceptFriendRequest,
@@ -363,7 +368,15 @@ export default function WhelmboardTab({
         )}
         {surfaceTab === "friends" && incomingRequests.length > 0 && (
           <div className={styles.wbHeaderRight}>
-            <span className={styles.wbFriendRequestBadge}>{incomingRequests.length} pending</span>
+            <span className={styles.wbFriendRequestBadge}>
+              <img
+                src="/whelmboard-icons/friends-icon.png"
+                alt=""
+                aria-hidden="true"
+                className={styles.wbFriendRequestBadgeIcon}
+              />
+              {incomingRequests.length} pending
+            </span>
           </div>
         )}
       </div>
@@ -381,7 +394,10 @@ export default function WhelmboardTab({
             }`}
             onClick={() => setSurfaceTab(tab.id)}
           >
-            {tab.label}
+            <span className={styles.wbSurfaceTabInner}>
+              <img src={tab.iconSrc} alt="" aria-hidden="true" className={styles.wbSurfaceTabIcon} />
+              <span>{tab.label}</span>
+            </span>
           </button>
         ))}
       </div>
@@ -510,6 +526,7 @@ export default function WhelmboardTab({
         <FriendsTab
           friends={friends}
           incomingRequests={incomingRequests}
+          outgoingRequests={outgoingRequests}
           searchResults={searchResults}
           searchQuery={searchQuery}
           searchLoading={searchLoading}
@@ -517,6 +534,7 @@ export default function WhelmboardTab({
           error={friendsError}
           sentRequestUids={sentRequestUids}
           alreadyFriendUids={alreadyFriendUids}
+          incomingRequestUids={incomingRequestUids}
           onSearch={onFriendSearch}
           onSendRequest={onSendFriendRequest}
           onAccept={onAcceptFriendRequest}

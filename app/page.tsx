@@ -2409,6 +2409,7 @@ export default function HomePage() {
   const {
     friends,
     incomingRequests: friendIncomingRequests,
+    outgoingRequests: friendOutgoingRequests,
     searchResults: friendSearchResults,
     searchQuery: friendSearchQuery,
     searchLoading: friendSearchLoading,
@@ -2416,6 +2417,7 @@ export default function HomePage() {
     error: friendsError,
     sentRequestUids,
     alreadyFriendUids,
+    incomingRequestUids,
     handleSearch: handleFriendSearch,
     handleSendRequest: handleSendFriendRequest,
     handleAccept: handleAcceptFriendRequest,
@@ -2802,6 +2804,7 @@ export default function HomePage() {
               onLoadMore={() => void handleLeaderboardLoadMore()}
               friends={friends}
               incomingRequests={friendIncomingRequests}
+              outgoingRequests={friendOutgoingRequests}
               searchResults={friendSearchResults}
               searchQuery={friendSearchQuery}
               searchLoading={friendSearchLoading}
@@ -2809,6 +2812,7 @@ export default function HomePage() {
               friendsError={friendsError}
               sentRequestUids={sentRequestUids}
               alreadyFriendUids={alreadyFriendUids}
+              incomingRequestUids={incomingRequestUids}
               onFriendSearch={handleFriendSearch}
               onSendFriendRequest={handleSendFriendRequest}
               onAcceptFriendRequest={handleAcceptFriendRequest}

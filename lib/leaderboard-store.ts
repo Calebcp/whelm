@@ -310,12 +310,39 @@ export async function searchLeaderboardProfiles(authHeader: string, rawTerm: str
   const term = rawTerm.trim().toLowerCase();
   if (!term) return [];
 
-  const profiles = await listAllProfiles(authHeader);
+  const rows = await runQuery(authHeader, {
+    from: [{ collectionId: "leaderboardProfiles" }],
+    where: {
+      compositeFilter: {
+        op: "AND",
+        filters: [
+          {
+            fieldFilter: {
+              field: { fieldPath: "usernameLower" },
+              op: "GREATER_THAN_OR_EQUAL",
+              value: { stringValue: term },
+            },
+          },
+          {
+            fieldFilter: {
+              field: { fieldPath: "usernameLower" },
+              op: "LESS_THAN",
+              value: { stringValue: `${term}\uf8ff` },
+            },
+          },
+        ],
+      },
+    },
+    orderBy: [{ field: { fieldPath: "usernameLower" }, direction: "ASCENDING" }],
+    limit: Math.min(50, Math.max(10, limit * 3)),
+  });
+
+  const profiles = rows
+    .map((row) => (row.document ? decodeProfile(row.document) : null))
+    .filter((profile): profile is LeaderboardProfile => Boolean(profile));
+
   return profiles
-    .filter((profile) => {
-      const username = profile.username.trim().toLowerCase();
-      return profile.usernameLower.startsWith(term) || username.startsWith(term);
-    })
+    .filter((profile) => profile.usernameLower.startsWith(term))
     .sort((left, right) => compareLeaderboardProfiles(left, right, "xp"))
     .slice(0, Math.min(25, Math.max(1, limit)));
 }

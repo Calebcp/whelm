@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { User } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -10,15 +10,17 @@ import {
   getFriendProfile,
   getFriends,
   getIncomingRequests,
+  getOutgoingRequests,
   removeFriend,
   searchUsersByUsernameAuthed,
   sendFriendRequest,
   type FriendDoc,
   type FriendProfile,
   type FriendRequestDoc,
+  type OutgoingFriendRequestDoc,
 } from "@/lib/friends-store";
 
-export type { FriendDoc, FriendProfile, FriendRequestDoc };
+export type { FriendDoc, FriendProfile, FriendRequestDoc, OutgoingFriendRequestDoc };
 
 export type FriendWithXp = FriendDoc & {
   totalXp: number;
@@ -52,22 +54,25 @@ const NUDGE_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 export function useFriends(user: User | null, profileDisplayName: string) {
   const [friends, setFriends] = useState<FriendWithXp[]>([]);
   const [incomingRequests, setIncomingRequests] = useState<FriendRequestDoc[]>([]);
+  const [outgoingRequests, setOutgoingRequests] = useState<OutgoingFriendRequestDoc[]>([]);
   const [searchResults, setSearchResults] = useState<FriendProfile[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchLoading, setSearchLoading] = useState(false);
   const [friendsLoading, setFriendsLoading] = useState(false);
   const [error, setError] = useState("");
   const [nudgeCooldowns, setNudgeCooldowns] = useState<Map<string, number>>(new Map());
-  const [sentRequestUids, setSentRequestUids] = useState<Set<string>>(new Set());
+  const searchRequestIdRef = useRef(0);
+  const searchDebounceTimeoutRef = useRef<number | null>(null);
 
   const loadFriendsData = useCallback(async () => {
     if (!user) return;
     setFriendsLoading(true);
     setError("");
     try {
-      const [friendDocs, requestDocs] = await Promise.all([
+      const [friendDocs, requestDocs, outgoingRequestDocs] = await Promise.all([
         getFriends(user.uid),
         getIncomingRequests(user.uid),
+        getOutgoingRequests(user.uid),
       ]);
 
       const friendsWithXp = await Promise.all(
@@ -84,6 +89,7 @@ export function useFriends(user: User | null, profileDisplayName: string) {
 
       setFriends(friendsWithXp.sort((a, b) => b.weeklyXp - a.weeklyXp));
       setIncomingRequests(requestDocs);
+      setOutgoingRequests(outgoingRequestDocs);
 
       const cooldowns = await loadNudgeCooldownsFromFirestore(user.uid).catch(
         () => new Map<string, number>(),
@@ -100,52 +106,94 @@ export function useFriends(user: User | null, profileDisplayName: string) {
     if (!user) {
       setFriends([]);
       setIncomingRequests([]);
+      setOutgoingRequests([]);
       setSearchResults([]);
       setSearchQuery("");
-      setSentRequestUids(new Set());
+      if (searchDebounceTimeoutRef.current !== null) {
+        window.clearTimeout(searchDebounceTimeoutRef.current);
+        searchDebounceTimeoutRef.current = null;
+      }
       return;
     }
     void loadFriendsData();
   }, [user, loadFriendsData]);
 
+  useEffect(() => () => {
+    if (searchDebounceTimeoutRef.current !== null) {
+      window.clearTimeout(searchDebounceTimeoutRef.current);
+    }
+  }, []);
+
   const handleSearch = useCallback(
-    async (q: string) => {
+    (q: string) => {
       setSearchQuery(q);
       setError("");
-      if (!q.trim()) {
+      const trimmed = q.trim();
+      if (searchDebounceTimeoutRef.current !== null) {
+        window.clearTimeout(searchDebounceTimeoutRef.current);
+        searchDebounceTimeoutRef.current = null;
+      }
+      if (!trimmed) {
         setSearchResults([]);
+        setSearchLoading(false);
         return;
       }
+      const requestId = searchRequestIdRef.current + 1;
+      searchRequestIdRef.current = requestId;
       setSearchLoading(true);
-      try {
-        if (!user) {
+      searchDebounceTimeoutRef.current = window.setTimeout(async () => {
+        try {
+          if (!user) {
+            if (searchRequestIdRef.current === requestId) {
+              setSearchResults([]);
+              setSearchLoading(false);
+            }
+            return;
+          }
+          const token = await user.getIdToken();
+          const results = await searchUsersByUsernameAuthed(trimmed, token);
+          if (searchRequestIdRef.current !== requestId) return;
+          setSearchResults(results.filter((r) => r.userId !== user.uid));
+        } catch (err) {
+          if (searchRequestIdRef.current !== requestId) return;
           setSearchResults([]);
-          return;
+          setError(err instanceof Error ? err.message : "Failed to search users.");
+        } finally {
+          if (searchRequestIdRef.current === requestId) {
+            setSearchLoading(false);
+          }
         }
-        const token = await user.getIdToken();
-        const results = await searchUsersByUsernameAuthed(q, token);
-        setSearchResults(results.filter((r) => r.userId !== user?.uid));
-      } catch (err) {
-        setSearchResults([]);
-        setError(err instanceof Error ? err.message : "Failed to search users.");
-      } finally {
-        setSearchLoading(false);
-      }
+      }, 180);
     },
     [user],
   );
 
   const handleSendRequest = useCallback(
-    async (toUserId: string) => {
+    async (target: FriendProfile) => {
       if (!user) return;
       try {
-        await sendFriendRequest(user.uid, profileDisplayName, toUserId);
-        setSentRequestUids((prev) => new Set([...prev, toUserId]));
+        if (target.userId === user.uid) {
+          setError("You cannot add yourself.");
+          return;
+        }
+        const incomingMatch = incomingRequests.find((req) => req.fromUid === target.userId) ?? null;
+        if (incomingMatch) {
+          await acceptFriendRequest(user.uid, profileDisplayName, incomingMatch.fromUid, incomingMatch.fromUsername);
+          await loadFriendsData();
+          setSearchResults((prev) => prev.filter((item) => item.userId !== target.userId));
+          return;
+        }
+        await sendFriendRequest(user.uid, profileDisplayName, target.username, target.userId);
+        setOutgoingRequests((prev) => {
+          const next = prev.filter((req) => req.toUid !== target.userId);
+          next.push({ toUid: target.userId, toUsername: target.username, sentAtISO: new Date().toISOString() });
+          return next;
+        });
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to send request.");
       }
     },
-    [user, profileDisplayName],
+    [incomingRequests, loadFriendsData, profileDisplayName, user],
   );
 
   const handleAccept = useCallback(
@@ -220,10 +268,13 @@ export function useFriends(user: User | null, profileDisplayName: string) {
   );
 
   const alreadyFriendUids = new Set(friends.map((f) => f.friendUid));
+  const sentRequestUids = new Set(outgoingRequests.map((req) => req.toUid));
+  const incomingRequestUids = new Set(incomingRequests.map((req) => req.fromUid));
 
   return {
     friends,
     incomingRequests,
+    outgoingRequests,
     searchResults,
     searchQuery,
     searchLoading,
@@ -231,6 +282,7 @@ export function useFriends(user: User | null, profileDisplayName: string) {
     error,
     sentRequestUids,
     alreadyFriendUids,
+    incomingRequestUids,
     handleSearch,
     handleSendRequest,
     handleAccept,

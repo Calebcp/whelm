@@ -83,6 +83,21 @@
   white-space: nowrap;
 }
 
+.wbSurfaceTabInner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.wbSurfaceTabIcon {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  flex-shrink: 0;
+  opacity: 0.92;
+}
+
 .wbSurfaceTabActive {
   background: linear-gradient(180deg, rgba(160, 120, 255, 0.86), rgba(100, 60, 220, 0.9));
   color: #fff;
@@ -90,6 +105,9 @@
 }
 
 .wbFriendRequestBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   border-radius: 999px;
   padding: 5px 11px;
   background: rgba(255, 210, 80, 0.14);
@@ -98,6 +116,13 @@
   font-size: 0.72rem;
   font-weight: 800;
   letter-spacing: 0.04em;
+}
+
+.wbFriendRequestBadgeIcon {
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+  flex-shrink: 0;
 }
 
 .wbLiveDot {
