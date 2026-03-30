@@ -263,15 +263,50 @@ async function getNudgeCooldowns(request: NextRequest, uid: string): Promise<Rec
   );
 }
 
-function normalizePermissionError(message: string) {
-  if (
+function isPermissionError(message: string) {
+  return (
     message.includes("PERMISSION_DENIED") ||
     message.includes("permission-denied") ||
     message.includes("Missing or insufficient permissions")
+  );
+}
+
+function normalizePermissionError(message: string) {
+  if (message.startsWith("Friends permissions failed at ")) {
+    return message;
+  }
+  if (
+    isPermissionError(message)
   ) {
     return "Friends data is blocked by Firestore permissions. The feature now uses the server route, but the backend rules for these collections still need to allow the signed-in user path.";
   }
   return message;
+}
+
+async function loadRequiredSection<T>(
+  label: string,
+  loader: () => Promise<T>,
+): Promise<T> {
+  try {
+    return await loader();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : `Failed to load ${label}.`;
+    if (isPermissionError(message)) {
+      throw new Error(`Friends permissions failed at ${label}.`);
+    }
+    throw error;
+  }
+}
+
+async function loadOptionalSection<T>(
+  loader: () => Promise<T>,
+  fallback: T,
+): Promise<T> {
+  try {
+    return await loader();
+  } catch {
+    return fallback;
+  }
 }
 
 export async function GET(request: NextRequest) {
@@ -280,10 +315,16 @@ export async function GET(request: NextRequest) {
     if (!uid) return jsonError("Missing uid.", 400);
 
     const [friendDocs, incomingRequests, outgoingRequests, nudgeCooldowns] = await Promise.all([
-      listDocuments(request, `friendships/${encodeURIComponent(uid)}/friends`),
-      listDocuments(request, `friendRequests/${encodeURIComponent(uid)}/incoming`),
-      listDocuments(request, `friendRequests/${encodeURIComponent(uid)}/outgoing`),
-      getNudgeCooldowns(request, uid),
+      loadRequiredSection("friendships", () =>
+        listDocuments(request, `friendships/${encodeURIComponent(uid)}/friends`),
+      ),
+      loadRequiredSection("incoming requests", () =>
+        listDocuments(request, `friendRequests/${encodeURIComponent(uid)}/incoming`),
+      ),
+      loadRequiredSection("outgoing requests", () =>
+        listDocuments(request, `friendRequests/${encodeURIComponent(uid)}/outgoing`),
+      ),
+      loadOptionalSection(() => getNudgeCooldowns(request, uid), {}),
     ]);
 
     const friends = await Promise.all(

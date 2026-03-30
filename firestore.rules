@@ -106,28 +106,30 @@ service cloud.firestore {
     }
 
     match /friendships/{uid} {
-      allow read, write: if false;
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
 
       match /friends/{friendUid} {
         allow read: if request.auth != null && request.auth.uid == uid;
-        allow create, delete: if request.auth != null
+        allow create, update, delete: if request.auth != null
           && (request.auth.uid == uid || request.auth.uid == friendUid);
       }
     }
 
     match /friendRequests/{uid} {
-      allow read, write: if false;
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
 
       match /incoming/{fromUid} {
         allow read: if request.auth != null && request.auth.uid == uid;
-        allow create: if request.auth != null && request.auth.uid == fromUid;
+        allow create, update: if request.auth != null && request.auth.uid == fromUid;
         allow delete: if request.auth != null
           && (request.auth.uid == uid || request.auth.uid == fromUid);
       }
 
       match /outgoing/{toUid} {
         allow read: if request.auth != null && request.auth.uid == uid;
-        allow create: if request.auth != null && request.auth.uid == uid;
+        allow create, update: if request.auth != null && request.auth.uid == uid;
         allow delete: if request.auth != null
           && (request.auth.uid == uid || request.auth.uid == toUid);
       }
