@@ -6,15 +6,11 @@ import styles from "@/components/FriendsTab.module.css";
 import sharedStyles from "@/app/page.module.css";
 import type {
   FriendProfile,
-  FriendRequestDoc,
   FriendWithXp,
-  OutgoingFriendRequestDoc,
 } from "@/hooks/useFriends";
 
 type FriendsTabProps = {
   friends: FriendWithXp[];
-  incomingRequests: FriendRequestDoc[];
-  outgoingRequests: OutgoingFriendRequestDoc[];
   searchResults: FriendProfile[];
   searchQuery: string;
   searchLoading: boolean;
@@ -25,8 +21,6 @@ type FriendsTabProps = {
   incomingRequestUids: Set<string>;
   onSearch: (q: string) => void;
   onSendRequest: (target: FriendProfile) => void;
-  onAccept: (req: FriendRequestDoc) => void;
-  onDecline: (req: FriendRequestDoc) => void;
   onRemoveFriend: (friendUid: string) => void;
   onNudge: (friendUid: string) => void;
   canNudgeFriend: (friendUid: string) => boolean;
@@ -40,8 +34,6 @@ function formatXp(xp: number) {
 
 export default function FriendsTab({
   friends,
-  incomingRequests,
-  outgoingRequests,
   searchResults,
   searchQuery,
   searchLoading,
@@ -52,8 +44,6 @@ export default function FriendsTab({
   incomingRequestUids,
   onSearch,
   onSendRequest,
-  onAccept,
-  onDecline,
   onRemoveFriend,
   onNudge,
   canNudgeFriend,
@@ -148,77 +138,6 @@ export default function FriendsTab({
       </div>
 
       {error ? <p className={styles.errorText}>{error}</p> : null}
-
-      {/* Incoming requests */}
-      <div className={styles.section}>
-        <div className={styles.sectionHeader}>
-          <span className={styles.requestSectionLabel}>
-            <img src="/whelmboard-icons/friends-icon.png" alt="" aria-hidden="true" className={styles.requestSectionIcon} />
-            <span className={sharedStyles.sectionLabel}>Requests</span>
-          </span>
-          <span className={styles.countBadge}>{incomingRequests.length}</span>
-        </div>
-        {incomingRequests.length === 0 ? (
-          <div className={styles.emptyRequestState}>
-            <strong>No incoming requests</strong>
-            <p className={sharedStyles.accountMeta}>When someone adds you, it will show up here.</p>
-          </div>
-        ) : (
-          <div className={styles.requestList}>
-            {incomingRequests.map((req) => (
-              <motion.div
-                key={req.fromUid}
-                className={styles.requestRow}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-              >
-                <span className={styles.requestUsername}>{req.fromUsername}</span>
-                <div className={styles.requestActions}>
-                  <button
-                    type="button"
-                    className={styles.acceptButton}
-                    onClick={() => onAccept(req)}
-                  >
-                    Accept
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.declineButton}
-                    onClick={() => onDecline(req)}
-                  >
-                    Decline
-                  </button>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className={styles.section}>
-        <div className={styles.sectionHeader}>
-          <span className={styles.requestSectionLabel}>
-            <img src="/whelmboard-icons/friends-icon.png" alt="" aria-hidden="true" className={styles.requestSectionIcon} />
-            <span className={sharedStyles.sectionLabel}>Sent</span>
-          </span>
-          <span className={styles.countBadge}>{outgoingRequests.length}</span>
-        </div>
-        {outgoingRequests.length === 0 ? (
-          <div className={styles.emptyRequestState}>
-            <strong>No sent requests</strong>
-            <p className={sharedStyles.accountMeta}>People you add will appear here until they accept.</p>
-          </div>
-        ) : (
-          <div className={styles.requestList}>
-            {outgoingRequests.map((req) => (
-              <div key={req.toUid} className={styles.requestRowMuted}>
-                <span className={styles.requestUsername}>{req.toUsername}</span>
-                <span className={styles.requestPendingChip}>Pending</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
 
       {/* Friends list */}
       <div className={styles.section}>

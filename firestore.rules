@@ -124,6 +124,13 @@ service cloud.firestore {
         allow delete: if request.auth != null
           && (request.auth.uid == uid || request.auth.uid == fromUid);
       }
+
+      match /outgoing/{toUid} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow create: if request.auth != null && request.auth.uid == uid;
+        allow delete: if request.auth != null
+          && (request.auth.uid == uid || request.auth.uid == toUid);
+      }
     }
 
     match /leaderboardSnapshotRuns/{document} {

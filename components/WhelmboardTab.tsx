@@ -1,6 +1,6 @@
 "use client";
 
-import { type CSSProperties, type Ref, useState } from "react";
+import { type CSSProperties, type ReactNode, type Ref, useState } from "react";
 import { motion } from "motion/react";
 
 import sharedStyles from "@/app/page.module.css";
@@ -283,10 +283,31 @@ export type WhelmboardTabProps = {
   nudgeAvailableInMinutes: (friendUid: string) => number;
 };
 
-const SURFACE_TABS: Array<{ id: WhelmboardSurfaceTab; label: string; iconSrc: string; iconAlt: string }> = [
-  { id: "global", label: "Global", iconSrc: "/whelmboard-icons/globe-icon.png", iconAlt: "Global" },
-  { id: "friends", label: "Friends", iconSrc: "/whelmboard-icons/friends-icon.png", iconAlt: "Friends" },
-  { id: "bandana", label: "Bandana Tiers", iconSrc: "/streak/cursor/bandana-white-128.png", iconAlt: "Bandana tiers" },
+function StreakTabIcon() {
+  return (
+    <svg viewBox="0 0 64 64" aria-hidden="true" className={styles.wbSurfaceTabVectorIcon}>
+      <defs>
+        <linearGradient id="whelmboardStreakFill" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#8FF2FF" />
+          <stop offset="100%" stopColor="#39C6FF" />
+        </linearGradient>
+      </defs>
+      <path
+        d="M8 33c8-9 18-11 31-11 8 0 13 2 17 4-1 5-4 9-9 11l-5 2 9 10c-5 2-11 0-15-4l-3-4c-3 4-7 7-13 8 2-6 4-10 5-13l-17 3Z"
+        fill="url(#whelmboardStreakFill)"
+        stroke="#1388F5"
+        strokeWidth="3.5"
+        strokeLinejoin="round"
+      />
+      <path d="M16 32c8-4 18-6 28-5" stroke="#D8FFFF" strokeWidth="2.5" strokeLinecap="round" opacity="0.75" />
+    </svg>
+  );
+}
+
+const SURFACE_TABS: Array<{ id: WhelmboardSurfaceTab; label: string; icon: ReactNode }> = [
+  { id: "global", label: "Global", icon: <img src="/whelmboard-icons/globe-icon.png" alt="" aria-hidden="true" className={`${styles.wbSurfaceTabIcon} ${styles.wbSurfaceTabIconRaster}`} /> },
+  { id: "friends", label: "Friends", icon: <img src="/whelmboard-icons/friends-icon.png" alt="" aria-hidden="true" className={`${styles.wbSurfaceTabIcon} ${styles.wbSurfaceTabIconRaster}`} /> },
+  { id: "bandana", label: "Bandana Tiers", icon: <StreakTabIcon /> },
 ];
 
 export default function WhelmboardTab({
@@ -330,6 +351,7 @@ export default function WhelmboardTab({
   nudgeAvailableInMinutes,
 }: WhelmboardTabProps) {
   const [surfaceTab, setSurfaceTab] = useState<WhelmboardSurfaceTab>("global");
+  const [requestInboxOpen, setRequestInboxOpen] = useState(false);
 
   return (
     <AnimatedTabSection
@@ -337,7 +359,10 @@ export default function WhelmboardTab({
       sectionRef={sectionRef}
     >
       {/* Compact header */}
-      <div className={styles.wbHeader} ref={primaryRef as React.RefObject<HTMLDivElement>}>
+      <div
+        className={`${styles.wbHeader} ${surfaceTab === "friends" ? styles.wbHeaderFriends : ""}`}
+        ref={primaryRef as React.RefObject<HTMLDivElement>}
+      >
         <div>
           <p className={sharedStyles.sectionLabel}>Whelmboard</p>
           <h2 className={styles.wbTitle}>
@@ -366,20 +391,94 @@ export default function WhelmboardTab({
             />
           </div>
         )}
-        {surfaceTab === "friends" && incomingRequests.length > 0 && (
-          <div className={styles.wbHeaderRight}>
-            <span className={styles.wbFriendRequestBadge}>
-              <img
-                src="/whelmboard-icons/friends-icon.png"
-                alt=""
-                aria-hidden="true"
-                className={styles.wbFriendRequestBadgeIcon}
-              />
-              {incomingRequests.length} pending
-            </span>
-          </div>
+        {surfaceTab === "friends" && (
+          <>
+            <div className={styles.wbHeaderCenter}>
+              <button
+                type="button"
+                className={styles.wbInboxButton}
+                onClick={() => setRequestInboxOpen((current) => !current)}
+                aria-expanded={requestInboxOpen}
+                aria-label="Open friend request inbox"
+              >
+                <img
+                  src="/whelmboard-icons/friend-inbox-envelope.png"
+                  alt=""
+                  aria-hidden="true"
+                  className={styles.wbInboxButtonIcon}
+                />
+                {incomingRequests.length > 0 ? (
+                  <span className={styles.wbInboxBadge}>{incomingRequests.length}</span>
+                ) : null}
+              </button>
+            </div>
+            <div className={styles.wbHeaderSpacer} aria-hidden="true" />
+          </>
         )}
       </div>
+
+      {surfaceTab === "friends" && requestInboxOpen && (
+        <div className={styles.wbInboxPanel}>
+          <div className={styles.wbInboxSection}>
+            <div className={styles.wbPaneHeader}>
+              <span className={sharedStyles.sectionLabel}>Requests</span>
+              <span className={styles.leaderboardCountPill}>{incomingRequests.length}</span>
+            </div>
+            {incomingRequests.length === 0 ? (
+              <div className={styles.wbInboxEmptyState}>
+                <strong>No incoming requests</strong>
+                <p className={sharedStyles.accountMeta}>When someone adds you, it will show up here.</p>
+              </div>
+            ) : (
+              <div className={styles.wbInboxList}>
+                {incomingRequests.map((req) => (
+                  <div key={req.fromUid} className={styles.wbInboxRow}>
+                    <span className={styles.wbInboxName}>{req.fromUsername}</span>
+                    <div className={styles.wbInboxActions}>
+                      <button
+                        type="button"
+                        className={styles.wbInboxAcceptButton}
+                        onClick={() => onAcceptFriendRequest(req)}
+                      >
+                        Accept
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.wbInboxDeclineButton}
+                        onClick={() => onDeclineFriendRequest(req)}
+                      >
+                        Decline
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className={styles.wbInboxSection}>
+            <div className={styles.wbPaneHeader}>
+              <span className={sharedStyles.sectionLabel}>Sent</span>
+              <span className={styles.leaderboardCountPill}>{outgoingRequests.length}</span>
+            </div>
+            {outgoingRequests.length === 0 ? (
+              <div className={styles.wbInboxEmptyState}>
+                <strong>No sent requests</strong>
+                <p className={sharedStyles.accountMeta}>People you add will appear here until they accept.</p>
+              </div>
+            ) : (
+              <div className={styles.wbInboxList}>
+                {outgoingRequests.map((req) => (
+                  <div key={req.toUid} className={styles.wbInboxRowMuted}>
+                    <span className={styles.wbInboxName}>{req.toUsername}</span>
+                    <span className={styles.wbInboxPendingChip}>Pending</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Surface tab nav: Global | Friends | Bandana Tiers */}
       <div className={styles.wbSurfaceTabs} role="tablist" aria-label="Whelmboard surfaces">
@@ -392,10 +491,15 @@ export default function WhelmboardTab({
             className={`${styles.wbSurfaceTab} ${
               surfaceTab === tab.id ? styles.wbSurfaceTabActive : ""
             }`}
-            onClick={() => setSurfaceTab(tab.id)}
+            onClick={() => {
+              setSurfaceTab(tab.id);
+              if (tab.id !== "friends") {
+                setRequestInboxOpen(false);
+              }
+            }}
           >
             <span className={styles.wbSurfaceTabInner}>
-              <img src={tab.iconSrc} alt="" aria-hidden="true" className={styles.wbSurfaceTabIcon} />
+              {tab.icon}
               <span>{tab.label}</span>
             </span>
           </button>
@@ -525,8 +629,6 @@ export default function WhelmboardTab({
       {surfaceTab === "friends" && (
         <FriendsTab
           friends={friends}
-          incomingRequests={incomingRequests}
-          outgoingRequests={outgoingRequests}
           searchResults={searchResults}
           searchQuery={searchQuery}
           searchLoading={searchLoading}
@@ -537,8 +639,6 @@ export default function WhelmboardTab({
           incomingRequestUids={incomingRequestUids}
           onSearch={onFriendSearch}
           onSendRequest={onSendFriendRequest}
-          onAccept={onAcceptFriendRequest}
-          onDecline={onDeclineFriendRequest}
           onRemoveFriend={onRemoveFriend}
           onNudge={onNudgeFriend}
           canNudgeFriend={canNudgeFriend}

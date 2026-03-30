@@ -2,52 +2,21 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { User } from "firebase/auth";
-import { doc, getDoc, setDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 import {
-  acceptFriendRequest,
-  declineFriendRequest,
-  getFriendProfile,
-  getFriends,
-  getIncomingRequests,
-  getOutgoingRequests,
-  removeFriend,
+  acceptFriendRequestAuthed,
+  declineFriendRequestAuthed,
+  getFriendsStateAuthed,
+  removeFriendAuthed,
+  saveNudgeCooldownAuthed,
   searchUsersByUsernameAuthed,
-  sendFriendRequest,
-  type FriendDoc,
+  sendFriendRequestAuthed,
   type FriendProfile,
   type FriendRequestDoc,
+  type FriendWithXp,
   type OutgoingFriendRequestDoc,
 } from "@/lib/friends-store";
 
-export type { FriendDoc, FriendProfile, FriendRequestDoc, OutgoingFriendRequestDoc };
-
-export type FriendWithXp = FriendDoc & {
-  totalXp: number;
-  currentStreak: number;
-  weeklyXp: number;
-};
-
-async function loadNudgeCooldownsFromFirestore(uid: string): Promise<Map<string, number>> {
-  const snap = await getDoc(doc(db, "userPreferences", uid));
-  const cooldowns = snap.data()?.nudgeCooldowns as Record<string, string> | undefined;
-  if (!cooldowns) return new Map();
-  return new Map(
-    Object.entries(cooldowns).map(([friendUid, iso]) => [friendUid, new Date(iso).getTime()]),
-  );
-}
-
-async function writeNudgeCooldownToFirestore(
-  uid: string,
-  friendUid: string,
-  iso: string,
-): Promise<void> {
-  await setDoc(
-    doc(db, "userPreferences", uid),
-    { nudgeCooldowns: { [friendUid]: iso } },
-    { merge: true },
-  );
-}
+export type { FriendProfile, FriendRequestDoc, FriendWithXp, OutgoingFriendRequestDoc };
 
 const NUDGE_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 
@@ -69,32 +38,19 @@ export function useFriends(user: User | null, profileDisplayName: string) {
     setFriendsLoading(true);
     setError("");
     try {
-      const [friendDocs, requestDocs, outgoingRequestDocs] = await Promise.all([
-        getFriends(user.uid),
-        getIncomingRequests(user.uid),
-        getOutgoingRequests(user.uid),
-      ]);
-
-      const friendsWithXp = await Promise.all(
-        friendDocs.map(async (friend): Promise<FriendWithXp> => {
-          const profile = await getFriendProfile(friend.friendUid).catch(() => null);
-          return {
-            ...friend,
-            totalXp: profile?.totalXp ?? 0,
-            currentStreak: profile?.currentStreak ?? 0,
-            weeklyXp: profile?.weeklyXp ?? 0,
-          };
-        }),
+      const token = await user.getIdToken();
+      const payload = await getFriendsStateAuthed(user.uid, token);
+      setFriends(payload.friends);
+      setIncomingRequests(payload.incomingRequests);
+      setOutgoingRequests(payload.outgoingRequests);
+      setNudgeCooldowns(
+        new Map(
+          Object.entries(payload.nudgeCooldowns ?? {}).map(([friendUid, iso]) => [
+            friendUid,
+            new Date(iso).getTime(),
+          ]),
+        ),
       );
-
-      setFriends(friendsWithXp.sort((a, b) => b.weeklyXp - a.weeklyXp));
-      setIncomingRequests(requestDocs);
-      setOutgoingRequests(outgoingRequestDocs);
-
-      const cooldowns = await loadNudgeCooldownsFromFirestore(user.uid).catch(
-        () => new Map<string, number>(),
-      );
-      setNudgeCooldowns(cooldowns);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load friends.");
     } finally {
@@ -177,13 +133,30 @@ export function useFriends(user: User | null, profileDisplayName: string) {
           return;
         }
         const incomingMatch = incomingRequests.find((req) => req.fromUid === target.userId) ?? null;
+        const token = await user.getIdToken();
         if (incomingMatch) {
-          await acceptFriendRequest(user.uid, profileDisplayName, incomingMatch.fromUid, incomingMatch.fromUsername);
+          await acceptFriendRequestAuthed(
+            {
+              myUid: user.uid,
+              myUsername: profileDisplayName,
+              fromUid: incomingMatch.fromUid,
+              fromUsername: incomingMatch.fromUsername,
+            },
+            token,
+          );
           await loadFriendsData();
           setSearchResults((prev) => prev.filter((item) => item.userId !== target.userId));
           return;
         }
-        await sendFriendRequest(user.uid, profileDisplayName, target.username, target.userId);
+        await sendFriendRequestAuthed(
+          {
+            fromUid: user.uid,
+            fromUsername: profileDisplayName,
+            toUid: target.userId,
+            toUsername: target.username,
+          },
+          token,
+        );
         setOutgoingRequests((prev) => {
           const next = prev.filter((req) => req.toUid !== target.userId);
           next.push({ toUid: target.userId, toUsername: target.username, sentAtISO: new Date().toISOString() });
@@ -200,7 +173,16 @@ export function useFriends(user: User | null, profileDisplayName: string) {
     async (req: FriendRequestDoc) => {
       if (!user) return;
       try {
-        await acceptFriendRequest(user.uid, profileDisplayName, req.fromUid, req.fromUsername);
+        const token = await user.getIdToken();
+        await acceptFriendRequestAuthed(
+          {
+            myUid: user.uid,
+            myUsername: profileDisplayName,
+            fromUid: req.fromUid,
+            fromUsername: req.fromUsername,
+          },
+          token,
+        );
         await loadFriendsData();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to accept request.");
@@ -213,7 +195,8 @@ export function useFriends(user: User | null, profileDisplayName: string) {
     async (req: FriendRequestDoc) => {
       if (!user) return;
       try {
-        await declineFriendRequest(user.uid, req.fromUid);
+        const token = await user.getIdToken();
+        await declineFriendRequestAuthed({ myUid: user.uid, fromUid: req.fromUid }, token);
         setIncomingRequests((prev) => prev.filter((r) => r.fromUid !== req.fromUid));
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to decline request.");
@@ -226,7 +209,8 @@ export function useFriends(user: User | null, profileDisplayName: string) {
     async (friendUid: string) => {
       if (!user) return;
       try {
-        await removeFriend(user.uid, friendUid);
+        const token = await user.getIdToken();
+        await removeFriendAuthed({ myUid: user.uid, friendUid }, token);
         setFriends((prev) => prev.filter((f) => f.friendUid !== friendUid));
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to remove friend.");
@@ -242,7 +226,10 @@ export function useFriends(user: User | null, profileDisplayName: string) {
       if (sentAt && Date.now() - sentAt < NUDGE_COOLDOWN_MS) return;
       const iso = new Date().toISOString();
       setNudgeCooldowns((prev) => new Map(prev).set(friendUid, Date.now()));
-      void writeNudgeCooldownToFirestore(user.uid, friendUid, iso).catch(() => undefined);
+      void user
+        .getIdToken()
+        .then((token) => saveNudgeCooldownAuthed({ uid: user.uid, friendUid, iso }, token))
+        .catch(() => undefined);
     },
     [user, nudgeCooldowns],
   );

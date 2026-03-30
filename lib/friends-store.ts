@@ -1,15 +1,6 @@
 "use client";
 
 import { resolveApiUrl } from "@/lib/api-base";
-import {
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  setDoc,
-} from "firebase/firestore";
-import { db } from "@/lib/firebase";
 
 export type FriendDoc = {
   friendUid: string;
@@ -37,93 +28,140 @@ export type FriendProfile = {
   weeklyXp: number;
 };
 
-export async function sendFriendRequest(
-  fromUid: string,
-  fromUsername: string,
-  toUsername: string,
-  toUid: string,
-): Promise<void> {
-  if (!fromUid || !toUid || fromUid === toUid) {
-    throw new Error("Invalid friend request target.");
+export type FriendWithXp = FriendDoc & {
+  totalXp: number;
+  currentStreak: number;
+  weeklyXp: number;
+};
+
+export type FriendsStatePayload = {
+  friends: FriendWithXp[];
+  incomingRequests: FriendRequestDoc[];
+  outgoingRequests: OutgoingFriendRequestDoc[];
+  nudgeCooldowns: Record<string, string>;
+};
+
+async function readJson<T>(response: Response): Promise<T | null> {
+  return (await response.json().catch(() => null)) as T | null;
+}
+
+function apiUrl(path: string) {
+  return new URL(resolveApiUrl(path), window.location.origin).toString();
+}
+
+async function authedFetch<T>(
+  path: string,
+  idToken: string,
+  init?: RequestInit,
+): Promise<T> {
+  const response = await fetch(apiUrl(path), {
+    ...init,
+    headers: {
+      Authorization: `Bearer ${idToken}`,
+      "Content-Type": "application/json",
+      ...(init?.headers ?? {}),
+    },
+  });
+
+  const body = await readJson<{ error?: string } & T>(response);
+  if (!response.ok) {
+    throw new Error(body?.error || "Friends request failed.");
   }
-  const sentAtISO = new Date().toISOString();
-  await Promise.all([
-    setDoc(doc(db, "friendRequests", toUid, "incoming", fromUid), {
-      fromUid,
-      fromUsername,
-      sentAtISO,
-    }),
-    setDoc(doc(db, "friendRequests", fromUid, "outgoing", toUid), {
-      toUid,
-      toUsername,
-      sentAtISO,
-    }),
-  ]);
+
+  return (body ?? {}) as T;
 }
 
-export async function getIncomingRequests(uid: string): Promise<FriendRequestDoc[]> {
-  const snap = await getDocs(collection(db, "friendRequests", uid, "incoming"));
-  return snap.docs.map((d) => d.data() as FriendRequestDoc);
+export async function getFriendsStateAuthed(
+  uid: string,
+  idToken: string,
+): Promise<FriendsStatePayload> {
+  const url = new URL(apiUrl("/api/friends"));
+  url.searchParams.set("uid", uid);
+  return authedFetch<FriendsStatePayload>(`${url.pathname}${url.search}`, idToken, {
+    method: "GET",
+  });
 }
 
-export async function getOutgoingRequests(uid: string): Promise<OutgoingFriendRequestDoc[]> {
-  const snap = await getDocs(collection(db, "friendRequests", uid, "outgoing"));
-  return snap.docs.map((d) => d.data() as OutgoingFriendRequestDoc);
-}
-
-export async function acceptFriendRequest(
-  myUid: string,
-  myUsername: string,
-  fromUid: string,
-  fromUsername: string,
+export async function sendFriendRequestAuthed(
+  params: {
+    fromUid: string;
+    fromUsername: string;
+    toUid: string;
+    toUsername: string;
+  },
+  idToken: string,
 ): Promise<void> {
-  const now = new Date().toISOString();
-  await Promise.all([
-    setDoc(doc(db, "friendships", myUid, "friends", fromUid), {
-      friendUid: fromUid,
-      friendUsername: fromUsername,
-      addedAtISO: now,
+  await authedFetch<{ ok: true }>("/api/friends", idToken, {
+    method: "POST",
+    body: JSON.stringify({
+      action: "send",
+      ...params,
     }),
-    setDoc(doc(db, "friendships", fromUid, "friends", myUid), {
-      friendUid: myUid,
-      friendUsername: myUsername,
-      addedAtISO: now,
+  });
+}
+
+export async function acceptFriendRequestAuthed(
+  params: {
+    myUid: string;
+    myUsername: string;
+    fromUid: string;
+    fromUsername: string;
+  },
+  idToken: string,
+): Promise<void> {
+  await authedFetch<{ ok: true }>("/api/friends", idToken, {
+    method: "PATCH",
+    body: JSON.stringify({
+      action: "accept",
+      ...params,
     }),
-    deleteDoc(doc(db, "friendRequests", myUid, "incoming", fromUid)),
-    deleteDoc(doc(db, "friendRequests", fromUid, "outgoing", myUid)),
-  ]);
+  });
 }
 
-export async function declineFriendRequest(myUid: string, fromUid: string): Promise<void> {
-  await Promise.all([
-    deleteDoc(doc(db, "friendRequests", myUid, "incoming", fromUid)),
-    deleteDoc(doc(db, "friendRequests", fromUid, "outgoing", myUid)),
-  ]);
+export async function declineFriendRequestAuthed(
+  params: {
+    myUid: string;
+    fromUid: string;
+  },
+  idToken: string,
+): Promise<void> {
+  await authedFetch<{ ok: true }>("/api/friends", idToken, {
+    method: "PATCH",
+    body: JSON.stringify({
+      action: "decline",
+      ...params,
+    }),
+  });
 }
 
-export async function getFriends(uid: string): Promise<FriendDoc[]> {
-  const snap = await getDocs(collection(db, "friendships", uid, "friends"));
-  return snap.docs.map((d) => d.data() as FriendDoc);
+export async function removeFriendAuthed(
+  params: {
+    myUid: string;
+    friendUid: string;
+  },
+  idToken: string,
+): Promise<void> {
+  await authedFetch<{ ok: true }>("/api/friends", idToken, {
+    method: "DELETE",
+    body: JSON.stringify(params),
+  });
 }
 
-export async function removeFriend(myUid: string, friendUid: string): Promise<void> {
-  await Promise.all([
-    deleteDoc(doc(db, "friendships", myUid, "friends", friendUid)),
-    deleteDoc(doc(db, "friendships", friendUid, "friends", myUid)),
-  ]);
-}
-
-export async function getFriendProfile(friendUid: string): Promise<FriendProfile | null> {
-  const snap = await getDoc(doc(db, "leaderboardProfiles", friendUid));
-  if (!snap.exists()) return null;
-  const data = snap.data();
-  return {
-    userId: friendUid,
-    username: (data.username as string) ?? "Whelm user",
-    totalXp: (data.totalXp as number) ?? 0,
-    currentStreak: (data.currentStreak as number) ?? 0,
-    weeklyXp: (data.weeklyXp as number) ?? 0,
-  };
+export async function saveNudgeCooldownAuthed(
+  params: {
+    uid: string;
+    friendUid: string;
+    iso: string;
+  },
+  idToken: string,
+): Promise<void> {
+  await authedFetch<{ ok: true }>("/api/friends", idToken, {
+    method: "POST",
+    body: JSON.stringify({
+      action: "nudge",
+      ...params,
+    }),
+  });
 }
 
 export async function searchUsersByUsernameAuthed(
@@ -131,7 +169,7 @@ export async function searchUsersByUsernameAuthed(
   idToken: string,
 ): Promise<FriendProfile[]> {
   if (!searchTerm.trim()) return [];
-  const url = new URL(resolveApiUrl("/api/friends/search"), window.location.origin);
+  const url = new URL(apiUrl("/api/friends/search"));
   url.searchParams.set("q", searchTerm.trim());
   url.searchParams.set("limit", "10");
 

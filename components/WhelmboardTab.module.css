@@ -20,6 +20,22 @@
   gap: 14px;
 }
 
+.wbHeaderFriends {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+}
+
+.wbHeaderCenter {
+  display: flex;
+  justify-content: center;
+}
+
+.wbHeaderSpacer {
+  min-width: clamp(78px, 9vw, 108px);
+  justify-self: end;
+}
+
 .wbTitle {
   font-size: 1.35rem;
   font-weight: 800;
@@ -32,6 +48,152 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-shrink: 0;
+}
+
+.wbInboxButton {
+  position: relative;
+  width: clamp(62px, 5.8vw, 84px);
+  height: clamp(62px, 5.8vw, 84px);
+  border-radius: 20px;
+  border: 1px solid rgba(160, 190, 255, 0.28);
+  background:
+    radial-gradient(circle at 30% 25%, rgba(120, 190, 255, 0.22), transparent 48%),
+    rgba(255, 255, 255, 0.06);
+  box-shadow: 0 10px 28px rgba(18, 10, 44, 0.34);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.wbInboxButtonIcon {
+  width: clamp(34px, 3.1vw, 46px);
+  height: clamp(34px, 3.1vw, 46px);
+  object-fit: contain;
+  display: block;
+}
+
+.wbInboxBadge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #7fd5ff, #379cff);
+  color: #f6fdff;
+  border: 2px solid #24134d;
+  font-size: 0.76rem;
+  font-weight: 900;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 16px rgba(33, 115, 255, 0.28);
+}
+
+.wbInboxPanel {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(180, 160, 255, 0.16);
+  background: rgba(17, 9, 47, 0.72);
+  box-shadow: 0 18px 36px rgba(8, 4, 26, 0.38);
+}
+
+.wbInboxSection {
+  display: grid;
+  gap: 8px;
+}
+
+.wbInboxList {
+  display: grid;
+  gap: 6px;
+}
+
+.wbInboxEmptyState {
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(180, 160, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.wbInboxEmptyState strong {
+  color: #fff;
+  font-size: 0.92rem;
+}
+
+.wbInboxRow,
+.wbInboxRowMuted {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+  border-radius: 16px;
+}
+
+.wbInboxRow {
+  border: 1px solid rgba(255, 220, 100, 0.18);
+  background: rgba(255, 210, 80, 0.06);
+}
+
+.wbInboxRowMuted {
+  border: 1px solid rgba(180, 160, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.wbInboxName {
+  flex: 1;
+  min-width: 0;
+  color: #fff;
+  font-size: 0.92rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wbInboxActions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.wbInboxAcceptButton,
+.wbInboxDeclineButton {
+  border-radius: 999px;
+  padding: 6px 13px;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.wbInboxAcceptButton {
+  border: 1px solid rgba(100, 220, 160, 0.4);
+  background: rgba(80, 180, 120, 0.18);
+  color: rgba(140, 240, 190, 0.9);
+}
+
+.wbInboxDeclineButton {
+  border: 1px solid rgba(255, 155, 155, 0.22);
+  background: rgba(200, 60, 60, 0.1);
+  color: rgba(255, 170, 170, 0.8);
+}
+
+.wbInboxPendingChip {
+  border-radius: 999px;
+  padding: 5px 11px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  border: 1px solid rgba(180, 160, 255, 0.14);
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(200, 185, 255, 0.6);
   flex-shrink: 0;
 }
 
@@ -72,30 +234,57 @@
 .wbSurfaceTab {
   border: 0;
   border-radius: 12px;
-  padding: 9px 8px;
+  padding: 12px 10px 11px;
   background: transparent;
-  color: rgba(200, 185, 255, 0.55);
+  color: rgba(200, 185, 255, 0.5);
   font-weight: 700;
-  font-size: 0.8rem;
+  font-size: clamp(0.82rem, 0.64rem + 0.28vw, 0.96rem);
   letter-spacing: 0.03em;
   cursor: pointer;
   transition: color 120ms ease;
-  white-space: nowrap;
+  min-height: 84px;
 }
 
 .wbSurfaceTabInner {
-  display: inline-flex;
+  display: inline-grid;
   align-items: center;
   justify-content: center;
+  justify-items: center;
   gap: 8px;
+  width: 100%;
+  text-align: center;
+  line-height: 1.08;
+}
+
+.wbSurfaceTabInner span:last-child {
+  max-width: 100%;
+  text-wrap: balance;
+  font-weight: 650;
+}
+
+.wbSurfaceTabInner span:last-child {
+  display: inline-block;
+  max-width: 11ch;
 }
 
 .wbSurfaceTabIcon {
-  width: 16px;
-  height: 16px;
+  width: clamp(30px, 2.2vw, 38px);
+  height: clamp(30px, 2.2vw, 38px);
   object-fit: contain;
   flex-shrink: 0;
-  opacity: 0.92;
+  opacity: 0.98;
+}
+
+.wbSurfaceTabIconRaster {
+  width: clamp(40px, 2.9vw, 50px);
+  height: clamp(40px, 2.9vw, 50px);
+}
+
+.wbSurfaceTabVectorIcon {
+  width: clamp(34px, 2.45vw, 42px);
+  height: clamp(34px, 2.45vw, 42px);
+  display: block;
+  flex-shrink: 0;
 }
 
 .wbSurfaceTabActive {
@@ -119,8 +308,8 @@
 }
 
 .wbFriendRequestBadgeIcon {
-  width: 14px;
-  height: 14px;
+  width: 18px;
+  height: 18px;
   object-fit: contain;
   flex-shrink: 0;
 }
