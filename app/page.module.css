@@ -5551,6 +5551,17 @@ body[data-theme="light"] {
   box-shadow: 0 22px 60px var(--wh-panel-shadow);
 }
 
+.paywallModal {
+  width: min(720px, 100%);
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  padding-bottom: calc(18px + env(safe-area-inset-bottom));
+}
+
 .feedbackModalScrollable {
   max-height: calc(100dvh - 32px);
   overflow-y: auto;
@@ -5564,6 +5575,146 @@ body[data-theme="light"] {
 .paywallCopy {
   margin: 10px 0 14px;
   color: #b9c6e2;
+}
+
+.paywallCompare {
+  margin-bottom: 14px;
+  border: 1px solid rgba(123, 138, 184, 0.16);
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at top right, rgba(255, 208, 100, 0.08), transparent 28%),
+    linear-gradient(180deg, rgba(13, 18, 34, 0.96), rgba(8, 12, 24, 0.98));
+  padding: 14px;
+}
+
+.paywallCompareLead {
+  margin-bottom: 12px;
+}
+
+.paywallCompareEyebrow {
+  margin: 0 0 4px;
+  font-size: 0.74rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #9aa8c7;
+}
+
+.paywallCompareTitle {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.35;
+  color: #f2f6ff;
+}
+
+.paywallTierCards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.paywallTierCard {
+  border: 1px solid rgba(123, 138, 184, 0.14);
+  border-radius: 18px;
+  background: rgba(20, 25, 44, 0.84);
+  padding: 13px;
+}
+
+.paywallTierCardFeatured {
+  border-color: rgba(255, 214, 110, 0.26);
+  background:
+    radial-gradient(circle at top right, rgba(255, 214, 110, 0.12), transparent 32%),
+    rgba(31, 37, 66, 0.94);
+  box-shadow: 0 16px 34px rgba(4, 8, 18, 0.22);
+}
+
+.paywallTierBadgeRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.paywallTierLabel {
+  margin: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #9aa8c7;
+}
+
+.paywallTierHeading {
+  margin: 8px 0 6px;
+  font-size: 1rem;
+  line-height: 1.3;
+  color: #f2f6ff;
+  font-weight: 700;
+}
+
+.paywallTierSummary {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: #afbddb;
+}
+
+.paywallCompareGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) repeat(2, minmax(0, 1fr));
+  gap: 0;
+  border: 1px solid rgba(123, 138, 184, 0.12);
+  border-radius: 18px;
+  overflow: hidden;
+}
+
+.paywallCompareHeaderSpacer,
+.paywallCompareColumnLabel,
+.paywallCompareFeature,
+.paywallCompareValue {
+  padding: 11px 12px;
+  background: rgba(15, 20, 37, 0.78);
+}
+
+.paywallCompareColumnLabel {
+  margin: 0;
+  font-size: 0.74rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #dbe5fb;
+  font-weight: 700;
+}
+
+.paywallCompareHeaderSpacer {
+  border-right: 1px solid rgba(123, 138, 184, 0.1);
+}
+
+.paywallCompareRow {
+  display: contents;
+}
+
+.paywallCompareFeature {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #f2f6ff;
+  border-top: 1px solid rgba(123, 138, 184, 0.1);
+  border-right: 1px solid rgba(123, 138, 184, 0.1);
+}
+
+.paywallCompareValue {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #9aa8c7;
+  border-top: 1px solid rgba(123, 138, 184, 0.1);
+  border-right: 1px solid rgba(123, 138, 184, 0.1);
+}
+
+.paywallCompareValueFeatured {
+  color: #f5ddb0;
+  font-weight: 600;
+  background:
+    linear-gradient(180deg, rgba(42, 36, 18, 0.42), rgba(24, 23, 18, 0.22)),
+    rgba(15, 20, 37, 0.78);
+  border-right: 0;
 }
 
 .paywallActions {
@@ -5580,7 +5731,7 @@ body[data-theme="light"] {
 
 .planGrid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   margin-bottom: 12px;
 }
@@ -5652,6 +5803,86 @@ body[data-theme="light"] {
   margin: 8px 0 0;
   color: #d5def1;
   font-size: 0.8rem;
+}
+
+@media (max-width: 640px) {
+  .paywallModal {
+    width: min(100%, 100%);
+    border-radius: 20px;
+    padding: 16px;
+  }
+
+  .feedbackHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .feedbackClose {
+    align-self: flex-end;
+  }
+
+  .paywallTierCards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .planGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .paywallCompareGrid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    border: 0;
+    border-radius: 0;
+    overflow: visible;
+  }
+
+  .paywallCompareHeaderSpacer,
+  .paywallCompareColumnLabel {
+    display: none;
+  }
+
+  .paywallCompareRow {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    border: 1px solid rgba(123, 138, 184, 0.12);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  .paywallCompareFeature,
+  .paywallCompareValue {
+    border-right: 0;
+  }
+
+  .paywallCompareFeature {
+    background: rgba(19, 25, 46, 0.92);
+  }
+
+  .paywallCompareTitle {
+    font-size: 0.94rem;
+  }
+
+  .planPrice {
+    font-size: 1.22rem;
+  }
+
+  .paywallCompareValue::before {
+    display: inline-block;
+    margin-right: 8px;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #7f8fb1;
+  }
+
+  .paywallCompareRow .paywallCompareValue:nth-child(2)::before {
+    content: "Standard";
+  }
+
+  .paywallCompareRow .paywallCompareValue:nth-child(3)::before {
+    content: "Pro";
+  }
 }
 
 .feedbackHeader {

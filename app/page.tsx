@@ -1517,6 +1517,7 @@ export default function HomePage() {
     handleOpenScreenTimeSettings,
     handleDeleteAccount,
     openUpgradeFlow,
+    handleManageSubscription,
     handleSignOut,
   } = useAccountSettings({
     user: auth.currentUser,
@@ -3589,6 +3590,7 @@ export default function HomePage() {
               }}
               onReplayTutorial={startOnboarding}
               onStartProPreview={() => void handleStartProPreview()}
+              onManageSubscription={() => void handleManageSubscription()}
               onRestorePurchases={() => void handleRestorePurchases()}
               subscriptionBusy={subscriptionBusy}
               subscriptionStatus={subscriptionStatus}

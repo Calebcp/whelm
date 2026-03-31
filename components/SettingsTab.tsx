@@ -108,6 +108,7 @@ export type SettingsTabProps = {
   onFeedbackOpen: () => void;
   onReplayTutorial: () => void;
   onStartProPreview: () => void;
+  onManageSubscription: () => void;
   onRestorePurchases: () => void;
   subscriptionBusy: boolean;
   subscriptionStatus: string;
@@ -189,6 +190,7 @@ export default function SettingsTab({
   onFeedbackOpen,
   onReplayTutorial,
   onStartProPreview,
+  onManageSubscription,
   onRestorePurchases,
   subscriptionBusy,
   subscriptionStatus,
@@ -295,7 +297,7 @@ export default function SettingsTab({
           </button>
         </div>
         {!isPro ? (
-          <div className={sharedStyles.noteFooterActions}>
+          <div className={styles.settingsSubscriptionActions}>
             <button type="button" className={sharedStyles.inlineUpgrade} onClick={onStartProPreview}>
               Upgrade to Whelm Pro
             </button>
@@ -312,7 +314,17 @@ export default function SettingsTab({
             </button>
           </div>
         ) : (
-          <div className={sharedStyles.noteFooterActions}>
+          <div className={styles.settingsSubscriptionActions}>
+            <button type="button" className={sharedStyles.reportButton} onClick={onStartProPreview}>
+              Compare plans
+            </button>
+            <button
+              type="button"
+              className={sharedStyles.secondaryPlanButton}
+              onClick={onManageSubscription}
+            >
+              Manage subscription
+            </button>
             <button
               type="button"
               className={sharedStyles.secondaryPlanButton}

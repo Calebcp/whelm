@@ -10,10 +10,43 @@ import {
   hasActiveProEntitlement,
   purchaseRevenueCatPackage,
 } from "@/lib/revenuecat";
-import { WHELM_PRO_NAME, WHELM_STANDARD_NAME } from "@/lib/whelm-plans";
+import { WHELM_PRO_NAME, WHELM_STANDARD_HISTORY_DAYS, WHELM_STANDARD_NAME } from "@/lib/whelm-plans";
 
 const WHELM_PRO_POSITIONING =
   "Whelm Pro unlocks unlimited history, full customization, deeper command reports, and the premium version of the Whelm system.";
+
+const WHELM_COMPARISON_ROWS = [
+  {
+    label: "History",
+    standard: `Last ${WHELM_STANDARD_HISTORY_DAYS} days`,
+    pro: "Unlimited archive",
+  },
+  {
+    label: "Note customization",
+    standard: "Basic tones",
+    pro: "Full styling",
+  },
+  {
+    label: "Calendar customization",
+    standard: "Limited tones",
+    pro: "Full tone set",
+  },
+  {
+    label: "Reports",
+    standard: "Core readouts",
+    pro: "Advanced reports",
+  },
+  {
+    label: "Archive tools",
+    standard: "No full export",
+    pro: "Archive + notes export",
+  },
+  {
+    label: "Backgrounds",
+    standard: "Standard shell",
+    pro: "Custom + upload",
+  },
+] as const;
 
 function calculateSavingsLabel(monthlyPackage: PurchasesPackage | null, annualPackage: PurchasesPackage | null) {
   if (!monthlyPackage || !annualPackage) return "Best Value";
@@ -146,6 +179,43 @@ export default function PaywallModal({
           </button>
         </div>
         <p className={styles.paywallCopy}>{WHELM_PRO_POSITIONING}</p>
+        <section className={styles.paywallCompare}>
+          <div className={styles.paywallCompareLead}>
+            <p className={styles.paywallCompareEyebrow}>Choose your Whelm</p>
+            <h3 className={styles.paywallCompareTitle}>Standard keeps you moving. Pro keeps your full system.</h3>
+          </div>
+          <div className={styles.paywallTierCards}>
+            <article className={styles.paywallTierCard}>
+              <p className={styles.paywallTierLabel}>{WHELM_STANDARD_NAME}</p>
+              <p className={styles.paywallTierHeading}>For everyday momentum</p>
+              <p className={styles.paywallTierSummary}>
+                Core notes, blocks, sessions, and recent history with lighter customization.
+              </p>
+            </article>
+            <article className={`${styles.paywallTierCard} ${styles.paywallTierCardFeatured}`}>
+              <div className={styles.paywallTierBadgeRow}>
+                <p className={styles.paywallTierLabel}>{WHELM_PRO_NAME}</p>
+                <span className={styles.planBadge}>Best Value</span>
+              </div>
+              <p className={styles.paywallTierHeading}>For full memory, full customization, full control</p>
+              <p className={styles.paywallTierSummary}>
+                Unlimited history, deeper reports, richer shell control, and the complete Whelm layer.
+              </p>
+            </article>
+          </div>
+          <div className={styles.paywallCompareGrid}>
+            <div className={styles.paywallCompareHeaderSpacer} aria-hidden="true" />
+            <p className={styles.paywallCompareColumnLabel}>{WHELM_STANDARD_NAME}</p>
+            <p className={styles.paywallCompareColumnLabel}>{WHELM_PRO_NAME}</p>
+            {WHELM_COMPARISON_ROWS.map((row) => (
+              <div key={row.label} className={styles.paywallCompareRow}>
+                <p className={styles.paywallCompareFeature}>{row.label}</p>
+                <p className={styles.paywallCompareValue}>{row.standard}</p>
+                <p className={`${styles.paywallCompareValue} ${styles.paywallCompareValueFeatured}`}>{row.pro}</p>
+              </div>
+            ))}
+          </div>
+        </section>
         <div className={styles.planGrid}>
           {annualPackage ? (
             <article
@@ -194,11 +264,6 @@ export default function PaywallModal({
             </article>
           ) : null}
         </div>
-        <ul className={styles.proList}>
-          <li>Unlimited history for notes, blocks, sessions, and reflections</li>
-          <li>Full customization across notes, calendar tones, themes, and premium styling</li>
-          <li>Advanced reports, deeper insight, and the premium Whelm identity layer</li>
-        </ul>
         <div className={styles.paywallActions}>
           <button
             type="button"

@@ -445,6 +445,16 @@ export function useAccountSettings({
 
   const handleStartProPreview = openUpgradeFlow;
 
+  const handleManageSubscription = useCallback(() => {
+    if (typeof window === "undefined") return;
+
+    const manageUrl = "https://apps.apple.com/account/subscriptions";
+    const opened = window.open(manageUrl, "_blank", "noopener,noreferrer");
+    if (!opened) {
+      window.location.assign(manageUrl);
+    }
+  }, []);
+
   const handleSignOut = useCallback(async () => {
     await logOutRevenueCat();
     return signOut(auth);
@@ -484,6 +494,7 @@ export function useAccountSettings({
     handleOpenScreenTimeSettings,
     handleDeleteAccount,
     openUpgradeFlow,
+    handleManageSubscription,
     handleSignOut,
   };
 }
