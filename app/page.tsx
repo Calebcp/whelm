@@ -90,6 +90,7 @@ import { logClientRuntime } from "@/lib/client-runtime";
 import type { AppTab } from "@/lib/app-tabs";
 import { monthKeyLocal } from "@/lib/date-utils";
 import { buildWhelmArchive, parseWhelmArchive, saveWhelmArchive } from "@/lib/whelm-archive";
+import { exportReadableNotesZip } from "@/lib/whelm-notes-export";
 import { WHELM_PRO_NAME } from "@/lib/whelm-plans";
 import { mergeBlocksPreferNewest, savePlannedBlocks } from "@/lib/planned-blocks-store";
 import { saveReflectionState } from "@/lib/reflection-store";
@@ -1439,6 +1440,8 @@ export default function HomePage() {
   });
   const [archiveExportBusy, setArchiveExportBusy] = useState(false);
   const [archiveExportStatus, setArchiveExportStatus] = useState("");
+  const [notesExportBusy, setNotesExportBusy] = useState(false);
+  const [notesExportStatus, setNotesExportStatus] = useState("");
   const [archiveImportBusy, setArchiveImportBusy] = useState(false);
   const archiveImportInputRef = useRef<HTMLInputElement | null>(null);
   const [pendingArchiveImport, setPendingArchiveImport] = useState<{
@@ -1977,6 +1980,31 @@ export default function HomePage() {
     themeMode,
     user,
   ]);
+
+  const handleExportNotes = useCallback(async () => {
+    if (!user || notesExportBusy) return;
+    if (!isPro) {
+      setNotesExportStatus("Whelm Pro is required for readable notes export.");
+      return;
+    }
+
+    setNotesExportBusy(true);
+    setNotesExportStatus("");
+
+    try {
+      const result = await exportReadableNotesZip(notes);
+      setNotesExportStatus(
+        `Notes export ready: ${result.noteCount} notes and ${result.attachmentCount} bundled attachments.`,
+      );
+      showToast("Readable notes export downloaded.", "success");
+    } catch (error: unknown) {
+      setNotesExportStatus(
+        error instanceof Error ? error.message : "Unable to export notes as Markdown.",
+      );
+    } finally {
+      setNotesExportBusy(false);
+    }
+  }, [isPro, notes, notesExportBusy, showToast, user]);
 
   const handleImportArchive = useCallback(async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -3580,6 +3608,9 @@ export default function HomePage() {
               archiveExportBusy={archiveExportBusy}
               archiveExportStatus={archiveExportStatus}
               onExportArchive={() => void handleExportArchive()}
+              notesExportBusy={notesExportBusy}
+              notesExportStatus={notesExportStatus}
+              onExportNotes={() => void handleExportNotes()}
               archiveImportBusy={archiveImportBusy}
               archiveImportInputRef={archiveImportInputRef}
               onImportArchive={handleImportArchive}

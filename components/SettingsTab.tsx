@@ -127,6 +127,9 @@ export type SettingsTabProps = {
   archiveExportBusy: boolean;
   archiveExportStatus: string;
   onExportArchive: () => void;
+  notesExportBusy: boolean;
+  notesExportStatus: string;
+  onExportNotes: () => void;
   archiveImportBusy: boolean;
   archiveImportInputRef: RefObject<HTMLInputElement | null>;
   onImportArchive: (e: ChangeEvent<HTMLInputElement>) => void;
@@ -203,6 +206,9 @@ export default function SettingsTab({
   archiveExportBusy,
   archiveExportStatus,
   onExportArchive,
+  notesExportBusy,
+  notesExportStatus,
+  onExportNotes,
   archiveImportBusy,
   archiveImportInputRef,
   onImportArchive,
@@ -576,6 +582,14 @@ export default function SettingsTab({
               <button
                 type="button"
                 className={sharedStyles.secondaryPlanButton}
+                onClick={onExportNotes}
+                disabled={notesExportBusy}
+              >
+                {notesExportBusy ? "Preparing notes zip..." : "Export notes as Markdown"}
+              </button>
+              <button
+                type="button"
+                className={sharedStyles.secondaryPlanButton}
                 onClick={() => archiveImportInputRef.current?.click()}
                 disabled={archiveImportBusy}
               >
@@ -630,6 +644,7 @@ export default function SettingsTab({
               </div>
             ) : null}
             {archiveExportStatus ? <p className={sharedStyles.accountMeta}>{archiveExportStatus}</p> : null}
+            {notesExportStatus ? <p className={sharedStyles.accountMeta}>{notesExportStatus}</p> : null}
           </>
         ) : (
           <ProUnlockCard
