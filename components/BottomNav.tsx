@@ -197,6 +197,17 @@ export default function BottomNav({
           <button
             key={tab.key}
             type="button"
+            data-tour={
+              tab.key === "calendar"
+                ? "nav-schedule"
+                : tab.key === "today"
+                  ? "nav-today"
+                  : tab.key === "notes"
+                    ? "nav-notes"
+                    : tab.key === "leaderboard"
+                      ? "nav-whelmboard"
+                      : undefined
+            }
             className={`${styles.bottomTabButton} ${
               tab.key === "leaderboard" ? styles.bottomTabButtonLeaderboard : ""
             } ${activeTab === tab.key ? styles.bottomTabButtonActive : ""}`}
@@ -220,6 +231,7 @@ export default function BottomNav({
 
       <button
         type="button"
+        data-tour="nav-more"
         className={`${styles.mobileMoreFab} ${mobileMoreActive || mobileMoreOpen ? styles.mobileMoreFabActive : ""}`}
         onClick={onMoreOpen}
       >

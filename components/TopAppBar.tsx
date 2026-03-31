@@ -82,6 +82,7 @@ export default function TopAppBar({
         </span>
         <motion.div
           className={styles.xpDock}
+          data-tour="xp-dock"
           style={xpDockStyle}
           aria-label={`Level ${currentLevel}. ${formattedLifetimeXp} XP total. ${formattedXpToNextLevel} XP to next level.`}
           initial={{ opacity: 0, y: -10 }}
@@ -113,6 +114,7 @@ export default function TopAppBar({
         </motion.div>
         <button
           type="button"
+          data-tour="profile-dock"
           className={`${styles.profileDockButton} ${
             isMobileViewport ? styles.profileDockButtonMobile : styles.profileDockButtonDesktop
           }`}
@@ -132,6 +134,7 @@ export default function TopAppBar({
         {!isMobileViewport ? (
           <button
             type="button"
+            data-tour="nav-more"
             className={styles.topAppBarAction}
             onClick={onMoreOpen}
           >

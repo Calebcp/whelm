@@ -481,7 +481,12 @@ export default function WhelmboardTab({
       )}
 
       {/* Surface tab nav: Global | Friends | Bandana Tiers */}
-      <div className={styles.wbSurfaceTabs} role="tablist" aria-label="Whelmboard surfaces">
+      <div
+        className={styles.wbSurfaceTabs}
+        role="tablist"
+        aria-label="Whelmboard surfaces"
+        data-tour="whelmboard-surfaces"
+      >
         {SURFACE_TABS.map((tab) => (
           <button
             key={tab.id}

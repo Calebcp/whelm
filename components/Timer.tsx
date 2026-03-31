@@ -430,6 +430,7 @@ export default function Timer({
   return (
     <section
       className={styles.card}
+      data-tour="today-timer"
       style={themeVars}
       data-appearance={appearance}
       data-focus-mode={focusIdentity}

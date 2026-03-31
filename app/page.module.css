@@ -400,6 +400,35 @@ body[data-theme="light"] {
   --xp-text-soft: rgba(222, 241, 255, 0.86);
 }
 
+:global([data-tour-active="true"]) {
+  position: relative;
+  z-index: 1202;
+  animation: tourTargetFloat 1.8s ease-in-out infinite;
+  box-shadow:
+    0 0 0 2px rgba(170, 235, 255, 0.92),
+    0 0 0 8px rgba(68, 189, 255, 0.18),
+    0 18px 36px rgba(26, 141, 255, 0.2);
+}
+
+:global([data-tour-active="true"])::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: inherit;
+  box-shadow: 0 0 24px rgba(108, 219, 255, 0.42);
+  pointer-events: none;
+}
+
+@keyframes tourTargetFloat {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-2px) scale(1.01);
+  }
+}
+
 .xpDockCapNotice {
   flex: 1 0 100%;
   margin-top: 2px;

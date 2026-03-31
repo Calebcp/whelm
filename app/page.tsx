@@ -18,6 +18,7 @@ import IntroSplash from "@/components/IntroSplash";
 import KpiDetailModal from "@/components/KpiDetailModal";
 import LeaderboardProfileModal from "@/components/LeaderboardProfileModal";
 import MobileMoreSheet from "@/components/MobileMoreSheet";
+import OnboardingTour, { type OnboardingTourStep } from "@/components/OnboardingTour";
 import PaywallModal from "@/components/PaywallModal";
 import ProfileSheet from "@/components/ProfileSheet";
 import QuickCardModal from "@/components/QuickCardModal";
@@ -1300,6 +1301,87 @@ const MOBILE_MORE_TABS: AppTab[] = [
   "settings",
 ];
 
+const ONBOARDING_STEPS: OnboardingTourStep[] = [
+  {
+    id: "schedule",
+    selector: '[data-tour="nav-schedule"]',
+    pose: "thinking_idea",
+    color: "yellow",
+    title: "Start in Schedule",
+    body:
+      "This is your command map. Plan the day here first so Whelm is built around deliberate blocks, not random effort.",
+  },
+  {
+    id: "block",
+    selector: '[data-tour="schedule-add-block"]',
+    pose: "focus_action",
+    color: "red",
+    title: "Blocks are worth 10 XP",
+    body:
+      "Add a block here. Each completed block gives 10 XP, and block XP caps at 50 per day. This is the first half of protecting your day.",
+  },
+  {
+    id: "timer",
+    selector: '[data-tour="today-timer"]',
+    pose: "ready_idle",
+    color: "green",
+    title: "Run the focus timer",
+    body:
+      "This is where execution happens. Every 30 minutes of focus gives 20 XP, 90+ minutes unlocks a deep work bonus, and the stopwatch Whelm art changes every 5 minutes while you are running.",
+  },
+  {
+    id: "xp",
+    selector: '[data-tour="xp-dock"]',
+    pose: "celebrate_success",
+    color: "purple",
+    title: "Know the XP system",
+    body:
+      "Your daily target is 120 XP and the hard max is 150. Complete one block plus 30 focused minutes or 33 written words to trigger the combo bonus and protect the streak.",
+  },
+  {
+    id: "notes",
+    selector: '[data-tour="notes-create"]',
+    pose: "thinking_idea",
+    color: "blue",
+    title: "Capture notes fast",
+    body:
+      "Use Notes+ to keep ideas, plans, and session notes alive. Writing 33+ words starts a writing XP bonus, and 100+ words reaches the full daily writing reward.",
+  },
+  {
+    id: "cards",
+    selector: '[data-tour="notes-cards-toggle"]',
+    pose: "focus_action",
+    color: "black",
+    title: "Turn notes into flashcards",
+    body:
+      "Open Cards here to convert what matters into flashcards. Notes capture the idea. Cards train recall and keep the learning loop active.",
+  },
+  {
+    id: "whelmboard",
+    selector: '[data-tour="whelmboard-surfaces"]',
+    pose: "celebrate_success",
+    color: "white",
+    contextPaddingX: 260,
+    contextPaddingY: 220,
+    title: "Climb the Whelmboard",
+    body:
+      "Track your global rank by XP or streak, add friends, accept requests, send nudges, and check Bandana Tiers to see who is holding each level.",
+  },
+  {
+    id: "replay",
+    selector: '[data-tour="settings-replay-tutorial"]',
+    pose: "meditating",
+    color: "yellow",
+    title: "Need a refresher later?",
+    body:
+      "This replay tutorial button lives in Settings. The full tour only auto-shows once for a new user, but you can return here anytime to review the flow or the XP system.",
+  },
+];
+
+function onboardingStorageKey(uid: string) {
+  return `whelm:onboarding-tour:v1:${uid}`;
+}
+
 export default function HomePage() {
   "use no memo";
 
@@ -1311,6 +1393,8 @@ export default function HomePage() {
   const [landingWisdomMinute, setLandingWisdomMinute] = useState(() => Math.floor(Date.now() / 60000));
   const [trendRange, setTrendRange] = useState<TrendRange>(7);
   const [activeTab, setActiveTab] = useState<AppTab>("calendar");
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const [onboardingStepIndex, setOnboardingStepIndex] = useState(0);
   const [selectedLbProfile, setSelectedLbProfile] = useState<{ entry: LeaderboardEntry; rank: number } | null>(null);
   const [insightMetric, setInsightMetric] = useState<InsightMetric>("focus");
   const [calendarView, setCalendarView] = useState<CalendarView>("month");
@@ -1363,6 +1447,7 @@ export default function HomePage() {
   const settingsSectionRef = useRef<HTMLElement | null>(null);
   const settingsPrimaryRef = useRef<HTMLElement | null>(null);
   const mobileDayTimelineScrollRef = useRef<HTMLDivElement | null>(null);
+  const onboardingAutostartedRef = useRef(false);
   const {
     feedbackOpen,
     setFeedbackOpen,
@@ -2502,6 +2587,114 @@ export default function HomePage() {
     getPageShellBackgroundStyle,
     getProfileTierTheme,
   });
+  const onboardingStep = ONBOARDING_STEPS[Math.min(onboardingStepIndex, ONBOARDING_STEPS.length - 1)];
+
+  const markOnboardingSeen = useCallback(() => {
+    if (!user) return;
+    try {
+      window.localStorage.setItem(onboardingStorageKey(user.uid), "seen");
+    } catch {
+      // Ignore storage failures in constrained webviews.
+    }
+  }, [user]);
+
+  const closeOnboarding = useCallback((markSeen = true) => {
+    if (markSeen) {
+      markOnboardingSeen();
+    }
+    setOnboardingOpen(false);
+  }, [markOnboardingSeen]);
+
+  const startOnboarding = useCallback(() => {
+    setMobileMoreOpen(false);
+    setProfileOpen(false);
+    setFeedbackOpen(false);
+    setOnboardingStepIndex(0);
+    setOnboardingOpen(true);
+  }, [setFeedbackOpen, setMobileMoreOpen, setProfileOpen]);
+
+  const handleOnboardingNext = useCallback(() => {
+    if (onboardingStepIndex >= ONBOARDING_STEPS.length - 1) {
+      closeOnboarding(true);
+      return;
+    }
+    setOnboardingStepIndex((current) => current + 1);
+  }, [closeOnboarding, onboardingStepIndex]);
+
+  useEffect(() => {
+    if (!authChecked || !user || showIntroSplash || onboardingAutostartedRef.current) return;
+
+    onboardingAutostartedRef.current = true;
+    try {
+      if (window.localStorage.getItem(onboardingStorageKey(user.uid)) === "seen") {
+        return;
+      }
+    } catch {
+      // Ignore storage failures and fall through to showing the tour once.
+    }
+
+    startOnboarding();
+  }, [authChecked, showIntroSplash, startOnboarding, user]);
+
+  useEffect(() => {
+    if (!onboardingOpen) return;
+
+    switch (onboardingStep.id) {
+      case "schedule":
+      case "block":
+        setActiveTab("calendar");
+        setCalendarView("day");
+        setSelectedCalendarDate(todayKey);
+        setMobileMoreOpen(false);
+        closeBlockComposer();
+        break;
+      case "timer":
+      case "xp":
+        setActiveTab("today");
+        setMobileMoreOpen(false);
+        break;
+      case "notes":
+      case "cards":
+        setActiveTab("notes");
+        setNotesSurface("notes");
+        setMobileMoreOpen(false);
+        break;
+      case "whelmboard":
+        setActiveTab("leaderboard");
+        setMobileMoreOpen(false);
+        break;
+      case "replay":
+        setActiveTab("settings");
+        setMobileMoreOpen(false);
+        break;
+      default:
+        break;
+    }
+
+    const timer = window.setTimeout(() => {
+      const target = Array.from(document.querySelectorAll(onboardingStep.selector)).find((node) => {
+        if (!(node instanceof HTMLElement)) return false;
+        const rect = node.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+      });
+
+      if (target instanceof HTMLElement) {
+        target.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+      }
+    }, 220);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    closeBlockComposer,
+    onboardingOpen,
+    onboardingStep,
+    setActiveTab,
+    setCalendarView,
+    setMobileMoreOpen,
+    setNotesSurface,
+    setSelectedCalendarDate,
+    todayKey,
+  ]);
 
   if (showIntroSplash) {
     return <IntroSplash onComplete={() => setIntroFinished(true)} />;
@@ -2577,6 +2770,17 @@ export default function HomePage() {
             <button
               key={tab.key}
               type="button"
+              data-tour={
+                tab.key === "calendar"
+                  ? "nav-schedule"
+                  : tab.key === "today"
+                    ? "nav-today"
+                    : tab.key === "notes"
+                      ? "nav-notes"
+                      : tab.key === "leaderboard"
+                        ? "nav-whelmboard"
+                        : undefined
+              }
               className={`${styles.tabButton} ${activeTab === tab.key ? styles.tabButtonActive : ""}`}
               onClick={() => handleTabSelect(tab.key)}
             >
@@ -2586,6 +2790,7 @@ export default function HomePage() {
           ))}
           <button
             type="button"
+            data-tour="nav-more"
             className={`${styles.tabButton} ${mobileMoreActive || mobileMoreOpen ? styles.tabButtonActive : ""}`}
             onClick={() => handleTabSelect("more")}
           >
@@ -3066,6 +3271,7 @@ export default function HomePage() {
                 setFeedbackOpen(true);
                 setFeedbackStatus("");
               }}
+              onReplayTutorial={startOnboarding}
               onStartProPreview={() => void handleStartProPreview()}
               onRestoreFreeTier={() => void handleRestoreFreeTier()}
               onSignOut={() => void handleSignOut()}
@@ -3322,6 +3528,15 @@ export default function HomePage() {
       />
       </main>
 
+      <OnboardingTour
+        open={onboardingOpen}
+        step={onboardingStep}
+        stepIndex={onboardingStepIndex}
+        totalSteps={ONBOARDING_STEPS.length}
+        onNext={handleOnboardingNext}
+        onSkip={() => closeOnboarding(true)}
+      />
+
       <QuickCardModal
         selectionPopup={selectionPopup}
         quickCardForm={quickCardForm}
@@ -3330,7 +3545,7 @@ export default function HomePage() {
         onSave={() => void handleQuickCardSave()}
       />
 
-      {mascot.visible ? (
+      {!onboardingOpen && mascot.visible ? (
         <WhelMascot
           pose={mascot.pose}
           bandanaColor={mascot.bandanaColor}

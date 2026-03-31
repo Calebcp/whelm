@@ -104,6 +104,7 @@ export type SettingsTabProps = {
   onToggleSection: (key: keyof SettingsSectionsOpen) => void;
   // Actions
   onFeedbackOpen: () => void;
+  onReplayTutorial: () => void;
   onStartProPreview: () => void;
   onRestoreFreeTier: () => void;
   onSignOut: () => void;
@@ -158,6 +159,7 @@ export default function SettingsTab({
   sectionsOpen,
   onToggleSection,
   onFeedbackOpen,
+  onReplayTutorial,
   onStartProPreview,
   onRestoreFreeTier,
   onSignOut,
@@ -238,6 +240,14 @@ export default function SettingsTab({
           <span className={styles.settingsPill}>Streak: {streak}d</span>
         </div>
         <div className={styles.settingsActionGrid}>
+          <button
+            type="button"
+            data-tour="settings-replay-tutorial"
+            className={sharedStyles.secondaryPlanButton}
+            onClick={onReplayTutorial}
+          >
+            Replay tutorial
+          </button>
           <button type="button" className={sharedStyles.reportButton} onClick={onFeedbackOpen}>
             Send Whelm feedback
           </button>

@@ -746,6 +746,7 @@ export default function ScheduleTab({
                       {selectedDateCanAddBlocks ? (
                         <button
                           type="button"
+                          data-tour="schedule-add-block"
                           className={`${styles.planAddButton} ${styles.dayPortalBlockButton}`}
                           onClick={() => {
                             onOpenCalendarBlockComposer();

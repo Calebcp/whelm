@@ -1,0 +1,320 @@
+"use client";
+
+import { motion } from "motion/react";
+import { useEffect, useMemo, useRef, useState } from "react";
+
+import { getWhelImagePath, type WhelBandanaColor, type WhelPose } from "@/lib/whelm-mascot";
+import styles from "@/components/OnboardingTour.module.css";
+
+export type OnboardingTourStep = {
+  id: string;
+  title: string;
+  body: string;
+  selector: string;
+  pose: WhelPose;
+  color: WhelBandanaColor;
+  contextPaddingX?: number;
+  contextPaddingY?: number;
+};
+
+type SpotlightRect = {
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+};
+
+function expandRect(
+  rect: SpotlightRect,
+  viewport: { width: number; height: number },
+  paddingX: number,
+  paddingY: number,
+): SpotlightRect {
+  const left = Math.max(0, rect.left - paddingX);
+  const top = Math.max(0, rect.top - paddingY);
+  const right = Math.min(viewport.width, rect.left + rect.width + paddingX);
+  const bottom = Math.min(viewport.height, rect.top + rect.height + paddingY);
+
+  return {
+    top,
+    left,
+    width: Math.max(0, right - left),
+    height: Math.max(0, bottom - top),
+  };
+}
+
+export default function OnboardingTour({
+  open,
+  step,
+  stepIndex,
+  totalSteps,
+  onNext,
+  onSkip,
+}: {
+  open: boolean;
+  step: OnboardingTourStep;
+  stepIndex: number;
+  totalSteps: number;
+  onNext: () => void;
+  onSkip: () => void;
+}) {
+  const [spotlightRect, setSpotlightRect] = useState<SpotlightRect | null>(null);
+  const [viewportSize, setViewportSize] = useState({ width: 1280, height: 800 });
+  const [cardHeight, setCardHeight] = useState(280);
+  const cardRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const updateRect = () => {
+      const targets = Array.from(document.querySelectorAll(step.selector));
+      const target = targets.find((node) => {
+        if (!(node instanceof HTMLElement)) return false;
+        const rect = node.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+      });
+      if (!(target instanceof HTMLElement)) {
+        setSpotlightRect(null);
+        return;
+      }
+      const rect = target.getBoundingClientRect();
+      setSpotlightRect({
+        top: Math.max(8, rect.top - 8),
+        left: Math.max(8, rect.left - 8),
+        width: Math.max(64, rect.width + 16),
+        height: Math.max(48, rect.height + 16),
+      });
+    };
+
+    updateRect();
+    window.addEventListener("resize", updateRect);
+    window.addEventListener("scroll", updateRect, true);
+
+    return () => {
+      window.removeEventListener("resize", updateRect);
+      window.removeEventListener("scroll", updateRect, true);
+    };
+  }, [open, step.selector]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const updateViewport = () => {
+      setViewportSize({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+    };
+
+    updateViewport();
+    window.addEventListener("resize", updateViewport);
+    return () => window.removeEventListener("resize", updateViewport);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open || !cardRef.current) return;
+
+    const element = cardRef.current;
+    const updateCardHeight = () => {
+      setCardHeight(element.getBoundingClientRect().height || 280);
+    };
+
+    updateCardHeight();
+
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", updateCardHeight);
+      return () => window.removeEventListener("resize", updateCardHeight);
+    }
+
+    const observer = new ResizeObserver(() => updateCardHeight());
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [open, step.body, step.title, stepIndex]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const targets = Array.from(document.querySelectorAll(step.selector)).filter(
+      (node): node is HTMLElement => node instanceof HTMLElement,
+    );
+    targets.forEach((target) => target.setAttribute("data-tour-active", "true"));
+
+    return () => {
+      targets.forEach((target) => target.removeAttribute("data-tour-active"));
+    };
+  }, [open, step.selector]);
+
+  const contextRect = useMemo(() => {
+    if (!spotlightRect) return null;
+
+    const isMobile = viewportSize.width <= 760;
+    return expandRect(
+      spotlightRect,
+      viewportSize,
+      step.contextPaddingX ?? (isMobile ? 68 : 150),
+      step.contextPaddingY ?? (isMobile ? 56 : 110),
+    );
+  }, [spotlightRect, step.contextPaddingX, step.contextPaddingY, viewportSize]);
+
+  const cardPosition = useMemo(() => {
+    if (!spotlightRect) {
+      return {
+        top: "50%",
+        left: "50%",
+        transform: "translate(-50%, -50%)",
+      };
+    }
+
+    const viewportWidth = viewportSize.width;
+    const viewportHeight = viewportSize.height;
+    const isMobile = viewportWidth <= 760;
+    const cardWidth = Math.min(420, viewportWidth - 32);
+
+    if (isMobile) {
+      return {
+        top: Math.max(16, viewportHeight - 16 - cardHeight),
+        left: 16,
+        transform: "none",
+      };
+    }
+
+    const prefersBottom = spotlightRect.top < viewportHeight * 0.42;
+    let top = prefersBottom
+      ? Math.min(viewportHeight - 24 - cardHeight, spotlightRect.top + spotlightRect.height + 16)
+      : Math.max(16, spotlightRect.top - (cardHeight + 16));
+    const centeredLeft = spotlightRect.left + spotlightRect.width / 2 - cardWidth / 2;
+    let left = Math.min(Math.max(16, centeredLeft), viewportWidth - cardWidth - 16);
+
+    const overlapsContext =
+      contextRect &&
+      left < contextRect.left + contextRect.width &&
+      left + cardWidth > contextRect.left &&
+      top < contextRect.top + contextRect.height &&
+      top + cardHeight > contextRect.top;
+
+    if (overlapsContext && contextRect) {
+      const roomRight = viewportWidth - (contextRect.left + contextRect.width) - 16;
+      const roomLeft = contextRect.left - 16;
+      if (roomRight >= cardWidth) {
+        left = viewportWidth - cardWidth - 16;
+      } else if (roomLeft >= cardWidth) {
+        left = 16;
+      } else {
+        top = Math.max(16, contextRect.top - (cardHeight + 16));
+      }
+    }
+
+    return {
+      top,
+      left,
+      transform: "none",
+    };
+  }, [cardHeight, contextRect, spotlightRect, viewportSize.height, viewportSize.width]);
+
+  if (!open) return null;
+
+  return (
+    <div className={styles.tourOverlay} aria-live="polite">
+      {contextRect ? (
+        <svg
+          className={styles.tourMask}
+          viewBox={`0 0 ${viewportSize.width} ${viewportSize.height}`}
+          preserveAspectRatio="none"
+          aria-hidden="true"
+        >
+          <defs>
+            <mask id="tour-cutout-mask">
+              <rect width={viewportSize.width} height={viewportSize.height} fill="white" />
+              <rect
+                x={contextRect.left}
+                y={contextRect.top}
+                width={contextRect.width}
+                height={contextRect.height}
+                rx={viewportSize.width <= 760 ? 26 : 32}
+                ry={viewportSize.width <= 760 ? 26 : 32}
+                fill="black"
+              />
+            </mask>
+          </defs>
+          <rect
+            width={viewportSize.width}
+            height={viewportSize.height}
+            className={styles.tourMaskFill}
+            mask="url(#tour-cutout-mask)"
+          />
+        </svg>
+      ) : (
+        <div
+          className={styles.tourScrim}
+          style={{
+            top: 0,
+            left: 0,
+            width: viewportSize.width,
+            height: viewportSize.height,
+          }}
+        />
+      )}
+      {contextRect ? (
+        <div
+          className={styles.tourContextFrame}
+          style={{
+            top: contextRect.top,
+            left: contextRect.left,
+            width: contextRect.width,
+            height: contextRect.height,
+          }}
+        />
+      ) : null}
+      {spotlightRect ? (
+        <motion.div
+          className={styles.tourFocus}
+          initial={{ opacity: 0.6, scale: 0.96 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+          style={{
+            top: spotlightRect.top,
+            left: spotlightRect.left,
+            width: spotlightRect.width,
+            height: spotlightRect.height,
+          }}
+        />
+      ) : null}
+
+      <motion.section
+        ref={cardRef}
+        className={styles.tourCard}
+        initial={{ opacity: 0, y: 18, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+        style={cardPosition}
+      >
+        <div className={styles.tourCardTop}>
+          <motion.img
+            src={getWhelImagePath(step.pose, step.color)}
+            alt=""
+            aria-hidden="true"
+            className={styles.tourMascot}
+            animate={{ y: [0, -6, 0], rotate: [0, -2, 2, 0] }}
+            transition={{ duration: 2.8, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
+          />
+          <div className={styles.tourCopy}>
+            <p className={styles.tourEyebrow}>Whelm Tour</p>
+            <h2 className={styles.tourTitle}>{step.title}</h2>
+            <p className={styles.tourBody}>{step.body}</p>
+            <p className={styles.tourProgress}>
+              Step {stepIndex + 1} of {totalSteps}
+            </p>
+          </div>
+        </div>
+        <div className={styles.tourActions}>
+          <button type="button" className={styles.tourSecondary} onClick={onSkip}>
+            Skip
+          </button>
+          <button type="button" className={styles.tourPrimary} onClick={onNext}>
+            {stepIndex === totalSteps - 1 ? "Finish" : "Next"}
+          </button>
+        </div>
+      </motion.section>
+    </div>
+  );
+}

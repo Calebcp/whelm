@@ -575,6 +575,7 @@ export default function NotesTab({
           </button>
           <button
             type="button"
+            data-tour="notes-cards-toggle"
             className={
               notesSurface === "cards" ? sharedStyles.reportButton : sharedStyles.secondaryPlanButton
             }
@@ -600,6 +601,7 @@ export default function NotesTab({
                 </div>
                 <button
                   type="button"
+                  data-tour="notes-create"
                   className={sharedStyles.newNoteButton}
                   onClick={() => void onMobileCreateNote()}
                 >
@@ -1266,7 +1268,12 @@ export default function NotesTab({
                     {filteredNotes.length} visible note{filteredNotes.length === 1 ? "" : "s"}
                   </p>
                 </div>
-                <button type="button" className={sharedStyles.newNoteButton} onClick={onCreateNote}>
+                <button
+                  type="button"
+                  data-tour="notes-create"
+                  className={sharedStyles.newNoteButton}
+                  onClick={onCreateNote}
+                >
                   + New
                 </button>
               </div>

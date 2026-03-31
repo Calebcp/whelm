@@ -1,0 +1,212 @@
+.tourOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  pointer-events: none;
+}
+
+.tourScrim {
+  position: fixed;
+  background: rgba(6, 10, 22, 0.72);
+  backdrop-filter: blur(6px);
+}
+
+.tourMask {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.tourMaskFill {
+  fill: rgba(6, 10, 22, 0.72);
+}
+
+.tourFocus {
+  position: fixed;
+  border-radius: 24px;
+  border: 2px solid rgba(167, 234, 255, 0.92);
+  box-shadow:
+    0 0 0 10px rgba(102, 208, 255, 0.14),
+    0 18px 40px rgba(0, 0, 0, 0.28);
+  animation: tourFocusPulse 1.9s ease-in-out infinite;
+  transition:
+    top 220ms ease,
+    left 220ms ease,
+    width 220ms ease,
+    height 220ms ease,
+    opacity 180ms ease;
+}
+
+.tourContextFrame {
+  position: fixed;
+  border-radius: 32px;
+  box-shadow:
+    inset 0 0 0 1px rgba(145, 188, 255, 0.08),
+    inset 0 0 60px rgba(105, 171, 255, 0.08);
+  pointer-events: none;
+}
+
+.tourCard {
+  position: fixed;
+  width: min(420px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  border-radius: 30px;
+  padding: 18px 18px 16px;
+  background:
+    radial-gradient(circle at 18% 0%, rgba(103, 189, 255, 0.22), transparent 28%),
+    radial-gradient(circle at 100% 24%, rgba(170, 92, 255, 0.14), transparent 32%),
+    linear-gradient(180deg, rgba(11, 17, 34, 0.97), rgba(7, 11, 24, 0.98));
+  border: 1px solid rgba(132, 184, 255, 0.24);
+  box-shadow:
+    0 24px 68px rgba(0, 0, 0, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  color: #f4f8ff;
+  pointer-events: auto;
+  overflow: auto;
+}
+
+.tourCardTop {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.tourMascot {
+  width: 88px;
+  height: 88px;
+  object-fit: contain;
+  filter: drop-shadow(0 10px 18px rgba(45, 153, 255, 0.22));
+  flex: 0 0 auto;
+}
+
+.tourCopy {
+  min-width: 0;
+}
+
+.tourEyebrow {
+  margin: 0 0 6px;
+  font-size: 0.7rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(170, 215, 255, 0.74);
+}
+
+.tourTitle {
+  margin: 0;
+  font-size: 1.08rem;
+  line-height: 1.2;
+}
+
+.tourBody {
+  margin: 10px 0 0;
+  color: rgba(232, 240, 255, 0.82);
+  line-height: 1.45;
+  font-size: 0.95rem;
+}
+
+.tourProgress {
+  margin: 14px 0 0;
+  color: rgba(170, 215, 255, 0.78);
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.tourActions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.tourSecondary,
+.tourPrimary {
+  appearance: none;
+  border-radius: 999px;
+  padding: 11px 15px;
+  font: inherit;
+  cursor: pointer;
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    background 180ms ease,
+    border-color 180ms ease;
+}
+
+.tourSecondary:hover,
+.tourPrimary:hover {
+  transform: translateY(-1px);
+}
+
+.tourSecondary {
+  border: 1px solid rgba(156, 178, 221, 0.26);
+  background: rgba(18, 28, 50, 0.92);
+  color: #edf3ff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.tourPrimary {
+  border: 1px solid rgba(121, 199, 255, 0.28);
+  background: linear-gradient(135deg, #1c75d6, #29a7ff);
+  color: #ffffff;
+  box-shadow: 0 10px 22px rgba(41, 167, 255, 0.24);
+  animation: tourButtonGlow 1.8s ease-in-out infinite;
+}
+
+@keyframes tourFocusPulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 10px rgba(102, 208, 255, 0.14),
+      0 18px 40px rgba(0, 0, 0, 0.28);
+  }
+  50% {
+    box-shadow:
+      0 0 0 16px rgba(102, 208, 255, 0.18),
+      0 24px 52px rgba(0, 0, 0, 0.34);
+  }
+}
+
+@keyframes tourButtonGlow {
+  0%,
+  100% {
+    box-shadow: 0 10px 22px rgba(41, 167, 255, 0.24);
+  }
+  50% {
+    box-shadow:
+      0 14px 28px rgba(41, 167, 255, 0.3),
+      0 0 0 6px rgba(41, 167, 255, 0.12);
+  }
+}
+
+@media (max-width: 760px) {
+  .tourContextFrame {
+    border-radius: 26px;
+  }
+
+  .tourCard {
+    width: calc(100vw - 32px);
+    max-height: min(40vh, 320px);
+    border-radius: 26px;
+    padding: 16px;
+  }
+
+  .tourCardTop {
+    align-items: center;
+  }
+
+  .tourMascot {
+    width: 72px;
+    height: 72px;
+  }
+
+  .tourTitle {
+    font-size: 1rem;
+  }
+
+  .tourBody {
+    font-size: 0.9rem;
+  }
+}
