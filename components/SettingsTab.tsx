@@ -18,6 +18,7 @@ import type {
 } from "@/lib/preferences-store";
 import type { ScreenTimeAuthorizationStatus } from "@/lib/screentime";
 import type { ProfileTierTheme } from "@/lib/profile-tier";
+import { WHELM_PRO_NAME, WHELM_STANDARD_NAME } from "@/lib/whelm-plans";
 
 const PRO_BACKGROUND_PRESETS = [
   {
@@ -47,7 +48,7 @@ const PRO_BACKGROUND_PRESETS = [
 ] as const;
 
 const WHELM_PRO_POSITIONING =
-  "Whelm Pro is the full version of the system: deeper reports, longer memory, stronger personalization, a cleaner command center, and of course more animated PRO WHELMS!";
+  "Whelm Pro opens the deeper layer of Whelm: longer memory, fuller customization, and expanded control over the app shell.";
 
 function formatSenseiLabel(value: string) {
   return value
@@ -62,6 +63,7 @@ type SettingsSectionsOpen = {
   protocol: boolean;
   appearance: boolean;
   background: boolean;
+  archive: boolean;
   sync: boolean;
   screenTime: boolean;
   danger: boolean;
@@ -106,7 +108,9 @@ export type SettingsTabProps = {
   onFeedbackOpen: () => void;
   onReplayTutorial: () => void;
   onStartProPreview: () => void;
-  onRestoreFreeTier: () => void;
+  onRestorePurchases: () => void;
+  subscriptionBusy: boolean;
+  subscriptionStatus: string;
   onSignOut: () => void;
   onApplyCompanionStyle: (style: "gentle" | "balanced" | "strict") => void;
   onApplyThemeMode: (mode: "dark" | "light" | "system") => void;
@@ -119,6 +123,27 @@ export type SettingsTabProps = {
   onUpdateBackgroundSkin: (skin: PreferencesBackgroundSkin) => void;
   proPanelBackgroundOpen: boolean;
   onToggleProBackgroundPanel: () => void;
+  // Archive export
+  archiveExportBusy: boolean;
+  archiveExportStatus: string;
+  onExportArchive: () => void;
+  archiveImportBusy: boolean;
+  archiveImportInputRef: RefObject<HTMLInputElement | null>;
+  onImportArchive: (e: ChangeEvent<HTMLInputElement>) => void;
+  pendingArchiveImport: {
+    fileName: string;
+    version: string;
+    tier: string;
+    exportedAtISO: string;
+    notes: number;
+    plannedBlocks: number;
+    sessions: number;
+    cards: number;
+    mirrorEntries: number;
+    sickDaySaves: number;
+  } | null;
+  onConfirmArchiveImport: () => void;
+  onCancelArchiveImport: () => void;
   // Notes sync
   notesSyncStatus: "synced" | "syncing" | "local-only" | "error";
   notesSyncMessage: string;
@@ -161,7 +186,9 @@ export default function SettingsTab({
   onFeedbackOpen,
   onReplayTutorial,
   onStartProPreview,
-  onRestoreFreeTier,
+  onRestorePurchases,
+  subscriptionBusy,
+  subscriptionStatus,
   onSignOut,
   onApplyCompanionStyle,
   onApplyThemeMode,
@@ -173,6 +200,15 @@ export default function SettingsTab({
   onUpdateBackgroundSkin,
   proPanelBackgroundOpen,
   onToggleProBackgroundPanel,
+  archiveExportBusy,
+  archiveExportStatus,
+  onExportArchive,
+  archiveImportBusy,
+  archiveImportInputRef,
+  onImportArchive,
+  pendingArchiveImport,
+  onConfirmArchiveImport,
+  onCancelArchiveImport,
   notesSyncStatus,
   notesSyncMessage,
   onRetrySync,
@@ -232,10 +268,10 @@ export default function SettingsTab({
         </div>
         <div className={styles.settingsPills}>
           <span className={styles.settingsPill}>
-            Access: {isPro ? "Whelm Pro" : "Whelm Free"}
+            Access: {isPro ? WHELM_PRO_NAME : WHELM_STANDARD_NAME}
           </span>
           <span className={styles.settingsPill}>
-            Status: {proSource === "preview" ? "Whelm Pro Preview" : isPro ? "Whelm Pro Active" : "Whelm Free"}
+            Status: {proSource === "preview" ? `${WHELM_PRO_NAME} Access` : isPro ? `${WHELM_PRO_NAME} Active` : WHELM_STANDARD_NAME}
           </span>
           <span className={styles.settingsPill}>Streak: {streak}d</span>
         </div>
@@ -255,7 +291,15 @@ export default function SettingsTab({
         {!isPro ? (
           <div className={sharedStyles.noteFooterActions}>
             <button type="button" className={sharedStyles.inlineUpgrade} onClick={onStartProPreview}>
-              Enter Whelm Pro Preview
+              Upgrade to Whelm Pro
+            </button>
+            <button
+              type="button"
+              className={sharedStyles.secondaryPlanButton}
+              onClick={onRestorePurchases}
+              disabled={subscriptionBusy}
+            >
+              {subscriptionBusy ? "Restoring..." : "Restore purchases"}
             </button>
             <button type="button" className={sharedStyles.secondaryPlanButton} onClick={onSignOut}>
               Sign out
@@ -263,14 +307,22 @@ export default function SettingsTab({
           </div>
         ) : (
           <div className={sharedStyles.noteFooterActions}>
-            <button type="button" className={sharedStyles.secondaryPlanButton} onClick={onRestoreFreeTier}>
-              Return to Whelm Free
+            <button
+              type="button"
+              className={sharedStyles.secondaryPlanButton}
+              onClick={onRestorePurchases}
+              disabled={subscriptionBusy}
+            >
+              {subscriptionBusy ? "Checking..." : "Restore purchases"}
             </button>
             <button type="button" className={sharedStyles.secondaryPlanButton} onClick={onSignOut}>
               Sign out
             </button>
           </div>
         )}
+        {subscriptionStatus ? (
+          <p className={sharedStyles.accountMeta}>{subscriptionStatus}</p>
+        ) : null}
       </article>
 
       <CollapsibleSectionCard
@@ -280,9 +332,12 @@ export default function SettingsTab({
         onToggle={() => onToggleSection("identity")}
       >
         <ul className={styles.settingsList}>
-          <li><span>Clean Focus Mode</span><strong>{isPro ? "Whelm Pro" : "Standard"}</strong></li>
+          <li><span>Clean Focus Mode</span><strong>{isPro ? WHELM_PRO_NAME : WHELM_STANDARD_NAME}</strong></li>
+          <li><span>Profile presence</span><strong>{isPro ? "Premium" : "Standard"}</strong></li>
+          <li><span>Archive tools</span><strong>{isPro ? "Deep Search" : "Recent Window"}</strong></li>
+          <li><span>Shell personalization</span><strong>{isPro ? "Expanded" : "Standard"}</strong></li>
           <li><span>Weekly Report Cards</span><strong>On</strong></li>
-          <li><span>Command Reports</span><strong>{isPro ? "Full System" : "Core Readout"}</strong></li>
+          <li><span>Command Reports</span><strong>{isPro ? "Advanced" : "Core"}</strong></li>
         </ul>
       </CollapsibleSectionCard>
 
@@ -349,7 +404,7 @@ export default function SettingsTab({
       </CollapsibleSectionCard>
 
       <CollapsibleSectionCard
-        label="Whelm Pro"
+        label="Personalization"
         title="App background"
         description="Pick the shell background and how much it shows through."
         open={sectionsOpen.background}
@@ -478,9 +533,110 @@ export default function SettingsTab({
         ) : (
           <ProUnlockCard
             title="Custom backgrounds and uploads"
-            body={`${WHELM_PRO_POSITIONING} Whelm Pro includes alternate full-app background designs plus your own uploaded wallpaper.`}
+            body={`${WHELM_PRO_POSITIONING} ${WHELM_PRO_NAME} includes alternate full-app background designs, uploaded backdrops, and adaptive glass controls.`}
             open={proPanelBackgroundOpen}
             onToggle={onToggleProBackgroundPanel}
+            onPreview={onStartProPreview}
+          />
+        )}
+      </CollapsibleSectionCard>
+
+      <CollapsibleSectionCard
+        label="Archive"
+        title="Export your Whelm archive"
+        description="Save your notes, sessions, blocks, cards, preferences, and streak recovery state as one archive file."
+        open={sectionsOpen.archive}
+        onToggle={() => onToggleSection("archive")}
+      >
+        {isPro ? (
+          <>
+            <input
+              ref={archiveImportInputRef}
+              type="file"
+              accept="application/json,.json"
+              className={styles.backgroundUploadInput}
+              onChange={onImportArchive}
+            />
+            <p className={sharedStyles.accountMeta}>
+              {WHELM_PRO_NAME} can export a full archive snapshot for backup, recovery, or moving your history somewhere safe.
+            </p>
+            <ul className={sharedStyles.commandList}>
+              <li>Export saves one JSON archive with your notes, blocks, sessions, cards, preferences, and recovery state.</li>
+              <li>Import does a merge, not a wipe. Your current account data stays in place and the archive is folded into it.</li>
+            </ul>
+            <div className={sharedStyles.noteFooterActions}>
+              <button
+                type="button"
+                className={sharedStyles.reportButton}
+                onClick={onExportArchive}
+                disabled={archiveExportBusy}
+              >
+                {archiveExportBusy ? "Preparing archive..." : "Export Whelm archive"}
+              </button>
+              <button
+                type="button"
+                className={sharedStyles.secondaryPlanButton}
+                onClick={() => archiveImportInputRef.current?.click()}
+                disabled={archiveImportBusy}
+              >
+                {archiveImportBusy ? "Restoring archive..." : "Import Whelm archive"}
+              </button>
+            </div>
+            {pendingArchiveImport ? (
+              <div className={styles.backgroundSkinPanel}>
+                <div className={styles.backgroundSkinHeader}>
+                  <div>
+                    <strong>Archive ready to merge</strong>
+                    <p className={sharedStyles.accountMeta}>
+                      Review the archive first. Importing merges it into this account and keeps your current {WHELM_PRO_NAME} access state.
+                    </p>
+                  </div>
+                </div>
+                <ul className={styles.settingsList}>
+                  <li><span>File</span><strong>{pendingArchiveImport.fileName}</strong></li>
+                  <li><span>Archive version</span><strong>{pendingArchiveImport.version}</strong></li>
+                  <li><span>Source tier</span><strong>{pendingArchiveImport.tier}</strong></li>
+                  <li><span>Exported</span><strong>{new Date(pendingArchiveImport.exportedAtISO).toLocaleString()}</strong></li>
+                  <li><span>Notes</span><strong>{pendingArchiveImport.notes}</strong></li>
+                  <li><span>Blocks</span><strong>{pendingArchiveImport.plannedBlocks}</strong></li>
+                  <li><span>Sessions</span><strong>{pendingArchiveImport.sessions}</strong></li>
+                  <li><span>Cards</span><strong>{pendingArchiveImport.cards}</strong></li>
+                  <li><span>Mirror entries</span><strong>{pendingArchiveImport.mirrorEntries}</strong></li>
+                  <li><span>Sick day saves</span><strong>{pendingArchiveImport.sickDaySaves}</strong></li>
+                </ul>
+                <ul className={sharedStyles.commandList}>
+                  <li>This will merge archive data into the current account.</li>
+                  <li>It does not remove your current live Whelm data.</li>
+                  <li>If the same item exists in both places, Whelm keeps the newer version where possible.</li>
+                </ul>
+                <div className={sharedStyles.noteFooterActions}>
+                  <button
+                    type="button"
+                    className={sharedStyles.reportButton}
+                    onClick={onConfirmArchiveImport}
+                    disabled={archiveImportBusy}
+                  >
+                    {archiveImportBusy ? "Restoring archive..." : "Confirm archive merge"}
+                  </button>
+                  <button
+                    type="button"
+                    className={sharedStyles.secondaryPlanButton}
+                    onClick={onCancelArchiveImport}
+                    disabled={archiveImportBusy}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : null}
+            {archiveExportStatus ? <p className={sharedStyles.accountMeta}>{archiveExportStatus}</p> : null}
+          </>
+        ) : (
+          <ProUnlockCard
+            title="Archive export and recovery"
+            body={`${WHELM_PRO_NAME} exports your full Whelm archive in one file so your notes, sessions, blocks, cards, and recovery state stay portable.`}
+            open={false}
+            onToggle={() => undefined}
             onPreview={onStartProPreview}
           />
         )}

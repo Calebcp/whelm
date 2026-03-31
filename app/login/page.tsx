@@ -204,7 +204,7 @@ export default function LoginPage() {
               </article>
               <article className={styles.storyCard}>
                 <p className={styles.storyLabel}>Grow into Pro</p>
-                <p className={styles.storyBody}>Whelm Pro expands the system with deeper reports, longer memory, and stronger personalization.</p>
+                <p className={styles.storyBody}>Whelm Pro expands the system with unlimited history, deeper reports, and fuller customization.</p>
               </article>
             </div>
           </div>

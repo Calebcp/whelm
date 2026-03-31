@@ -48,6 +48,10 @@ function writeLocalSessions(uid: string, sessions: SessionDoc[]) {
   window.localStorage.setItem(storageKey(uid), JSON.stringify(dedupeSessions(sessions)));
 }
 
+export function saveSessionsLocally(uid: string, sessions: SessionDoc[]) {
+  writeLocalSessions(uid, sessions);
+}
+
 async function authorizedRequest(
   user: User,
   input: string,

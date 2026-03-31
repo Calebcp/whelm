@@ -18,6 +18,7 @@ import {
 } from "@/lib/notes-store";
 import { createCard, loadCards, saveCards } from "@/lib/cards-store";
 import { dayKeyLocal, addDaysLocal, countWords } from "@/lib/date-utils";
+import { resolveStandardNoteColor, WHELM_STANDARD_HISTORY_DAYS } from "@/lib/whelm-plans";
 import { XP_WRITING_ENTRY_THRESHOLD } from "@/lib/xp-engine";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -52,8 +53,6 @@ type PendingNotesXpPop = {
 const NOTE_ATTACHMENT_MAX_BYTES = 20 * 1024 * 1024;
 const NOTE_ATTACHMENT_UPLOAD_IDLE_TIMEOUT_MS = 15000;
 const NOTE_ATTACHMENT_UPLOAD_TOTAL_TIMEOUT_MS = 120000;
-const PRO_HISTORY_FREE_DAYS = 14;
-
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function createNote(): WorkspaceNote {
@@ -383,7 +382,9 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
   );
 
   const selectedNoteSurfaceColor = isPro ? selectedNote?.shellColor : undefined;
-  const selectedNotePageColor = isPro ? selectedNote?.color : undefined;
+  const selectedNotePageColor = isPro
+    ? selectedNote?.color
+    : resolveStandardNoteColor(selectedNote?.color);
   const selectedNoteWordCount = selectedNote
     ? countWords(selectedNote.body)
     : 0;
@@ -402,7 +403,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
       isPro
         ? orderedNotes
         : orderedNotes.filter((note) =>
-            isDateKeyWithinRecentWindow(dayKeyLocal(note.updatedAtISO), PRO_HISTORY_FREE_DAYS),
+            isDateKeyWithinRecentWindow(dayKeyLocal(note.updatedAtISO), WHELM_STANDARD_HISTORY_DAYS),
           ),
     [isPro, orderedNotes],
   );
@@ -411,7 +412,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     () =>
       !isPro &&
       orderedNotes.some(
-        (note) => !isDateKeyWithinRecentWindow(dayKeyLocal(note.updatedAtISO), PRO_HISTORY_FREE_DAYS),
+        (note) => !isDateKeyWithinRecentWindow(dayKeyLocal(note.updatedAtISO), WHELM_STANDARD_HISTORY_DAYS),
       ),
     [isPro, orderedNotes],
   );

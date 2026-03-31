@@ -19,6 +19,16 @@ import {
   type PreferencesProState,
 } from "@/lib/preferences-store";
 import {
+  addRevenueCatCustomerInfoListener,
+  ensureRevenueCatConfigured,
+  getRevenueCatCustomerInfo,
+  getRevenueCatSupportState,
+  hasActiveProEntitlement,
+  logOutRevenueCat,
+  removeRevenueCatCustomerInfoListener,
+  restoreRevenueCatPurchases,
+} from "@/lib/revenuecat";
+import {
   getScreenTimeCapability,
   openScreenTimeSystemSettings,
   requestScreenTimeAuthorization,
@@ -45,8 +55,10 @@ export function useAccountSettings({
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [paywallOpen, setPaywallOpen] = useState(false);
-  const [isPro, setIsPro] = useState(true);
-  const [proSource, setProSource] = useState<"preview" | "store" | "none">("preview");
+  const [isPro, setIsPro] = useState(false);
+  const [proSource, setProSource] = useState<"preview" | "store" | "none">("none");
+  const [subscriptionBusy, setSubscriptionBusy] = useState(false);
+  const [subscriptionStatus, setSubscriptionStatus] = useState("");
   const [proPanelsOpen, setProPanelsOpen] = useState({
     notes: false,
     calendar: false,
@@ -69,13 +81,33 @@ export function useAccountSettings({
     setProSource(next.source);
   }, []);
 
+  const persistProState = useCallback(async (next: PreferencesProState) => {
+    applyProState(next);
+    if (!user) return;
+
+    const base = readLocalPreferences(user.uid);
+    if (
+      base.proState.isPro === next.isPro &&
+      base.proState.source === next.source
+    ) {
+      return;
+    }
+
+    await savePreferences(user, {
+      ...base,
+      proState: next,
+    });
+  }, [applyProState, user]);
+
   useEffect(() => {
     if (!user) {
       setAccountStateHydrated(false);
+      setSubscriptionStatus("");
       return;
     }
 
     let active = true;
+    let revenueCatListenerId: string | null = null;
     const loadStartedAt = performance.now();
     applyProState(readLocalPreferences(user.uid).proState);
     setAccountStateHydrated(true);
@@ -90,10 +122,51 @@ export function useAccountSettings({
         durationMs: Math.round(performance.now() - loadStartedAt),
       });
     });
+
+    void (async () => {
+      const support = getRevenueCatSupportState();
+      if (!support.supported) {
+        if (active) {
+          setSubscriptionStatus(support.reason);
+        }
+        return;
+      }
+
+      try {
+        await ensureRevenueCatConfigured(user.uid);
+        if (!active) return;
+
+        revenueCatListenerId = await addRevenueCatCustomerInfoListener(user.uid, (customerInfo) => {
+          if (!active) return;
+          void persistProState({
+            isPro: hasActiveProEntitlement(customerInfo),
+            source: hasActiveProEntitlement(customerInfo) ? "store" : "none",
+          });
+        });
+
+        const customerInfo = await getRevenueCatCustomerInfo(user.uid);
+        if (!active) return;
+
+        await persistProState({
+          isPro: hasActiveProEntitlement(customerInfo),
+          source: hasActiveProEntitlement(customerInfo) ? "store" : "none",
+        });
+        setSubscriptionStatus("");
+      } catch (error: unknown) {
+        if (!active) return;
+        setSubscriptionStatus(
+          error instanceof Error ? error.message : "Unable to load Whelm Pro subscription status.",
+        );
+      }
+    })();
+
     return () => {
       active = false;
+      if (revenueCatListenerId) {
+        void removeRevenueCatCustomerInfoListener(revenueCatListenerId);
+      }
     };
-  }, [applyProState, user]);
+  }, [applyProState, persistProState, user]);
 
   useEffect(() => {
     let active = true;
@@ -162,29 +235,43 @@ export function useAccountSettings({
     }
   }, [feedbackCategory, feedbackMessage, feedbackSubmitting, user]);
 
-  const persistProState = useCallback(async (next: PreferencesProState) => {
-    applyProState(next);
-    if (!user) return;
-    const base = readLocalPreferences(user.uid);
-    await savePreferences(user, {
-      ...base,
-      proState: next,
-    });
-  }, [applyProState, user]);
+  const handleRestorePurchases = useCallback(async () => {
+    if (!user || subscriptionBusy) return;
 
-  const handleRestoreFreeTier = useCallback(async () => {
-    await persistProState({ isPro: false, source: "none" });
-  }, [persistProState]);
+    setSubscriptionBusy(true);
+    setSubscriptionStatus("");
 
-  const handleStartProPreview = useCallback(async () => {
-    const code = window.prompt("Enter the Whelm Pro preview code.");
-    if (code === null) return;
-    if (code.trim() !== "1234") {
-      window.alert("Incorrect preview code.");
-      return;
+    try {
+      const support = getRevenueCatSupportState();
+      if (!support.supported) {
+        throw new Error(support.reason);
+      }
+
+      const { customerInfo } = await restoreRevenueCatPurchases(user.uid);
+      const hasPro = hasActiveProEntitlement(customerInfo);
+
+      await persistProState({
+        isPro: hasPro,
+        source: hasPro ? "store" : "none",
+      });
+
+      setSubscriptionStatus(
+        hasPro
+          ? "Whelm Pro restored."
+          : "No active Whelm Pro subscription was found for this Apple account.",
+      );
+
+      if (hasPro) {
+        setPaywallOpen(false);
+      }
+    } catch (error: unknown) {
+      setSubscriptionStatus(
+        error instanceof Error ? error.message : "Unable to restore purchases.",
+      );
+    } finally {
+      setSubscriptionBusy(false);
     }
-    await persistProState({ isPro: true, source: "preview" });
-  }, [persistProState]);
+  }, [persistProState, subscriptionBusy, user]);
 
   const handleRequestScreenTimeAuth = useCallback(async () => {
     try {
@@ -352,10 +439,16 @@ export function useAccountSettings({
   }, [clearLocalAccountData, router]);
 
   const openUpgradeFlow = useCallback(() => {
+    setSubscriptionStatus("");
     setPaywallOpen(true);
   }, []);
 
-  const handleSignOut = useCallback(() => signOut(auth), []);
+  const handleStartProPreview = openUpgradeFlow;
+
+  const handleSignOut = useCallback(async () => {
+    await logOutRevenueCat();
+    return signOut(auth);
+  }, []);
 
   return {
     feedbackOpen,
@@ -373,6 +466,8 @@ export function useAccountSettings({
     setPaywallOpen,
     isPro,
     proSource,
+    subscriptionBusy,
+    subscriptionStatus,
     proPanelsOpen,
     setProPanelsOpen,
     screenTimeStatus,
@@ -382,8 +477,8 @@ export function useAccountSettings({
     deletingAccount,
     accountDangerStatus,
     submitFeedback,
-    handleRestoreFreeTier,
     handleStartProPreview,
+    handleRestorePurchases,
     accountStateHydrated,
     handleRequestScreenTimeAuth,
     handleOpenScreenTimeSettings,

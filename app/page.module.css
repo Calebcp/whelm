@@ -5592,9 +5592,41 @@ body[data-theme="light"] {
   padding: 12px;
 }
 
+.planCardButton {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  text-align: left;
+}
+
 .planCardFeatured {
   border-color: rgba(130, 143, 218, 0.24);
   background: rgba(34, 42, 76, 0.94);
+}
+
+.planCardSelected {
+  border-color: rgba(242, 246, 255, 0.48);
+  box-shadow: 0 0 0 1px rgba(242, 246, 255, 0.16);
+}
+
+.planBadgeRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.planBadge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: rgba(242, 246, 255, 0.12);
+  padding: 5px 9px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #f2f6ff;
 }
 
 .planName {
@@ -5613,6 +5645,12 @@ body[data-theme="light"] {
 .planMeta {
   margin: 0;
   color: #a9b7d6;
+  font-size: 0.8rem;
+}
+
+.planSubmeta {
+  margin: 8px 0 0;
+  color: #d5def1;
   font-size: 0.8rem;
 }
 
@@ -7210,6 +7248,7 @@ body[data-theme="light"] {
   border-top-color: rgba(111, 122, 150, 0.14);
 }
 
+.feedbackInput,
 .feedbackSelect,
 .feedbackTextarea {
   width: 100%;

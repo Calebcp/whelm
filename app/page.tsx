@@ -42,7 +42,7 @@ import WhelmRitualScene from "@/components/WhelmRitualScene";
 import CardsTab from "@/components/CardsTab";
 import XPPopAnimation, { type XPPop } from "@/components/XPPopAnimation";
 import WhelToastContainer, { useToasts } from "@/components/WhelToast";
-import { createCard, loadCards, saveCards } from "@/lib/cards-store";
+import { createCard, loadCards, normalizeCards, readLocalCards, saveCards } from "@/lib/cards-store";
 import {
   trackAppOpened,
   trackStreakUpdated,
@@ -53,12 +53,15 @@ import { getCalendarToneMeta, type CalendarTone } from "@/lib/calendar-tones";
 import { auth, db, storage } from "@/lib/firebase";
 import {
   type WorkspaceNote,
+  mergeNotesPreferNewest,
+  saveNotes,
 } from "@/lib/notes-store";
 import {
   type PreferencesBackgroundSetting,
   type PreferencesBackgroundSkin,
+  savePreferences,
 } from "@/lib/preferences-store";
-import { loadSessions } from "@/lib/session-store";
+import { dedupeSessions, loadSessions, saveSessionsLocally, syncMissingSessionsToCloud } from "@/lib/session-store";
 import {
   clearLocalAccountData,
   loadDayTones,
@@ -86,6 +89,10 @@ import { subscribeToUserData } from "@/lib/firestore-sync";
 import { logClientRuntime } from "@/lib/client-runtime";
 import type { AppTab } from "@/lib/app-tabs";
 import { monthKeyLocal } from "@/lib/date-utils";
+import { buildWhelmArchive, parseWhelmArchive, saveWhelmArchive } from "@/lib/whelm-archive";
+import { WHELM_PRO_NAME } from "@/lib/whelm-plans";
+import { mergeBlocksPreferNewest, savePlannedBlocks } from "@/lib/planned-blocks-store";
+import { saveReflectionState } from "@/lib/reflection-store";
 import {
   buildDayXpSummaryForDate,
   doesDateQualifyForStreak,
@@ -275,7 +282,7 @@ const MIN_PLANNED_BLOCK_GAP_MINUTES = 15;
 
 const WHELM_BRAND_THESIS = "Whelm is where productivity becomes a standard, not a mood.";
 const WHELM_PRO_POSITIONING =
-  "Whelm Pro is the full version of the system: deeper reports, longer memory, stronger personalization, a cleaner command center, and of course more animated PRO WHELMS!";
+  "Whelm Pro unlocks unlimited history, full customization, and the deeper version of the Whelm system.";
 const STREAK_MIRROR_MIN_WORDS = 33;
 const STREAK_SAVE_MONTHLY_LIMIT = 5;
 const STREAK_SAVE_ACCOUNTABILITY_QUESTIONS = [
@@ -1425,10 +1432,19 @@ export default function HomePage() {
     protocol: false,
     appearance: false,
     background: false,
+    archive: false,
     sync: false,
     screenTime: false,
     danger: false,
   });
+  const [archiveExportBusy, setArchiveExportBusy] = useState(false);
+  const [archiveExportStatus, setArchiveExportStatus] = useState("");
+  const [archiveImportBusy, setArchiveImportBusy] = useState(false);
+  const archiveImportInputRef = useRef<HTMLInputElement | null>(null);
+  const [pendingArchiveImport, setPendingArchiveImport] = useState<{
+    fileName: string;
+    archive: ReturnType<typeof buildWhelmArchive>;
+  } | null>(null);
   const [reportsSectionsOpen, setReportsSectionsOpen] = useState({
     score: false,
     insights: false,
@@ -1480,6 +1496,8 @@ export default function HomePage() {
     setPaywallOpen,
     isPro,
     proSource,
+    subscriptionBusy,
+    subscriptionStatus,
     proPanelsOpen,
     setProPanelsOpen,
     screenTimeStatus,
@@ -1490,8 +1508,8 @@ export default function HomePage() {
     accountDangerStatus,
     accountStateHydrated,
     submitFeedback,
-    handleRestoreFreeTier,
     handleStartProPreview,
+    handleRestorePurchases,
     handleRequestScreenTimeAuth,
     handleOpenScreenTimeSettings,
     handleDeleteAccount,
@@ -1865,6 +1883,235 @@ export default function HomePage() {
     showToast,
   });
 
+  const handleExportArchive = useCallback(async () => {
+    if (!user || archiveExportBusy) return;
+    if (!isPro) {
+      setArchiveExportStatus("Whelm Pro is required for full archive export.");
+      return;
+    }
+
+    setArchiveExportBusy(true);
+    setArchiveExportStatus("");
+
+    try {
+      const archive = buildWhelmArchive({
+        account: {
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName ?? profileDisplayName ?? null,
+          createdAtISO: currentUserCreatedAtISO,
+          tier: WHELM_PRO_NAME,
+        },
+        preferences: {
+          themeMode,
+          companionStyle,
+          backgroundSetting: appBackgroundSetting,
+          backgroundSkin,
+          proState: {
+            isPro,
+            source: proSource,
+          },
+        },
+        notes,
+        plannedBlocks,
+        sessions,
+        cards: readLocalCards(user.uid),
+        reflection: {
+          mirrorEntries: streakMirrorEntries,
+          sickDaySaves,
+          sickDaySaveDismissals,
+        },
+        calendarTones: {
+          days: dayTones,
+          months: monthTones,
+        },
+        streak: {
+          current: streak,
+          qualifiedDateKeys: streakQualifiedDateKeys,
+          lifetimeXpSummary,
+        },
+      });
+
+      const result = await saveWhelmArchive(archive);
+      setArchiveExportStatus(
+        result === "shared"
+          ? "Whelm archive ready to share."
+          : "Whelm archive downloaded.",
+      );
+      showToast(
+        result === "shared" ? "Archive ready to share." : "Archive downloaded.",
+        "success",
+      );
+    } catch (error: unknown) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        setArchiveExportStatus("Archive export cancelled.");
+      } else {
+        setArchiveExportStatus(
+          error instanceof Error ? error.message : "Unable to export Whelm archive.",
+        );
+      }
+    } finally {
+      setArchiveExportBusy(false);
+    }
+  }, [
+    appBackgroundSetting,
+    archiveExportBusy,
+    backgroundSkin,
+    companionStyle,
+    currentUserCreatedAtISO,
+    dayTones,
+    isPro,
+    lifetimeXpSummary,
+    monthTones,
+    notes,
+    plannedBlocks,
+    profileDisplayName,
+    proSource,
+    sessions,
+    showToast,
+    sickDaySaveDismissals,
+    sickDaySaves,
+    streak,
+    streakMirrorEntries,
+    streakQualifiedDateKeys,
+    themeMode,
+    user,
+  ]);
+
+  const handleImportArchive = useCallback(async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file || !user || archiveImportBusy) return;
+    if (!isPro) {
+      setArchiveExportStatus("Whelm Pro is required for archive restore.");
+      return;
+    }
+
+    try {
+      const fileName = file.name.toLowerCase();
+      if (!fileName.endsWith(".json")) {
+        throw new Error("Whelm archive imports must use a .json file.");
+      }
+      if (file.size <= 0) {
+        throw new Error("This archive file is empty.");
+      }
+      if (file.size > 15 * 1024 * 1024) {
+        throw new Error("This archive file is too large to import on this screen.");
+      }
+
+      const raw = await file.text();
+      const archive = parseWhelmArchive(raw);
+      setPendingArchiveImport({
+        fileName: file.name,
+        archive,
+      });
+      setArchiveExportStatus("Archive loaded. Review it below, then confirm the merge.");
+    } catch (error: unknown) {
+      setArchiveExportStatus(
+        error instanceof Error ? error.message : "Unable to import Whelm archive.",
+      );
+    }
+  }, [
+    archiveImportBusy,
+    isPro,
+    user,
+  ]);
+
+  const handleConfirmArchiveImport = useCallback(async () => {
+    if (!user || !pendingArchiveImport || archiveImportBusy) return;
+
+    setArchiveImportBusy(true);
+    setArchiveExportStatus("");
+
+    try {
+      const { archive } = pendingArchiveImport;
+      const mergedNotes = mergeNotesPreferNewest(notes, archive.notes);
+      const mergedPlannedBlocks = mergeBlocksPreferNewest(plannedBlocks, archive.plannedBlocks);
+      const mergedSessions = dedupeSessions([...sessions, ...archive.sessions]);
+      const mergedCards = normalizeCards([...readLocalCards(user.uid), ...archive.cards]);
+      const mergedPlannedBlocksForState = mergedPlannedBlocks.map((block) => ({
+        ...block,
+        tone: block.tone && getCalendarToneMeta(block.tone as CalendarTone)
+          ? (block.tone as CalendarTone)
+          : undefined,
+      }));
+      const mergedMirrorEntries = [...archive.reflection.mirrorEntries, ...streakMirrorEntries]
+        .sort((a, b) => (a.updatedAtISO < b.updatedAtISO ? 1 : -1))
+        .filter((entry, index, list) => list.findIndex((candidate) => candidate.id === entry.id) === index);
+      const mergedSickDaySaves = [...archive.reflection.sickDaySaves, ...sickDaySaves]
+        .sort((a, b) => (a.claimedAtISO < b.claimedAtISO ? 1 : -1))
+        .filter((entry, index, list) => list.findIndex((candidate) => candidate.id === entry.id) === index);
+      const mergedSickDayDismissals = [...new Set([...sickDaySaveDismissals, ...archive.reflection.sickDaySaveDismissals])];
+      const mergedDayTones = { ...dayTones, ...archive.calendarTones.days };
+      const mergedMonthTones = { ...monthTones, ...archive.calendarTones.months };
+      const mergedPreferences = {
+        ...archive.preferences,
+        proState: {
+          isPro,
+          source: proSource,
+        },
+      };
+
+      await Promise.all([
+        saveNotes(user, mergedNotes),
+        savePlannedBlocks(user, mergedPlannedBlocks),
+        savePreferences(user, mergedPreferences),
+        saveReflectionState(user, {
+          mirrorEntries: mergedMirrorEntries,
+          sickDaySaves: mergedSickDaySaves,
+          sickDaySaveDismissals: mergedSickDayDismissals,
+        }),
+        saveCards(user.uid, mergedCards),
+        syncMissingSessionsToCloud(user, mergedSessions),
+      ]);
+
+      setNotes(mergedNotes);
+      setPlannedBlocks(mergedPlannedBlocksForState);
+      setSessions(mergedSessions);
+      saveSessionsLocally(user.uid, mergedSessions);
+      applyPreferencesSnapshot(mergedPreferences);
+      handleReflectionSnapshot({
+        mirrorEntries: mergedMirrorEntries,
+        sickDaySaves: mergedSickDaySaves,
+        sickDaySaveDismissals: mergedSickDayDismissals,
+      });
+      saveDayTones(user.uid, mergedDayTones);
+      saveMonthTones(user.uid, mergedMonthTones);
+      setDayTones(mergedDayTones);
+      setMonthTones(mergedMonthTones);
+      setPendingArchiveImport(null);
+
+      setArchiveExportStatus("Whelm archive imported and merged into this account.");
+      showToast("Archive imported.", "success");
+    } catch (error: unknown) {
+      setArchiveExportStatus(
+        error instanceof Error ? error.message : "Unable to import Whelm archive.",
+      );
+    } finally {
+      setArchiveImportBusy(false);
+    }
+  }, [
+    applyPreferencesSnapshot,
+    archiveImportBusy,
+    dayTones,
+    handleReflectionSnapshot,
+    isPro,
+    monthTones,
+    notes,
+    pendingArchiveImport,
+    plannedBlocks,
+    proSource,
+    sessions,
+    setNotes,
+    setPlannedBlocks,
+    setSessions,
+    showToast,
+    sickDaySaveDismissals,
+    sickDaySaves,
+    streakMirrorEntries,
+    user,
+  ]);
+
   const {
     streakCalendarCursor,
     setStreakCalendarCursor,
@@ -1917,6 +2164,10 @@ export default function HomePage() {
   }, [clearPendingXpPop, pendingXpPop, triggerXPPop]);
 
   const {
+    historySearch,
+    setHistorySearch,
+    historyWindow,
+    setHistoryWindow,
     historySectionsOpen,
     historyGroupsOpen,
     sessionHistoryGroups,
@@ -1993,6 +2244,7 @@ export default function HomePage() {
     analyticsLeadNotification,
   } = useReportsAnalytics({
     user,
+    isPro,
     activeTab,
     focusMetrics,
     notes,
@@ -3183,6 +3435,10 @@ export default function HomePage() {
               bandanaColor={bandanaColor}
               sectionRef={historySectionRef}
               primaryRef={historyPrimaryRef}
+              historySearch={historySearch}
+              onSetHistorySearch={setHistorySearch}
+              historyWindow={historyWindow}
+              onSetHistoryWindow={setHistoryWindow}
               plannedBlockHistory={plannedBlockHistory}
               historySectionsOpen={historySectionsOpen}
               onToggleHistorySection={toggleHistorySection}
@@ -3305,7 +3561,9 @@ export default function HomePage() {
               }}
               onReplayTutorial={startOnboarding}
               onStartProPreview={() => void handleStartProPreview()}
-              onRestoreFreeTier={() => void handleRestoreFreeTier()}
+              onRestorePurchases={() => void handleRestorePurchases()}
+              subscriptionBusy={subscriptionBusy}
+              subscriptionStatus={subscriptionStatus}
               onSignOut={() => void handleSignOut()}
               onApplyCompanionStyle={applyCompanionStyle}
               onApplyThemeMode={applyThemeMode}
@@ -3319,6 +3577,33 @@ export default function HomePage() {
               onToggleProBackgroundPanel={() =>
                 setProPanelsOpen((current) => ({ ...current, background: !current.background }))
               }
+              archiveExportBusy={archiveExportBusy}
+              archiveExportStatus={archiveExportStatus}
+              onExportArchive={() => void handleExportArchive()}
+              archiveImportBusy={archiveImportBusy}
+              archiveImportInputRef={archiveImportInputRef}
+              onImportArchive={handleImportArchive}
+              pendingArchiveImport={
+                pendingArchiveImport
+                  ? {
+                      fileName: pendingArchiveImport.fileName,
+                      version: pendingArchiveImport.archive.version,
+                      tier: pendingArchiveImport.archive.account.tier,
+                      exportedAtISO: pendingArchiveImport.archive.exportedAtISO,
+                      notes: pendingArchiveImport.archive.summary.notes,
+                      plannedBlocks: pendingArchiveImport.archive.summary.plannedBlocks,
+                      sessions: pendingArchiveImport.archive.summary.sessions,
+                      cards: pendingArchiveImport.archive.summary.cards,
+                      mirrorEntries: pendingArchiveImport.archive.summary.mirrorEntries,
+                      sickDaySaves: pendingArchiveImport.archive.summary.sickDaySaves,
+                    }
+                  : null
+              }
+              onConfirmArchiveImport={() => void handleConfirmArchiveImport()}
+              onCancelArchiveImport={() => {
+                setPendingArchiveImport(null);
+                setArchiveExportStatus("Archive import cancelled.");
+              }}
               notesSyncStatus={notesSyncStatus}
               notesSyncMessage={notesSyncMessage}
               onRetrySync={() => void handleRetrySync()}
@@ -3537,7 +3822,14 @@ export default function HomePage() {
         onStreakNudgeAction={handleStreakNudgeAction}
       />
 
-      <PaywallModal open={paywallOpen} onClose={() => setPaywallOpen(false)} />
+      <PaywallModal
+        open={paywallOpen}
+        userId={user.uid}
+        isPro={isPro}
+        subscriptionStatus={subscriptionStatus}
+        onClose={() => setPaywallOpen(false)}
+        onRestorePurchases={() => void handleRestorePurchases()}
+      />
 
       <KpiDetailModal
         openKey={kpiDetailOpen}

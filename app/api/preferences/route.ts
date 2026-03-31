@@ -76,7 +76,7 @@ function normalizePreferences(payload: Partial<PreferencesPayload>) {
       imageFit: backgroundSkin?.imageFit === "fill" ? "fill" : "fit",
     },
     proState: {
-      isPro: typeof proState?.isPro === "boolean" ? proState.isPro : true,
+      isPro: typeof proState?.isPro === "boolean" ? proState.isPro : false,
       source: proState?.source === "store" || proState?.source === "preview" ? proState.source : "none",
     },
   };

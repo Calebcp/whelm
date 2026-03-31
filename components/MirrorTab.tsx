@@ -6,11 +6,12 @@ import styles from "@/app/page.module.css";
 import AnimatedTabSection from "@/components/AnimatedTabSection";
 import CollapsibleSectionCard from "@/components/CollapsibleSectionCard";
 import ProUnlockCard from "@/components/ProUnlockCard";
+import { WHELM_PRO_NAME, WHELM_STANDARD_NAME } from "@/lib/whelm-plans";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const WHELM_PRO_POSITIONING =
-  "Whelm Pro is the full version of the system: deeper reports, longer memory, stronger personalization, a cleaner command center, and of course more animated PRO WHELMS!";
+  "Whelm Pro keeps the full reflection archive available so patterns stay readable over time.";
 
 const STREAK_SAVE_ACCOUNTABILITY_QUESTIONS = [
   "What honestly pulled you off track yesterday?",
@@ -150,7 +151,7 @@ export default function MirrorTab({
               ? "When a streak save is used, the reflection is stored here as a private mirror entry."
               : isPro
                 ? "Every saved mirror entry stays available here."
-                : "Whelm Free keeps your 2 most recent mirror entries visible. Whelm Pro keeps the full archive available."
+                : `${WHELM_STANDARD_NAME} keeps your 2 most recent mirror entries visible. ${WHELM_PRO_NAME} keeps the full archive available.`
           }
           open={mirrorSectionsOpen.entries}
           onToggle={() => onToggleMirrorSection("entries")}
@@ -194,7 +195,7 @@ export default function MirrorTab({
           {!isPro && streakMirrorEntries.length > 2 ? (
             <ProUnlockCard
               title="Full Streak Mirror archive"
-              body={`${WHELM_PRO_POSITIONING} Whelm Free keeps the 2 most recent mirror reflections visible. Whelm Pro keeps the full archive so patterns stay easy to trace.`}
+              body={`${WHELM_PRO_POSITIONING} ${WHELM_STANDARD_NAME} keeps the 2 most recent mirror reflections visible. ${WHELM_PRO_NAME} keeps the full archive so patterns stay easy to trace.`}
               open={proPanelMirrorOpen}
               onToggle={onToggleProMirrorPanel}
               onPreview={onStartProPreview}

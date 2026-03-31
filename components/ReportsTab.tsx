@@ -12,9 +12,10 @@ import WhelmEmote from "@/components/WhelmEmote";
 import type { SenseiVariant } from "@/components/SenseiFigure";
 import type { WhelBandanaColor } from "@/lib/whelm-mascot";
 import type { PerformanceNotificationPlan } from "@/lib/performance-notifications";
+import { WHELM_PRO_NAME, WHELM_STANDARD_NAME } from "@/lib/whelm-plans";
 
 const WHELM_PRO_POSITIONING =
-  "Whelm Pro is the full version of the system: deeper reports, longer memory, stronger personalization, a cleaner command center, and of course more animated PRO WHELMS!";
+  "Whelm Pro adds advanced reports, longer memory, and the deeper version of the Whelm command system.";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -201,7 +202,7 @@ export default function ReportsTab({
                 <p className={styles.sectionLabel}>Focus Readout</p>
                 <h2 className={styles.cardTitle}>Core focus picture</h2>
                 <p className={styles.accountMeta}>
-                  Whelm Free keeps this simple. Whelm Pro opens the deeper command readout.
+                  {WHELM_STANDARD_NAME} keeps this simple. {WHELM_PRO_NAME} opens the deeper command readout.
                 </p>
               </div>
             </div>
@@ -229,11 +230,11 @@ export default function ReportsTab({
             </div>
           </article>
           <article className={styles.card}>
-            <p className={styles.sectionLabel}>Whelm Pro</p>
-            <h2 className={styles.cardTitle}>Advanced reports belong to Whelm Pro</h2>
+            <p className={styles.sectionLabel}>{WHELM_PRO_NAME}</p>
+            <h2 className={styles.cardTitle}>Advanced reports belong to {WHELM_PRO_NAME}</h2>
             <ProUnlockCard
               title="Unlock score history, insight feed, best hours, and subject analysis"
-              body={`${WHELM_PRO_POSITIONING} Whelm Pro opens the full reports suite: performance score history, quality and completion analytics, focus windows, insights, and deeper breakdowns.`}
+              body={`${WHELM_PRO_POSITIONING} ${WHELM_STANDARD_NAME} keeps the core readout simple. ${WHELM_PRO_NAME} opens score history, quality and completion analytics, best hours, and deeper breakdowns.`}
               open={proPanelReportsOpen}
               onToggle={onToggleProReportsPanel}
               onPreview={onStartProPreview}

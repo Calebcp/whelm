@@ -87,6 +87,7 @@ export type BestFocusHoursSummary = {
 
 type UseReportsAnalyticsOptions = {
   user: User | null;
+  isPro: boolean;
   activeTab: string;
   focusMetrics: { weekMinutes: number; todayMinutes: number; todaySessions: number; disciplineScore: number; activeDaysInMonth: number };
   notes: Array<{ updatedAtISO: string; reminderAtISO?: string | null }>;
@@ -98,6 +99,7 @@ type UseReportsAnalyticsOptions = {
 
 export function useReportsAnalytics({
   user,
+  isPro,
   activeTab,
   focusMetrics,
   notes,
@@ -179,7 +181,16 @@ export function useReportsAnalytics({
   }, [analyticsDailySummary]);
 
   useEffect(() => {
-    if (!user || activeTab !== "reports") return;
+    if (!user || activeTab !== "reports" || !isPro) {
+      setAnalyticsLoading(false);
+      setAnalyticsError("");
+      setAnalyticsWeeklySummary(null);
+      setAnalyticsDailySummary(null);
+      setAnalyticsInsights([]);
+      setAnalyticsBestHours(null);
+      setAnalyticsScoreHistory([]);
+      return;
+    }
 
     let cancelled = false;
     const currentUser = user;
@@ -252,16 +263,16 @@ export function useReportsAnalytics({
     return () => {
       cancelled = true;
     };
-  }, [activeTab, analyticsDateRange.endDate, analyticsDateRange.startDate, user]);
+  }, [activeTab, analyticsDateRange.endDate, analyticsDateRange.startDate, isPro, user]);
 
   useEffect(() => {
-    if (activeTab !== "reports") return;
+    if (activeTab !== "reports" || !isPro) return;
     const topInsight = analyticsInsights[0];
     if (!topInsight) return;
     if (reportsInsightToastRef.current === topInsight.title) return;
     reportsInsightToastRef.current = topInsight.title;
     setSenseiReaction(topInsight.body);
-  }, [activeTab, analyticsInsights, setSenseiReaction]);
+  }, [activeTab, analyticsInsights, isPro, setSenseiReaction]);
 
   const copyWeeklyReport = useCallback(async () => {
     const userLabel = user?.displayName || user?.email || "Whelm user";

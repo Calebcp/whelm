@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import styles from "@/app/page.module.css";
 import { CALENDAR_TONES, getCalendarToneStyle, type CalendarTone } from "@/lib/calendar-tones";
+import { STANDARD_CALENDAR_TONES, WHELM_PRO_NAME, WHELM_STANDARD_NAME } from "@/lib/whelm-plans";
 
 export default function CalendarTonePicker({
   label,
@@ -22,6 +23,9 @@ export default function CalendarTonePicker({
 
   const [open, setOpen] = useState(false);
   const selectedToneStyle = getCalendarToneStyle(selectedTone);
+  const visibleTones = isPro
+    ? CALENDAR_TONES
+    : CALENDAR_TONES.filter((tone) => STANDARD_CALENDAR_TONES.includes(tone.value));
 
   return (
     <div className={`${styles.calendarTonePanel} ${open ? styles.calendarTonePanelOpen : ""}`}>
@@ -47,8 +51,8 @@ export default function CalendarTonePicker({
           </span>
         </span>
       </button>
-      {open &&
-        (isPro ? (
+      {open && (
+        <div className={styles.calendarToneLockedPreview}>
           <div className={styles.calendarToneSwatchRow}>
             <button
               type="button"
@@ -61,7 +65,7 @@ export default function CalendarTonePicker({
             >
               <span>Off</span>
             </button>
-            {CALENDAR_TONES.map((tone) => (
+            {visibleTones.map((tone) => (
               <button
                 key={tone.value}
                 type="button"
@@ -77,46 +81,33 @@ export default function CalendarTonePicker({
               </button>
             ))}
           </div>
-        ) : (
-          <div className={styles.calendarToneLockedPreview}>
-            <div className={styles.calendarToneLockedSwatchGrid}>
-              {CALENDAR_TONES.map((tone) => (
-                <button
-                  key={tone.value}
-                  type="button"
-                  className={styles.calendarToneLockedSwatch}
-                  style={getCalendarToneStyle(tone.value)}
-                  onClick={onUpgrade}
-                  aria-label={`Preview ${tone.value.toLowerCase()} tone in Whelm Pro`}
-                >
-                  <span className={styles.calendarToneLockedSwatchFill} />
-                  <small>{tone.value}</small>
-                </button>
-              ))}
-            </div>
-            <button
-              type="button"
-              className={styles.calendarToneLockedCard}
-              style={getCalendarToneStyle(selectedTone ?? CALENDAR_TONES[0].value)}
-              onClick={onUpgrade}
-            >
-              <div className={styles.calendarToneLockedCardHead}>
-                <span>{label}</span>
-                <strong>{selectedTone ?? CALENDAR_TONES[0].value}</strong>
-              </div>
-              <div className={styles.calendarToneLockedCardPreview}>
-                <div className={styles.calendarToneLockedCardTime}>9:00 AM</div>
-                <div>
-                  <strong>Deep focus block</strong>
-                  <small>See how premium tone styling lands inside the planner.</small>
+          {!isPro ? (
+            <>
+              <button
+                type="button"
+                className={styles.calendarToneLockedCard}
+                style={getCalendarToneStyle(selectedTone ?? CALENDAR_TONES[0].value)}
+                onClick={onUpgrade}
+              >
+                <div className={styles.calendarToneLockedCardHead}>
+                  <span>{label}</span>
+                  <strong>{WHELM_PRO_NAME} unlocks the full tone set</strong>
                 </div>
-              </div>
-            </button>
-            <button type="button" className={styles.inlineUpgrade} onClick={onUpgrade}>
-              Enter Whelm Pro Preview
-            </button>
-          </div>
-        ))}
+                <div className={styles.calendarToneLockedCardPreview}>
+                  <div className={styles.calendarToneLockedCardTime}>9:00 AM</div>
+                  <div>
+                    <strong>Push, Sharp, and Recover stay in {WHELM_PRO_NAME}.</strong>
+                    <small>{WHELM_STANDARD_NAME} keeps a smaller planning palette.</small>
+                  </div>
+                </div>
+              </button>
+              <button type="button" className={styles.inlineUpgrade} onClick={onUpgrade}>
+                Upgrade to {WHELM_PRO_NAME}
+              </button>
+            </>
+          ) : null}
+        </div>
+      )}
     </div>
   );
 }

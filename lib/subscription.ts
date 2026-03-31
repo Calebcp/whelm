@@ -9,16 +9,16 @@ export type ProState = {
 
 function readFromStorage(): ProState {
   if (typeof window === "undefined") {
-    return { isPro: true, source: "preview" };
+    return { isPro: false, source: "none" };
   }
 
   let raw: string | null = null;
   try {
     raw = window.localStorage.getItem(PRO_STATE_KEY);
   } catch {
-    return { isPro: true, source: "preview" };
+    return { isPro: false, source: "none" };
   }
-  if (!raw) return { isPro: true, source: "preview" };
+  if (!raw) return { isPro: false, source: "none" };
 
   try {
     const parsed = JSON.parse(raw) as Partial<ProState>;
@@ -27,7 +27,7 @@ function readFromStorage(): ProState {
       source: parsed.source === "store" || parsed.source === "preview" ? parsed.source : "none",
     };
   } catch {
-    return { isPro: true, source: "preview" };
+    return { isPro: false, source: "none" };
   }
 }
 

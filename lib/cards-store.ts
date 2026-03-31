@@ -140,7 +140,7 @@ export function normalizeCards(cards: WhelCard[]) {
   return [...merged.values()].sort((left, right) => left.createdAt - right.createdAt);
 }
 
-function readLocalCards(uid: string) {
+export function readLocalCards(uid: string) {
   try {
     const raw = window.localStorage.getItem(storageKey(uid)) ?? window.localStorage.getItem(legacyStorageKey(uid));
     const parsed = raw ? (JSON.parse(raw) as WhelCard[]) : [];

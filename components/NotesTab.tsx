@@ -17,12 +17,18 @@ import SenseiFigure from "@/components/SenseiFigure";
 import { countWords } from "@/lib/date-utils";
 import { type WorkspaceNote, type NoteAttachment } from "@/lib/notes-store";
 import { type StreakBandanaTier } from "@/lib/streak-bandanas";
+import {
+  STANDARD_NOTE_COLOR_VALUES,
+  WHELM_PRO_NAME,
+  WHELM_STANDARD_HISTORY_DAYS,
+  WHELM_STANDARD_NAME,
+} from "@/lib/whelm-plans";
 import { type WhelBandanaColor } from "@/lib/whelm-mascot";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const WHELM_PRO_POSITIONING =
-  "Whelm Pro is the full version of the system: deeper reports, longer memory, stronger personalization, a cleaner command center, and of course more animated PRO WHELMS!";
+  "Whelm Pro adds unlimited history, full note customization, and the deeper version of the Whelm writing system.";
 
 const NOTE_COLORS: Array<{ label: string; value: string }> = [
   { label: "Porcelain", value: "#f8fafc" },
@@ -46,6 +52,10 @@ const NOTE_COLORS: Array<{ label: string; value: string }> = [
   { label: "Lavender", value: "#ddd6fe" },
   { label: "Orchid", value: "#f5d0fe" },
 ];
+
+const STANDARD_NOTE_COLORS = NOTE_COLORS.filter((color) =>
+  STANDARD_NOTE_COLOR_VALUES.includes(color.value as (typeof STANDARD_NOTE_COLOR_VALUES)[number]),
+);
 
 const NOTE_FONTS = [
   { label: "Avenir", value: "Avenir Next, Avenir, sans-serif" },
@@ -726,8 +736,8 @@ export default function NotesTab({
                     </h2>
                   </div>
                   <div className={sharedStyles.noteFooterActions}>
-                    {isPro ? (
-                      <div className={styles.noteToneControlRow}>
+                    <div className={styles.noteToneControlRow}>
+                      {isPro ? (
                         <div className={styles.noteFillModeSwitch}>
                           <button
                             type="button"
@@ -748,48 +758,50 @@ export default function NotesTab({
                             Airy
                           </button>
                         </div>
-                        <div className={styles.noteTonePopoverAnchor}>
-                          <button
-                            type="button"
-                            className={`${styles.noteColorPickerTrigger} ${styles.noteToneButton}`}
-                            style={
-                              { ["--note-tone-color" as const]: selectedNote.color || "#e7e5e4" } as CSSProperties
-                            }
-                            onClick={() => {
-                              onSetColorPickerOpen((open) => !open);
-                              onSetShellColorPickerOpen(false);
-                              onSetTextColorPickerOpen(false);
-                              onSetHighlightPickerOpen(false);
-                            }}
-                          >
-                            <span className={styles.noteToneButtonLabel}>Page tone</span>
-                            <span className={styles.noteColorPickerPreview}>
-                              <span
-                                className={styles.noteColorPickerPreviewFill}
-                                style={{ backgroundColor: selectedNote.color || "#e7e5e4" }}
+                      ) : null}
+                      <div className={styles.noteTonePopoverAnchor}>
+                        <button
+                          type="button"
+                          className={`${styles.noteColorPickerTrigger} ${styles.noteToneButton}`}
+                          style={
+                            { ["--note-tone-color" as const]: selectedNote.color || "#e7e5e4" } as CSSProperties
+                          }
+                          onClick={() => {
+                            onSetColorPickerOpen((open) => !open);
+                            onSetShellColorPickerOpen(false);
+                            onSetTextColorPickerOpen(false);
+                            onSetHighlightPickerOpen(false);
+                          }}
+                        >
+                          <span className={styles.noteToneButtonLabel}>Page tone</span>
+                          <span className={styles.noteColorPickerPreview}>
+                            <span
+                              className={styles.noteColorPickerPreviewFill}
+                              style={{ backgroundColor: selectedNote.color || "#e7e5e4" }}
+                            />
+                          </span>
+                        </button>
+                        {colorPickerOpen && (
+                          <div className={styles.noteColorPickerPopover}>
+                            {(isPro ? NOTE_COLORS : STANDARD_NOTE_COLORS).map((color) => (
+                              <button
+                                type="button"
+                                key={color.value}
+                                className={`${styles.noteColorSwatch} ${
+                                  selectedNote.color === color.value ? styles.noteColorSwatchActive : ""
+                                }`}
+                                style={{ backgroundColor: color.value }}
+                                title={color.label}
+                                onClick={() => {
+                                  void onUpdateSelectedNote({ color: color.value });
+                                  onSetColorPickerOpen(false);
+                                }}
                               />
-                            </span>
-                          </button>
-                          {isPro && colorPickerOpen && (
-                            <div className={styles.noteColorPickerPopover}>
-                              {NOTE_COLORS.map((color) => (
-                                <button
-                                  type="button"
-                                  key={color.value}
-                                  className={`${styles.noteColorSwatch} ${
-                                    selectedNote.color === color.value ? styles.noteColorSwatchActive : ""
-                                  }`}
-                                  style={{ backgroundColor: color.value }}
-                                  title={color.label}
-                                  onClick={() => {
-                                    void onUpdateSelectedNote({ color: color.value });
-                                    onSetColorPickerOpen(false);
-                                  }}
-                                />
-                              ))}
-                            </div>
-                          )}
-                        </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      {isPro ? (
                         <div className={styles.noteTonePopoverAnchor}>
                           <button
                             type="button"
@@ -832,8 +844,8 @@ export default function NotesTab({
                             </div>
                           )}
                         </div>
-                      </div>
-                    ) : null}
+                      ) : null}
+                    </div>
                     <button
                       type="button"
                       className={`${sharedStyles.secondaryPlanButton} ${styles.noteDoneButton}`}
@@ -1068,8 +1080,8 @@ export default function NotesTab({
                 )}
                 {!isPro ? (
                   <ProUnlockCard
-                    title="Note colors and fonts"
-                    body={`${WHELM_PRO_POSITIONING} Custom page tones, font families, text colors, highlights, and visual note styling live inside Whelm Pro.`}
+                    title="Full note styling"
+                    body={`${WHELM_STANDARD_NAME} keeps a focused page-tone palette. ${WHELM_PRO_NAME} adds notebook color, surface styling, custom fonts, text colors, and highlights.`}
                     open={proPanelNotesOpen}
                     onToggle={onToggleProNotesPanel}
                     onPreview={onStartProPreview}
@@ -1290,18 +1302,12 @@ export default function NotesTab({
                   onChange={(event) =>
                     onSetNotesCategoryFilter(event.target.value as "all" | NoteCategory)
                   }
-                  disabled={!isPro}
                 >
                   <option value="all">All categories</option>
                   <option value="personal">Personal</option>
                   <option value="school">School</option>
                   <option value="work">Work</option>
                 </select>
-                {!isPro && (
-                  <button type="button" className={sharedStyles.inlineUpgrade} onClick={onOpenUpgradeFlow}>
-                    Upgrade to Whelm Pro
-                  </button>
-                )}
               </div>
               <div className={styles.noteList}>
                 {filteredNotes.map((note) => (
@@ -1369,8 +1375,8 @@ export default function NotesTab({
               </div>
               {!isPro && hasLockedNotesHistory ? (
                 <p className={sharedStyles.accountMeta}>
-                  Whelm Free keeps the last 14 days of notes visible. Whelm Pro keeps the older archive ready
-                  whenever you want it back.
+                  {WHELM_STANDARD_NAME} keeps the last {WHELM_STANDARD_HISTORY_DAYS} days of notes visible.
+                  {` ${WHELM_PRO_NAME} keeps the older archive ready whenever you want it back.`}
                 </p>
               ) : null}
             </motion.aside>
@@ -1416,9 +1422,8 @@ export default function NotesTab({
                       </p>
                     </div>
                     <div className={styles.noteColorRow}>
-                      {isPro ? (
-                        <>
-                          <div className={styles.noteToneControlRow}>
+                      <div className={styles.noteToneControlRow}>
+                        {isPro ? (
                             <div className={styles.noteFillModeSwitch}>
                               <button
                                 type="button"
@@ -1439,48 +1444,50 @@ export default function NotesTab({
                                 Airy
                               </button>
                             </div>
-                            <div className={styles.noteTonePopoverAnchor}>
-                              <button
-                                type="button"
-                                className={`${styles.noteColorPickerTrigger} ${styles.noteToneButton}`}
-                                style={
-                                  { ["--note-tone-color" as const]: selectedNote.color || "#e7e5e4" } as CSSProperties
-                                }
-                                onClick={() => {
-                                  onSetColorPickerOpen((open) => !open);
-                                  onSetShellColorPickerOpen(false);
-                                  onSetTextColorPickerOpen(false);
-                                  onSetHighlightPickerOpen(false);
-                                }}
-                              >
-                                <span className={styles.noteToneButtonLabel}>Page tone</span>
-                                <span className={styles.noteColorPickerPreview}>
-                                  <span
-                                    className={styles.noteColorPickerPreviewFill}
-                                    style={{ backgroundColor: selectedNote.color || "#e7e5e4" }}
-                                  />
-                                </span>
-                              </button>
-                              {colorPickerOpen && (
-                                <div className={styles.noteColorPickerPopover}>
-                                  {NOTE_COLORS.map((color) => (
-                                    <button
-                                      type="button"
-                                      key={color.value}
-                                      className={`${styles.noteColorSwatch} ${
-                                        selectedNote.color === color.value ? styles.noteColorSwatchActive : ""
-                                      }`}
-                                      style={{ backgroundColor: color.value }}
-                                      title={color.label}
-                                      onClick={() => {
-                                        void onUpdateSelectedNote({ color: color.value });
-                                        onSetColorPickerOpen(false);
-                                      }}
-                                    />
-                                  ))}
-                                </div>
-                              )}
+                        ) : null}
+                        <div className={styles.noteTonePopoverAnchor}>
+                          <button
+                            type="button"
+                            className={`${styles.noteColorPickerTrigger} ${styles.noteToneButton}`}
+                            style={
+                              { ["--note-tone-color" as const]: selectedNote.color || "#e7e5e4" } as CSSProperties
+                            }
+                            onClick={() => {
+                              onSetColorPickerOpen((open) => !open);
+                              onSetShellColorPickerOpen(false);
+                              onSetTextColorPickerOpen(false);
+                              onSetHighlightPickerOpen(false);
+                            }}
+                          >
+                            <span className={styles.noteToneButtonLabel}>Page tone</span>
+                            <span className={styles.noteColorPickerPreview}>
+                              <span
+                                className={styles.noteColorPickerPreviewFill}
+                                style={{ backgroundColor: selectedNote.color || "#e7e5e4" }}
+                              />
+                            </span>
+                          </button>
+                          {colorPickerOpen && (
+                            <div className={styles.noteColorPickerPopover}>
+                              {(isPro ? NOTE_COLORS : STANDARD_NOTE_COLORS).map((color) => (
+                                <button
+                                  type="button"
+                                  key={color.value}
+                                  className={`${styles.noteColorSwatch} ${
+                                    selectedNote.color === color.value ? styles.noteColorSwatchActive : ""
+                                  }`}
+                                  style={{ backgroundColor: color.value }}
+                                  title={color.label}
+                                  onClick={() => {
+                                    void onUpdateSelectedNote({ color: color.value });
+                                    onSetColorPickerOpen(false);
+                                  }}
+                                />
+                              ))}
                             </div>
+                          )}
+                        </div>
+                        {isPro ? (
                             <div className={styles.noteTonePopoverAnchor}>
                               <button
                                 type="button"
@@ -1523,12 +1530,12 @@ export default function NotesTab({
                                 </div>
                               )}
                             </div>
-                          </div>
-                        </>
-                      ) : (
+                        ) : null}
+                      </div>
+                      {!isPro ? (
                         <ProUnlockCard
-                          title="Note colors and fonts"
-                          body={`${WHELM_PRO_POSITIONING} Custom page tones, type styling, text colors, and highlights live inside Whelm Pro.`}
+                          title="Full note styling"
+                          body={`${WHELM_STANDARD_NAME} keeps a focused page-tone palette. ${WHELM_PRO_NAME} adds notebook color, surface styling, custom fonts, text colors, and highlights.`}
                           open={proPanelNotesOpen}
                           onToggle={onToggleProNotesPanel}
                           onPreview={onStartProPreview}
@@ -1553,7 +1560,7 @@ export default function NotesTab({
                             </div>
                           }
                         />
-                      )}
+                      ) : null}
                     </div>
                   </div>
 

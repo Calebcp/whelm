@@ -10,9 +10,10 @@ import SenseiFigure from "@/components/SenseiFigure";
 import type { SenseiVariant } from "@/components/SenseiFigure";
 import type { WhelBandanaColor } from "@/lib/whelm-mascot";
 import type { SessionDoc } from "@/lib/streak";
+import { WHELM_PRO_NAME, WHELM_STANDARD_HISTORY_DAYS, WHELM_STANDARD_NAME } from "@/lib/whelm-plans";
 
 const WHELM_PRO_POSITIONING =
-  "Whelm Pro is the full version of the system: deeper reports, longer memory, stronger personalization, a cleaner command center, and of course more animated PRO WHELMS!";
+  "Whelm Pro keeps your full archive available, so older blocks and session history stay part of the system.";
 
 type CompanionPulseData = {
   eyebrow: string;
@@ -67,6 +68,10 @@ export type HistoryTabProps = {
   bandanaColor: WhelBandanaColor;
   sectionRef?: Ref<HTMLElement>;
   primaryRef?: Ref<HTMLElement>;
+  historySearch: string;
+  onSetHistorySearch: (value: string) => void;
+  historyWindow: "all" | 30 | 90;
+  onSetHistoryWindow: (value: "all" | 30 | 90) => void;
   // Block history
   plannedBlockHistory: PlannedBlockHistory;
   historySectionsOpen: HistorySectionsOpen;
@@ -93,6 +98,10 @@ export default function HistoryTab({
   bandanaColor,
   sectionRef,
   primaryRef,
+  historySearch,
+  onSetHistorySearch,
+  historyWindow,
+  onSetHistoryWindow,
   plannedBlockHistory,
   historySectionsOpen,
   onToggleHistorySection,
@@ -113,6 +122,41 @@ export default function HistoryTab({
   return (
     <AnimatedTabSection className={styles.historyShell} sectionRef={sectionRef}>
       <CompanionPulse {...companionPulse} bandanaColor={bandanaColor} />
+      {isPro ? (
+        <article className={styles.card}>
+          <div className={styles.cardHeader}>
+            <div>
+              <p className={styles.sectionLabel}>History Tools</p>
+              <h2 className={styles.cardTitle}>Search the archive</h2>
+              <p className={styles.accountMeta}>
+                {WHELM_PRO_NAME} can search older blocks and session notes across the archive.
+              </p>
+            </div>
+          </div>
+          <div className={styles.feedbackFormStack}>
+            <input
+              value={historySearch}
+              onChange={(event) => onSetHistorySearch(event.target.value)}
+              placeholder="Search history"
+              className={styles.feedbackInput}
+            />
+            <select
+              className={styles.feedbackSelect}
+              value={String(historyWindow)}
+              onChange={(event) => {
+                const nextValue = event.target.value;
+                onSetHistoryWindow(
+                  nextValue === "30" ? 30 : nextValue === "90" ? 90 : "all",
+                );
+              }}
+            >
+              <option value="all">All archive</option>
+              <option value="30">Last 30 days</option>
+              <option value="90">Last 90 days</option>
+            </select>
+          </div>
+        </article>
+      ) : null}
       <article className={styles.card} ref={primaryRef}>
         <p className={styles.sectionLabel}>Block History</p>
         <h2 className={styles.cardTitle}>Completed and incomplete blocks</h2>
@@ -129,7 +173,9 @@ export default function HistoryTab({
             {historySectionsOpen.completed && (
               <div className={styles.planList}>
                 {plannedBlockHistory.completed.length === 0 ? (
-                  <p className={styles.emptyText}>No completed blocks yet.</p>
+                  <p className={styles.emptyText}>
+                    {historySearch ? "No completed blocks match this search." : "No completed blocks yet."}
+                  </p>
                 ) : (
                   plannedBlockHistory.completed.map((item) => (
                     <div key={item.id} className={styles.planItemStatic}>
@@ -168,7 +214,9 @@ export default function HistoryTab({
             {historySectionsOpen.incomplete && (
               <div className={styles.planList}>
                 {plannedBlockHistory.incomplete.length === 0 ? (
-                  <p className={styles.emptyText}>No incomplete blocks yet.</p>
+                  <p className={styles.emptyText}>
+                    {historySearch ? "No incomplete blocks match this search." : "No incomplete blocks yet."}
+                  </p>
                 ) : (
                   plannedBlockHistory.incomplete.map((item) => (
                     <div key={item.id} className={styles.planItemStatic}>
@@ -198,7 +246,7 @@ export default function HistoryTab({
         {!isPro && hasLockedBlockHistory ? (
           <ProUnlockCard
             title="Older block history"
-            body={`${WHELM_PRO_POSITIONING} Whelm Free keeps the last 14 days of block history visible. Whelm Pro keeps the older archive ready whenever you want it back.`}
+            body={`${WHELM_PRO_POSITIONING} ${WHELM_STANDARD_NAME} keeps the last ${WHELM_STANDARD_HISTORY_DAYS} days of block history visible. ${WHELM_PRO_NAME} keeps the older archive ready whenever you want it back.`}
             open={proPanelCalendarOpen}
             onToggle={onToggleProCalendarPanel}
             onPreview={onStartProPreview}
@@ -218,7 +266,7 @@ export default function HistoryTab({
               className={styles.historyEmptySensei}
             />
             <p className={styles.emptyText}>
-              No sessions yet. Start your timer and save your first block.
+              {historySearch ? "No sessions match this search yet." : "No sessions yet. Start your timer and save your first block."}
             </p>
           </div>
         ) : (
@@ -325,7 +373,7 @@ export default function HistoryTab({
         {!isPro && hasLockedHistoryDays ? (
           <ProUnlockCard
             title="Older history"
-            body={`${WHELM_PRO_POSITIONING} Whelm Free keeps the last 14 days visible. Whelm Pro keeps the older month, week, and day archive ready whenever you want it back.`}
+            body={`${WHELM_PRO_POSITIONING} ${WHELM_STANDARD_NAME} keeps the last ${WHELM_STANDARD_HISTORY_DAYS} days visible. ${WHELM_PRO_NAME} keeps the older month, week, and day archive ready whenever you want it back.`}
             open={proPanelHistoryOpen}
             onToggle={onToggleProHistoryPanel}
             onPreview={onStartProPreview}

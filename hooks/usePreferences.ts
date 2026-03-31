@@ -138,6 +138,10 @@ export function usePreferences({
   }, [appBackgroundSetting, backgroundSkin, companionStyle, persistPreferencesState, proState]);
 
   const applyBackgroundSetting = useCallback((nextSetting: PreferencesBackgroundSetting) => {
+    if (!isPro && nextSetting.kind !== "default") {
+      return;
+    }
+
     void persistPreferencesState({
       companionStyle,
       themeMode,
@@ -145,7 +149,7 @@ export function usePreferences({
       backgroundSkin,
       proState,
     });
-  }, [backgroundSkin, companionStyle, persistPreferencesState, proState, themeMode]);
+  }, [backgroundSkin, companionStyle, isPro, persistPreferencesState, proState, themeMode]);
 
   const applyCompanionStyle = useCallback((nextStyle: PreferencesCompanionStyle) => {
     void persistPreferencesState({
@@ -158,6 +162,10 @@ export function usePreferences({
   }, [appBackgroundSetting, backgroundSkin, persistPreferencesState, proState, themeMode]);
 
   const updateBackgroundSkin = useCallback((nextSkin: PreferencesBackgroundSkin) => {
+    if (!isPro) {
+      return;
+    }
+
     void persistPreferencesState({
       companionStyle,
       themeMode,
@@ -165,7 +173,7 @@ export function usePreferences({
       backgroundSkin: nextSkin,
       proState,
     });
-  }, [appBackgroundSetting, companionStyle, persistPreferencesState, proState, themeMode]);
+  }, [appBackgroundSetting, companionStyle, isPro, persistPreferencesState, proState, themeMode]);
 
   const handleBackgroundUpload = useCallback(async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];

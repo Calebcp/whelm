@@ -42,6 +42,8 @@ type HistorySectionsOpen = {
   incomplete: boolean;
 };
 
+type HistoryWindow = "all" | 30 | 90;
+
 type UseHistoryDataOptions = {
   isPro: boolean;
   plannedBlocks: PlannedBlockLike[];
@@ -70,6 +72,36 @@ export function useHistoryData({
     incomplete: false,
   });
   const [historyGroupsOpen, setHistoryGroupsOpen] = useState<Record<string, boolean>>({});
+  const [historySearch, setHistorySearch] = useState("");
+  const [historyWindow, setHistoryWindow] = useState<HistoryWindow>("all");
+
+  const normalizedHistorySearch = historySearch.trim().toLowerCase();
+
+  const proFilteredSessions = useMemo(() => {
+    return sessions.filter((session) => {
+      const withinWindow =
+        historyWindow === "all" ||
+        isDateKeyWithinRecentWindow(dayKeyLocal(session.completedAtISO), historyWindow);
+      if (!withinWindow) return false;
+      if (!normalizedHistorySearch) return true;
+      const note = (session.note ?? "").toLowerCase();
+      return note.includes(normalizedHistorySearch);
+    });
+  }, [historyWindow, isDateKeyWithinRecentWindow, normalizedHistorySearch, sessions]);
+
+  const proFilteredPlannedBlocks = useMemo(() => {
+    return plannedBlocks.filter((item) => {
+      const withinWindow =
+        historyWindow === "all" ||
+        isDateKeyWithinRecentWindow(item.dateKey, historyWindow);
+      if (!withinWindow) return false;
+      if (!normalizedHistorySearch) return true;
+      return (
+        item.title.toLowerCase().includes(normalizedHistorySearch) ||
+        item.note.toLowerCase().includes(normalizedHistorySearch)
+      );
+    });
+  }, [historyWindow, isDateKeyWithinRecentWindow, normalizedHistorySearch, plannedBlocks]);
 
   const sessionHistoryGroups = useMemo<SessionHistoryMonthGroup[]>(() => {
     const grouped = new Map<
@@ -86,7 +118,7 @@ export function useHistoryData({
       }
     >();
 
-    for (const session of sessions) {
+    for (const session of (isPro ? proFilteredSessions : sessions)) {
       const completedAt = new Date(session.completedAtISO);
       const monthKey = `${completedAt.getFullYear()}-${String(completedAt.getMonth() + 1).padStart(2, "0")}`;
       const weekKey = weekStartKeyLocal(completedAt);
@@ -151,7 +183,7 @@ export function useHistoryData({
           weeks,
         };
       });
-  }, [formatHistoryWeekLabel, sessions, startOfDayLocal, weekStartKeyLocal]);
+  }, [formatHistoryWeekLabel, isPro, proFilteredSessions, sessions, startOfDayLocal, weekStartKeyLocal]);
 
   const freeSessionHistoryGroups = useMemo<SessionHistoryMonthGroup[]>(() => {
     return sessionHistoryGroups
@@ -200,7 +232,7 @@ export function useHistoryData({
   }, [isDateKeyWithinRecentWindow, proHistoryFreeDays, sessionHistoryGroups]);
 
   const plannedBlockHistory = useMemo(() => {
-    const sorted = [...plannedBlocks]
+    const sorted = [...(isPro ? proFilteredPlannedBlocks : plannedBlocks)]
       .filter((item) => isPro || isDateKeyWithinRecentWindow(item.dateKey, proHistoryFreeDays))
       .sort((a, b) => {
         if (a.dateKey !== b.dateKey) return b.dateKey.localeCompare(a.dateKey);
@@ -210,7 +242,7 @@ export function useHistoryData({
       completed: sorted.filter((item) => item.status === "completed"),
       incomplete: sorted.filter((item) => item.status === "active" && isDateKeyBeforeToday(item.dateKey)),
     };
-  }, [isDateKeyBeforeToday, isDateKeyWithinRecentWindow, isPro, plannedBlocks, proHistoryFreeDays]);
+  }, [isDateKeyBeforeToday, isDateKeyWithinRecentWindow, isPro, plannedBlocks, proFilteredPlannedBlocks, proHistoryFreeDays]);
 
   const hasLockedBlockHistory = useMemo(
     () =>
@@ -228,6 +260,10 @@ export function useHistoryData({
   }, []);
 
   return {
+    historySearch,
+    setHistorySearch,
+    historyWindow,
+    setHistoryWindow,
     historySectionsOpen,
     historyGroupsOpen,
     sessionHistoryGroups,

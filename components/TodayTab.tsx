@@ -9,6 +9,7 @@ import WhelmRitualScene from "@/components/WhelmRitualScene";
 import { type WhelBandanaColor } from "@/lib/whelm-mascot";
 import type { WorkspaceNote } from "@/lib/notes-store";
 import type { SessionDoc } from "@/lib/streak";
+import { WHELM_PRO_NAME, WHELM_STANDARD_NAME } from "@/lib/whelm-plans";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -24,7 +25,7 @@ const FOCUS_TIMER = {
 };
 
 const WHELM_PRO_POSITIONING =
-  "Whelm Pro is the full version of the system: deeper reports, longer memory, stronger personalization, a cleaner command center, and of course more animated PRO WHELMS!";
+  "Whelm Pro unlocks unlimited history, full customization, and the deeper Whelm command layer.";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -354,12 +355,12 @@ export default function TodayTab({
 
       {!isPro && (
         <section className={styles.adStrip}>
-          <p className={styles.adBadge}>Whelm Pro</p>
+          <p className={styles.adBadge}>{WHELM_PRO_NAME}</p>
           <p className={styles.adCopy}>
             {WHELM_PRO_POSITIONING}
           </p>
           <button type="button" className={styles.inlineUpgrade} onClick={onUpgrade}>
-            Upgrade to Whelm Pro
+            Upgrade to {WHELM_PRO_NAME}
           </button>
         </section>
       )}
@@ -545,12 +546,12 @@ export default function TodayTab({
           <article className={`${styles.card} ${styles.todayAccessCard}`}>
             <p className={styles.sectionLabel}>Access</p>
             <p className={styles.accountMeta}>
-              {isPro ? "Whelm Pro" : "Whelm Free"}
+              {isPro ? WHELM_PRO_NAME : WHELM_STANDARD_NAME}
             </p>
             <p className={styles.accountMeta}>{userEmail}</p>
             {!isPro && (
               <button type="button" className={styles.inlineUpgrade} onClick={onUpgrade}>
-                Upgrade to Whelm Pro
+                Upgrade to {WHELM_PRO_NAME}
               </button>
             )}
           </article>

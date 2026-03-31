@@ -84,7 +84,7 @@ function normalizeState(state: Partial<PreferencesState> | null | undefined): Pr
       isPro:
         typeof state?.proState?.isPro === "boolean"
           ? state.proState.isPro
-          : true,
+          : false,
       source:
         state?.proState?.source === "store" || state?.proState?.source === "preview"
           ? state.proState.source

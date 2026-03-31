@@ -104,7 +104,7 @@ function normalizeDismissals(dateKeys: string[]) {
   return [...new Set(dateKeys.filter((value) => typeof value === "string").map((value) => value.slice(0, 10)))];
 }
 
-function readLocalState(uid: string): ReflectionState {
+export function readLocalReflectionState(uid: string): ReflectionState {
   try {
     const mirrorRaw = window.localStorage.getItem(mirrorStorageKey(uid));
     const savesRaw = window.localStorage.getItem(sickDaySaveStorageKey(uid));
@@ -169,7 +169,7 @@ function normalizeState(state: ReflectionState): ReflectionState {
 }
 
 export async function loadReflectionState(user: User) {
-  const localState = readLocalState(user.uid);
+  const localState = readLocalReflectionState(user.uid);
 
   try {
     const response = await authorizedRequest(
