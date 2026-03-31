@@ -2,7 +2,7 @@
   position: fixed;
   inset: 0;
   z-index: 1200;
-  pointer-events: none;
+  pointer-events: auto;
 }
 
 .tourScrim {
@@ -187,26 +187,43 @@
   }
 
   .tourCard {
-    width: calc(100vw - 32px);
-    max-height: min(40vh, 320px);
-    border-radius: 26px;
-    padding: 16px;
+    width: calc(100vw - 24px);
+    max-height: min(34vh, 270px);
+    border-radius: 24px;
+    padding: 14px;
   }
 
   .tourCardTop {
-    align-items: center;
+    gap: 12px;
+    align-items: flex-start;
   }
 
   .tourMascot {
-    width: 72px;
-    height: 72px;
+    width: 56px;
+    height: 56px;
   }
 
   .tourTitle {
-    font-size: 1rem;
+    font-size: 0.98rem;
   }
 
   .tourBody {
-    font-size: 0.9rem;
+    margin-top: 8px;
+    font-size: 0.84rem;
+    line-height: 1.35;
+  }
+
+  .tourProgress {
+    margin-top: 12px;
+    font-size: 0.72rem;
+  }
+
+  .tourActions {
+    margin-top: 12px;
+  }
+
+  .tourSecondary,
+  .tourPrimary {
+    padding: 10px 14px;
   }
 }

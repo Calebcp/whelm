@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { getWhelImagePath, type WhelBandanaColor, type WhelPose } from "@/lib/whelm-mascot";
 import styles from "@/components/OnboardingTour.module.css";
@@ -15,6 +15,8 @@ export type OnboardingTourStep = {
   color: WhelBandanaColor;
   contextPaddingX?: number;
   contextPaddingY?: number;
+  mobileContextPaddingX?: number;
+  mobileContextPaddingY?: number;
 };
 
 type SpotlightRect = {
@@ -62,27 +64,36 @@ export default function OnboardingTour({
   const [viewportSize, setViewportSize] = useState({ width: 1280, height: 800 });
   const [cardHeight, setCardHeight] = useState(280);
   const cardRef = useRef<HTMLElement | null>(null);
+  const maskId = useId().replace(/:/g, "");
 
   useEffect(() => {
     if (!open) return;
 
+    let frameId: number | null = null;
     const updateRect = () => {
-      const targets = Array.from(document.querySelectorAll(step.selector));
-      const target = targets.find((node) => {
-        if (!(node instanceof HTMLElement)) return false;
-        const rect = node.getBoundingClientRect();
-        return rect.width > 0 && rect.height > 0;
-      });
-      if (!(target instanceof HTMLElement)) {
-        setSpotlightRect(null);
-        return;
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId);
       }
-      const rect = target.getBoundingClientRect();
-      setSpotlightRect({
-        top: Math.max(8, rect.top - 8),
-        left: Math.max(8, rect.left - 8),
-        width: Math.max(64, rect.width + 16),
-        height: Math.max(48, rect.height + 16),
+      frameId = window.requestAnimationFrame(() => {
+        const targets = Array.from(document.querySelectorAll(step.selector));
+        const target = targets.find((node) => {
+          if (!(node instanceof HTMLElement)) return false;
+          const rect = node.getBoundingClientRect();
+          return rect.width > 0 && rect.height > 0;
+        });
+        if (!(target instanceof HTMLElement)) {
+          setSpotlightRect(null);
+          frameId = null;
+          return;
+        }
+        const rect = target.getBoundingClientRect();
+        setSpotlightRect({
+          top: Math.max(8, rect.top - 8),
+          left: Math.max(8, rect.left - 8),
+          width: Math.max(64, rect.width + 16),
+          height: Math.max(48, rect.height + 16),
+        });
+        frameId = null;
       });
     };
 
@@ -91,6 +102,9 @@ export default function OnboardingTour({
     window.addEventListener("scroll", updateRect, true);
 
     return () => {
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId);
+      }
       window.removeEventListener("resize", updateRect);
       window.removeEventListener("scroll", updateRect, true);
     };
@@ -144,6 +158,24 @@ export default function OnboardingTour({
     };
   }, [open, step.selector]);
 
+  useEffect(() => {
+    if (!open) return;
+
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousBodyOverscroll = document.body.style.overscrollBehavior;
+
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    document.body.style.overscrollBehavior = "contain";
+
+    return () => {
+      document.documentElement.style.overflow = previousHtmlOverflow;
+      document.body.style.overflow = previousBodyOverflow;
+      document.body.style.overscrollBehavior = previousBodyOverscroll;
+    };
+  }, [open]);
+
   const contextRect = useMemo(() => {
     if (!spotlightRect) return null;
 
@@ -151,10 +183,21 @@ export default function OnboardingTour({
     return expandRect(
       spotlightRect,
       viewportSize,
-      step.contextPaddingX ?? (isMobile ? 68 : 150),
-      step.contextPaddingY ?? (isMobile ? 56 : 110),
+      isMobile
+        ? (step.mobileContextPaddingX ?? 24)
+        : (step.contextPaddingX ?? 150),
+      isMobile
+        ? (step.mobileContextPaddingY ?? 18)
+        : (step.contextPaddingY ?? 110),
     );
-  }, [spotlightRect, step.contextPaddingX, step.contextPaddingY, viewportSize]);
+  }, [
+    spotlightRect,
+    step.contextPaddingX,
+    step.contextPaddingY,
+    step.mobileContextPaddingX,
+    step.mobileContextPaddingY,
+    viewportSize,
+  ]);
 
   const cardPosition = useMemo(() => {
     if (!spotlightRect) {
@@ -168,12 +211,30 @@ export default function OnboardingTour({
     const viewportWidth = viewportSize.width;
     const viewportHeight = viewportSize.height;
     const isMobile = viewportWidth <= 760;
-    const cardWidth = Math.min(420, viewportWidth - 32);
+    const cardWidth = Math.min(420, viewportWidth - (isMobile ? 24 : 32));
 
     if (isMobile) {
+      const safeTop = 18;
+      const safeBottom = 16;
+      const topCandidate = safeTop;
+      const bottomCandidate = Math.max(safeTop, viewportHeight - safeBottom - cardHeight);
+      const contextTop = contextRect?.top ?? spotlightRect.top;
+      const contextBottom = contextRect ? contextRect.top + contextRect.height : spotlightRect.top + spotlightRect.height;
+      const spaceAbove = contextTop - safeTop;
+      const spaceBelow = viewportHeight - safeBottom - contextBottom;
+
+      let top = bottomCandidate;
+      if (spaceAbove >= cardHeight + 8 && spaceAbove >= spaceBelow) {
+        top = topCandidate;
+      } else if (spaceBelow >= cardHeight + 8) {
+        top = bottomCandidate;
+      } else if (spaceAbove > spaceBelow) {
+        top = topCandidate;
+      }
+
       return {
-        top: Math.max(16, viewportHeight - 16 - cardHeight),
-        left: 16,
+        top,
+        left: 12,
         transform: "none",
       };
     }
@@ -223,7 +284,7 @@ export default function OnboardingTour({
           aria-hidden="true"
         >
           <defs>
-            <mask id="tour-cutout-mask">
+            <mask id={maskId}>
               <rect width={viewportSize.width} height={viewportSize.height} fill="white" />
               <rect
                 x={contextRect.left}
@@ -240,7 +301,7 @@ export default function OnboardingTour({
             width={viewportSize.width}
             height={viewportSize.height}
             className={styles.tourMaskFill}
-            mask="url(#tour-cutout-mask)"
+            mask={`url(#${maskId})`}
           />
         </svg>
       ) : (

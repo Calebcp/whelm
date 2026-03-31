@@ -1307,6 +1307,8 @@ const ONBOARDING_STEPS: OnboardingTourStep[] = [
     selector: '[data-tour="nav-schedule"]',
     pose: "thinking_idea",
     color: "yellow",
+    mobileContextPaddingX: 20,
+    mobileContextPaddingY: 18,
     title: "Start in Schedule",
     body:
       "This is your command map. Plan the day here first so Whelm is built around deliberate blocks, not random effort.",
@@ -1316,6 +1318,8 @@ const ONBOARDING_STEPS: OnboardingTourStep[] = [
     selector: '[data-tour="schedule-add-block"]',
     pose: "focus_action",
     color: "red",
+    mobileContextPaddingX: 18,
+    mobileContextPaddingY: 18,
     title: "Blocks are worth 10 XP",
     body:
       "Add a block here. Each completed block gives 10 XP, and block XP caps at 50 per day. This is the first half of protecting your day.",
@@ -1325,6 +1329,8 @@ const ONBOARDING_STEPS: OnboardingTourStep[] = [
     selector: '[data-tour="today-timer"]',
     pose: "ready_idle",
     color: "green",
+    mobileContextPaddingX: 14,
+    mobileContextPaddingY: 16,
     title: "Run the focus timer",
     body:
       "This is where execution happens. Every 30 minutes of focus gives 20 XP, 90+ minutes unlocks a deep work bonus, and the stopwatch Whelm art changes every 5 minutes while you are running.",
@@ -1334,6 +1340,8 @@ const ONBOARDING_STEPS: OnboardingTourStep[] = [
     selector: '[data-tour="xp-dock"]',
     pose: "celebrate_success",
     color: "purple",
+    mobileContextPaddingX: 20,
+    mobileContextPaddingY: 18,
     title: "Know the XP system",
     body:
       "Your daily target is 120 XP and the hard max is 150. Complete one block plus 30 focused minutes or 33 written words to trigger the combo bonus and protect the streak.",
@@ -1343,6 +1351,8 @@ const ONBOARDING_STEPS: OnboardingTourStep[] = [
     selector: '[data-tour="notes-create"]',
     pose: "thinking_idea",
     color: "blue",
+    mobileContextPaddingX: 20,
+    mobileContextPaddingY: 18,
     title: "Capture notes fast",
     body:
       "Use Notes+ to keep ideas, plans, and session notes alive. Writing 33+ words starts a writing XP bonus, and 100+ words reaches the full daily writing reward.",
@@ -1352,6 +1362,8 @@ const ONBOARDING_STEPS: OnboardingTourStep[] = [
     selector: '[data-tour="notes-cards-toggle"]',
     pose: "focus_action",
     color: "black",
+    mobileContextPaddingX: 22,
+    mobileContextPaddingY: 18,
     title: "Turn notes into flashcards",
     body:
       "Open Cards here to convert what matters into flashcards. Notes capture the idea. Cards train recall and keep the learning loop active.",
@@ -1363,6 +1375,8 @@ const ONBOARDING_STEPS: OnboardingTourStep[] = [
     color: "white",
     contextPaddingX: 260,
     contextPaddingY: 220,
+    mobileContextPaddingX: 30,
+    mobileContextPaddingY: 120,
     title: "Climb the Whelmboard",
     body:
       "Track your global rank by XP or streak, add friends, accept requests, send nudges, and check Bandana Tiers to see who is holding each level.",
@@ -1377,6 +1391,8 @@ const ONBOARDING_STEPS: OnboardingTourStep[] = [
       "This replay tutorial button lives in Settings. The full tour only auto-shows once for a new user, but you can return here anytime to review the flow or the XP system.",
   },
 ];
+
+const ONBOARDING_NEW_USER_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 function onboardingStorageKey(uid: string) {
   return `whelm:onboarding-tour:v1:${uid}`;
@@ -2633,8 +2649,24 @@ export default function HomePage() {
       // Ignore storage failures and fall through to showing the tour once.
     }
 
+    const createdAtMs = currentUserCreatedAtISO
+      ? new Date(currentUserCreatedAtISO).getTime()
+      : Number.NaN;
+    const accountAgeMs = Number.isFinite(createdAtMs) ? Date.now() - createdAtMs : Number.POSITIVE_INFINITY;
+    if (accountAgeMs > ONBOARDING_NEW_USER_WINDOW_MS) {
+      markOnboardingSeen();
+      return;
+    }
+
     startOnboarding();
-  }, [authChecked, showIntroSplash, startOnboarding, user]);
+  }, [
+    authChecked,
+    currentUserCreatedAtISO,
+    markOnboardingSeen,
+    showIntroSplash,
+    startOnboarding,
+    user,
+  ]);
 
   useEffect(() => {
     if (!onboardingOpen) return;
@@ -2679,9 +2711,9 @@ export default function HomePage() {
       });
 
       if (target instanceof HTMLElement) {
-        target.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+        target.scrollIntoView({ behavior: "auto", block: "center", inline: "center" });
       }
-    }, 220);
+    }, 120);
 
     return () => window.clearTimeout(timer);
   }, [
