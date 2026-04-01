@@ -143,12 +143,14 @@ function SettingsActionRow({
   onClick,
   disabled,
   emphasis = "default",
+  dataTour,
 }: {
   title: string;
   summary?: string;
   onClick: () => void;
   disabled?: boolean;
   emphasis?: "default" | "danger";
+  dataTour?: string;
 }) {
   return (
     <button
@@ -156,6 +158,7 @@ function SettingsActionRow({
       className={`${styles.settingsActionRow} ${emphasis === "danger" ? styles.settingsActionRowDanger : ""}`}
       onClick={onClick}
       disabled={disabled}
+      data-tour={dataTour}
     >
       <div className={styles.settingsIndexCopy}>
         <strong>{title}</strong>
@@ -989,6 +992,7 @@ export default function SettingsTab({
             <SettingsActionRow
               title="Replay tutorial"
               summary="Run the guided setup again."
+              dataTour="settings-replay-tutorial"
               onClick={onReplayTutorial}
             />
             <SettingsActionRow

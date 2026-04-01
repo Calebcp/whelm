@@ -3005,6 +3005,19 @@ export default function HomePage() {
       case "replay":
         setActiveTab("settings");
         setMobileMoreOpen(false);
+        setSettingsSectionsOpen({
+          identity: false,
+          internalTools: true,
+          protocol: false,
+          appearance: false,
+          background: false,
+          archive: false,
+          notifications: false,
+          sync: false,
+          screenTime: false,
+          danger: false,
+          legal: false,
+        });
         break;
       default:
         break;
