@@ -26,7 +26,7 @@ type ScheduledNotificationPayload = {
 
 type UseWhelmNotificationsOptions = {
   user: User | null;
-  notificationSettings: PreferencesNotificationSettings;
+  notificationSettings?: PreferencesNotificationSettings | null;
   analyticsNotificationPlan: PerformanceNotificationPlan | null;
   notes: NoteReminderLike[];
   showToast?: (message: string, tone?: "success" | "warning" | "error" | "info") => void;
@@ -40,6 +40,11 @@ type StoredScheduleState = {
 const STORE_PREFIX = "whelm:notification-schedule:";
 const MAX_NOTE_REMINDERS = 12;
 const MAX_NOTIFICATION_WINDOW_DAYS = 7;
+const DEFAULT_NOTIFICATION_SETTINGS: PreferencesNotificationSettings = {
+  enabled: false,
+  performanceNudges: true,
+  noteReminders: true,
+};
 
 function getDeliveryMode(): NotificationDeliveryMode {
   const platform = Capacitor.getPlatform();
@@ -181,6 +186,24 @@ export function useWhelmNotifications({
   notes,
   showToast,
 }: UseWhelmNotificationsOptions) {
+  const normalizedSettings = useMemo<PreferencesNotificationSettings>(
+    () => ({
+      enabled:
+        typeof notificationSettings?.enabled === "boolean"
+          ? notificationSettings.enabled
+          : DEFAULT_NOTIFICATION_SETTINGS.enabled,
+      performanceNudges:
+        typeof notificationSettings?.performanceNudges === "boolean"
+          ? notificationSettings.performanceNudges
+          : DEFAULT_NOTIFICATION_SETTINGS.performanceNudges,
+      noteReminders:
+        typeof notificationSettings?.noteReminders === "boolean"
+          ? notificationSettings.noteReminders
+          : DEFAULT_NOTIFICATION_SETTINGS.noteReminders,
+    }),
+    [notificationSettings],
+  );
+
   const deliveryMode = useMemo(getDeliveryMode, []);
   const [permissionState, setPermissionState] = useState<NotificationPermissionState>("default");
   const [notificationStatus, setNotificationStatus] = useState("");
@@ -274,20 +297,26 @@ export function useWhelmNotifications({
     const now = new Date();
     const payloads: ScheduledNotificationPayload[] = [];
 
-    if (notificationSettings.enabled && notificationSettings.performanceNudges) {
+    if (normalizedSettings.enabled && normalizedSettings.performanceNudges) {
       payloads.push(...buildPerformancePayloads(analyticsNotificationPlan, now));
     }
 
-    if (notificationSettings.enabled && notificationSettings.noteReminders) {
+    if (normalizedSettings.enabled && normalizedSettings.noteReminders) {
       payloads.push(...buildReminderPayloads(notes, now));
     }
 
     return payloads.sort((a, b) => a.at.getTime() - b.at.getTime());
-  }, [analyticsNotificationPlan, notes, notificationSettings.enabled, notificationSettings.noteReminders, notificationSettings.performanceNudges]);
+  }, [
+    analyticsNotificationPlan,
+    normalizedSettings.enabled,
+    normalizedSettings.noteReminders,
+    normalizedSettings.performanceNudges,
+    notes,
+  ]);
 
   const scheduleNotifications = useCallback(async (force = false) => {
     if (!user) return;
-    if (!notificationSettings.enabled) {
+    if (!normalizedSettings.enabled) {
       await clearScheduledNotifications();
       setNotificationStatus("Whelm notifications are off.");
       return;
@@ -353,7 +382,7 @@ export function useWhelmNotifications({
   }, [
     clearScheduledNotifications,
     deliveryMode,
-    notificationSettings.enabled,
+    normalizedSettings.enabled,
     permissionState,
     scheduledPayloads,
     user,
