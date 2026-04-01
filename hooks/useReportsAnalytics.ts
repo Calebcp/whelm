@@ -181,7 +181,7 @@ export function useReportsAnalytics({
   }, [analyticsDailySummary]);
 
   useEffect(() => {
-    if (!user || activeTab !== "reports" || !isPro) {
+    if (!user || !isPro) {
       setAnalyticsLoading(false);
       setAnalyticsError("");
       setAnalyticsWeeklySummary(null);
@@ -263,7 +263,7 @@ export function useReportsAnalytics({
     return () => {
       cancelled = true;
     };
-  }, [activeTab, analyticsDateRange.endDate, analyticsDateRange.startDate, isPro, user]);
+  }, [analyticsDateRange.endDate, analyticsDateRange.startDate, isPro, user]);
 
   useEffect(() => {
     if (activeTab !== "reports" || !isPro) return;

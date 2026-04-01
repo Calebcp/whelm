@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { PurchasesPackage } from "@revenuecat/purchases-capacitor";
 
 import styles from "@/app/page.module.css";
@@ -13,40 +13,32 @@ import {
 import { WHELM_PRO_NAME, WHELM_STANDARD_HISTORY_DAYS, WHELM_STANDARD_NAME } from "@/lib/whelm-plans";
 
 const WHELM_PRO_POSITIONING =
-  "Whelm Pro unlocks unlimited history, full customization, deeper command reports, and the premium version of the Whelm system.";
+  "Keep your full system available with unlimited history, full customization, and deeper reports.";
 
-const WHELM_COMPARISON_ROWS = [
+const WHELM_TIER_CARDS = [
   {
-    label: "History",
-    standard: `Last ${WHELM_STANDARD_HISTORY_DAYS} days`,
-    pro: "Unlimited archive",
+    id: "pro",
+    name: WHELM_PRO_NAME,
+    headline: "Full memory, full customization, full control",
+    bullets: [
+      "Unlimited archive across notes, blocks, sessions, and reflections",
+      "Full note styling, calendar tones, and shell customization",
+      "Advanced reports, archive export, readable notes export, and custom backgrounds",
+    ],
   },
   {
-    label: "Note customization",
-    standard: "Basic tones",
-    pro: "Full styling",
-  },
-  {
-    label: "Calendar customization",
-    standard: "Limited tones",
-    pro: "Full tone set",
-  },
-  {
-    label: "Reports",
-    standard: "Core readouts",
-    pro: "Advanced reports",
-  },
-  {
-    label: "Archive tools",
-    standard: "No full export",
-    pro: "Archive + notes export",
-  },
-  {
-    label: "Backgrounds",
-    standard: "Standard shell",
-    pro: "Custom + upload",
+    id: "standard",
+    name: WHELM_STANDARD_NAME,
+    headline: "Everyday momentum, lighter system depth",
+    bullets: [
+      `Core notes, blocks, sessions, and the last ${WHELM_STANDARD_HISTORY_DAYS} days of history`,
+      "Basic note tones and limited calendar color control",
+      "Standard shell, core readouts, and no full archive export",
+    ],
   },
 ] as const;
+
+type WhelmTierCardId = (typeof WHELM_TIER_CARDS)[number]["id"];
 
 function calculateSavingsLabel(monthlyPackage: PurchasesPackage | null, annualPackage: PurchasesPackage | null) {
   if (!monthlyPackage || !annualPackage) return "Best Value";
@@ -79,6 +71,8 @@ export default function PaywallModal({
   const [loading, setLoading] = useState(false);
   const [purchaseBusy, setPurchaseBusy] = useState(false);
   const [status, setStatus] = useState("");
+  const [comparisonFocus, setComparisonFocus] = useState<WhelmTierCardId>("pro");
+  const comparisonManualRef = useRef(false);
 
   useEffect(() => {
     if (!open) return;
@@ -131,6 +125,34 @@ export default function PaywallModal({
     };
   }, [open, userId]);
 
+  useEffect(() => {
+    if (!open) return;
+
+    comparisonManualRef.current = false;
+    setComparisonFocus("pro");
+
+    if (typeof window === "undefined" || !window.matchMedia("(max-width: 640px)").matches) {
+      return;
+    }
+
+    const standardTimer = window.setTimeout(() => {
+      if (!comparisonManualRef.current) {
+        setComparisonFocus("standard");
+      }
+    }, 900);
+
+    const proTimer = window.setTimeout(() => {
+      if (!comparisonManualRef.current) {
+        setComparisonFocus("pro");
+      }
+    }, 1900);
+
+    return () => {
+      window.clearTimeout(standardTimer);
+      window.clearTimeout(proTimer);
+    };
+  }, [open]);
+
   const selectedPackage = useMemo(() => {
     return [annualPackage, monthlyPackage].find((item) => item?.identifier === selectedPackageId) ?? null;
   }, [annualPackage, monthlyPackage, selectedPackageId]);
@@ -139,6 +161,17 @@ export default function PaywallModal({
     () => calculateSavingsLabel(monthlyPackage, annualPackage),
     [annualPackage, monthlyPackage],
   );
+
+  const orderedTierCards = useMemo(() => {
+    const primary = WHELM_TIER_CARDS.find((card) => card.id === comparisonFocus) ?? WHELM_TIER_CARDS[0];
+    const secondary = WHELM_TIER_CARDS.find((card) => card.id !== comparisonFocus) ?? WHELM_TIER_CARDS[1];
+    return [primary, secondary];
+  }, [comparisonFocus]);
+
+  function handleComparisonFocus(next: WhelmTierCardId) {
+    comparisonManualRef.current = true;
+    setComparisonFocus(next);
+  }
 
   async function handlePurchase() {
     if (!selectedPackage || purchaseBusy) return;
@@ -172,7 +205,6 @@ export default function PaywallModal({
         <div className={styles.feedbackHeader}>
           <div>
             <h2 className={styles.feedbackTitle}>Upgrade to {WHELM_PRO_NAME}</h2>
-            <p className={styles.paywallHint}>Default selection: yearly</p>
           </div>
           <button type="button" className={styles.feedbackClose} onClick={onClose}>
             Close
@@ -180,39 +212,39 @@ export default function PaywallModal({
         </div>
         <p className={styles.paywallCopy}>{WHELM_PRO_POSITIONING}</p>
         <section className={styles.paywallCompare}>
-          <div className={styles.paywallCompareLead}>
-            <p className={styles.paywallCompareEyebrow}>Choose your Whelm</p>
-            <h3 className={styles.paywallCompareTitle}>Standard keeps you moving. Pro keeps your full system.</h3>
+          <div className={styles.paywallCompareSwitch}>
+            {WHELM_TIER_CARDS.map((card) => (
+              <button
+                key={card.id}
+                type="button"
+                className={`${styles.paywallCompareSwitchButton} ${
+                  comparisonFocus === card.id ? styles.paywallCompareSwitchButtonActive : ""
+                }`}
+                onClick={() => handleComparisonFocus(card.id)}
+              >
+                {card.name}
+              </button>
+            ))}
           </div>
-          <div className={styles.paywallTierCards}>
-            <article className={styles.paywallTierCard}>
-              <p className={styles.paywallTierLabel}>{WHELM_STANDARD_NAME}</p>
-              <p className={styles.paywallTierHeading}>For everyday momentum</p>
-              <p className={styles.paywallTierSummary}>
-                Core notes, blocks, sessions, and recent history with lighter customization.
-              </p>
-            </article>
-            <article className={`${styles.paywallTierCard} ${styles.paywallTierCardFeatured}`}>
-              <div className={styles.paywallTierBadgeRow}>
-                <p className={styles.paywallTierLabel}>{WHELM_PRO_NAME}</p>
-                <span className={styles.planBadge}>Best Value</span>
-              </div>
-              <p className={styles.paywallTierHeading}>For full memory, full customization, full control</p>
-              <p className={styles.paywallTierSummary}>
-                Unlimited history, deeper reports, richer shell control, and the complete Whelm layer.
-              </p>
-            </article>
-          </div>
-          <div className={styles.paywallCompareGrid}>
-            <div className={styles.paywallCompareHeaderSpacer} aria-hidden="true" />
-            <p className={styles.paywallCompareColumnLabel}>{WHELM_STANDARD_NAME}</p>
-            <p className={styles.paywallCompareColumnLabel}>{WHELM_PRO_NAME}</p>
-            {WHELM_COMPARISON_ROWS.map((row) => (
-              <div key={row.label} className={styles.paywallCompareRow}>
-                <p className={styles.paywallCompareFeature}>{row.label}</p>
-                <p className={styles.paywallCompareValue}>{row.standard}</p>
-                <p className={`${styles.paywallCompareValue} ${styles.paywallCompareValueFeatured}`}>{row.pro}</p>
-              </div>
+          <div className={styles.paywallTierDeck}>
+            {orderedTierCards.map((card, index) => (
+              <article
+                key={card.id}
+                className={`${styles.paywallTierCard} ${
+                  card.id === "pro" ? styles.paywallTierCardFeatured : ""
+                } ${index === 0 ? styles.paywallTierCardPrimary : styles.paywallTierCardSecondary}`}
+              >
+                <div className={styles.paywallTierBadgeRow}>
+                  <p className={styles.paywallTierLabel}>{card.name}</p>
+                  {card.id === "pro" ? <span className={styles.planBadge}>Best Value</span> : null}
+                </div>
+                <p className={styles.paywallTierHeading}>{card.headline}</p>
+                <ul className={styles.paywallTierList}>
+                  {card.bullets.map((bullet) => (
+                    <li key={bullet}>{bullet}</li>
+                  ))}
+                </ul>
+              </article>
             ))}
           </div>
         </section>

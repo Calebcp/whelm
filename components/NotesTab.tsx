@@ -447,6 +447,7 @@ export type NotesTabProps = {
   onCreateNote: () => void;
   onTogglePinned: (noteId: string) => void;
   onUpdateSelectedNote: (patch: Partial<WorkspaceNote>) => void;
+  onFlushPendingTitleSync: () => void | Promise<void>;
   onCaptureEditorDraft: () => void;
   onSaveEditorSelection: () => void;
   onApplyEditorCommand: (command: string, value?: string) => void;
@@ -528,6 +529,7 @@ export default function NotesTab({
   onCreateNote,
   onTogglePinned,
   onUpdateSelectedNote,
+  onFlushPendingTitleSync,
   onCaptureEditorDraft,
   onSaveEditorSelection,
   onApplyEditorCommand,
@@ -1113,6 +1115,9 @@ export default function NotesTab({
                   onChange={(event) => {
                     void onUpdateSelectedNote({ title: event.target.value });
                   }}
+                  onBlur={() => {
+                    void onFlushPendingTitleSync();
+                  }}
                   placeholder="Note title"
                   className={styles.noteTitleInput}
                 />
@@ -1149,7 +1154,6 @@ export default function NotesTab({
                       onUpdateEditorBandanaCaret();
                     }}
                     onKeyUp={() => {
-                      onCaptureEditorDraft();
                       onSaveEditorSelection();
                       onUpdateEditorBandanaCaret();
                       onCheckEditorSelection();
@@ -1162,7 +1166,6 @@ export default function NotesTab({
                       }, 0);
                     }}
                     onCompositionEnd={() => {
-                      onCaptureEditorDraft();
                       onSaveEditorSelection();
                       onUpdateEditorBandanaCaret();
                     }}
@@ -1564,14 +1567,17 @@ export default function NotesTab({
                     </div>
                   </div>
 
-                  <input
-                    value={selectedNote.title}
-                    onChange={(event) => {
-                      void onUpdateSelectedNote({ title: event.target.value });
-                    }}
-                    placeholder="Note title"
-                    className={styles.noteTitleInput}
-                  />
+                    <input
+                      value={selectedNote.title}
+                      onChange={(event) => {
+                        void onUpdateSelectedNote({ title: event.target.value });
+                      }}
+                      onBlur={() => {
+                        void onFlushPendingTitleSync();
+                      }}
+                      placeholder="Note title"
+                      className={styles.noteTitleInput}
+                    />
 
                   <div className={styles.noteMetaRow}>
                     <label className={styles.noteMetaLabel}>
@@ -1910,16 +1916,15 @@ export default function NotesTab({
                         fontFamily: selectedNote.fontFamily,
                         fontSize: `${selectedNote.fontSizePx}px`,
                       }}
-                      onInput={() => {
-                        onCaptureEditorDraft();
-                        onSaveEditorSelection();
-                        onUpdateEditorBandanaCaret();
-                      }}
-                      onKeyUp={() => {
-                        onCaptureEditorDraft();
-                        onSaveEditorSelection();
-                        onUpdateEditorBandanaCaret();
-                        onCheckEditorSelection();
+                    onInput={() => {
+                      onCaptureEditorDraft();
+                      onSaveEditorSelection();
+                      onUpdateEditorBandanaCaret();
+                    }}
+                    onKeyUp={() => {
+                      onSaveEditorSelection();
+                      onUpdateEditorBandanaCaret();
+                      onCheckEditorSelection();
                       }}
                       onPaste={() => {
                         window.setTimeout(() => {
@@ -1928,11 +1933,10 @@ export default function NotesTab({
                           onUpdateEditorBandanaCaret();
                         }, 0);
                       }}
-                      onCompositionEnd={() => {
-                        onCaptureEditorDraft();
-                        onSaveEditorSelection();
-                        onUpdateEditorBandanaCaret();
-                      }}
+                    onCompositionEnd={() => {
+                      onSaveEditorSelection();
+                      onUpdateEditorBandanaCaret();
+                    }}
                       onBlur={() => {
                         onCaptureEditorDraft();
                         onSetEditorBandanaCaret((current) =>

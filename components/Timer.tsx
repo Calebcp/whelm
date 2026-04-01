@@ -21,6 +21,19 @@ export type TimerSessionContext = {
   interruptionCount: number;
 };
 
+type PersistedTimerState = {
+  mode: "countdown" | "stopwatch";
+  configuredMinutes: number;
+  secondsLeft: number;
+  secondsElapsed: number;
+  focusIdentity: FocusIdentity;
+  note: string;
+  sessionContext: TimerSessionContext | null;
+  persistedAt: number;
+};
+
+const TIMER_PERSISTENCE_KEY = "whelm:active-timer";
+
 const FOCUS_IDENTITIES: Record<
   FocusIdentity,
   {
@@ -173,8 +186,110 @@ export default function Timer({
   const intervalRef = useRef<number | null>(null);
   const entryTimeoutRef = useRef<number | null>(null);
   const sessionContextRef = useRef<TimerSessionContext | null>(null);
+  const runningRef = useRef(running);
+  const modeRef = useRef(mode);
+  const configuredMinutesRef = useRef(configuredMinutes);
+  const secondsLeftRef = useRef(secondsLeft);
+  const secondsElapsedRef = useRef(secondsElapsed);
+  const focusIdentityRef = useRef(focusIdentity);
+  const noteRef = useRef(note);
+  const shouldPersistOnUnmountRef = useRef(true);
+  const isRestoringPersistedTimerRef = useRef(false);
 
   const identityTheme = FOCUS_IDENTITIES[focusIdentity];
+
+  function clearPersistedTimer() {
+    if (typeof window === "undefined") return;
+    try {
+      window.sessionStorage.removeItem(TIMER_PERSISTENCE_KEY);
+    } catch {
+      // Ignore storage failures.
+    }
+  }
+
+  function persistActiveTimer() {
+    if (typeof window === "undefined" || !runningRef.current) return;
+    try {
+      const snapshot: PersistedTimerState = {
+        mode: modeRef.current,
+        configuredMinutes: configuredMinutesRef.current,
+        secondsLeft: secondsLeftRef.current,
+        secondsElapsed: secondsElapsedRef.current,
+        focusIdentity: focusIdentityRef.current,
+        note: noteRef.current,
+        sessionContext: sessionContextRef.current,
+        persistedAt: Date.now(),
+      };
+      window.sessionStorage.setItem(TIMER_PERSISTENCE_KEY, JSON.stringify(snapshot));
+    } catch {
+      // Ignore storage failures.
+    }
+  }
+
+  useEffect(() => {
+    runningRef.current = running;
+  }, [running]);
+
+  useEffect(() => {
+    modeRef.current = mode;
+  }, [mode]);
+
+  useEffect(() => {
+    configuredMinutesRef.current = configuredMinutes;
+  }, [configuredMinutes]);
+
+  useEffect(() => {
+    secondsLeftRef.current = secondsLeft;
+  }, [secondsLeft]);
+
+  useEffect(() => {
+    secondsElapsedRef.current = secondsElapsed;
+  }, [secondsElapsed]);
+
+  useEffect(() => {
+    focusIdentityRef.current = focusIdentity;
+  }, [focusIdentity]);
+
+  useEffect(() => {
+    noteRef.current = note;
+  }, [note]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      const raw = window.sessionStorage.getItem(TIMER_PERSISTENCE_KEY);
+      if (!raw) return;
+      const snapshot = JSON.parse(raw) as PersistedTimerState;
+      if (!snapshot || typeof snapshot.persistedAt !== "number") return;
+
+      const elapsedSincePersistSeconds = Math.max(0, Math.floor((Date.now() - snapshot.persistedAt) / 1000));
+      const restoredSecondsLeft =
+        snapshot.mode === "countdown"
+          ? Math.max(0, snapshot.secondsLeft - elapsedSincePersistSeconds)
+          : snapshot.secondsLeft;
+      const restoredSecondsElapsed =
+        snapshot.mode === "stopwatch"
+          ? snapshot.secondsElapsed + elapsedSincePersistSeconds
+          : snapshot.secondsElapsed;
+
+      setMode(snapshot.mode);
+      setConfiguredMinutes(snapshot.configuredMinutes);
+      setSecondsLeft(restoredSecondsLeft);
+      setSecondsElapsed(restoredSecondsElapsed);
+      setFocusIdentity(snapshot.focusIdentity);
+      setNote(snapshot.note);
+      sessionContextRef.current = snapshot.sessionContext;
+      setDone(snapshot.mode === "countdown" && restoredSecondsLeft === 0);
+      isRestoringPersistedTimerRef.current = true;
+      setRunning(snapshot.mode === "countdown" ? restoredSecondsLeft > 0 : true);
+      setPauseNotice(null);
+    } catch {
+      // Ignore malformed snapshots and start clean.
+    } finally {
+      clearPersistedTimer();
+    }
+  }, []);
 
   useEffect(() => {
     setIsOnline(typeof navigator === "undefined" ? true : navigator.onLine);
@@ -189,20 +304,33 @@ export default function Timer({
     }
 
     function handleVisibilityChange() {
-      setIsVisible(document.visibilityState === "visible");
+      const nextVisible = document.visibilityState === "visible";
+      shouldPersistOnUnmountRef.current = nextVisible;
+      setIsVisible(nextVisible);
+    }
+
+    function handlePageHide() {
+      shouldPersistOnUnmountRef.current = false;
+      clearPersistedTimer();
     }
 
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
     document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("pagehide", handlePageHide);
     return () => {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("pagehide", handlePageHide);
     };
   }, []);
 
   useEffect(() => {
+    if (isRestoringPersistedTimerRef.current) {
+      isRestoringPersistedTimerRef.current = false;
+      return;
+    }
     if (mode === "countdown") {
       setSecondsLeft(configuredMinutes * 60);
     } else {
@@ -214,6 +342,7 @@ export default function Timer({
 
   useEffect(() => {
     if (!running) {
+      clearPersistedTimer();
       if (intervalRef.current) {
         window.clearInterval(intervalRef.current);
         intervalRef.current = null;
@@ -249,6 +378,7 @@ export default function Timer({
     if (!running) return;
     if (isOnline && isVisible) return;
 
+    clearPersistedTimer();
     setRunning(false);
     setPauseNotice(
       !isOnline
@@ -269,6 +399,16 @@ export default function Timer({
         window.clearTimeout(entryTimeoutRef.current);
       }
       const activeSession = sessionContextRef.current;
+      const canPersistAcrossUnmount =
+        runningRef.current &&
+        shouldPersistOnUnmountRef.current &&
+        typeof document !== "undefined" &&
+        document.visibilityState === "visible";
+      if (canPersistAcrossUnmount) {
+        persistActiveTimer();
+        return;
+      }
+      clearPersistedTimer();
       if (activeSession) {
         void onSessionAbandon?.({
           ...activeSession,
@@ -277,7 +417,7 @@ export default function Timer({
         });
       }
     };
-  }, [onSessionAbandon, secondsElapsed, secondsLeft]);
+  }, [onSessionAbandon]);
 
   useEffect(() => {
     if (!running || !isPro) {
@@ -316,6 +456,7 @@ export default function Timer({
       : (secondsElapsed % 60) / 60;
 
   function reset() {
+    clearPersistedTimer();
     const activeSession = sessionContextRef.current;
     if (activeSession && (running || done)) {
       void onSessionAbandon?.({
@@ -342,12 +483,15 @@ export default function Timer({
 
   function calculateMinutesSpent() {
     const elapsedSeconds =
-      mode === "countdown" ? configuredMinutes * 60 - secondsLeft : secondsElapsed;
+      modeRef.current === "countdown"
+        ? configuredMinutesRef.current * 60 - secondsLeftRef.current
+        : secondsElapsedRef.current;
 
     return Math.max(1, Math.ceil(elapsedSeconds / 60));
   }
 
   async function handleComplete() {
+    clearPersistedTimer();
     setSubmitting(true);
 
     try {
@@ -399,9 +543,11 @@ export default function Timer({
           } satisfies TimerSessionContext);
 
     sessionContextRef.current = sessionContext;
+    shouldPersistOnUnmountRef.current = true;
     setEntryModeLabel(identityTheme.entryLabel);
     setPauseNotice(null);
     setRunning(true);
+    clearPersistedTimer();
     if (!existingSession || done) {
       void onSessionStart?.(sessionContext);
     }
@@ -577,6 +723,7 @@ export default function Timer({
           ) : running ? (
             <button
               onClick={() => {
+                clearPersistedTimer();
                 setRunning(false);
                 if (sessionContextRef.current) {
                   sessionContextRef.current = {

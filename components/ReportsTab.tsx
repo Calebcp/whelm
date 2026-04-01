@@ -1,11 +1,10 @@
 "use client";
 
-import { type Ref } from "react";
+import { useMemo, type Ref } from "react";
 import { motion } from "motion/react";
 
 import styles from "@/app/page.module.css";
 import AnimatedTabSection from "@/components/AnimatedTabSection";
-import CollapsibleSectionCard from "@/components/CollapsibleSectionCard";
 import CompanionPulse from "@/components/CompanionPulse";
 import ProUnlockCard from "@/components/ProUnlockCard";
 import WhelmEmote from "@/components/WhelmEmote";
@@ -119,6 +118,57 @@ function formatHourLabel(hour: number) {
   return `${hour - 12}pm`;
 }
 
+function ReportsRow({
+  title,
+  summary,
+  active,
+  onClick,
+}: {
+  title: string;
+  summary: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={`${styles.reportIndexRow} ${active ? styles.reportIndexRowActive : ""}`}
+      onClick={onClick}
+    >
+      <div className={styles.reportIndexCopy}>
+        <strong>{title}</strong>
+        <span>{summary}</span>
+      </div>
+      <span className={styles.reportIndexChevron}>{active ? "−" : "›"}</span>
+    </button>
+  );
+}
+
+function ReportsDetailHeader({
+  sectionLabel,
+  title,
+  body,
+  onBack,
+}: {
+  sectionLabel: string;
+  title: string;
+  body?: string;
+  onBack: () => void;
+}) {
+  return (
+    <div className={styles.reportDetailTopbar}>
+      <button type="button" className={styles.reportBackButton} onClick={onBack}>
+        ‹
+      </button>
+      <div className={styles.reportDetailHeaderCopy}>
+        <p className={styles.sectionLabel}>{sectionLabel}</p>
+        <strong>{title}</strong>
+        <span>{body || sectionLabel}</span>
+      </div>
+    </div>
+  );
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export type ReportsTabProps = {
@@ -191,8 +241,28 @@ export default function ReportsTab({
   analyticsTopSubjectMinutes,
   analyticsNotificationPlan,
 }: ReportsTabProps) {
+  const activeSection = useMemo<keyof ReportsSectionsOpen | null>(() => {
+    const ordered: Array<keyof ReportsSectionsOpen> = [
+      "score",
+      "insights",
+      "timing",
+      "subjects",
+      "notifications",
+    ];
+    return ordered.find((key) => reportsSectionsOpen[key]) ?? null;
+  }, [reportsSectionsOpen]);
+
+  const closeActiveSection = () => {
+    if (activeSection) {
+      onToggleReportsSection(activeSection);
+    }
+  };
+
   return (
-    <AnimatedTabSection className={styles.reportsGrid} sectionRef={sectionRef}>
+    <AnimatedTabSection
+      className={`${styles.reportsGrid} ${activeSection ? styles.reportsGridDetailOpen : ""}`}
+      sectionRef={sectionRef}
+    >
       <CompanionPulse {...companionPulse} bandanaColor={bandanaColor} />
       {!isPro ? (
         <>
@@ -324,61 +394,63 @@ export default function ReportsTab({
             <div className={styles.cardHeader}>
               <div>
                 <p className={styles.sectionLabel}>Readout</p>
-                <h2 className={styles.cardTitle}>What needs attention now</h2>
+                <h2 className={styles.cardTitle}>Explore reports</h2>
               </div>
-              <span className={styles.leaderboardCountPill}>Operator view</span>
+              <span className={styles.leaderboardCountPill}>Focused view</span>
             </div>
-            <div className={styles.analyticsCommandGrid}>
-              <div className={styles.analyticsCommandItem}>
-                <span>Lead insight</span>
-                <strong>{analyticsLeadInsight?.title ?? "No standout pattern yet"}</strong>
-                <small>
-                  {analyticsLeadInsight?.body ?? "Keep logging tracked sessions and Whelm will sharpen the readout."}
-                </small>
-              </div>
-              <div className={styles.analyticsCommandItem}>
-                <span>Best window</span>
-                <strong>
-                  {analyticsBestWindow
+            <div className={styles.reportIndexList}>
+              <ReportsRow
+                title="Performance"
+                summary={
+                  analyticsWeeklySummary
+                    ? `${analyticsWeeklySummary.averages.dailyPerformanceScore} average score`
+                    : "Score history and weekly trend"
+                }
+                active={activeSection === "score"}
+                onClick={() => onToggleReportsSection("score")}
+              />
+              <ReportsRow
+                title="Whelm guidance"
+                summary={analyticsLeadInsight?.title ?? "The strongest pattern right now"}
+                active={activeSection === "insights"}
+                onClick={() => onToggleReportsSection("insights")}
+              />
+              <ReportsRow
+                title="Focus timing"
+                summary={
+                  analyticsBestWindow
                     ? formatAnalyticsWindowLabel(
                         analyticsBestWindow.startHour,
                         analyticsBestWindow.endHour,
                       )
-                    : "Still forming"}
-                </strong>
-                <small>
-                  {analyticsBestWindow
-                    ? `${analyticsBestWindow.focusMinutes} focus minutes sit in this window.`
-                    : "Complete more saved sessions to surface your strongest hours."}
-                </small>
-              </div>
-              <div className={styles.analyticsCommandItem}>
-                <span>Main subject</span>
-                <strong>{analyticsLeadSubject?.label ?? "No dominant lane yet"}</strong>
-                <small>
-                  {analyticsLeadSubject
-                    ? `${analyticsLeadSubject.focusMinutes} minutes tracked here across ${analyticsLeadSubject.sessionsCompleted} sessions.`
-                    : "Subject breakdown will strengthen as more work gets categorized."}
-                </small>
-              </div>
-              <div className={styles.analyticsCommandItem}>
-                <span>Recommended nudge</span>
-                <strong>{analyticsLeadNotification?.title ?? "No nudge queued"}</strong>
-                <small>
-                  {analyticsLeadNotification
-                    ? `${analyticsLeadNotification.body} Deliver at ${analyticsLeadNotification.deliverAtLocalTime}.`
-                    : "Once today has enough analytics data, Whelm will queue a targeted prompt here."}
-                </small>
-              </div>
+                    : "Best hours and timing distribution"
+                }
+                active={activeSection === "timing"}
+                onClick={() => onToggleReportsSection("timing")}
+              />
+              <ReportsRow
+                title="Subjects"
+                summary={analyticsLeadSubject?.label ?? "Where your effort is landing"}
+                active={activeSection === "subjects"}
+                onClick={() => onToggleReportsSection("subjects")}
+              />
+              <ReportsRow
+                title="Nudges"
+                summary={analyticsLeadNotification?.title ?? "Suggested reminders and prompts"}
+                active={activeSection === "notifications"}
+                onClick={() => onToggleReportsSection("notifications")}
+              />
             </div>
           </article>
 
-          <CollapsibleSectionCard
-            label="Score History"
-            title="Performance score trend"
-            open={reportsSectionsOpen.score}
-            onToggle={() => onToggleReportsSection("score")}
-          >
+          {activeSection === "score" ? (
+            <article className={`${styles.card} ${styles.analyticsDetailCard}`}>
+              <ReportsDetailHeader
+                sectionLabel="Performance"
+                title="Performance score trend"
+                body="Your score history and consistency pattern."
+                onBack={closeActiveSection}
+              />
             {analyticsScoreHistory.length > 0 ? (
               <>
                 <div className={styles.analyticsSectionLead}>
@@ -423,14 +495,17 @@ export default function ReportsTab({
             ) : (
               <p className={styles.analyticsEmptyState}>Performance score history will appear once analytics days are aggregated.</p>
             )}
-          </CollapsibleSectionCard>
+            </article>
+          ) : null}
 
-          <CollapsibleSectionCard
-            label="Insight Feed"
-            title="What the system is seeing"
-            open={reportsSectionsOpen.insights}
-            onToggle={() => onToggleReportsSection("insights")}
-          >
+          {activeSection === "insights" ? (
+            <article className={`${styles.card} ${styles.analyticsDetailCard}`}>
+              <ReportsDetailHeader
+                sectionLabel="Whelm guidance"
+                title="What the system is seeing"
+                body="The strongest patterns in your recent work."
+                onBack={closeActiveSection}
+              />
             {analyticsInsights.length > 0 ? (
               <div className={styles.analyticsInsightList}>
                 {analyticsInsights.map((insight, index) => (
@@ -456,14 +531,17 @@ export default function ReportsTab({
             ) : (
               <p className={styles.analyticsEmptyState}>No standout insights yet. More tracked sessions will make this feed sharper.</p>
             )}
-          </CollapsibleSectionCard>
+            </article>
+          ) : null}
 
-          <CollapsibleSectionCard
-            label="Timing"
-            title="Best focus window"
-            open={reportsSectionsOpen.timing}
-            onToggle={() => onToggleReportsSection("timing")}
-          >
+          {activeSection === "timing" ? (
+            <article className={`${styles.card} ${styles.analyticsDetailCard}`}>
+              <ReportsDetailHeader
+                sectionLabel="Focus timing"
+                title="Best focus window"
+                body="Where your strongest hours are showing up."
+                onBack={closeActiveSection}
+              />
             {analyticsBestWindow ? (
               <>
                 <div className={styles.analyticsFocusWindow}>
@@ -501,14 +579,17 @@ export default function ReportsTab({
             ) : (
               <p className={styles.analyticsEmptyState}>Best focus hours appear after enough completed sessions are tracked.</p>
             )}
-          </CollapsibleSectionCard>
+            </article>
+          ) : null}
 
-          <CollapsibleSectionCard
-            label="Subject Breakdown"
-            title="Where the work is landing"
-            open={reportsSectionsOpen.subjects}
-            onToggle={() => onToggleReportsSection("subjects")}
-          >
+          {activeSection === "subjects" ? (
+            <article className={`${styles.card} ${styles.analyticsDetailCard}`}>
+              <ReportsDetailHeader
+                sectionLabel="Subjects"
+                title="Where the work is landing"
+                body="The lanes taking most of your focus."
+                onBack={closeActiveSection}
+              />
             {analyticsTopSubjects.some((subject) => subject.focusMinutes > 0) ? (
               <div className={styles.analyticsSubjectList}>
                 {analyticsTopSubjects.map((subject, index) => (
@@ -537,15 +618,17 @@ export default function ReportsTab({
             ) : (
               <p className={styles.analyticsEmptyState}>Subject-level analytics will fill in as tracked sessions accumulate.</p>
             )}
-          </CollapsibleSectionCard>
+            </article>
+          ) : null}
 
-          <CollapsibleSectionCard
-            label="Popups & Notifications"
-            title="Recommended nudges"
-            description="These are generated from the latest analytics snapshot and can power in-app prompts and scheduled notifications."
-            open={reportsSectionsOpen.notifications}
-            onToggle={() => onToggleReportsSection("notifications")}
-          >
+          {activeSection === "notifications" ? (
+            <article className={`${styles.card} ${styles.analyticsDetailCard}`}>
+              <ReportsDetailHeader
+                sectionLabel="Nudges"
+                title="Recommended prompts"
+                body="The latest reminders Whelm wants to send."
+                onBack={closeActiveSection}
+              />
             {analyticsNotificationPlan ? (
               <div className={styles.analyticsNotificationList}>
                 {analyticsNotificationPlan.notifications.map((notification) => (
@@ -561,7 +644,8 @@ export default function ReportsTab({
             ) : (
               <p className={styles.analyticsEmptyState}>Once today has analytics data, Whelm can propose targeted nudges here.</p>
             )}
-          </CollapsibleSectionCard>
+            </article>
+          ) : null}
         </>
       )}
     </AnimatedTabSection>

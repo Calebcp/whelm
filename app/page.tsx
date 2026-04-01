@@ -91,7 +91,7 @@ import type { AppTab } from "@/lib/app-tabs";
 import { monthKeyLocal } from "@/lib/date-utils";
 import { buildWhelmArchive, parseWhelmArchive, saveWhelmArchive } from "@/lib/whelm-archive";
 import { exportReadableNotesZip } from "@/lib/whelm-notes-export";
-import { WHELM_PRO_NAME } from "@/lib/whelm-plans";
+import { getWhelmStreakSaveMonthlyLimit, WHELM_PRO_NAME } from "@/lib/whelm-plans";
 import { mergeBlocksPreferNewest, savePlannedBlocks } from "@/lib/planned-blocks-store";
 import { saveReflectionState } from "@/lib/reflection-store";
 import {
@@ -138,6 +138,7 @@ import { useShellLifecycle } from "@/hooks/useShellLifecycle";
 import { useStreak } from "@/hooks/useStreak";
 import { useTabNavigation } from "@/hooks/useTabNavigation";
 import { useUserData } from "@/hooks/useUserData";
+import { useWhelmNotifications } from "@/hooks/useWhelmNotifications";
 import styles from "./page.module.css";
 
 const FOCUS_TIMER = {
@@ -285,7 +286,6 @@ const WHELM_BRAND_THESIS = "Whelm is where productivity becomes a standard, not 
 const WHELM_PRO_POSITIONING =
   "Whelm Pro unlocks unlimited history, full customization, and the deeper version of the Whelm system.";
 const STREAK_MIRROR_MIN_WORDS = 33;
-const STREAK_SAVE_MONTHLY_LIMIT = 5;
 const STREAK_SAVE_ACCOUNTABILITY_QUESTIONS = [
   "What honestly pulled you off track yesterday?",
   "What part of it was outside your control, and what part was yours?",
@@ -1434,9 +1434,11 @@ export default function HomePage() {
     appearance: false,
     background: false,
     archive: false,
+    notifications: false,
     sync: false,
     screenTime: false,
     danger: false,
+    legal: false,
   });
   const [archiveExportBusy, setArchiveExportBusy] = useState(false);
   const [archiveExportStatus, setArchiveExportStatus] = useState("");
@@ -1698,6 +1700,7 @@ export default function HomePage() {
     handleUserSignedOut,
     createWorkspaceNote,
     updateSelectedNote,
+    flushPendingTitleSync,
     flushSelectedNoteDraft,
     togglePinned,
     captureEditorDraft,
@@ -1870,6 +1873,7 @@ export default function HomePage() {
     themePromptOpen,
     appBackgroundSetting,
     backgroundSkin,
+    notificationSettings,
     effectiveBackgroundSetting,
     backgroundSkinActive,
     preferencesHydrated,
@@ -1879,6 +1883,7 @@ export default function HomePage() {
     applyBackgroundSetting,
     applyCompanionStyle,
     updateBackgroundSkin,
+    applyNotificationSettings,
     handleBackgroundUpload,
   } = usePreferences({
     user,
@@ -1911,6 +1916,7 @@ export default function HomePage() {
           companionStyle,
           backgroundSetting: appBackgroundSetting,
           backgroundSkin,
+          notificationSettings,
           proState: {
             isPro,
             source: proSource,
@@ -2176,6 +2182,7 @@ export default function HomePage() {
     streakMonthLabel,
     streakMonthCalendar,
   } = useStreak({
+    isPro,
     streak,
     streakQualifiedDateKeys,
     sessionMinutesByDay,
@@ -2185,6 +2192,8 @@ export default function HomePage() {
     sickDaySaveDismissals,
     lifetimeXpSummary,
   });
+
+  const streakSaveMonthlyLimit = getWhelmStreakSaveMonthlyLimit(isPro);
 
   useEffect(() => {
     if (!pendingXpPop) return;
@@ -2281,6 +2290,22 @@ export default function HomePage() {
     trendPoints,
     streak,
     setSenseiReaction,
+  });
+
+  const {
+    deliveryMode: notificationDeliveryMode,
+    permissionState: notificationPermissionState,
+    notificationStatus,
+    notificationBusy,
+    scheduledNotificationCount,
+    requestNotificationPermission,
+    resyncNotifications,
+  } = useWhelmNotifications({
+    user,
+    notificationSettings,
+    analyticsNotificationPlan,
+    notes,
+    showToast,
   });
 
   useEffect(() => {
@@ -2394,6 +2419,7 @@ export default function HomePage() {
           themeMode: prefs.themeMode as ThemeMode,
           backgroundSetting: prefs.backgroundSetting as AppBackgroundSetting,
           backgroundSkin: prefs.backgroundSkin as BackgroundSkinSetting,
+          notificationSettings: prefs.notificationSettings,
           proState: prefs.proState,
         });
       },
@@ -3354,7 +3380,7 @@ export default function HomePage() {
               mirrorPrivacyOpen={mirrorPrivacyOpen}
               onToggleMirrorPrivacy={() => setMirrorPrivacyOpen((current) => !current)}
               monthlyStreakSaveCount={monthlyStreakSaveCount}
-              streakSaveMonthlyLimit={STREAK_SAVE_MONTHLY_LIMIT}
+              streakSaveMonthlyLimit={streakSaveMonthlyLimit}
               streakSaveSlotsLeft={streakSaveSlotsLeft}
               streakMirrorEntries={streakMirrorEntries}
               streakMirrorVisibleEntries={streakMirrorVisibleEntries}
@@ -3437,6 +3463,7 @@ export default function HomePage() {
               onCreateNote={() => void createWorkspaceNote()}
               onTogglePinned={(noteId) => void togglePinned(noteId)}
               onUpdateSelectedNote={(patch) => void updateSelectedNote(patch)}
+              onFlushPendingTitleSync={() => void flushPendingTitleSync()}
               onCaptureEditorDraft={captureEditorDraft}
               onSaveEditorSelection={saveEditorSelection}
               onApplyEditorCommand={applyEditorCommand}
@@ -3516,7 +3543,17 @@ export default function HomePage() {
               analyticsLeadNotification={analyticsLeadNotification}
               reportsSectionsOpen={reportsSectionsOpen}
               onToggleReportsSection={(key) =>
-                setReportsSectionsOpen((current) => ({ ...current, [key]: !current[key] }))
+                setReportsSectionsOpen((current) => {
+                  const nextValue = !current[key];
+                  return {
+                    score: false,
+                    insights: false,
+                    timing: false,
+                    subjects: false,
+                    notifications: false,
+                    [key]: nextValue,
+                  };
+                })
               }
               analyticsScoreHistory={analyticsScoreHistory}
               analyticsScorePath={analyticsScorePath}
@@ -3546,7 +3583,7 @@ export default function HomePage() {
               monthlySaveLimitReached={monthlySaveLimitReached}
               yesterdayKey={yesterdayKey}
               monthlyStreakSaveCount={monthlyStreakSaveCount}
-              streakSaveMonthlyLimit={STREAK_SAVE_MONTHLY_LIMIT}
+              streakSaveMonthlyLimit={streakSaveMonthlyLimit}
               onOpenStreakSaveQuestionnaire={openStreakSaveQuestionnaire}
               onDeclineSickDaySave={() => declineSickDaySave(rawYesterdayMissed, yesterdayKey)}
               onGoToMirror={() => setActiveTab("mirror")}
@@ -3582,7 +3619,23 @@ export default function HomePage() {
               themeMode={themeMode}
               sectionsOpen={settingsSectionsOpen}
               onToggleSection={(key) =>
-                setSettingsSectionsOpen((current) => ({ ...current, [key]: !current[key] }))
+                setSettingsSectionsOpen((current) => {
+                  const nextValue = !current[key];
+                  return {
+                    identity: false,
+                    internalTools: false,
+                    protocol: false,
+                    appearance: false,
+                    background: false,
+                    archive: false,
+                    notifications: false,
+                    sync: false,
+                    screenTime: false,
+                    danger: false,
+                    legal: false,
+                    [key]: nextValue,
+                  };
+                })
               }
               onFeedbackOpen={() => {
                 setFeedbackOpen(true);
@@ -3640,6 +3693,15 @@ export default function HomePage() {
               notesSyncStatus={notesSyncStatus}
               notesSyncMessage={notesSyncMessage}
               onRetrySync={() => void handleRetrySync()}
+              notificationSettings={notificationSettings}
+              notificationPermissionState={notificationPermissionState}
+              notificationDeliveryMode={notificationDeliveryMode}
+              notificationBusy={notificationBusy}
+              notificationStatus={notificationStatus}
+              scheduledNotificationCount={scheduledNotificationCount}
+              onApplyNotificationSettings={applyNotificationSettings}
+              onRequestNotificationPermission={() => void requestNotificationPermission()}
+              onResyncNotifications={() => void resyncNotifications()}
               screenTimeSupported={screenTimeSupported}
               screenTimeStatus={screenTimeStatus}
               screenTimeReason={screenTimeReason}
@@ -3671,12 +3733,27 @@ export default function HomePage() {
             reward={sessionReward}
             onDismiss={() => setSessionReward(null)}
             getStreakTierColorTheme={getStreakTierColorTheme}
+            currentTierColor={streakBandanaTier?.color}
+            isPro={isPro}
+            photoUrl={currentUserPhotoUrl}
           />
         ) : null}
       </AnimatePresence>
 
-      <XPPopAnimation pops={xpPops} onDone={removeXPPop} />
-      <WhelToastContainer toasts={whelToasts} onDismiss={dismissToast} />
+      <XPPopAnimation
+        pops={xpPops}
+        onDone={removeXPPop}
+        currentTierColor={streakBandanaTier?.color}
+        isPro={isPro}
+        photoUrl={currentUserPhotoUrl}
+      />
+      <WhelToastContainer
+        toasts={whelToasts}
+        onDismiss={dismissToast}
+        currentTierColor={streakBandanaTier?.color}
+        isPro={isPro}
+        photoUrl={currentUserPhotoUrl}
+      />
 
       <ProfileSheet
         open={profileOpen}
@@ -3814,7 +3891,7 @@ export default function HomePage() {
         streakSaveQuestionnairePreview={streakSaveQuestionnairePreview}
         closeStreakSaveQuestionnaire={closeStreakSaveQuestionnaire}
         monthlyStreakSaveCount={monthlyStreakSaveCount}
-        streakSaveMonthlyLimit={STREAK_SAVE_MONTHLY_LIMIT}
+        streakSaveMonthlyLimit={streakSaveMonthlyLimit}
         streakMirrorSaying={streakMirrorSaying}
         questions={STREAK_SAVE_ACCOUNTABILITY_QUESTIONS}
         streakSaveAnswers={streakSaveAnswers}
@@ -3853,6 +3930,10 @@ export default function HomePage() {
         streakNudge={streakNudge}
         onDismissStreakNudge={() => setStreakNudge(null)}
         onStreakNudgeAction={handleStreakNudgeAction}
+        currentTierColor={streakBandanaTier?.color}
+        isPro={isPro}
+        photoUrl={currentUserPhotoUrl}
+        nextBandanaMilestone={nextBandanaMilestone}
       />
 
       <PaywallModal

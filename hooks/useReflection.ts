@@ -11,6 +11,7 @@ import {
   type ReflectionSickDaySave,
 } from "@/lib/reflection-store";
 import { computeStreak, type SessionDoc } from "@/lib/streak";
+import { getWhelmStreakSaveMonthlyLimit } from "@/lib/whelm-plans";
 
 type MirrorSectionsOpen = {
   summary: boolean;
@@ -35,6 +36,7 @@ export function useReflection({
   sayings,
   minWords,
 }: UseReflectionOptions) {
+  const streakSaveMonthlyLimit = getWhelmStreakSaveMonthlyLimit(isPro);
   const [sickDaySaves, setSickDaySaves] = useState<ReflectionSickDaySave[]>([]);
   const [sickDaySaveDismissals, setSickDaySaveDismissals] = useState<string[]>([]);
   const [sickDaySavePromptOpen, setSickDaySavePromptOpen] = useState(false);
@@ -198,7 +200,7 @@ export function useReflection({
       return;
     }
     if (input.monthlySaveLimitReached) {
-      setStreakSaveStatus("This month has already used all 5 streak saves.");
+      setStreakSaveStatus(`This month has already used all ${streakSaveMonthlyLimit} streak saves.`);
       return;
     }
 
@@ -257,6 +259,7 @@ export function useReflection({
     streakMirrorEntries,
     streakMirrorTag,
     streakSaveAnswers,
+    streakSaveMonthlyLimit,
     streakSaveQuestionnairePreview,
     user,
   ]);

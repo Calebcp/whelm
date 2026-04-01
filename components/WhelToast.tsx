@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import WhelmProfileAvatar from "@/components/WhelmProfileAvatar";
 import styles from "./WhelToast.module.css";
 
 export type ToastVariant = "info" | "success" | "warning" | "error";
@@ -26,9 +27,15 @@ const ICONS: Record<ToastVariant, string> = {
 function ToastItem({
   toast,
   onDismiss,
+  currentTierColor,
+  isPro,
+  photoUrl,
 }: {
   toast: Toast;
   onDismiss: (id: string) => void;
+  currentTierColor: string | null | undefined;
+  isPro: boolean;
+  photoUrl?: string | null;
 }) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const startX = useRef(0);
@@ -39,8 +46,6 @@ function ToastItem({
       if (timerRef.current) clearTimeout(timerRef.current);
     };
   }, [toast.id, onDismiss]);
-
-  const icon = toast.icon ?? ICONS[toast.variant ?? "info"];
 
   return (
     <motion.div
@@ -61,7 +66,13 @@ function ToastItem({
       role="status"
       aria-live="polite"
     >
-      <span className={styles.toastIcon}>{icon}</span>
+      <span className={styles.toastAvatarWrap}>
+        <WhelmProfileAvatar
+          tierColor={currentTierColor}
+          size="mini"
+          isPro={isPro}
+        />
+      </span>
       <span className={styles.toastMessage}>{toast.message}</span>
     </motion.div>
   );
@@ -94,15 +105,28 @@ export function useToasts() {
 export default function WhelToastContainer({
   toasts,
   onDismiss,
+  currentTierColor,
+  isPro,
+  photoUrl,
 }: {
   toasts: Toast[];
   onDismiss: (id: string) => void;
+  currentTierColor: string | null | undefined;
+  isPro: boolean;
+  photoUrl?: string | null;
 }) {
   return (
     <div className={styles.container} aria-live="polite">
       <AnimatePresence mode="sync">
         {toasts.map((toast) => (
-          <ToastItem key={toast.id} toast={toast} onDismiss={onDismiss} />
+          <ToastItem
+            key={toast.id}
+            toast={toast}
+            onDismiss={onDismiss}
+            currentTierColor={currentTierColor}
+            isPro={isPro}
+            photoUrl={photoUrl}
+          />
         ))}
       </AnimatePresence>
     </div>

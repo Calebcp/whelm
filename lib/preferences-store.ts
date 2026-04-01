@@ -22,11 +22,18 @@ export type PreferencesProState = {
   source: "preview" | "store" | "none";
 };
 
+export type PreferencesNotificationSettings = {
+  enabled: boolean;
+  performanceNudges: boolean;
+  noteReminders: boolean;
+};
+
 export type PreferencesState = {
   themeMode: PreferencesThemeMode;
   companionStyle: PreferencesCompanionStyle;
   backgroundSetting: PreferencesBackgroundSetting;
   backgroundSkin: PreferencesBackgroundSkin;
+  notificationSettings: PreferencesNotificationSettings;
   proState: PreferencesProState;
 };
 
@@ -80,6 +87,17 @@ function normalizeState(state: Partial<PreferencesState> | null | undefined): Pr
         : "balanced",
     backgroundSetting: normalizeBackgroundSetting(state?.backgroundSetting),
     backgroundSkin: normalizeBackgroundSkin(state?.backgroundSkin),
+    notificationSettings: {
+      enabled: typeof state?.notificationSettings?.enabled === "boolean" ? state.notificationSettings.enabled : false,
+      performanceNudges:
+        typeof state?.notificationSettings?.performanceNudges === "boolean"
+          ? state.notificationSettings.performanceNudges
+          : true,
+      noteReminders:
+        typeof state?.notificationSettings?.noteReminders === "boolean"
+          ? state.notificationSettings.noteReminders
+          : true,
+    },
     proState: {
       isPro:
         typeof state?.proState?.isPro === "boolean"

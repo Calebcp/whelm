@@ -4,11 +4,13 @@ import { type CSSProperties } from "react";
 import { AnimatePresence, motion } from "motion/react";
 
 import styles from "@/app/page.module.css";
+import WhelmProfileAvatar from "@/components/WhelmProfileAvatar";
 import { countWords } from "@/lib/date-utils";
 import type { AppTab } from "@/lib/app-tabs";
 import type { WorkspaceNote } from "@/lib/notes-store";
 import type { PlannedBlock } from "@/hooks/usePlannedBlocks";
 import type { SessionDoc } from "@/lib/streak";
+import type { StreakBandanaTier } from "@/lib/streak-bandanas";
 import type { StreakCelebrationState, StreakNudgeState } from "@/lib/xp-engine";
 
 type StreakTag = {
@@ -52,6 +54,10 @@ export default function StreakOverlayCluster({
   streakNudge,
   onDismissStreakNudge,
   onStreakNudgeAction,
+  currentTierColor,
+  isPro,
+  photoUrl,
+  nextBandanaMilestone,
 }: {
   notificationsBlocked: boolean;
   streakSaveQuestionnaireOpen: boolean;
@@ -91,6 +97,13 @@ export default function StreakOverlayCluster({
   streakNudge: StreakNudgeState | null;
   onDismissStreakNudge: () => void;
   onStreakNudgeAction: (tab: AppTab) => void;
+  currentTierColor: string | null | undefined;
+  isPro: boolean;
+  photoUrl?: string | null;
+  nextBandanaMilestone: {
+    tier: StreakBandanaTier;
+    remainingDays: number;
+  } | null;
 }) {
   return (
     <>
@@ -101,15 +114,35 @@ export default function StreakOverlayCluster({
             onClick={(event) => event.stopPropagation()}
           >
             <div className={styles.feedbackHeader}>
-              <h2 className={styles.feedbackTitle}>Streak Mirror check-in</h2>
+              <div className={styles.feedbackHero}>
+                <div className={styles.feedbackHeroAvatar}>
+                  <WhelmProfileAvatar
+                    tierColor={currentTierColor}
+                    size="row"
+                    isPro={isPro}
+                    photoUrl={photoUrl}
+                  />
+                </div>
+                <div className={styles.feedbackHeroCopy}>
+                  <h2 className={styles.feedbackTitle}>Streak Mirror</h2>
+                  {nextBandanaMilestone ? (
+                    <p className={styles.feedbackHeroMeta}>
+                      {nextBandanaMilestone.remainingDays} more day
+                      {nextBandanaMilestone.remainingDays === 1 ? "" : "s"} to {nextBandanaMilestone.tier.label}.
+                    </p>
+                  ) : (
+                    <p className={styles.feedbackHeroMeta}>Keep the line honest.</p>
+                  )}
+                </div>
+              </div>
               <button type="button" className={styles.feedbackClose} onClick={closeStreakSaveQuestionnaire}>
                 Close
               </button>
             </div>
             <p className={styles.feedbackMeta}>
               {streakSaveQuestionnairePreview
-                ? "Preview mode only. Fill it out and close it without changing the streak."
-                : "Private to you. No one else sees these reflections. Whelm keeps them only to support honest reflection and accountability inside the app."}
+                ? "Preview only. No streak changes."
+                : "Private to you. Whelm uses this only for your own accountability."}
             </p>
             <div className={styles.mirrorModalBanner}>
               <strong>{monthlyStreakSaveCount}/{streakSaveMonthlyLimit} used this month</strong>
@@ -186,19 +219,36 @@ export default function StreakOverlayCluster({
         <div className={styles.feedbackOverlay} onClick={onDismissSickDaySavePrompt}>
           <div className={styles.feedbackModal} onClick={(event) => event.stopPropagation()}>
             <div className={styles.feedbackHeader}>
-              <h2 className={styles.feedbackTitle}>
-                {sickDaySaveEligible ? "Your streak is at risk from yesterday" : "Your streak reset yesterday"}
-              </h2>
+              <div className={styles.feedbackHero}>
+                <div className={styles.feedbackHeroAvatar}>
+                  <WhelmProfileAvatar
+                    tierColor={currentTierColor}
+                    size="row"
+                    isPro={isPro}
+                    photoUrl={photoUrl}
+                  />
+                </div>
+                <div className={styles.feedbackHeroCopy}>
+                  <h2 className={styles.feedbackTitle}>
+                    {sickDaySaveEligible ? "Yesterday put the line at risk." : "Yesterday reset the line."}
+                  </h2>
+                  <p className={styles.feedbackHeroMeta}>
+                    {sickDaySaveEligible
+                      ? "Whelm can still help you protect it."
+                      : "Reset clearly. Keep moving."}
+                  </p>
+                </div>
+              </div>
               <button type="button" className={styles.feedbackClose} onClick={onDismissSickDaySavePrompt}>
                 Later
               </button>
             </div>
             <p className={styles.feedbackMeta}>
               {sickDaySaveEligible
-                ? "You missed yesterday, so the streak will reset unless you use a private Streak Mirror save. Open it now if the miss was genuinely caused by sickness."
+                ? "If yesterday was a real sick-day miss, open Streak Mirror now."
                 : monthlySaveLimitReached
-                  ? "You missed yesterday and the streak reset. Your Streak Mirror is still there to review patterns, but this month has already used all available saves."
-                  : "You missed yesterday and the streak reset. Open Streak Mirror to review what happened and reset clearly."}
+                  ? "This month has no saves left. You can still review the miss in Streak Mirror."
+                  : "Open Streak Mirror to review the miss and reset cleanly."}
             </p>
             <div className={styles.noteFooterActions}>
               <button type="button" className={styles.feedbackSubmit} onClick={onOpenSickDaySaveReview}>
@@ -234,6 +284,9 @@ export default function StreakOverlayCluster({
             celebration={streakCelebration}
             onDismiss={onDismissStreakCelebration}
             getStreakTierColorTheme={getStreakTierColorTheme}
+            currentTierColor={currentTierColor}
+            isPro={isPro}
+            photoUrl={photoUrl}
           />
         ) : null}
       </AnimatePresence>
@@ -244,6 +297,10 @@ export default function StreakOverlayCluster({
             nudge={streakNudge}
             onDismiss={onDismissStreakNudge}
             onAction={onStreakNudgeAction}
+            currentTierColor={currentTierColor}
+            isPro={isPro}
+            photoUrl={photoUrl}
+            nextBandanaMilestone={nextBandanaMilestone}
           />
         ) : null}
       </AnimatePresence>
@@ -255,6 +312,9 @@ function StreakCelebrationToast({
   celebration,
   onDismiss,
   getStreakTierColorTheme,
+  currentTierColor,
+  isPro,
+  photoUrl,
 }: {
   celebration: StreakCelebrationState;
   onDismiss: () => void;
@@ -263,6 +323,9 @@ function StreakCelebrationToast({
     accentStrong: string;
     accentGlow: string;
   };
+  currentTierColor: string | null | undefined;
+  isPro: boolean;
+  photoUrl?: string | null;
 }) {
   const tierTheme = getStreakTierColorTheme(celebration.tier?.color);
   const rewardStyle = {
@@ -284,11 +347,18 @@ function StreakCelebrationToast({
         ×
       </button>
       <div className={styles.sessionRewardTop}>
+        <div className={styles.sessionRewardAvatarWrap}>
+          <WhelmProfileAvatar
+            tierColor={currentTierColor}
+            size="mini"
+            isPro={isPro}
+          />
+        </div>
         <div>
-          <p className={styles.sectionLabel}>Streak secured</p>
-          <h3 className={styles.sessionRewardTitle}>Congratulations. {celebration.todayLabel} is protected.</h3>
+          <p className={styles.sectionLabel}>Whelm secured it</p>
+          <h3 className={styles.sessionRewardTitle}>{celebration.todayLabel} is protected.</h3>
           <p className={styles.sessionRewardBody}>
-            That last point pushed you over the line. Your streak now holds at {celebration.streakAfter} day
+            The line now holds at {celebration.streakAfter} day
             {celebration.streakAfter === 1 ? "" : "s"}.
           </p>
         </div>
@@ -307,7 +377,7 @@ function StreakCelebrationToast({
         </div>
         <div className={styles.sessionRewardStat}>
           <span>Tier</span>
-          <strong>{celebration.tier?.label ?? "Holding line"}</strong>
+          <strong>{celebration.tier?.label ?? "Steady"}</strong>
         </div>
       </div>
     </motion.div>
@@ -318,10 +388,21 @@ function StreakNudgeToast({
   nudge,
   onDismiss,
   onAction,
+  currentTierColor,
+  isPro,
+  photoUrl,
+  nextBandanaMilestone,
 }: {
   nudge: StreakNudgeState;
   onDismiss: () => void;
   onAction: (tab: AppTab) => void;
+  currentTierColor: string | null | undefined;
+  isPro: boolean;
+  photoUrl?: string | null;
+  nextBandanaMilestone: {
+    tier: StreakBandanaTier;
+    remainingDays: number;
+  } | null;
 }) {
   return (
     <motion.div
@@ -334,6 +415,25 @@ function StreakNudgeToast({
       <button type="button" className={styles.sessionRewardClose} onClick={onDismiss} aria-label="Dismiss streak nudge">
         ×
       </button>
+      <div className={styles.streakNudgeHeader}>
+        <div className={styles.sessionRewardAvatarWrap}>
+          <WhelmProfileAvatar
+            tierColor={currentTierColor}
+            size="mini"
+            isPro={isPro}
+          />
+        </div>
+        {nextBandanaMilestone ? (
+          <div className={styles.streakNudgePreview}>
+            <span className={styles.streakNudgePreviewLabel}>Next Whelm</span>
+            <strong>{nextBandanaMilestone.tier.label}</strong>
+            <span>
+              {nextBandanaMilestone.remainingDays} day
+              {nextBandanaMilestone.remainingDays === 1 ? "" : "s"} away
+            </span>
+          </div>
+        ) : null}
+      </div>
       <p className={styles.sectionLabel}>Streak at risk</p>
       <h3 className={styles.streakNudgeTitle}>{nudge.title}</h3>
       <p className={styles.streakNudgeBody}>{nudge.body}</p>

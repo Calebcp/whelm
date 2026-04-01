@@ -1,11 +1,9 @@
 "use client";
 
-import { type ChangeEvent, type Ref, type RefObject } from "react";
+import { useMemo, type ChangeEvent, type Ref, type RefObject } from "react";
 
 import sharedStyles from "@/app/page.module.css";
 import AnimatedTabSection from "@/components/AnimatedTabSection";
-import CollapsibleSectionCard from "@/components/CollapsibleSectionCard";
-import CompanionPulse from "@/components/CompanionPulse";
 import ProUnlockCard from "@/components/ProUnlockCard";
 import styles from "@/components/SettingsTab.module.css";
 import WhelmProfileAvatar from "@/components/WhelmProfileAvatar";
@@ -57,6 +55,117 @@ function formatSenseiLabel(value: string) {
     .join(" ");
 }
 
+function SettingsRow({
+  title,
+  summary,
+  active,
+  onClick,
+}: {
+  title: string;
+  summary?: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={`${styles.settingsIndexRow} ${active ? styles.settingsIndexRowActive : ""}`}
+      onClick={onClick}
+    >
+      <div className={styles.settingsIndexCopy}>
+        <strong>{title}</strong>
+        {summary ? <span>{summary}</span> : null}
+      </div>
+      <span className={styles.settingsIndexChevron}>{active ? "−" : "›"}</span>
+    </button>
+  );
+}
+
+function SettingsDetailHeader({
+  sectionLabel,
+  title,
+  body,
+  onBack,
+}: {
+  sectionLabel: string;
+  title: string;
+  body?: string;
+  onBack: () => void;
+}) {
+  return (
+    <div className={styles.settingsDetailTopbar}>
+      <button type="button" className={styles.settingsBackButton} onClick={onBack}>
+        ‹
+      </button>
+      <div className={styles.settingsDetailHeader}>
+        <p className={sharedStyles.sectionLabel}>{sectionLabel}</p>
+        <h2 className={sharedStyles.cardTitle}>{title}</h2>
+        {body ? <p className={sharedStyles.accountMeta}>{body}</p> : null}
+      </div>
+    </div>
+  );
+}
+
+function SettingsToggleRow({
+  title,
+  summary,
+  active,
+  disabled,
+  onClick,
+}: {
+  title: string;
+  summary?: string;
+  active: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={`${styles.settingsToggleRow} ${active ? styles.settingsToggleRowActive : ""}`}
+      onClick={onClick}
+      disabled={disabled}
+    >
+      <div className={styles.settingsIndexCopy}>
+        <strong>{title}</strong>
+        {summary ? <span>{summary}</span> : null}
+      </div>
+      <span className={`${styles.settingsToggle} ${active ? styles.settingsToggleOn : ""}`}>
+        <span />
+      </span>
+    </button>
+  );
+}
+
+function SettingsActionRow({
+  title,
+  summary,
+  onClick,
+  disabled,
+  emphasis = "default",
+}: {
+  title: string;
+  summary?: string;
+  onClick: () => void;
+  disabled?: boolean;
+  emphasis?: "default" | "danger";
+}) {
+  return (
+    <button
+      type="button"
+      className={`${styles.settingsActionRow} ${emphasis === "danger" ? styles.settingsActionRowDanger : ""}`}
+      onClick={onClick}
+      disabled={disabled}
+    >
+      <div className={styles.settingsIndexCopy}>
+        <strong>{title}</strong>
+        {summary ? <span>{summary}</span> : null}
+      </div>
+      <span className={styles.settingsIndexChevron}>›</span>
+    </button>
+  );
+}
+
 type SettingsSectionsOpen = {
   identity: boolean;
   internalTools: boolean;
@@ -64,9 +173,11 @@ type SettingsSectionsOpen = {
   appearance: boolean;
   background: boolean;
   archive: boolean;
+  notifications: boolean;
   sync: boolean;
   screenTime: boolean;
   danger: boolean;
+  legal: boolean;
 };
 
 type NextBandanaMilestone = {
@@ -83,12 +194,10 @@ type CompanionPulseData = {
 };
 
 export type SettingsTabProps = {
-  // Sensei companion
   companionPulse: CompanionPulseData;
   bandanaColor: WhelBandanaColor;
   sectionRef?: Ref<HTMLElement>;
   primaryRef?: Ref<HTMLElement>;
-  // User profile
   streakBandanaTier: StreakBandanaTier | null;
   isPro: boolean;
   photoUrl: string | null | undefined;
@@ -98,13 +207,10 @@ export type SettingsTabProps = {
   nextBandanaMilestone: NextBandanaMilestone;
   proSource: "preview" | "store" | "none";
   streak: number;
-  // Preferences
   companionStyle: "gentle" | "balanced" | "strict";
   themeMode: "dark" | "light" | "system";
-  // Section open state
   sectionsOpen: SettingsSectionsOpen;
   onToggleSection: (key: keyof SettingsSectionsOpen) => void;
-  // Actions
   onFeedbackOpen: () => void;
   onReplayTutorial: () => void;
   onStartProPreview: () => void;
@@ -115,7 +221,6 @@ export type SettingsTabProps = {
   onSignOut: () => void;
   onApplyCompanionStyle: (style: "gentle" | "balanced" | "strict") => void;
   onApplyThemeMode: (mode: "dark" | "light" | "system") => void;
-  // Background
   appBackgroundSetting: PreferencesBackgroundSetting;
   backgroundSkin: PreferencesBackgroundSkin;
   backgroundUploadInputRef: RefObject<HTMLInputElement | null>;
@@ -124,7 +229,6 @@ export type SettingsTabProps = {
   onUpdateBackgroundSkin: (skin: PreferencesBackgroundSkin) => void;
   proPanelBackgroundOpen: boolean;
   onToggleProBackgroundPanel: () => void;
-  // Archive export
   archiveExportBusy: boolean;
   archiveExportStatus: string;
   onExportArchive: () => void;
@@ -148,30 +252,43 @@ export type SettingsTabProps = {
   } | null;
   onConfirmArchiveImport: () => void;
   onCancelArchiveImport: () => void;
-  // Notes sync
   notesSyncStatus: "synced" | "syncing" | "local-only" | "error";
   notesSyncMessage: string;
   onRetrySync: () => void;
-  // Screen time
+  notificationSettings: {
+    enabled: boolean;
+    performanceNudges: boolean;
+    noteReminders: boolean;
+  };
+  notificationPermissionState: "unsupported" | "default" | "granted" | "denied";
+  notificationDeliveryMode: "native" | "web" | "unsupported";
+  notificationBusy: boolean;
+  notificationStatus: string;
+  scheduledNotificationCount: number;
+  onApplyNotificationSettings: (settings: {
+    enabled: boolean;
+    performanceNudges: boolean;
+    noteReminders: boolean;
+  }) => void;
+  onRequestNotificationPermission: () => void;
+  onResyncNotifications: () => void;
   screenTimeSupported: boolean;
   screenTimeStatus: ScreenTimeAuthorizationStatus;
   screenTimeReason: string;
   screenTimeBusy: boolean;
   onRequestScreenTimeAuth: () => void;
   onOpenScreenTimeSettings: () => void;
-  // Account danger
   deletingAccount: boolean;
   onDeleteAccount: () => void;
   accountDangerStatus: string;
-  // Internal tools
   onPreviewStreakMirror: () => void;
   onPreviewDailyCommitment: () => void;
   onPreviewStreakAlert: () => void;
 };
 
 export default function SettingsTab({
-  companionPulse,
-  bandanaColor,
+  companionPulse: _companionPulse,
+  bandanaColor: _bandanaColor,
   sectionRef,
   primaryRef,
   streakBandanaTier,
@@ -179,7 +296,7 @@ export default function SettingsTab({
   photoUrl,
   displayName,
   email,
-  profileTierTheme,
+  profileTierTheme: _profileTierTheme,
   nextBandanaMilestone,
   proSource,
   streak,
@@ -220,6 +337,15 @@ export default function SettingsTab({
   notesSyncStatus,
   notesSyncMessage,
   onRetrySync,
+  notificationSettings,
+  notificationPermissionState,
+  notificationDeliveryMode,
+  notificationBusy,
+  notificationStatus,
+  scheduledNotificationCount,
+  onApplyNotificationSettings,
+  onRequestNotificationPermission,
+  onResyncNotifications,
   screenTimeSupported,
   screenTimeStatus,
   screenTimeReason,
@@ -233,517 +359,708 @@ export default function SettingsTab({
   onPreviewDailyCommitment,
   onPreviewStreakAlert,
 }: SettingsTabProps) {
-  return (
-    <AnimatedTabSection className={styles.settingsGrid} sectionRef={sectionRef}>
-      <CompanionPulse {...companionPulse} bandanaColor={bandanaColor} />
+  const navigateTo = (href: string) => {
+    if (typeof window !== "undefined") {
+      window.location.assign(href);
+    }
+  };
 
-      <article className={`${sharedStyles.card} ${styles.settingsHeroCard}`} ref={primaryRef}>
-        <div className={styles.settingsHeroHeader}>
+  const activeSection = useMemo<keyof SettingsSectionsOpen | null>(() => {
+    const ordered: Array<keyof SettingsSectionsOpen> = [
+      "identity",
+      "notifications",
+      "sync",
+      "archive",
+      "screenTime",
+      "internalTools",
+      "legal",
+      "danger",
+      "protocol",
+      "appearance",
+      "background",
+    ];
+    return ordered.find((key) => sectionsOpen[key]) ?? null;
+  }, [sectionsOpen]);
+
+  const preferencesActive =
+    activeSection === "identity" ||
+    activeSection === "protocol" ||
+    activeSection === "appearance" ||
+    activeSection === "background";
+
+  const closeActiveSection = () => {
+    if (activeSection) {
+      onToggleSection(activeSection);
+    }
+  };
+
+  return (
+    <AnimatedTabSection
+      className={`${styles.settingsGrid} ${activeSection ? styles.settingsGridDetailOpen : ""}`}
+      sectionRef={sectionRef}
+    >
+      <article className={`${sharedStyles.card} ${styles.settingsIndexCard}`} ref={primaryRef}>
+        <div className={styles.settingsIndexHeader}>
+          <div>
+            <p className={sharedStyles.sectionLabel}>Settings</p>
+            <h2 className={sharedStyles.cardTitle}>Whelm settings</h2>
+            <p className={sharedStyles.accountMeta}>
+              {displayName || "Whelm user"} · {isPro ? WHELM_PRO_NAME : WHELM_STANDARD_NAME}
+            </p>
+          </div>
           <WhelmProfileAvatar
             tierColor={streakBandanaTier?.color}
             size="compact"
             isPro={isPro}
             photoUrl={photoUrl}
           />
-          <div>
-            <p className={sharedStyles.sectionLabel}>Account</p>
-            <h2 className={sharedStyles.cardTitle}>{displayName || "Whelm user"}</h2>
-            <p className={sharedStyles.accountMeta}>{email}</p>
-          </div>
         </div>
-        <div className={styles.settingsReadoutGrid}>
-          <article className={styles.settingsReadoutCard}>
-            <span>Bandana</span>
-            <strong>{streakBandanaTier?.label ?? "No tier yet"}</strong>
-            <small>{profileTierTheme.title}</small>
-          </article>
-          <article className={styles.settingsReadoutCard}>
-            <span>Next ascent</span>
-            <strong>
-              {nextBandanaMilestone
-                ? `${nextBandanaMilestone.remainingDays} day${nextBandanaMilestone.remainingDays === 1 ? "" : "s"} left`
-                : "Top tier reached"}
-            </strong>
-            <small>
-              {nextBandanaMilestone ? nextBandanaMilestone.tier.label : "Keep the run alive."}
-            </small>
-          </article>
-          <article className={styles.settingsReadoutCard}>
-            <span>System mode</span>
-            <strong>{companionStyle === "strict" ? "Strict" : companionStyle === "balanced" ? "Balanced" : "Gentle"}</strong>
-            <small>{themeMode === "dark" ? "Dark shell" : "Light shell"}</small>
-          </article>
+
+        <div className={styles.settingsIndexGroup}>
+          <p className={styles.settingsIndexLabel}>Account</p>
+          <SettingsRow
+            title="Preferences"
+            summary="Theme, Whelm tone, shell, and behavior"
+            active={preferencesActive}
+            onClick={() => onToggleSection("identity")}
+          />
+          <SettingsRow
+            title="Profile"
+            summary={email || "Account details"}
+            active={activeSection === "danger"}
+            onClick={() => onToggleSection("danger")}
+          />
+          <SettingsRow
+            title="Notifications"
+            summary={notificationSettings.enabled ? "Whelm nudges active" : "Notifications off"}
+            active={activeSection === "notifications"}
+            onClick={() => onToggleSection("notifications")}
+          />
         </div>
-        <div className={styles.settingsPills}>
-          <span className={styles.settingsPill}>
-            Access: {isPro ? WHELM_PRO_NAME : WHELM_STANDARD_NAME}
-          </span>
-          <span className={styles.settingsPill}>
-            Status: {proSource === "preview" ? `${WHELM_PRO_NAME} Access` : isPro ? `${WHELM_PRO_NAME} Active` : WHELM_STANDARD_NAME}
-          </span>
-          <span className={styles.settingsPill}>Streak: {streak}d</span>
+
+        <div className={styles.settingsIndexGroup}>
+          <p className={styles.settingsIndexLabel}>Subscription</p>
+          <SettingsRow
+            title="Subscription"
+            summary={isPro ? `${WHELM_PRO_NAME} active` : `Using ${WHELM_STANDARD_NAME}`}
+            active={activeSection === "sync"}
+            onClick={() => onToggleSection("sync")}
+          />
+          <SettingsRow
+            title="Archive"
+            summary="Export and restore your Whelm"
+            active={activeSection === "archive"}
+            onClick={() => onToggleSection("archive")}
+          />
         </div>
-        <div className={styles.settingsActionGrid}>
-          <button
-            type="button"
-            data-tour="settings-replay-tutorial"
-            className={sharedStyles.secondaryPlanButton}
-            onClick={onReplayTutorial}
-          >
-            Replay tutorial
-          </button>
-          <button type="button" className={sharedStyles.reportButton} onClick={onFeedbackOpen}>
-            Send Whelm feedback
-          </button>
+
+        <div className={styles.settingsIndexGroup}>
+          <p className={styles.settingsIndexLabel}>Support</p>
+          <SettingsRow
+            title="Device access"
+            summary="Focus permissions and sync status"
+            active={activeSection === "screenTime"}
+            onClick={() => onToggleSection("screenTime")}
+          />
+          <SettingsRow
+            title="Support"
+            summary="Feedback and guided tools"
+            active={activeSection === "internalTools"}
+            onClick={() => onToggleSection("internalTools")}
+          />
+          <SettingsRow
+            title="Legal"
+            summary="Privacy, terms, and acknowledgements"
+            active={activeSection === "legal"}
+            onClick={() => onToggleSection("legal")}
+          />
         </div>
-        {!isPro ? (
-          <div className={styles.settingsSubscriptionActions}>
-            <button type="button" className={sharedStyles.inlineUpgrade} onClick={onStartProPreview}>
-              Upgrade to Whelm Pro
-            </button>
-            <button
-              type="button"
-              className={sharedStyles.secondaryPlanButton}
-              onClick={onRestorePurchases}
-              disabled={subscriptionBusy}
-            >
-              {subscriptionBusy ? "Restoring..." : "Restore purchases"}
-            </button>
-            <button type="button" className={sharedStyles.secondaryPlanButton} onClick={onSignOut}>
-              Sign out
-            </button>
-          </div>
-        ) : (
-          <div className={styles.settingsSubscriptionActions}>
-            <button type="button" className={sharedStyles.reportButton} onClick={onStartProPreview}>
-              Compare plans
-            </button>
-            <button
-              type="button"
-              className={sharedStyles.secondaryPlanButton}
-              onClick={onManageSubscription}
-            >
-              Manage subscription
-            </button>
-            <button
-              type="button"
-              className={sharedStyles.secondaryPlanButton}
-              onClick={onRestorePurchases}
-              disabled={subscriptionBusy}
-            >
-              {subscriptionBusy ? "Checking..." : "Restore purchases"}
-            </button>
-            <button type="button" className={sharedStyles.secondaryPlanButton} onClick={onSignOut}>
-              Sign out
-            </button>
-          </div>
-        )}
-        {subscriptionStatus ? (
-          <p className={sharedStyles.accountMeta}>{subscriptionStatus}</p>
-        ) : null}
+
+        <div className={styles.settingsLegalLinks}>
+          <a href="/privacy" className={styles.settingsLegalLink}>Privacy Policy</a>
+          <a href="/terms" className={styles.settingsLegalLink}>Terms of Service</a>
+          <a href="/acknowledgements" className={styles.settingsLegalLink}>Acknowledgements</a>
+        </div>
       </article>
 
-      <CollapsibleSectionCard
-        label="Whelm Identity"
-        title="How this system is running"
-        open={sectionsOpen.identity}
-        onToggle={() => onToggleSection("identity")}
-      >
-        <ul className={styles.settingsList}>
-          <li><span>Clean Focus Mode</span><strong>{isPro ? WHELM_PRO_NAME : WHELM_STANDARD_NAME}</strong></li>
-          <li><span>Profile presence</span><strong>{isPro ? "Premium" : "Standard"}</strong></li>
-          <li><span>Archive tools</span><strong>{isPro ? "Deep Search" : "Recent Window"}</strong></li>
-          <li><span>Shell personalization</span><strong>{isPro ? "Expanded" : "Standard"}</strong></li>
-          <li><span>Weekly Report Cards</span><strong>On</strong></li>
-          <li><span>Command Reports</span><strong>{isPro ? "Advanced" : "Core"}</strong></li>
-        </ul>
-      </CollapsibleSectionCard>
+      {preferencesActive ? (
+        <article className={`${sharedStyles.card} ${styles.settingsDetailCard}`}>
+          <SettingsDetailHeader
+            sectionLabel="Preferences"
+            title="How Whelm feels"
+            body="Theme, Whelm tone, and shell behavior."
+            onBack={closeActiveSection}
+          />
 
-      <CollapsibleSectionCard
-        label="Internal Tools"
-        title="Preview gated flows"
-        description="Open gated flows here without waiting for the live trigger."
-        open={sectionsOpen.internalTools}
-        onToggle={() => onToggleSection("internalTools")}
-      >
-        <div className={styles.settingsActionGrid}>
-          <button type="button" className={sharedStyles.reportButton} onClick={onPreviewStreakMirror}>
-            Preview Streak Mirror
-          </button>
-          <button type="button" className={sharedStyles.secondaryPlanButton} onClick={onPreviewDailyCommitment}>
-            Preview daily commitment
-          </button>
-          <button type="button" className={sharedStyles.secondaryPlanButton} onClick={onPreviewStreakAlert}>
-            Preview streak alert
-          </button>
-        </div>
-      </CollapsibleSectionCard>
-
-      <CollapsibleSectionCard
-        label="Protocol"
-        title="Whelm tone"
-        description="Choose how direct Whelm should feel when keeping you accountable."
-        open={sectionsOpen.protocol}
-        onToggle={() => onToggleSection("protocol")}
-      >
-        <div className={styles.companionStyleRow}>
-          {(["gentle", "balanced", "strict"] as const).map((style) => (
-            <button
-              key={style}
-              type="button"
-              className={`${styles.companionStyleButton} ${companionStyle === style ? styles.companionStyleButtonActive : ""}`}
-              onClick={() => onApplyCompanionStyle(style)}
-            >
-              {formatSenseiLabel(style)}
-            </button>
-          ))}
-        </div>
-      </CollapsibleSectionCard>
-
-      <CollapsibleSectionCard
-        label="Appearance"
-        title="Default theme"
-        description="Choose how Whelm opens."
-        open={sectionsOpen.appearance}
-        onToggle={() => onToggleSection("appearance")}
-      >
-        <div className={styles.companionStyleRow}>
-          {(["dark", "light", "system"] as const).map((mode) => (
-            <button
-              key={mode}
-              type="button"
-              className={`${styles.companionStyleButton} ${themeMode === mode ? styles.companionStyleButtonActive : ""}`}
-              onClick={() => onApplyThemeMode(mode)}
-            >
-              {mode === "dark" ? "Dark" : mode === "light" ? "Light" : "Auto"}
-            </button>
-          ))}
-        </div>
-      </CollapsibleSectionCard>
-
-      <CollapsibleSectionCard
-        label="Personalization"
-        title="App background"
-        description="Pick the shell background and how much it shows through."
-        open={sectionsOpen.background}
-        onToggle={() => onToggleSection("background")}
-      >
-        {isPro ? (
-          <>
-            <input
-              ref={backgroundUploadInputRef}
-              type="file"
-              accept="image/*"
-              className={styles.backgroundUploadInput}
-              onChange={onBackgroundUpload}
-            />
-            <div className={styles.backgroundPresetGrid}>
-              <button
-                type="button"
-                className={`${styles.backgroundPresetButton} ${appBackgroundSetting.kind === "default" ? styles.backgroundPresetButtonActive : ""}`}
-                onClick={() => onApplyBackgroundSetting({ kind: "default" })}
-              >
-                <span className={styles.backgroundPresetSwatch} />
-                <strong>Standard shell</strong>
-              </button>
-              {PRO_BACKGROUND_PRESETS.map((preset) => (
+          <div className={styles.settingsDetailBlock}>
+            <p className={styles.settingsIndexLabel}>Whelm tone</p>
+            <div className={styles.companionStyleRow}>
+              {(["gentle", "balanced", "strict"] as const).map((style) => (
                 <button
-                  key={preset.id}
+                  key={style}
                   type="button"
-                  className={`${styles.backgroundPresetButton} ${
-                    appBackgroundSetting.kind === "preset" && appBackgroundSetting.value === preset.id
-                      ? styles.backgroundPresetButtonActive
-                      : ""
-                  }`}
-                  onClick={() => onApplyBackgroundSetting({ kind: "preset", value: preset.id })}
+                  className={`${styles.companionStyleButton} ${companionStyle === style ? styles.companionStyleButtonActive : ""}`}
+                  onClick={() => onApplyCompanionStyle(style)}
                 >
-                  <span className={styles.backgroundPresetSwatch} style={{ background: preset.background }} />
-                  <strong>{preset.label}</strong>
+                  {formatSenseiLabel(style)}
                 </button>
               ))}
             </div>
-            <div className={sharedStyles.noteFooterActions}>
-              <button
-                type="button"
-                className={sharedStyles.reportButton}
-                onClick={() => backgroundUploadInputRef.current?.click()}
-              >
-                Upload backdrop
-              </button>
-              {appBackgroundSetting.kind === "upload" ? (
-                <button
-                  type="button"
-                  className={sharedStyles.secondaryPlanButton}
-                  onClick={() => onApplyBackgroundSetting({ kind: "default" })}
-                >
-                  Return to standard shell
-                </button>
-              ) : null}
-            </div>
-            <div className={styles.backgroundSkinPanel}>
-              <div className={styles.backgroundSkinHeader}>
-                <div>
-                  <strong>Surface behavior</strong>
-                  <p className={sharedStyles.accountMeta}>
-                    Default keeps the standard Whelm shell. Adaptive glass opens the shell so your Whelm Pro background can breathe through.
-                  </p>
-                </div>
-              </div>
-              <div className={styles.companionStyleRow}>
-                {([{ key: "solid", label: "Standard shell" }, { key: "glass", label: "Adaptive glass" }] as const).map((option) => (
-                  <button
-                    key={option.key}
-                    type="button"
-                    className={`${styles.companionStyleButton} ${backgroundSkin.mode === option.key ? styles.companionStyleButtonActive : ""}`}
-                    onClick={() => onUpdateBackgroundSkin({ ...backgroundSkin, mode: option.key })}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-              {backgroundSkin.mode === "glass" ? (
-                <div className={styles.backgroundSkinControls}>
-                  {appBackgroundSetting.kind === "upload" ? (
-                    <div className={styles.companionStyleRow}>
-                      {([{ key: "fit", label: "Fit image" }, { key: "fill", label: "Fill screen" }] as const).map((option) => (
-                        <button
-                          key={option.key}
-                          type="button"
-                          className={`${styles.companionStyleButton} ${backgroundSkin.imageFit === option.key ? styles.companionStyleButtonActive : ""}`}
-                          onClick={() => onUpdateBackgroundSkin({ ...backgroundSkin, imageFit: option.key })}
-                        >
-                          {option.label}
-                        </button>
-                      ))}
-                    </div>
-                  ) : null}
-                  <label className={styles.backgroundSkinControl}>
-                    <span>Background prominence</span>
-                    <strong>{Math.round((1 - backgroundSkin.dim) * 100)}%</strong>
-                    <input
-                      type="range" min="2" max="96" step="1"
-                      value={Math.round(backgroundSkin.dim * 100)}
-                      onChange={(e) => onUpdateBackgroundSkin({ ...backgroundSkin, dim: Number(e.target.value) / 100 })}
-                    />
-                  </label>
-                  <label className={styles.backgroundSkinControl}>
-                    <span>App surface opacity</span>
-                    <strong>{Math.round(backgroundSkin.surfaceOpacity * 100)}%</strong>
-                    <input
-                      type="range" min="8" max="98" step="1"
-                      value={Math.round(backgroundSkin.surfaceOpacity * 100)}
-                      onChange={(e) => onUpdateBackgroundSkin({ ...backgroundSkin, surfaceOpacity: Number(e.target.value) / 100 })}
-                    />
-                  </label>
-                  <label className={styles.backgroundSkinControl}>
-                    <span>Glass blur</span>
-                    <strong>{backgroundSkin.blur}px</strong>
-                    <input
-                      type="range" min="0" max="40" step="1"
-                      value={backgroundSkin.blur}
-                      onChange={(e) => onUpdateBackgroundSkin({ ...backgroundSkin, blur: Number(e.target.value) })}
-                    />
-                  </label>
-                </div>
-              ) : null}
-            </div>
-          </>
-        ) : (
-          <ProUnlockCard
-            title="Custom backgrounds and uploads"
-            body={`${WHELM_PRO_POSITIONING} ${WHELM_PRO_NAME} includes alternate full-app background designs, uploaded backdrops, and adaptive glass controls.`}
-            open={proPanelBackgroundOpen}
-            onToggle={onToggleProBackgroundPanel}
-            onPreview={onStartProPreview}
-          />
-        )}
-      </CollapsibleSectionCard>
+          </div>
 
-      <CollapsibleSectionCard
-        label="Archive"
-        title="Export your Whelm archive"
-        description="Save your notes, sessions, blocks, cards, preferences, and streak recovery state as one archive file."
-        open={sectionsOpen.archive}
-        onToggle={() => onToggleSection("archive")}
-      >
-        {isPro ? (
-          <>
-            <input
-              ref={archiveImportInputRef}
-              type="file"
-              accept="application/json,.json"
-              className={styles.backgroundUploadInput}
-              onChange={onImportArchive}
-            />
-            <p className={sharedStyles.accountMeta}>
-              {WHELM_PRO_NAME} can export a full archive snapshot for backup, recovery, or moving your history somewhere safe.
-            </p>
-            <ul className={sharedStyles.commandList}>
-              <li>Export saves one JSON archive with your notes, blocks, sessions, cards, preferences, and recovery state.</li>
-              <li>Import does a merge, not a wipe. Your current account data stays in place and the archive is folded into it.</li>
-            </ul>
-            <div className={sharedStyles.noteFooterActions}>
-              <button
-                type="button"
-                className={sharedStyles.reportButton}
-                onClick={onExportArchive}
-                disabled={archiveExportBusy}
-              >
-                {archiveExportBusy ? "Preparing archive..." : "Export Whelm archive"}
-              </button>
-              <button
-                type="button"
-                className={sharedStyles.secondaryPlanButton}
-                onClick={onExportNotes}
-                disabled={notesExportBusy}
-              >
-                {notesExportBusy ? "Preparing notes zip..." : "Export notes as Markdown"}
-              </button>
-              <button
-                type="button"
-                className={sharedStyles.secondaryPlanButton}
-                onClick={() => archiveImportInputRef.current?.click()}
-                disabled={archiveImportBusy}
-              >
-                {archiveImportBusy ? "Restoring archive..." : "Import Whelm archive"}
-              </button>
+          <div className={styles.settingsDetailBlock}>
+            <p className={styles.settingsIndexLabel}>Theme</p>
+            <div className={styles.companionStyleRow}>
+              {(["dark", "light", "system"] as const).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  className={`${styles.companionStyleButton} ${themeMode === mode ? styles.companionStyleButtonActive : ""}`}
+                  onClick={() => onApplyThemeMode(mode)}
+                >
+                  {mode === "dark" ? "Dark" : mode === "light" ? "Light" : "Auto"}
+                </button>
+              ))}
             </div>
-            {pendingArchiveImport ? (
-              <div className={styles.backgroundSkinPanel}>
-                <div className={styles.backgroundSkinHeader}>
-                  <div>
-                    <strong>Archive ready to merge</strong>
-                    <p className={sharedStyles.accountMeta}>
-                      Review the archive first. Importing merges it into this account and keeps your current {WHELM_PRO_NAME} access state.
-                    </p>
-                  </div>
+          </div>
+
+          <div className={styles.settingsDetailBlock}>
+            <div className={styles.settingsDetailHeader}>
+              <p className={styles.settingsIndexLabel}>Background</p>
+              <p className={sharedStyles.accountMeta}>
+                {isPro
+                  ? "Pick the shell background and how much it shows through."
+                  : "Custom shells and uploads live in Whelm Pro."}
+              </p>
+            </div>
+            {isPro ? (
+              <>
+                <input
+                  ref={backgroundUploadInputRef}
+                  type="file"
+                  accept="image/*"
+                  className={styles.backgroundUploadInput}
+                  onChange={onBackgroundUpload}
+                />
+                <div className={styles.backgroundPresetGrid}>
+                  <button
+                    type="button"
+                    className={`${styles.backgroundPresetButton} ${appBackgroundSetting.kind === "default" ? styles.backgroundPresetButtonActive : ""}`}
+                    onClick={() => onApplyBackgroundSetting({ kind: "default" })}
+                  >
+                    <span className={styles.backgroundPresetSwatch} />
+                    <strong>Standard shell</strong>
+                  </button>
+                  {PRO_BACKGROUND_PRESETS.map((preset) => (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      className={`${styles.backgroundPresetButton} ${
+                        appBackgroundSetting.kind === "preset" && appBackgroundSetting.value === preset.id
+                          ? styles.backgroundPresetButtonActive
+                          : ""
+                      }`}
+                      onClick={() => onApplyBackgroundSetting({ kind: "preset", value: preset.id })}
+                    >
+                      <span className={styles.backgroundPresetSwatch} style={{ background: preset.background }} />
+                      <strong>{preset.label}</strong>
+                    </button>
+                  ))}
                 </div>
-                <ul className={styles.settingsList}>
-                  <li><span>File</span><strong>{pendingArchiveImport.fileName}</strong></li>
-                  <li><span>Archive version</span><strong>{pendingArchiveImport.version}</strong></li>
-                  <li><span>Source tier</span><strong>{pendingArchiveImport.tier}</strong></li>
-                  <li><span>Exported</span><strong>{new Date(pendingArchiveImport.exportedAtISO).toLocaleString()}</strong></li>
-                  <li><span>Notes</span><strong>{pendingArchiveImport.notes}</strong></li>
-                  <li><span>Blocks</span><strong>{pendingArchiveImport.plannedBlocks}</strong></li>
-                  <li><span>Sessions</span><strong>{pendingArchiveImport.sessions}</strong></li>
-                  <li><span>Cards</span><strong>{pendingArchiveImport.cards}</strong></li>
-                  <li><span>Mirror entries</span><strong>{pendingArchiveImport.mirrorEntries}</strong></li>
-                  <li><span>Sick day saves</span><strong>{pendingArchiveImport.sickDaySaves}</strong></li>
-                </ul>
-                <ul className={sharedStyles.commandList}>
-                  <li>This will merge archive data into the current account.</li>
-                  <li>It does not remove your current live Whelm data.</li>
-                  <li>If the same item exists in both places, Whelm keeps the newer version where possible.</li>
-                </ul>
                 <div className={sharedStyles.noteFooterActions}>
                   <button
                     type="button"
                     className={sharedStyles.reportButton}
-                    onClick={onConfirmArchiveImport}
-                    disabled={archiveImportBusy}
+                    onClick={() => backgroundUploadInputRef.current?.click()}
                   >
-                    {archiveImportBusy ? "Restoring archive..." : "Confirm archive merge"}
+                    Upload backdrop
                   </button>
-                  <button
-                    type="button"
-                    className={sharedStyles.secondaryPlanButton}
-                    onClick={onCancelArchiveImport}
-                    disabled={archiveImportBusy}
-                  >
-                    Cancel
-                  </button>
+                  {appBackgroundSetting.kind === "upload" ? (
+                    <button
+                      type="button"
+                      className={sharedStyles.secondaryPlanButton}
+                      onClick={() => onApplyBackgroundSetting({ kind: "default" })}
+                    >
+                      Return to standard shell
+                    </button>
+                  ) : null}
                 </div>
-              </div>
-            ) : null}
-            {archiveExportStatus ? <p className={sharedStyles.accountMeta}>{archiveExportStatus}</p> : null}
-            {notesExportStatus ? <p className={sharedStyles.accountMeta}>{notesExportStatus}</p> : null}
-          </>
-        ) : (
-          <ProUnlockCard
-            title="Archive export and recovery"
-            body={`${WHELM_PRO_NAME} exports your full Whelm archive in one file so your notes, sessions, blocks, cards, and recovery state stay portable.`}
-            open={false}
-            onToggle={() => undefined}
-            onPreview={onStartProPreview}
+                <div className={styles.backgroundSkinPanel}>
+                  <div className={styles.backgroundSkinHeader}>
+                    <div>
+                      <strong>Surface behavior</strong>
+                      <p className={sharedStyles.accountMeta}>
+                        Default keeps the standard Whelm shell. Adaptive glass opens the shell so your Whelm Pro background can breathe through.
+                      </p>
+                    </div>
+                  </div>
+                  <div className={styles.companionStyleRow}>
+                    {([{ key: "solid", label: "Standard shell" }, { key: "glass", label: "Adaptive glass" }] as const).map((option) => (
+                      <button
+                        key={option.key}
+                        type="button"
+                        className={`${styles.companionStyleButton} ${backgroundSkin.mode === option.key ? styles.companionStyleButtonActive : ""}`}
+                        onClick={() => onUpdateBackgroundSkin({ ...backgroundSkin, mode: option.key })}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                  {backgroundSkin.mode === "glass" ? (
+                    <div className={styles.backgroundSkinControls}>
+                      {appBackgroundSetting.kind === "upload" ? (
+                        <div className={styles.companionStyleRow}>
+                          {([{ key: "fit", label: "Fit image" }, { key: "fill", label: "Fill screen" }] as const).map((option) => (
+                            <button
+                              key={option.key}
+                              type="button"
+                              className={`${styles.companionStyleButton} ${backgroundSkin.imageFit === option.key ? styles.companionStyleButtonActive : ""}`}
+                              onClick={() => onUpdateBackgroundSkin({ ...backgroundSkin, imageFit: option.key })}
+                            >
+                              {option.label}
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                      <label className={styles.backgroundSkinControl}>
+                        <span>Background prominence</span>
+                        <strong>{Math.round((1 - backgroundSkin.dim) * 100)}%</strong>
+                        <input
+                          type="range" min="2" max="96" step="1"
+                          value={Math.round(backgroundSkin.dim * 100)}
+                          onChange={(e) => onUpdateBackgroundSkin({ ...backgroundSkin, dim: Number(e.target.value) / 100 })}
+                        />
+                      </label>
+                      <label className={styles.backgroundSkinControl}>
+                        <span>App surface opacity</span>
+                        <strong>{Math.round(backgroundSkin.surfaceOpacity * 100)}%</strong>
+                        <input
+                          type="range" min="8" max="98" step="1"
+                          value={Math.round(backgroundSkin.surfaceOpacity * 100)}
+                          onChange={(e) => onUpdateBackgroundSkin({ ...backgroundSkin, surfaceOpacity: Number(e.target.value) / 100 })}
+                        />
+                      </label>
+                      <label className={styles.backgroundSkinControl}>
+                        <span>Glass blur</span>
+                        <strong>{backgroundSkin.blur}px</strong>
+                        <input
+                          type="range" min="0" max="40" step="1"
+                          value={backgroundSkin.blur}
+                          onChange={(e) => onUpdateBackgroundSkin({ ...backgroundSkin, blur: Number(e.target.value) })}
+                        />
+                      </label>
+                    </div>
+                  ) : null}
+                </div>
+              </>
+            ) : (
+              <ProUnlockCard
+                title="Custom backgrounds and uploads"
+                body={`${WHELM_PRO_POSITIONING} ${WHELM_PRO_NAME} includes alternate full-app background designs, uploaded backdrops, and adaptive glass controls.`}
+                open={proPanelBackgroundOpen}
+                onToggle={onToggleProBackgroundPanel}
+                onPreview={onStartProPreview}
+              />
+            )}
+          </div>
+        </article>
+      ) : null}
+
+      {activeSection === "notifications" ? (
+        <article className={`${sharedStyles.card} ${styles.settingsDetailCard}`}>
+          <SettingsDetailHeader
+            sectionLabel="Notifications"
+            title="Whelm nudges"
+            body={
+              notificationDeliveryMode === "native"
+                ? "Delivered on your device."
+                : notificationDeliveryMode === "web"
+                  ? "Delivered through the browser."
+                  : "Notifications are not supported here."
+            }
+            onBack={closeActiveSection}
           />
-        )}
-      </CollapsibleSectionCard>
-
-      <CollapsibleSectionCard
-        label="Sync"
-        title="Notes status"
-        open={sectionsOpen.sync}
-        onToggle={() => onToggleSection("sync")}
-      >
-        <p className={sharedStyles.accountMeta}>
-          {notesSyncStatus === "synced" ? "Synced" : notesSyncStatus === "syncing" ? "Syncing" : "Local only"}
-        </p>
-        {notesSyncMessage ? <p className={sharedStyles.accountMeta}>{notesSyncMessage}</p> : null}
-        {notesSyncStatus !== "synced" ? (
-          <button type="button" className={sharedStyles.retrySyncButton} onClick={onRetrySync}>
-            Retry notes sync
-          </button>
-        ) : null}
-      </CollapsibleSectionCard>
-
-      <CollapsibleSectionCard
-        label="Screen Time"
-        title="Device focus permission"
-        open={sectionsOpen.screenTime}
-        onToggle={() => onToggleSection("screenTime")}
-      >
-        <p className={sharedStyles.accountMeta}>
-          {screenTimeSupported
-            ? `Authorization status: ${screenTimeStatus}`
-            : "Screen Time is available only in the iOS native build."}
-        </p>
-        {screenTimeReason ? <p className={sharedStyles.accountMeta}>{screenTimeReason}</p> : null}
-        <div className={sharedStyles.noteFooterActions}>
-          {screenTimeSupported ? (
+          <ul className={styles.settingsList}>
+            <li><span>Permission</span><strong>{notificationPermissionState}</strong></li>
+            <li><span>Delivery</span><strong>{notificationDeliveryMode}</strong></li>
+            <li><span>Queued now</span><strong>{scheduledNotificationCount}</strong></li>
+          </ul>
+          <div className={styles.settingsDetailBlock}>
+            <SettingsToggleRow
+              title="Notifications"
+              summary="Allow Whelm to reach you."
+              active={notificationSettings.enabled}
+              onClick={() =>
+                onApplyNotificationSettings({
+                  ...notificationSettings,
+                  enabled: !notificationSettings.enabled,
+                })
+              }
+            />
+            <SettingsToggleRow
+              title="Whelm nudges"
+              summary="Momentum, streak, and focus reminders."
+              active={notificationSettings.performanceNudges}
+              disabled={!notificationSettings.enabled}
+              onClick={() =>
+                onApplyNotificationSettings({
+                  ...notificationSettings,
+                  performanceNudges: !notificationSettings.performanceNudges,
+                })
+              }
+            />
+            <SettingsToggleRow
+              title="Note reminders"
+              summary="Your scheduled note reminders."
+              active={notificationSettings.noteReminders}
+              disabled={!notificationSettings.enabled}
+              onClick={() =>
+                onApplyNotificationSettings({
+                  ...notificationSettings,
+                  noteReminders: !notificationSettings.noteReminders,
+                })
+              }
+            />
+          </div>
+          <div className={sharedStyles.noteFooterActions}>
             <button
               type="button"
               className={sharedStyles.reportButton}
-              onClick={onRequestScreenTimeAuth}
+              onClick={onRequestNotificationPermission}
+              disabled={notificationBusy || notificationPermissionState === "granted"}
+            >
+              {notificationBusy
+                ? "Working..."
+                : notificationPermissionState === "granted"
+                  ? "Permission granted"
+                  : "Enable notifications"}
+            </button>
+            <button
+              type="button"
+              className={sharedStyles.secondaryPlanButton}
+              onClick={onResyncNotifications}
+              disabled={notificationBusy}
+            >
+              Refresh delivery
+            </button>
+          </div>
+          {notificationStatus ? <p className={sharedStyles.accountMeta}>{notificationStatus}</p> : null}
+        </article>
+      ) : null}
+
+      {activeSection === "sync" ? (
+        <article className={`${sharedStyles.card} ${styles.settingsDetailCard}`}>
+          <SettingsDetailHeader
+            sectionLabel="Subscription"
+            title="Plan and access"
+            body={isPro ? "You’re in the deeper Whelm layer." : "Upgrade when you want longer memory and fuller control."}
+            onBack={closeActiveSection}
+          />
+          <ul className={styles.settingsList}>
+            <li><span>Plan</span><strong>{isPro ? WHELM_PRO_NAME : WHELM_STANDARD_NAME}</strong></li>
+            <li><span>Status</span><strong>{proSource === "preview" ? `${WHELM_PRO_NAME} Access` : isPro ? `${WHELM_PRO_NAME} Active` : WHELM_STANDARD_NAME}</strong></li>
+            <li><span>Streak</span><strong>{streak}d</strong></li>
+          </ul>
+          <div className={styles.settingsDetailBlock}>
+            {!isPro ? (
+              <>
+                <SettingsActionRow
+                  title="Upgrade to Whelm Pro"
+                  summary="See the full comparison and unlocks."
+                  onClick={onStartProPreview}
+                />
+                <SettingsActionRow
+                  title={subscriptionBusy ? "Restoring..." : "Restore purchases"}
+                  summary="Reconnect your App Store purchases."
+                  onClick={onRestorePurchases}
+                  disabled={subscriptionBusy}
+                />
+              </>
+            ) : (
+              <>
+                <SettingsActionRow
+                  title="Compare plans"
+                  summary="See Standard versus Pro again."
+                  onClick={onStartProPreview}
+                />
+                <SettingsActionRow
+                  title="Manage subscription"
+                  summary="Open Apple subscription controls."
+                  onClick={onManageSubscription}
+                />
+                <SettingsActionRow
+                  title={subscriptionBusy ? "Checking..." : "Restore purchases"}
+                  summary="Refresh this device’s purchase state."
+                  onClick={onRestorePurchases}
+                  disabled={subscriptionBusy}
+                />
+              </>
+            )}
+          </div>
+          {subscriptionStatus ? <p className={sharedStyles.accountMeta}>{subscriptionStatus}</p> : null}
+        </article>
+      ) : null}
+
+      {activeSection === "archive" ? (
+        <article className={`${sharedStyles.card} ${styles.settingsDetailCard}`}>
+          <SettingsDetailHeader
+            sectionLabel="Archive"
+            title="Export and recovery"
+            body="Back up your Whelm or bring it back."
+            onBack={closeActiveSection}
+          />
+          {isPro ? (
+            <>
+              <input
+                ref={archiveImportInputRef}
+                type="file"
+                accept="application/json,.json"
+                className={styles.backgroundUploadInput}
+                onChange={onImportArchive}
+              />
+              <p className={sharedStyles.accountMeta}>
+                {WHELM_PRO_NAME} can export a full archive snapshot for backup, recovery, or moving your history somewhere safe.
+              </p>
+              <div className={sharedStyles.noteFooterActions}>
+                <button
+                  type="button"
+                  className={sharedStyles.reportButton}
+                  onClick={onExportArchive}
+                  disabled={archiveExportBusy}
+                >
+                  {archiveExportBusy ? "Preparing archive..." : "Export Whelm archive"}
+                </button>
+                <button
+                  type="button"
+                  className={sharedStyles.secondaryPlanButton}
+                  onClick={onExportNotes}
+                  disabled={notesExportBusy}
+                >
+                  {notesExportBusy ? "Preparing notes zip..." : "Export notes as Markdown"}
+                </button>
+                <button
+                  type="button"
+                  className={sharedStyles.secondaryPlanButton}
+                  onClick={() => archiveImportInputRef.current?.click()}
+                  disabled={archiveImportBusy}
+                >
+                  {archiveImportBusy ? "Restoring archive..." : "Import Whelm archive"}
+                </button>
+              </div>
+              {pendingArchiveImport ? (
+                <div className={styles.backgroundSkinPanel}>
+                  <div className={styles.backgroundSkinHeader}>
+                    <div>
+                      <strong>Archive ready to merge</strong>
+                      <p className={sharedStyles.accountMeta}>
+                        Review the archive first. Importing merges it into this account and keeps your current {WHELM_PRO_NAME} access state.
+                      </p>
+                    </div>
+                  </div>
+                  <ul className={styles.settingsList}>
+                    <li><span>File</span><strong>{pendingArchiveImport.fileName}</strong></li>
+                    <li><span>Archive version</span><strong>{pendingArchiveImport.version}</strong></li>
+                    <li><span>Source tier</span><strong>{pendingArchiveImport.tier}</strong></li>
+                    <li><span>Exported</span><strong>{new Date(pendingArchiveImport.exportedAtISO).toLocaleString()}</strong></li>
+                    <li><span>Notes</span><strong>{pendingArchiveImport.notes}</strong></li>
+                    <li><span>Blocks</span><strong>{pendingArchiveImport.plannedBlocks}</strong></li>
+                    <li><span>Sessions</span><strong>{pendingArchiveImport.sessions}</strong></li>
+                    <li><span>Cards</span><strong>{pendingArchiveImport.cards}</strong></li>
+                    <li><span>Mirror entries</span><strong>{pendingArchiveImport.mirrorEntries}</strong></li>
+                    <li><span>Sick day saves</span><strong>{pendingArchiveImport.sickDaySaves}</strong></li>
+                  </ul>
+                  <div className={sharedStyles.noteFooterActions}>
+                    <button
+                      type="button"
+                      className={sharedStyles.reportButton}
+                      onClick={onConfirmArchiveImport}
+                      disabled={archiveImportBusy}
+                    >
+                      {archiveImportBusy ? "Restoring archive..." : "Confirm archive merge"}
+                    </button>
+                    <button
+                      type="button"
+                      className={sharedStyles.secondaryPlanButton}
+                      onClick={onCancelArchiveImport}
+                      disabled={archiveImportBusy}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+              {archiveExportStatus ? <p className={sharedStyles.accountMeta}>{archiveExportStatus}</p> : null}
+              {notesExportStatus ? <p className={sharedStyles.accountMeta}>{notesExportStatus}</p> : null}
+            </>
+          ) : (
+            <ProUnlockCard
+              title="Archive export and recovery"
+              body={`${WHELM_PRO_NAME} exports your full Whelm archive in one file so your notes, sessions, blocks, cards, and recovery state stay portable.`}
+              open={false}
+              onToggle={() => undefined}
+              onPreview={onStartProPreview}
+            />
+          )}
+        </article>
+      ) : null}
+
+      {activeSection === "screenTime" ? (
+        <article className={`${sharedStyles.card} ${styles.settingsDetailCard}`}>
+          <SettingsDetailHeader
+            sectionLabel="Device access"
+            title="Permissions and sync"
+            body="Focus access and account reliability."
+            onBack={closeActiveSection}
+          />
+          <ul className={styles.settingsList}>
+            <li>
+              <span>Notes sync</span>
+              <strong>{notesSyncStatus === "synced" ? "Synced" : notesSyncStatus === "syncing" ? "Syncing" : "Local only"}</strong>
+            </li>
+            <li>
+              <span>Screen Time</span>
+              <strong>{screenTimeSupported ? screenTimeStatus : "iOS only"}</strong>
+            </li>
+          </ul>
+          {notesSyncMessage ? <p className={sharedStyles.accountMeta}>{notesSyncMessage}</p> : null}
+          {screenTimeReason ? <p className={sharedStyles.accountMeta}>{screenTimeReason}</p> : null}
+          <div className={sharedStyles.noteFooterActions}>
+            {notesSyncStatus !== "synced" ? (
+              <button type="button" className={sharedStyles.retrySyncButton} onClick={onRetrySync}>
+                Retry notes sync
+              </button>
+            ) : null}
+            {screenTimeSupported ? (
+              <button
+                type="button"
+                className={sharedStyles.reportButton}
+                onClick={onRequestScreenTimeAuth}
+                disabled={screenTimeBusy}
+              >
+                {screenTimeBusy ? "Working..." : "Enable Screen Time Access"}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className={sharedStyles.secondaryPlanButton}
+              onClick={onOpenScreenTimeSettings}
               disabled={screenTimeBusy}
             >
-              {screenTimeBusy ? "Working..." : "Enable Screen Time Access"}
+              Open iOS Settings
             </button>
-          ) : null}
-          <button
-            type="button"
-            className={sharedStyles.secondaryPlanButton}
-            onClick={onOpenScreenTimeSettings}
-            disabled={screenTimeBusy}
-          >
-            Open iOS Settings
-          </button>
-        </div>
-        <ul className={sharedStyles.commandList}>
-          <li>This enables Screen Time APIs through Apple&apos;s permission flow.</li>
-          <li>Detailed per-app charts require the Device Activity report extension.</li>
-        </ul>
-      </CollapsibleSectionCard>
+          </div>
+        </article>
+      ) : null}
 
-      <CollapsibleSectionCard
-        className={styles.accountDangerCard}
-        label="Account"
-        title="Delete account"
-        description="Permanently delete your Whelm account, notes, sessions, and local app data."
-        open={sectionsOpen.danger}
-        onToggle={() => onToggleSection("danger")}
-      >
-        <button
-          type="button"
-          className={styles.deleteAccountButton}
-          onClick={onDeleteAccount}
-          disabled={deletingAccount}
-        >
-          {deletingAccount ? "Deleting account..." : "Delete account permanently"}
-        </button>
-        {accountDangerStatus ? (
-          <p className={styles.accountDangerStatus}>{accountDangerStatus}</p>
-        ) : null}
-      </CollapsibleSectionCard>
+      {activeSection === "internalTools" ? (
+        <article className={`${sharedStyles.card} ${styles.settingsDetailCard}`}>
+          <SettingsDetailHeader
+            sectionLabel="Support"
+            title="Help and feedback"
+            body="The lighter support layer."
+            onBack={closeActiveSection}
+          />
+          <div className={styles.settingsDetailBlock}>
+            <SettingsActionRow
+              title="Send Whelm feedback"
+              summary="Tell me what feels off or missing."
+              onClick={onFeedbackOpen}
+            />
+            <SettingsActionRow
+              title="Contact support"
+              summary="Email Whelm support directly."
+              onClick={() => navigateTo("mailto:smalltek317@gmail.com")}
+            />
+            <SettingsActionRow
+              title="Replay tutorial"
+              summary="Run the guided setup again."
+              onClick={onReplayTutorial}
+            />
+            <SettingsActionRow
+              title="Preview Streak Mirror"
+              summary="See the reflection flow."
+              onClick={onPreviewStreakMirror}
+            />
+            <SettingsActionRow
+              title="Preview daily commitment"
+              summary="See the daily commitment prompt."
+              onClick={onPreviewDailyCommitment}
+            />
+            <SettingsActionRow
+              title="Preview streak alert"
+              summary="See the recovery warning flow."
+              onClick={onPreviewStreakAlert}
+            />
+          </div>
+        </article>
+      ) : null}
+
+      {activeSection === "legal" ? (
+        <article className={`${sharedStyles.card} ${styles.settingsDetailCard}`}>
+          <SettingsDetailHeader
+            sectionLabel="Legal"
+            title="Privacy and terms"
+            body="The policy layer Apple expects to be easy to reach."
+            onBack={closeActiveSection}
+          />
+          <div className={styles.settingsDetailBlock}>
+            <SettingsActionRow
+              title="Privacy Policy"
+              summary="How Whelm handles your data."
+              onClick={() => navigateTo("/privacy")}
+            />
+            <SettingsActionRow
+              title="Terms of Service"
+              summary="The rules for using Whelm."
+              onClick={() => navigateTo("/terms")}
+            />
+            <SettingsActionRow
+              title="Acknowledgements"
+              summary="The tools and libraries behind Whelm."
+              onClick={() => navigateTo("/acknowledgements")}
+            />
+          </div>
+        </article>
+      ) : null}
+
+      {activeSection === "danger" ? (
+        <article className={`${sharedStyles.card} ${styles.settingsDetailCard}`}>
+          <SettingsDetailHeader
+            sectionLabel="Profile"
+            title={displayName || "Whelm user"}
+            body={email || "Account details"}
+            onBack={closeActiveSection}
+          />
+          <div className={styles.settingsHeroHeader}>
+            <WhelmProfileAvatar
+              tierColor={streakBandanaTier?.color}
+              size="compact"
+              isPro={isPro}
+              photoUrl={photoUrl}
+            />
+            <div className={styles.settingsPills}>
+              <span className={styles.settingsPill}>{isPro ? WHELM_PRO_NAME : WHELM_STANDARD_NAME}</span>
+              <span className={styles.settingsPill}>Streak {streak}d</span>
+              {nextBandanaMilestone ? (
+                <span className={styles.settingsPill}>
+                  {nextBandanaMilestone.remainingDays}d to {nextBandanaMilestone.tier.label}
+                </span>
+              ) : null}
+            </div>
+          </div>
+          <div className={styles.settingsDetailBlock}>
+            <SettingsActionRow title="Sign out" summary="Leave this Whelm session." onClick={onSignOut} />
+            <SettingsActionRow
+              title={deletingAccount ? "Deleting account..." : "Delete account permanently"}
+              summary="This cannot be undone."
+              onClick={onDeleteAccount}
+              disabled={deletingAccount}
+              emphasis="danger"
+            />
+          </div>
+          {accountDangerStatus ? <p className={styles.accountDangerStatus}>{accountDangerStatus}</p> : null}
+        </article>
+      ) : null}
     </AnimatedTabSection>
   );
 }

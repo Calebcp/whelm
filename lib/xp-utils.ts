@@ -20,7 +20,6 @@ export const XP_WRITING_BONUS_THRESHOLD = 100;
 export const XP_WRITING_DAILY_CAP = 20;
 
 export const STREAK_RULE_V2_START_DATE = "2026-03-22";
-export const STREAK_SAVE_MONTHLY_LIMIT = 5;
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 export type DayXpSummary = {

@@ -3,6 +3,212 @@
   gap: 16px;
 }
 
+.settingsIndexCard,
+.settingsDetailCard {
+  display: grid;
+  gap: 16px;
+}
+
+.settingsIndexCard {
+  padding: 18px;
+}
+
+.settingsIndexHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.settingsIndexGroup {
+  display: grid;
+  gap: 8px;
+}
+
+.settingsIndexLabel {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #7f8aa5;
+}
+
+.settingsIndexRow {
+  border: 1px solid rgba(123, 138, 184, 0.16);
+  border-radius: 18px;
+  padding: 14px 16px;
+  background: rgba(18, 22, 40, 0.82);
+  color: #f4f7ff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  text-align: left;
+  transition:
+    border-color 140ms ease,
+    transform 140ms ease,
+    background 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.settingsIndexRow:hover {
+  transform: translateY(-1px);
+  border-color: rgba(132, 162, 255, 0.32);
+}
+
+.settingsIndexRowActive {
+  border-color: rgba(108, 92, 231, 0.46);
+  background:
+    radial-gradient(circle at top right, rgba(104, 92, 255, 0.18), transparent 28%),
+    linear-gradient(180deg, rgba(25, 28, 52, 0.96), rgba(18, 22, 40, 0.94));
+  box-shadow: 0 14px 28px rgba(7, 11, 24, 0.22);
+}
+
+.settingsIndexCopy {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.settingsIndexCopy strong {
+  font-size: 1rem;
+  line-height: 1.2;
+  color: #f8fbff;
+}
+
+.settingsIndexCopy span {
+  font-size: 0.84rem;
+  line-height: 1.4;
+  color: #aab7d4;
+}
+
+.settingsIndexChevron {
+  flex: 0 0 auto;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #9eb5ff;
+}
+
+.settingsLegalLinks {
+  padding-top: 2px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.settingsLegalLink {
+  color: #7cb3ff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+}
+
+.settingsLegalLink:hover {
+  text-decoration: underline;
+}
+
+.settingsDetailHeader {
+  display: grid;
+  gap: 4px;
+}
+
+.settingsDetailTopbar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.settingsBackButton {
+  border: 1px solid rgba(123, 138, 184, 0.18);
+  border-radius: 999px;
+  width: 36px;
+  height: 36px;
+  background: rgba(18, 22, 40, 0.88);
+  color: #c9d6f3;
+  font-size: 1.3rem;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 10px 22px rgba(7, 11, 24, 0.16);
+}
+
+.settingsDetailBlock {
+  display: grid;
+  gap: 12px;
+}
+
+.settingsToggleRow,
+.settingsActionRow {
+  border: 1px solid rgba(123, 138, 184, 0.16);
+  border-radius: 18px;
+  padding: 14px 16px;
+  background: rgba(18, 22, 40, 0.82);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  text-align: left;
+  transition:
+    border-color 140ms ease,
+    background 140ms ease,
+    transform 140ms ease;
+}
+
+.settingsToggleRow:hover,
+.settingsActionRow:hover {
+  transform: translateY(-1px);
+  border-color: rgba(132, 162, 255, 0.32);
+}
+
+.settingsToggleRowActive {
+  border-color: rgba(108, 92, 231, 0.42);
+  background:
+    radial-gradient(circle at top right, rgba(104, 92, 255, 0.16), transparent 28%),
+    linear-gradient(180deg, rgba(25, 28, 52, 0.96), rgba(18, 22, 40, 0.94));
+}
+
+.settingsActionRowDanger {
+  border-color: rgba(185, 28, 28, 0.22);
+}
+
+.settingsActionRowDanger .settingsIndexCopy strong,
+.settingsActionRowDanger .settingsIndexChevron {
+  color: #ffb7b7;
+}
+
+.settingsToggle {
+  flex: 0 0 auto;
+  width: 48px;
+  height: 28px;
+  border-radius: 999px;
+  background: rgba(76, 86, 120, 0.68);
+  padding: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  transition: background 140ms ease;
+}
+
+.settingsToggle span {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #f8fbff;
+  box-shadow: 0 4px 10px rgba(3, 6, 18, 0.18);
+  transition: transform 140ms ease;
+}
+
+.settingsToggleOn {
+  background: linear-gradient(135deg, #6d5cff, #52d6ff);
+}
+
+.settingsToggleOn span {
+  transform: translateX(20px);
+}
+
 .settingsHeroCard {
   border-color: rgba(20, 93, 160, 0.2);
   background: linear-gradient(180deg, #f8fbff 0%, #eef5ff 100%);
@@ -240,7 +446,10 @@
 :global(.themeDark) .settingsHeroCard,
 :global(.themeDark) .settingsPill,
 :global(.themeDark) .settingsList li,
-:global(.themeDark) .accountDangerCard {
+:global(.themeDark) .accountDangerCard,
+:global(.themeDark) .settingsIndexRow,
+:global(.themeDark) .settingsDetailCard,
+:global(.themeDark) .settingsIndexCard {
   background: rgba(18, 22, 40, 0.92);
   color: #eef3ff;
   border-color: rgba(123, 138, 184, 0.18);
@@ -252,6 +461,21 @@
 
 :global(.themeDark) .settingsList span {
   color: #9aa8c7;
+}
+
+:global(.themeDark) .settingsIndexLabel {
+  color: #7f8aa5;
+}
+
+:global(.themeDark) .settingsIndexCopy span {
+  color: #aab7d4;
+}
+
+:global(.themeDark) .settingsToggleRow,
+:global(.themeDark) .settingsActionRow,
+:global(.themeDark) .settingsBackButton {
+  background: rgba(18, 22, 40, 0.92);
+  border-color: rgba(123, 138, 184, 0.18);
 }
 
 :global(.themeDark) .accountDangerStatus {
@@ -296,6 +520,62 @@
   background:
     radial-gradient(circle at top right, rgba(216, 220, 245, 0.46), transparent 28%),
     linear-gradient(180deg, rgba(251, 248, 243, 0.98), rgba(244, 239, 232, 0.96));
+}
+
+:global(.themeLight) .settingsIndexCard,
+:global(.themeLight) .settingsDetailCard,
+:global(.themeLight) .settingsIndexRow {
+  background:
+    radial-gradient(circle at top right, rgba(216, 220, 245, 0.2), transparent 28%),
+    linear-gradient(180deg, rgba(251, 248, 243, 0.98), rgba(244, 239, 232, 0.96));
+  border-color: rgba(111, 122, 150, 0.14);
+  color: #102033;
+}
+
+:global(.themeLight) .settingsIndexRowActive {
+  border-color: rgba(108, 92, 231, 0.28);
+  background:
+    radial-gradient(circle at top right, rgba(126, 99, 255, 0.14), transparent 28%),
+    linear-gradient(180deg, rgba(246, 242, 255, 0.98), rgba(239, 235, 251, 0.96));
+}
+
+:global(.themeLight) .settingsIndexCopy strong {
+  color: #102033;
+}
+
+:global(.themeLight) .settingsIndexCopy span {
+  color: #5c6c85;
+}
+
+:global(.themeLight) .settingsIndexChevron,
+:global(.themeLight) .settingsLegalLink {
+  color: #4f63d9;
+}
+
+:global(.themeLight) .settingsIndexLabel {
+  color: #73819a;
+}
+
+:global(.themeLight) .settingsToggleRow,
+:global(.themeLight) .settingsActionRow,
+:global(.themeLight) .settingsBackButton {
+  background:
+    radial-gradient(circle at top right, rgba(216, 220, 245, 0.2), transparent 28%),
+    linear-gradient(180deg, rgba(251, 248, 243, 0.98), rgba(244, 239, 232, 0.96));
+  border-color: rgba(111, 122, 150, 0.14);
+  color: #102033;
+}
+
+:global(.themeLight) .settingsToggleRowActive {
+  border-color: rgba(108, 92, 231, 0.28);
+  background:
+    radial-gradient(circle at top right, rgba(126, 99, 255, 0.14), transparent 28%),
+    linear-gradient(180deg, rgba(246, 242, 255, 0.98), rgba(239, 235, 251, 0.96));
+}
+
+:global(.themeLight) .settingsActionRowDanger .settingsIndexCopy strong,
+:global(.themeLight) .settingsActionRowDanger .settingsIndexChevron {
+  color: #b91c1c;
 }
 
 :global(.themeLight) .settingsReadoutCard {
@@ -362,22 +642,73 @@
 
 @media (min-width: 901px) {
   .settingsGrid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
   }
 
   .settingsGrid > :global(.companionPulse) {
     grid-column: 1 / -1;
   }
 
-  .settingsHeroCard {
-    grid-column: 1 / -1;
+  .settingsIndexCard {
+    align-self: start;
+    position: sticky;
+    top: 88px;
   }
 }
 
 @media (max-width: 760px) {
+  .settingsGrid {
+    gap: 12px;
+  }
+
+  .settingsGridDetailOpen .settingsIndexCard {
+    display: none;
+  }
+
+  .settingsIndexCard,
+  .settingsDetailCard {
+    gap: 14px;
+  }
+
+  .settingsDetailCard {
+    min-height: calc(100vh - 140px);
+    align-content: start;
+  }
+
   .settingsHeroHeader {
     gap: 10px;
     align-items: center;
+  }
+
+  .settingsIndexHeader {
+    align-items: flex-start;
+  }
+
+  .settingsIndexRow {
+    padding: 13px 14px;
+    border-radius: 16px;
+  }
+
+  .settingsIndexCopy strong {
+    font-size: 0.98rem;
+  }
+
+  .settingsIndexCopy span {
+    font-size: 0.8rem;
+  }
+
+  .settingsDetailTopbar {
+    gap: 10px;
+  }
+
+  .settingsToggleRow,
+  .settingsActionRow {
+    padding: 13px 14px;
+    border-radius: 16px;
+  }
+
+  .settingsLegalLinks {
+    gap: 10px 14px;
   }
 
   .settingsPills {

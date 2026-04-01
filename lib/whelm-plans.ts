@@ -3,6 +3,8 @@ import type { CalendarTone } from "@/lib/calendar-tones";
 export const WHELM_STANDARD_NAME = "Whelm Standard";
 export const WHELM_PRO_NAME = "Whelm Pro";
 export const WHELM_STANDARD_HISTORY_DAYS = 14;
+export const WHELM_STANDARD_STREAK_SAVE_LIMIT = 2;
+export const WHELM_PRO_STREAK_SAVE_LIMIT = 5;
 
 export const STANDARD_CALENDAR_TONES: readonly CalendarTone[] = ["Clear", "Deep", "Steady"];
 
@@ -21,4 +23,8 @@ export function isStandardNoteColor(value: string | null | undefined) {
 
 export function resolveStandardNoteColor(value: string | null | undefined, fallback = "#e7e5e4") {
   return isStandardNoteColor(value) ? (value as string) : fallback;
+}
+
+export function getWhelmStreakSaveMonthlyLimit(isPro: boolean) {
+  return isPro ? WHELM_PRO_STREAK_SAVE_LIMIT : WHELM_STANDARD_STREAK_SAVE_LIMIT;
 }

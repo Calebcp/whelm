@@ -613,6 +613,8 @@
   font-size: 1.2rem;
   font-weight: 700;
   margin-bottom: 14px;
+  color: #102033;
+  -webkit-text-fill-color: currentColor;
   background:
     linear-gradient(
       180deg,

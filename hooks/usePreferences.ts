@@ -13,6 +13,7 @@ import {
   type PreferencesBackgroundSetting,
   type PreferencesBackgroundSkin,
   type PreferencesCompanionStyle,
+  type PreferencesNotificationSettings,
   type PreferencesProState,
   type PreferencesState,
   type PreferencesThemeMode,
@@ -44,6 +45,11 @@ export function usePreferences({
     kind: "default",
   });
   const [backgroundSkin, setBackgroundSkin] = useState<PreferencesBackgroundSkin>(defaultBackgroundSkin);
+  const [notificationSettings, setNotificationSettings] = useState<PreferencesNotificationSettings>({
+    enabled: false,
+    performanceNudges: true,
+    noteReminders: true,
+  });
   const [proState, setProState] = useState<PreferencesProState>({ isPro: true, source: "preview" });
   const [preferencesHydrated, setPreferencesHydrated] = useState(false);
 
@@ -70,6 +76,7 @@ export function usePreferences({
     setThemePromptOpen(false);
     setAppBackgroundSetting(prefs.backgroundSetting);
     setBackgroundSkin(prefs.backgroundSkin);
+    setNotificationSettings(prefs.notificationSettings);
     setProState(prefs.proState);
     if (user) {
       writeLocalPreferences(user.uid, prefs);
@@ -133,9 +140,10 @@ export function usePreferences({
       themeMode: nextMode,
       backgroundSetting: appBackgroundSetting,
       backgroundSkin,
+      notificationSettings,
       proState,
     });
-  }, [appBackgroundSetting, backgroundSkin, companionStyle, persistPreferencesState, proState]);
+  }, [appBackgroundSetting, backgroundSkin, companionStyle, notificationSettings, persistPreferencesState, proState]);
 
   const applyBackgroundSetting = useCallback((nextSetting: PreferencesBackgroundSetting) => {
     if (!isPro && nextSetting.kind !== "default") {
@@ -147,9 +155,10 @@ export function usePreferences({
       themeMode,
       backgroundSetting: nextSetting,
       backgroundSkin,
+      notificationSettings,
       proState,
     });
-  }, [backgroundSkin, companionStyle, isPro, persistPreferencesState, proState, themeMode]);
+  }, [backgroundSkin, companionStyle, isPro, notificationSettings, persistPreferencesState, proState, themeMode]);
 
   const applyCompanionStyle = useCallback((nextStyle: PreferencesCompanionStyle) => {
     void persistPreferencesState({
@@ -157,9 +166,10 @@ export function usePreferences({
       themeMode,
       backgroundSetting: appBackgroundSetting,
       backgroundSkin,
+      notificationSettings,
       proState,
     });
-  }, [appBackgroundSetting, backgroundSkin, persistPreferencesState, proState, themeMode]);
+  }, [appBackgroundSetting, backgroundSkin, notificationSettings, persistPreferencesState, proState, themeMode]);
 
   const updateBackgroundSkin = useCallback((nextSkin: PreferencesBackgroundSkin) => {
     if (!isPro) {
@@ -171,9 +181,28 @@ export function usePreferences({
       themeMode,
       backgroundSetting: appBackgroundSetting,
       backgroundSkin: nextSkin,
+      notificationSettings,
       proState,
     });
-  }, [appBackgroundSetting, companionStyle, isPro, persistPreferencesState, proState, themeMode]);
+  }, [appBackgroundSetting, companionStyle, isPro, notificationSettings, persistPreferencesState, proState, themeMode]);
+
+  const applyNotificationSettings = useCallback((nextSettings: PreferencesNotificationSettings) => {
+    void persistPreferencesState({
+      companionStyle,
+      themeMode,
+      backgroundSetting: appBackgroundSetting,
+      backgroundSkin,
+      notificationSettings: nextSettings,
+      proState,
+    });
+  }, [
+    appBackgroundSetting,
+    backgroundSkin,
+    companionStyle,
+    persistPreferencesState,
+    proState,
+    themeMode,
+  ]);
 
   const handleBackgroundUpload = useCallback(async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -219,6 +248,7 @@ export function usePreferences({
     themePromptOpen,
     appBackgroundSetting,
     backgroundSkin,
+    notificationSettings,
     effectiveBackgroundSetting,
     backgroundSkinActive,
     preferencesHydrated,
@@ -228,6 +258,7 @@ export function usePreferences({
     applyBackgroundSetting,
     applyCompanionStyle,
     updateBackgroundSkin,
+    applyNotificationSettings,
     handleBackgroundUpload,
   };
 }

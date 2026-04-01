@@ -53,6 +53,8 @@ type PendingNotesXpPop = {
 const NOTE_ATTACHMENT_MAX_BYTES = 20 * 1024 * 1024;
 const NOTE_ATTACHMENT_UPLOAD_IDLE_TIMEOUT_MS = 15000;
 const NOTE_ATTACHMENT_UPLOAD_TOTAL_TIMEOUT_MS = 120000;
+const NOTE_TITLE_SYNC_DEBOUNCE_MS = 240;
+const NOTE_DRAFT_MIRROR_DEBOUNCE_MS = 120;
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function createNote(): WorkspaceNote {
@@ -362,6 +364,13 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
   const syncInFlightRef = useRef(false);
   const bodyDirtyRef = useRef(false);
   const bodyDirtyNoteIdRef = useRef<string | null>(null);
+  const noteTitleSyncTimeoutRef = useRef<number | null>(null);
+  const noteTitleSyncPayloadRef = useRef<{
+    noteId: string;
+    title: string;
+    updatedAtISO: string;
+  } | null>(null);
+  const noteDraftMirrorTimeoutRef = useRef<number | null>(null);
   const notesRef = useRef<WorkspaceNote[]>([]);
   const selectedNoteIdRef = useRef<string | null>(null);
   const notesSectionRef = useRef<HTMLElement | null>(null);
@@ -734,6 +743,65 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     setNotesSyncMessage(result.message ?? "");
   }
 
+  function mirrorDraftLocally(
+    currentUserUid: string,
+    noteId: string,
+    body: string,
+    updatedAtISO: string,
+  ) {
+    const nextNotes = notesRef.current.map((note) =>
+      note.id === noteId ? { ...note, body, updatedAtISO } : note,
+    );
+    notesRef.current = nextNotes;
+    setNotes(nextNotes);
+    saveNotesLocally(currentUserUid, nextNotes);
+  }
+
+  function scheduleTitleSync(noteId: string, title: string, updatedAtISO: string) {
+    const currentUser = auth.currentUser;
+    if (!currentUser) return;
+
+    noteTitleSyncPayloadRef.current = { noteId, title, updatedAtISO };
+    if (noteTitleSyncTimeoutRef.current) {
+      window.clearTimeout(noteTitleSyncTimeoutRef.current);
+    }
+
+    noteTitleSyncTimeoutRef.current = window.setTimeout(() => {
+      const pending = noteTitleSyncPayloadRef.current;
+      noteTitleSyncTimeoutRef.current = null;
+      noteTitleSyncPayloadRef.current = null;
+      if (!pending) return;
+
+      void (async () => {
+        const result = await saveNotePatchToFirestore(currentUser.uid, pending.noteId, {
+          title: pending.title,
+          updatedAtISO: pending.updatedAtISO,
+        });
+        setNotesSyncStatus(result.synced ? "synced" : "local-only");
+        setNotesSyncMessage(result.message ?? "");
+      })();
+    }, NOTE_TITLE_SYNC_DEBOUNCE_MS);
+  }
+
+  async function flushPendingTitleSync() {
+    const currentUser = auth.currentUser;
+    const pending = noteTitleSyncPayloadRef.current;
+    if (!currentUser || !pending) return;
+
+    if (noteTitleSyncTimeoutRef.current) {
+      window.clearTimeout(noteTitleSyncTimeoutRef.current);
+      noteTitleSyncTimeoutRef.current = null;
+    }
+    noteTitleSyncPayloadRef.current = null;
+
+    const result = await saveNotePatchToFirestore(currentUser.uid, pending.noteId, {
+      title: pending.title,
+      updatedAtISO: pending.updatedAtISO,
+    });
+    setNotesSyncStatus(result.synced ? "synced" : "local-only");
+    setNotesSyncMessage(result.message ?? "");
+  }
+
   async function updateSelectedNote(
     patch: Partial<
       Pick<
@@ -754,6 +822,24 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
   ) {
     const currentSelectedNoteId = selectedNoteIdRef.current;
     if (!currentSelectedNoteId) return;
+
+    const patchKeys = Object.keys(patch);
+    if (patchKeys.length === 1 && patchKeys[0] === "title") {
+      const currentUser = auth.currentUser;
+      if (!currentUser) return;
+      const nextTitle = typeof patch.title === "string" ? patch.title : "";
+      const now = new Date().toISOString();
+      const nextNotes = notesRef.current.map((note) =>
+        note.id === currentSelectedNoteId ? { ...note, title: nextTitle, updatedAtISO: now } : note,
+      );
+      notesRef.current = nextNotes;
+      setNotes(nextNotes);
+      saveNotesLocally(currentUser.uid, nextNotes);
+      setNotesSyncStatus("syncing");
+      setNotesSyncMessage("");
+      scheduleTitleSync(currentSelectedNoteId, nextTitle, now);
+      return;
+    }
 
     await updateNoteById(currentSelectedNoteId, patch);
   }
@@ -790,6 +876,10 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     }
 
     const now = new Date().toISOString();
+    if (noteDraftMirrorTimeoutRef.current) {
+      window.clearTimeout(noteDraftMirrorTimeoutRef.current);
+      noteDraftMirrorTimeoutRef.current = null;
+    }
     bodyDirtyRef.current = false;
     bodyDirtyNoteIdRef.current = null;
     const nextNotes = notesRef.current.map((note) =>
@@ -838,13 +928,14 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     const now = new Date().toISOString();
     bodyDirtyRef.current = true;
     bodyDirtyNoteIdRef.current = currentSelectedNoteId;
-    const nextNotes = notesRef.current.map((note) =>
-      note.id === currentSelectedNoteId ? { ...note, body: nextBody, updatedAtISO: now } : note,
-    );
-    notesRef.current = nextNotes;
-    setNotes(nextNotes);
     writeLocalNoteDraft(currentUser.uid, currentSelectedNoteId, nextBody, now);
-    saveNotesLocally(currentUser.uid, nextNotes);
+    if (noteDraftMirrorTimeoutRef.current) {
+      window.clearTimeout(noteDraftMirrorTimeoutRef.current);
+    }
+    noteDraftMirrorTimeoutRef.current = window.setTimeout(() => {
+      mirrorDraftLocally(currentUser.uid, currentSelectedNoteId, nextBody, now);
+      noteDraftMirrorTimeoutRef.current = null;
+    }, NOTE_DRAFT_MIRROR_DEBOUNCE_MS);
   }
 
   function saveEditorSelection() {
@@ -1066,6 +1157,24 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
       setNotesSyncMessage(result.message ?? "Retry failed.");
     }
   }
+
+  useEffect(() => {
+    return () => {
+      const pendingTitleSync = noteTitleSyncPayloadRef.current;
+      if (noteTitleSyncTimeoutRef.current) {
+        window.clearTimeout(noteTitleSyncTimeoutRef.current);
+      }
+      if (pendingTitleSync && auth.currentUser) {
+        void saveNotePatchToFirestore(auth.currentUser.uid, pendingTitleSync.noteId, {
+          title: pendingTitleSync.title,
+          updatedAtISO: pendingTitleSync.updatedAtISO,
+        });
+      }
+      if (noteDraftMirrorTimeoutRef.current) {
+        window.clearTimeout(noteDraftMirrorTimeoutRef.current);
+      }
+    };
+  }, []);
 
   function openNoteAttachmentPicker() {
     if (!selectedNote) return;
@@ -1338,6 +1447,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     createWorkspaceNote,
     updateNoteById,
     updateSelectedNote,
+    flushPendingTitleSync,
     flushSelectedNoteDraft,
     togglePinned,
     captureEditorDraft,

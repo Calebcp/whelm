@@ -6,7 +6,8 @@ import type { AppTab } from "@/lib/app-tabs";
 import { addDays, dayKeyLocal, monthKeyLocal, startOfDayLocal } from "@/lib/date-utils";
 import { computeHistoricalStreaks, computeStreakEndingAtDateKey } from "@/lib/streak";
 import { getStreakBandanaTier, STREAK_BANDANA_TIERS } from "@/lib/streak-bandanas";
-import { STREAK_RULE_V2_START_DATE, getStreakTierColorTheme, STREAK_SAVE_MONTHLY_LIMIT } from "@/lib/xp-utils";
+import { STREAK_RULE_V2_START_DATE, getStreakTierColorTheme } from "@/lib/xp-utils";
+import { getWhelmStreakSaveMonthlyLimit } from "@/lib/whelm-plans";
 import type { LifetimeXpSummary } from "@/lib/xp-engine";
 
 type SickDaySaveInput = {
@@ -36,6 +37,7 @@ export type StreakNudgeDraft = {
 };
 
 type UseStreakOptions = {
+  isPro: boolean;
   streak: number;
   streakQualifiedDateKeys: string[];
   sessionMinutesByDay: Map<string, number>;
@@ -68,6 +70,7 @@ function buildNextBandanaMilestone(streak: number, countsTodayIfEarnedNow = fals
 }
 
 export function useStreak({
+  isPro,
   streak,
   streakQualifiedDateKeys,
   sessionMinutesByDay,
@@ -109,12 +112,13 @@ export function useStreak({
     streakQualifiedDateKeys,
   );
 
+  const streakSaveMonthlyLimit = getWhelmStreakSaveMonthlyLimit(isPro);
   const currentMonthKey = monthKeyLocal(new Date());
   const monthlyStreakSaveCount = sickDaySaves.filter(
     (save) => monthKeyLocal(save.claimedAtISO) === currentMonthKey,
   ).length;
-  const streakSaveSlotsLeft = Math.max(0, STREAK_SAVE_MONTHLY_LIMIT - monthlyStreakSaveCount);
-  const monthlySaveLimitReached = monthlyStreakSaveCount >= STREAK_SAVE_MONTHLY_LIMIT;
+  const streakSaveSlotsLeft = Math.max(0, streakSaveMonthlyLimit - monthlyStreakSaveCount);
+  const monthlySaveLimitReached = monthlyStreakSaveCount >= streakSaveMonthlyLimit;
   const sickDaySaveEligible =
     rawYesterdayMissed &&
     priorRunBeforeYesterday > 0 &&
@@ -165,7 +169,7 @@ export function useStreak({
   const streakProgressWordsLabel = `${todayWordsProgress}/33 note words`;
   const streakStatusLine = streakProtectedToday
     ? streakRuleV2ActiveToday
-      ? `Congratulations. ${todayLabel} is protected and your streak is secured for today.`
+      ? `${todayLabel} is protected. The line holds.`
       : `${todayLabel} already counts toward your streak. The stricter rule starts on March 22.`
     : streakBlocksLeft > 0 && streakEffortRequirementMet
       ? `${todayLabel} is not protected yet. You met the focus or writing requirement. Complete 1 block to secure the streak.`
@@ -178,7 +182,7 @@ export function useStreak({
 
     if (streakBlocksLeft > 0 && !streakEffortRequirementMet) {
       return {
-        title: "One block and one clean push secures today.",
+        title: "Protect today.",
         body: `You still need 1 completed block plus either ${streakMinutesLeft} more focus minute${
           streakMinutesLeft === 1 ? "" : "s"
         } or ${streakWordsLeft} more note word${streakWordsLeft === 1 ? "" : "s"}.`,
@@ -189,8 +193,8 @@ export function useStreak({
 
     if (streakBlocksLeft > 0) {
       return {
-        title: "You already did the hard part.",
-        body: "Your focus or writing requirement is already met. One completed block is all that is left to protect today.",
+        title: "Finish the block.",
+        body: "You already earned the effort. One completed block locks today in.",
         actionLabel: "Finish A Block",
         actionTab: "calendar",
       };
@@ -198,7 +202,7 @@ export function useStreak({
 
     if (streakMinutesLeft <= streakWordsLeft) {
       return {
-        title: "Today is still one focused session away.",
+        title: "One session seals it.",
         body: `Your block is already done. Add ${streakMinutesLeft} more focus minute${
           streakMinutesLeft === 1 ? "" : "s"
         } to secure the streak.`,
@@ -208,7 +212,7 @@ export function useStreak({
     }
 
     return {
-      title: "One more note can still protect today.",
+      title: "One note seals it.",
       body: `Your block is already done. Write ${streakWordsLeft} more note word${
         streakWordsLeft === 1 ? "" : "s"
       } and today is secured.`,
@@ -336,6 +340,7 @@ export function useStreak({
     xpDockStyle,
     mobileStreakJumpStyle,
     monthlyStreakSaveCount,
+    streakSaveMonthlyLimit,
     streakSaveSlotsLeft,
     rawYesterdayMissed,
     yesterdaySave,

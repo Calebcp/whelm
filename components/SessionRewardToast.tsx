@@ -4,12 +4,16 @@ import type { CSSProperties } from "react";
 import { motion } from "motion/react";
 
 import styles from "@/app/page.module.css";
+import WhelmProfileAvatar from "@/components/WhelmProfileAvatar";
 import type { SessionRewardState } from "@/lib/xp-engine";
 
 export default function SessionRewardToast({
   reward,
   onDismiss,
   getStreakTierColorTheme,
+  currentTierColor,
+  isPro,
+  photoUrl,
 }: {
   reward: SessionRewardState;
   onDismiss: () => void;
@@ -18,6 +22,9 @@ export default function SessionRewardToast({
     accentStrong: string;
     accentGlow: string;
   };
+  currentTierColor: string | null | undefined;
+  isPro: boolean;
+  photoUrl?: string | null;
 }) {
   const tierTheme = getStreakTierColorTheme(reward.tierUnlocked?.color);
   const rewardStyle = {
@@ -39,11 +46,18 @@ export default function SessionRewardToast({
         ×
       </button>
       <div className={styles.sessionRewardTop}>
+        <div className={styles.sessionRewardAvatarWrap}>
+          <WhelmProfileAvatar
+            tierColor={currentTierColor}
+            size="mini"
+            isPro={isPro}
+          />
+        </div>
         <div>
-          <p className={styles.sectionLabel}>Session complete</p>
-          <h3 className={styles.sessionRewardTitle}>+{reward.xpGained} XP secured</h3>
+          <p className={styles.sectionLabel}>Whelm logged it</p>
+          <h3 className={styles.sessionRewardTitle}>+{reward.xpGained} XP</h3>
           <p className={styles.sessionRewardBody}>
-            {reward.minutesSpent} minutes banked. Today now holds {reward.todayXp} XP.
+            {reward.minutesSpent} minutes banked. Today sits at {reward.todayXp} XP.
           </p>
         </div>
         <div className={styles.sessionRewardBadge}>
@@ -64,7 +78,7 @@ export default function SessionRewardToast({
         </div>
         <div className={styles.sessionRewardStat}>
           <span>Tier</span>
-          <strong>{reward.tierUnlocked?.label ?? "Holding line"}</strong>
+          <strong>{reward.tierUnlocked?.label ?? "Steady"}</strong>
         </div>
       </div>
     </motion.div>

@@ -21,6 +21,11 @@ type PreferencesPayload = {
     isPro?: boolean;
     source?: "preview" | "store" | "none";
   };
+  notificationSettings?: {
+    enabled?: boolean;
+    performanceNudges?: boolean;
+    noteReminders?: boolean;
+  };
 };
 
 type FirestoreDocumentResponse = {
@@ -56,6 +61,7 @@ function normalizePreferences(payload: Partial<PreferencesPayload>) {
   const backgroundSetting = payload.backgroundSetting;
   const backgroundSkin = payload.backgroundSkin;
   const proState = payload.proState;
+  const notificationSettings = payload.notificationSettings;
   return {
     themeMode: payload.themeMode === "light" ? "light" : "dark",
     companionStyle:
@@ -74,6 +80,17 @@ function normalizePreferences(payload: Partial<PreferencesPayload>) {
       surfaceOpacity: Math.min(0.98, Math.max(0.08, Number(backgroundSkin?.surfaceOpacity) || 0.72)),
       blur: Math.min(40, Math.max(0, Number(backgroundSkin?.blur) || 18)),
       imageFit: backgroundSkin?.imageFit === "fill" ? "fill" : "fit",
+    },
+    notificationSettings: {
+      enabled: typeof notificationSettings?.enabled === "boolean" ? notificationSettings.enabled : false,
+      performanceNudges:
+        typeof notificationSettings?.performanceNudges === "boolean"
+          ? notificationSettings.performanceNudges
+          : true,
+      noteReminders:
+        typeof notificationSettings?.noteReminders === "boolean"
+          ? notificationSettings.noteReminders
+          : true,
     },
     proState: {
       isPro: typeof proState?.isPro === "boolean" ? proState.isPro : false,
