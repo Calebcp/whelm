@@ -388,6 +388,21 @@ export default function SettingsTab({
     activeSection === "appearance" ||
     activeSection === "background";
 
+  const normalizedNotificationSettings = useMemo(
+    () => ({
+      enabled: Boolean(notificationSettings?.enabled),
+      performanceNudges:
+        typeof notificationSettings?.performanceNudges === "boolean"
+          ? notificationSettings.performanceNudges
+          : true,
+      noteReminders:
+        typeof notificationSettings?.noteReminders === "boolean"
+          ? notificationSettings.noteReminders
+          : true,
+    }),
+    [notificationSettings],
+  );
+
   const closeActiveSection = () => {
     if (activeSection) {
       onToggleSection(activeSection);
@@ -432,7 +447,7 @@ export default function SettingsTab({
           />
           <SettingsRow
             title="Notifications"
-            summary={notificationSettings.enabled ? "Whelm nudges active" : "Notifications off"}
+            summary={normalizedNotificationSettings.enabled ? "Whelm nudges active" : "Notifications off"}
             active={activeSection === "notifications"}
             onClick={() => onToggleSection("notifications")}
           />
@@ -689,35 +704,35 @@ export default function SettingsTab({
             <SettingsToggleRow
               title="Notifications"
               summary="Allow Whelm to reach you."
-              active={notificationSettings.enabled}
+              active={normalizedNotificationSettings.enabled}
               onClick={() =>
                 onApplyNotificationSettings({
-                  ...notificationSettings,
-                  enabled: !notificationSettings.enabled,
+                  ...normalizedNotificationSettings,
+                  enabled: !normalizedNotificationSettings.enabled,
                 })
               }
             />
             <SettingsToggleRow
               title="Whelm nudges"
               summary="Momentum, streak, and focus reminders."
-              active={notificationSettings.performanceNudges}
-              disabled={!notificationSettings.enabled}
+              active={normalizedNotificationSettings.performanceNudges}
+              disabled={!normalizedNotificationSettings.enabled}
               onClick={() =>
                 onApplyNotificationSettings({
-                  ...notificationSettings,
-                  performanceNudges: !notificationSettings.performanceNudges,
+                  ...normalizedNotificationSettings,
+                  performanceNudges: !normalizedNotificationSettings.performanceNudges,
                 })
               }
             />
             <SettingsToggleRow
               title="Note reminders"
               summary="Your scheduled note reminders."
-              active={notificationSettings.noteReminders}
-              disabled={!notificationSettings.enabled}
+              active={normalizedNotificationSettings.noteReminders}
+              disabled={!normalizedNotificationSettings.enabled}
               onClick={() =>
                 onApplyNotificationSettings({
-                  ...notificationSettings,
-                  noteReminders: !notificationSettings.noteReminders,
+                  ...normalizedNotificationSettings,
+                  noteReminders: !normalizedNotificationSettings.noteReminders,
                 })
               }
             />
