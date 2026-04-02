@@ -12,6 +12,7 @@ import {
   type LeaderboardProfile,
   type LeaderboardSnapshotEntry,
 } from "@/lib/leaderboard";
+import { getAdminDb } from "@/lib/firebase-admin";
 import { resolveFirestoreDatabaseId } from "@/lib/firestore-database";
 import { STREAK_BANDANA_TIERS, getStreakBandanaTier } from "@/lib/streak-bandanas";
 import { usernameKey } from "@/lib/username";
@@ -591,6 +592,119 @@ async function commitWrites(authHeader: string, writes: Array<{ path: string; fi
   }
 }
 
+async function listAllProfilesAdmin() {
+  const db = getAdminDb();
+  if (!db) {
+    throw new Error("Missing Firebase admin configuration for leaderboard rebuild.");
+  }
+
+  const snapshot = await db.collection("leaderboardProfiles").get();
+  const all = snapshot.docs
+    .map((document) => buildLeaderboardProfile(document.data() as Partial<LeaderboardProfile> & {
+      userId: string;
+      username: string;
+      totalXp: number;
+      currentStreak: number;
+      level: number;
+      createdAtISO: string;
+      updatedAtISO?: string;
+      bestStreak?: number;
+      totalFocusHours?: number;
+      weeklyXp?: number;
+    }))
+    .filter((profile) => Boolean(profile.userId));
+
+  const byId = new Map<string, LeaderboardProfile>();
+  for (const profile of all) {
+    const existing = byId.get(profile.userId);
+    if (!existing || profile.totalXp > existing.totalXp) {
+      byId.set(profile.userId, profile);
+    }
+  }
+
+  return [...byId.values()];
+}
+
+async function previousRanksForUsersAdmin(
+  snapshotDate: string,
+  metric: LeaderboardMetric,
+  userIds: string[],
+) {
+  const db = getAdminDb();
+  if (!db) {
+    throw new Error("Missing Firebase admin configuration for leaderboard rebuild.");
+  }
+
+  const uniqueIds = [...new Set(userIds.filter(Boolean))];
+  const entries = await Promise.all(
+    uniqueIds.map((userId) =>
+      db
+        .collection("leaderboardDailySnapshots")
+        .doc(snapshotEntryDocId(snapshotDate, metric, userId))
+        .get(),
+    ),
+  );
+
+  const map = new Map<string, number>();
+  entries.forEach((document, index) => {
+    const entry = document.exists
+      ? buildLeaderboardProfile({
+          ...(document.data() as LeaderboardProfile),
+          userId: String(document.get("userId") ?? uniqueIds[index] ?? ""),
+          username: String(document.get("username") ?? "Whelm user"),
+          totalXp: Number(document.get("totalXp") ?? 0),
+          currentStreak: Number(document.get("currentStreak") ?? 0),
+          level: Number(document.get("level") ?? 1),
+          createdAtISO: String(document.get("createdAtISO") ?? new Date().toISOString()),
+          updatedAtISO: String(document.get("updatedAtISO") ?? new Date().toISOString()),
+          bestStreak: Number(document.get("bestStreak") ?? 0),
+          totalFocusHours: Number(document.get("totalFocusHours") ?? 0),
+          weeklyXp: Number(document.get("weeklyXp") ?? 0),
+        })
+      : null;
+
+    const rank = document.exists ? Number(document.get("rank") ?? 0) : 0;
+    const userId = entry?.userId || uniqueIds[index];
+    if (userId) map.set(userId, rank > 0 ? rank : 0);
+  });
+
+  return map;
+}
+
+async function latestSnapshotDateAdmin(metric: LeaderboardMetric) {
+  const db = getAdminDb();
+  if (!db) {
+    throw new Error("Missing Firebase admin configuration for leaderboard rebuild.");
+  }
+
+  const snapshot = await db
+    .collection("leaderboardSnapshotRuns")
+    .where("metric", "==", metric)
+    .orderBy("snapshotDate", "desc")
+    .limit(1)
+    .get();
+
+  const document = snapshot.docs[0];
+  if (!document) return null;
+  return String(document.get("snapshotDate") ?? null);
+}
+
+async function commitWritesAdmin(writes: Array<{ path: string; fields: Record<string, unknown> }>) {
+  if (writes.length === 0) return;
+  const db = getAdminDb();
+  if (!db) {
+    throw new Error("Missing Firebase admin configuration for leaderboard rebuild.");
+  }
+
+  for (let index = 0; index < writes.length; index += 200) {
+    const batch = db.batch();
+    for (const write of writes.slice(index, index + 200)) {
+      batch.set(db.doc(write.path), write.fields);
+    }
+    await batch.commit();
+  }
+}
+
 export async function rebuildLeaderboardSnapshots(authHeader: string, snapshotDate: string) {
   const profiles = await listAllProfiles(authHeader);
 
@@ -641,6 +755,51 @@ export async function rebuildLeaderboardSnapshots(authHeader: string, snapshotDa
     for (let index = 0; index < writes.length; index += 200) {
       await commitWrites(authHeader, writes.slice(index, index + 200));
     }
+  }
+
+  return { ok: true, snapshotDate, profilesProcessed: profiles.length };
+}
+
+export async function rebuildLeaderboardSnapshotsWithAdmin(snapshotDate: string) {
+  const profiles = await listAllProfilesAdmin();
+
+  for (const metric of ["xp", "streak"] as const) {
+    const previousDate = await latestSnapshotDateAdmin(metric);
+    const previousRankMap =
+      previousDate
+        ? await previousRanksForUsersAdmin(
+            previousDate,
+            metric,
+            profiles.map((profile) => profile.userId),
+          )
+        : new Map<string, number>();
+
+    const sorted = [...profiles].sort((left, right) => compareLeaderboardProfiles(left, right, metric));
+    const writes: Array<{ path: string; fields: Record<string, unknown> }> = [];
+
+    sorted.forEach((profile, index) => {
+      const rank = index + 1;
+      const previousRank = previousRankMap.get(profile.userId) ?? null;
+      writes.push({
+        path: `leaderboardDailySnapshots/${snapshotEntryDocId(snapshotDate, metric, profile.userId)}`,
+        fields: {
+          ...profile,
+          snapshotDate,
+          metric,
+          rank,
+          previousRank,
+          movement: previousRank === null ? 0 : previousRank - rank,
+          movementDirection: movementDirection(rank, previousRank),
+        },
+      });
+    });
+
+    writes.push({
+      path: `leaderboardSnapshotRuns/${snapshotRunDocId(snapshotDate, metric)}`,
+      fields: snapshotRunFields(snapshotDate, metric, sorted.length),
+    });
+
+    await commitWritesAdmin(writes);
   }
 
   return { ok: true, snapshotDate, profilesProcessed: profiles.length };

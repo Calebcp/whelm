@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { getFirestoreAdminAuthHeader } from "@/lib/google-service-auth";
-import { rebuildLeaderboardSnapshots } from "@/lib/leaderboard-store";
+import { rebuildLeaderboardSnapshotsWithAdmin } from "@/lib/leaderboard-store";
 
 function jsonError(message: string, status = 500) {
   return NextResponse.json({ error: message }, { status });
@@ -23,14 +22,13 @@ function requireJobAuth(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     requireJobAuth(request);
-    const authHeader = await getFirestoreAdminAuthHeader();
     const body = (await request.json().catch(() => ({}))) as { snapshotDate?: string };
     const snapshotDate =
       typeof body.snapshotDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.snapshotDate)
         ? body.snapshotDate
         : new Date().toISOString().slice(0, 10);
 
-    const result = await rebuildLeaderboardSnapshots(authHeader, snapshotDate);
+    const result = await rebuildLeaderboardSnapshotsWithAdmin(snapshotDate);
 
     return NextResponse.json(result);
   } catch (error: unknown) {
