@@ -1171,6 +1171,7 @@ export default function NotesTab({
                     }}
                     onBlur={() => {
                       onCaptureEditorDraft();
+                      void onFlushNoteDraft();
                       onSetEditorBandanaCaret((current) =>
                         current.visible ? { ...current, visible: false } : current,
                       );
@@ -1939,6 +1940,7 @@ export default function NotesTab({
                     }}
                       onBlur={() => {
                         onCaptureEditorDraft();
+                        void onFlushNoteDraft();
                         onSetEditorBandanaCaret((current) =>
                           current.visible ? { ...current, visible: false } : current,
                         );

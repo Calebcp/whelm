@@ -57,7 +57,7 @@ const NOTE_ATTACHMENT_MAX_BYTES = 20 * 1024 * 1024;
 const NOTE_ATTACHMENT_UPLOAD_IDLE_TIMEOUT_MS = 15000;
 const NOTE_ATTACHMENT_UPLOAD_TOTAL_TIMEOUT_MS = 120000;
 const NOTE_TITLE_SYNC_DEBOUNCE_MS = 240;
-const NOTE_DRAFT_MIRROR_DEBOUNCE_MS = 120;
+const NOTE_BODY_AUTOSAVE_DEBOUNCE_MS = 400;
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function createNote(): WorkspaceNote {
@@ -459,6 +459,31 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     return map;
   }, [draftAwareNotes]);
 
+  const syncEditorDraftFromNote = useCallback((note: WorkspaceNote | null, uid: string | null) => {
+    if (!note) {
+      if (editorBodyDraft !== "") setEditorBodyDraft("");
+      if (editorRef.current && editorRef.current.innerHTML !== "") {
+        editorRef.current.innerHTML = "";
+      }
+      return;
+    }
+
+    if (bodyDirtyRef.current && bodyDirtyNoteIdRef.current === note.id) return;
+
+    const resolvedEditorHtml = resolvePreferredEditorHtml(
+      uid,
+      note,
+      editorRef.current?.innerHTML ?? editorBodyDraft,
+    );
+
+    if (resolvedEditorHtml !== editorBodyDraft) {
+      setEditorBodyDraft(resolvedEditorHtml);
+    }
+    if (editorRef.current && editorRef.current.innerHTML !== resolvedEditorHtml) {
+      editorRef.current.innerHTML = resolvedEditorHtml;
+    }
+  }, [editorBodyDraft]);
+
   // ── Sync refs ──────────────────────────────────────────────────────────────
   useEffect(() => {
     notesRef.current = notes;
@@ -477,13 +502,9 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
 
   // ── Load editor body when selected note changes ────────────────────────────
   useEffect(() => {
-    // If the user is actively typing into this note, don't overwrite their in-flight edits.
-    // (bodyDirtyNoteIdRef tracks which note is dirty so we still load content when navigating.)
-    if (bodyDirtyRef.current && bodyDirtyNoteIdRef.current === selectedNoteId) return;
-
     const currentUser = auth.currentUser;
-    setEditorBodyDraft(resolvePreferredEditorHtml(currentUser?.uid ?? null, selectedNote, ""));
-  }, [selectedNote, selectedNoteId]);
+    syncEditorDraftFromNote(selectedNote, currentUser?.uid ?? null);
+  }, [selectedNote, syncEditorDraftFromNote]);
 
   // ── Sync editorBodyDraft → editor.innerHTML ────────────────────────────────
   useEffect(() => {
@@ -536,7 +557,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     setPendingNoteAttachments([]);
   }, [selectedNoteId]);
 
-  // ── 1-second debounce autosave ─────────────────────────────────────────────
+  // ── Fast debounce autosave ────────────────────────────────────────────────
   useEffect(() => {
     if (!selectedNote || !bodyDirtyRef.current) return;
 
@@ -549,7 +570,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
         preview: editorBodyDraft.slice(0, 80),
       });
       void updateSelectedNote({ body: editorBodyDraft });
-    }, 1000);
+    }, NOTE_BODY_AUTOSAVE_DEBOUNCE_MS);
 
     return () => window.clearTimeout(timeoutId);
     // updateSelectedNote is a stable local function; editorBodyDraft and selectedNote are the real deps
@@ -580,10 +601,15 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
       }
     });
     setNotes(result.notes);
-    setSelectedNoteId((current) => current ?? result.notes[0]?.id ?? null);
+    const nextSelectedNoteId = selectedNoteIdRef.current ?? result.notes[0]?.id ?? null;
+    setSelectedNoteId(nextSelectedNoteId);
+    syncEditorDraftFromNote(
+      result.notes.find((note) => note.id === nextSelectedNoteId) ?? null,
+      uid,
+    );
     setNotesSyncStatus(result.synced ? "synced" : "local-only");
     setNotesSyncMessage(result.message ?? "");
-  }, []);
+  }, [syncEditorDraftFromNote]);
 
   const handleUserSignedIn = useCallback((uid: string) => {
     try {
@@ -651,7 +677,12 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
 
     notesRef.current = mergedNotes;
     setNotes(mergedNotes);
-    setSelectedNoteId(selectedStillExists ? selectedCandidateId : (mergedNotes[0]?.id ?? null));
+    const nextSelectedNoteId = selectedStillExists ? selectedCandidateId : (mergedNotes[0]?.id ?? null);
+    setSelectedNoteId(nextSelectedNoteId);
+    syncEditorDraftFromNote(
+      mergedNotes.find((note) => note.id === nextSelectedNoteId) ?? null,
+      uid ?? null,
+    );
     setNotesSyncStatus(remoteWasStale ? "syncing" : "synced");
     setNotesSyncMessage(
       remoteWasStale ? "Recovered newer local notes and syncing them to your account." : "",
@@ -681,7 +712,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
       .finally(() => {
         syncInFlightRef.current = false;
       });
-  }, []);
+  }, [syncEditorDraftFromNote]);
 
   const clearPendingXpPop = useCallback(() => {
     setPendingXpPop(null);
@@ -749,20 +780,6 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     }
     setNotesSyncStatus(result.synced ? "synced" : "local-only");
     setNotesSyncMessage(result.message ?? "");
-  }
-
-  function mirrorDraftLocally(
-    currentUserUid: string,
-    noteId: string,
-    body: string,
-    updatedAtISO: string,
-  ) {
-    const nextNotes = notesRef.current.map((note) =>
-      note.id === noteId ? { ...note, body, updatedAtISO } : note,
-    );
-    notesRef.current = nextNotes;
-    setNotes(nextNotes);
-    saveNotesLocally(currentUserUid, nextNotes);
   }
 
   function scheduleTitleSync(noteId: string, title: string, updatedAtISO: string) {
@@ -939,11 +956,8 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     writeLocalNoteDraft(currentUser.uid, currentSelectedNoteId, nextBody, now);
     if (noteDraftMirrorTimeoutRef.current) {
       window.clearTimeout(noteDraftMirrorTimeoutRef.current);
-    }
-    noteDraftMirrorTimeoutRef.current = window.setTimeout(() => {
-      mirrorDraftLocally(currentUser.uid, currentSelectedNoteId, nextBody, now);
       noteDraftMirrorTimeoutRef.current = null;
-    }, NOTE_DRAFT_MIRROR_DEBOUNCE_MS);
+    }
   }
 
   function saveEditorSelection() {

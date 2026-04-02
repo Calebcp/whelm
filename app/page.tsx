@@ -2193,6 +2193,8 @@ export default function HomePage() {
     lifetimeXpSummary,
   });
 
+  const visibleBandanaColor = (streakBandanaTier?.color ?? bandanaColor) as typeof bandanaColor;
+
   const streakSaveMonthlyLimit = getWhelmStreakSaveMonthlyLimit(isPro);
 
   useEffect(() => {
@@ -2905,7 +2907,7 @@ export default function HomePage() {
     todayKey,
     todayActivePlannedBlocks,
     orderedNotes,
-    streakBandanaColor: streakBandanaTier?.color,
+    streakBandanaColor: visibleBandanaColor,
     isPro,
     getPageShellBackgroundStyle,
     getProfileTierTheme,
@@ -3161,7 +3163,7 @@ export default function HomePage() {
             dailyCap={lifetimeXpSummary.dailyCap}
             formattedLifetimeXp={formattedLifetimeXp}
             formattedXpToNextLevel={formattedXpToNextLevel}
-            tierColor={streakBandanaTier?.color}
+            tierColor={visibleBandanaColor}
             isPro={isPro}
             photoUrl={currentUserPhotoUrl}
             isMobileViewport={isMobileViewport}
@@ -3210,7 +3212,7 @@ export default function HomePage() {
               companionStageLabel={companionState.stage}
               nextSenseiMilestone={nextSenseiMilestone}
               senseiReaction={senseiReaction}
-              bandanaColor={bandanaColor}
+              bandanaColor={visibleBandanaColor}
               reportCopyStatus={reportCopyStatus}
               onOpenSessionNotes={() => setActiveTab("history")}
               onSessionStart={handleSessionStarted}
@@ -3263,7 +3265,7 @@ export default function HomePage() {
               selectedDateDayTone={selectedDateDayTone}
               selectedDateCanAddBlocks={selectedDateCanAddBlocks}
               dayPortalComposerOpen={dayPortalComposerOpen}
-              bandanaColor={bandanaColor}
+              bandanaColor={visibleBandanaColor}
               currentTimeMarker={currentTimeMarker}
               dayViewTimeline={dayViewTimeline}
               mobileDayTimelineHeight={mobileDayTimelineHeight}
@@ -3435,7 +3437,7 @@ export default function HomePage() {
               selectedNotePageColor={selectedNotePageColor}
               xpTierTheme={xpTierTheme}
               streakBandanaTier={streakBandanaTier}
-              bandanaColor={bandanaColor}
+              bandanaColor={visibleBandanaColor}
               notesSearch={notesSearch}
               onSetNotesSearch={setNotesSearch}
               notesCategoryFilter={notesCategoryFilter}
@@ -3501,7 +3503,7 @@ export default function HomePage() {
           {activeTab === "history" && (
             <HistoryTab
               companionPulse={companionState.pulses.history}
-              bandanaColor={bandanaColor}
+              bandanaColor={visibleBandanaColor}
               sectionRef={historySectionRef}
               primaryRef={historyPrimaryRef}
               historySearch={historySearch}
@@ -3536,7 +3538,7 @@ export default function HomePage() {
               sectionRef={reportsSectionRef}
               primaryRef={reportsPrimaryRef}
               companionPulse={companionState.pulses.reports}
-              bandanaColor={bandanaColor}
+              bandanaColor={visibleBandanaColor}
               isPro={isPro}
               proPanelReportsOpen={proPanelsOpen.reports}
               onToggleProReportsPanel={() =>
@@ -3616,7 +3618,7 @@ export default function HomePage() {
           {activeTab === "settings" && (
             <SettingsTab
               companionPulse={companionState.pulses.settings}
-              bandanaColor={bandanaColor}
+              bandanaColor={visibleBandanaColor}
               sectionRef={settingsSectionRef}
               primaryRef={settingsPrimaryRef}
               streakBandanaTier={streakBandanaTier}
@@ -3746,7 +3748,7 @@ export default function HomePage() {
             reward={sessionReward}
             onDismiss={() => setSessionReward(null)}
             getStreakTierColorTheme={getStreakTierColorTheme}
-            currentTierColor={streakBandanaTier?.color}
+            currentTierColor={visibleBandanaColor}
             isPro={isPro}
             photoUrl={currentUserPhotoUrl}
           />
@@ -3756,14 +3758,14 @@ export default function HomePage() {
       <XPPopAnimation
         pops={xpPops}
         onDone={removeXPPop}
-        currentTierColor={streakBandanaTier?.color}
+        currentTierColor={visibleBandanaColor}
         isPro={isPro}
         photoUrl={currentUserPhotoUrl}
       />
       <WhelToastContainer
         toasts={whelToasts}
         onDismiss={dismissToast}
-        currentTierColor={streakBandanaTier?.color}
+        currentTierColor={visibleBandanaColor}
         isPro={isPro}
         photoUrl={currentUserPhotoUrl}
       />
@@ -3771,7 +3773,7 @@ export default function HomePage() {
       <ProfileSheet
         open={profileOpen}
         onClose={() => setProfileOpen(false)}
-        tierColor={streakBandanaTier?.color}
+        tierColor={visibleBandanaColor}
         isPro={isPro}
         photoUrl={currentUserPhotoUrl}
         profileDisplayName={profileDisplayName}
@@ -3879,7 +3881,7 @@ export default function HomePage() {
         headerIcon={
           <DailyRitualWaveIcon
             className={styles.dailyRitualCornerIconImage}
-            tierColor={streakBandanaTier?.color}
+            tierColor={visibleBandanaColor}
           />
         }
         submitDecoration={
@@ -3943,7 +3945,7 @@ export default function HomePage() {
         streakNudge={streakNudge}
         onDismissStreakNudge={() => setStreakNudge(null)}
         onStreakNudgeAction={handleStreakNudgeAction}
-        currentTierColor={streakBandanaTier?.color}
+        currentTierColor={visibleBandanaColor}
         isPro={isPro}
         photoUrl={currentUserPhotoUrl}
         nextBandanaMilestone={nextBandanaMilestone}
@@ -3999,7 +4001,7 @@ export default function HomePage() {
       {!onboardingOpen && mascot.visible ? (
         <WhelMascot
           pose={mascot.pose}
-          bandanaColor={mascot.bandanaColor}
+          bandanaColor={visibleBandanaColor}
           message={mascot.message}
           onDismiss={dismissMascot}
         />
