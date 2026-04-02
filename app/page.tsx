@@ -1780,6 +1780,7 @@ export default function HomePage() {
     sessionsSynced,
     sessionsSyncedRef,
     applySessionsSnapshot,
+    refreshSessionsFromCloud,
     sessions,
     setSessions,
     sessionMinutesByDay,
@@ -2372,13 +2373,15 @@ export default function HomePage() {
 
   useEffect(() => {
     function onOnline() {
-      if (!user || notes.length === 0) return;
+      if (!user) return;
+      void refreshSessionsFromCloud();
+      if (notes.length === 0) return;
       void handleRetrySync();
     }
 
     window.addEventListener("online", onOnline);
     return () => window.removeEventListener("online", onOnline);
-  }, [notes, user]);
+  }, [handleRetrySync, notes.length, refreshSessionsFromCloud, user]);
 
   useEffect(() => {
     if (!user || sickDaySavePromptPreview) return;
@@ -2391,6 +2394,10 @@ export default function HomePage() {
     function onVisibilityChange() {
       if (document.visibilityState === "hidden") {
         void flushSelectedNoteDraft();
+        return;
+      }
+      if (document.visibilityState === "visible") {
+        void refreshSessionsFromCloud();
       }
     }
 
@@ -2398,13 +2405,19 @@ export default function HomePage() {
       void flushSelectedNoteDraft();
     }
 
+    function onWindowFocus() {
+      void refreshSessionsFromCloud();
+    }
+
     document.addEventListener("visibilitychange", onVisibilityChange);
     window.addEventListener("pagehide", onPageHide);
+    window.addEventListener("focus", onWindowFocus);
 
     if (!user) {
       return () => {
         document.removeEventListener("visibilitychange", onVisibilityChange);
         window.removeEventListener("pagehide", onPageHide);
+        window.removeEventListener("focus", onWindowFocus);
       };
     }
 
@@ -2443,8 +2456,18 @@ export default function HomePage() {
       unsub();
       document.removeEventListener("visibilitychange", onVisibilityChange);
       window.removeEventListener("pagehide", onPageHide);
+      window.removeEventListener("focus", onWindowFocus);
     };
-  }, [handleReflectionSnapshot, user]);
+  }, [
+    applyNotesSnapshot,
+    applyPreferencesSnapshot,
+    applySessionsSnapshot,
+    flushSelectedNoteDraft,
+    handleBlocksSnapshot,
+    handleReflectionSnapshot,
+    refreshSessionsFromCloud,
+    user,
+  ]);
 
   function fireAndForgetTracking(work: Promise<unknown>) {
     void work.catch(() => {
@@ -3738,6 +3761,13 @@ export default function HomePage() {
         activeTab={activeTab}
         mobileMoreActive={mobileMoreActive}
         mobileMoreOpen={mobileMoreOpen}
+        suppressMoreFab={Boolean(
+          sessionReward ||
+          streakCelebration ||
+          streakNudge ||
+          sickDaySavePromptOpen ||
+          streakSaveQuestionnaireOpen,
+        )}
         onTabSelect={handleMobileTabSelect}
         onMoreOpen={() => setMobileMoreOpen(true)}
       />

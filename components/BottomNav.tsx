@@ -179,6 +179,7 @@ type BottomNavProps = {
   activeTab: AppTab;
   mobileMoreActive: boolean;
   mobileMoreOpen: boolean;
+  suppressMoreFab?: boolean;
   onTabSelect: (tab: AppTab) => void;
   onMoreOpen: () => void;
 };
@@ -187,6 +188,7 @@ export default function BottomNav({
   activeTab,
   mobileMoreActive,
   mobileMoreOpen,
+  suppressMoreFab = false,
   onTabSelect,
   onMoreOpen,
 }: BottomNavProps) {
@@ -229,17 +231,19 @@ export default function BottomNav({
         ))}
       </nav>
 
-      <button
-        type="button"
-        data-tour="nav-more"
-        className={`${styles.mobileMoreFab} ${mobileMoreActive || mobileMoreOpen ? styles.mobileMoreFabActive : ""}`}
-        onClick={onMoreOpen}
-      >
-        <span className={styles.mobileMoreFabIcon}>
-          <WhelmNavIcon icon="more" />
-        </span>
-        <span>More</span>
-      </button>
+      {!suppressMoreFab ? (
+        <button
+          type="button"
+          data-tour="nav-more"
+          className={`${styles.mobileMoreFab} ${mobileMoreActive || mobileMoreOpen ? styles.mobileMoreFabActive : ""}`}
+          onClick={onMoreOpen}
+        >
+          <span className={styles.mobileMoreFabIcon}>
+            <WhelmNavIcon icon="more" />
+          </span>
+          <span>More</span>
+        </button>
+      ) : null}
     </>
   );
 }

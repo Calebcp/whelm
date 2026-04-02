@@ -68,6 +68,7 @@ export function useUserData({
   const authReadyRef = useRef(false);
   const appOpenTrackedRef = useRef<string | null>(null);
   const sessionsSyncInFlightRef = useRef(false);
+  const sessionsRef = useRef<SessionDoc[]>([]);
 
   // ── XP/streak animation state ──────────────────────────────────────────────
   const [xpPops, setXpPops] = useState<XPPop[]>([]);
@@ -84,13 +85,18 @@ export function useUserData({
     setXpPops((prev) => prev.filter((p) => p.id !== id));
   }, []);
 
+  useEffect(() => {
+    sessionsRef.current = sessions;
+  }, [sessions]);
+
   const applySessionsSnapshot = useCallback((remoteSessions: SessionDoc[]) => {
     const currentUser = auth.currentUser;
     const uid = currentUser?.uid;
     const localSessions = uid ? readLocalSessions(uid) : [];
-    const merged = dedupeSessions([...remoteSessions, ...sessions, ...localSessions]);
+    const merged = dedupeSessions([...remoteSessions, ...sessionsRef.current, ...localSessions]);
     const remoteWasStale = merged.length !== remoteSessions.length;
 
+    sessionsRef.current = merged;
     setSessions(merged);
     sessionsSyncedRef.current = true;
     setSessionsSynced(true);
@@ -101,7 +107,22 @@ export function useUserData({
     void syncMissingSessionsToCloud(currentUser, remoteSessions).finally(() => {
       sessionsSyncInFlightRef.current = false;
     });
-  }, [sessions]);
+  }, []);
+
+  const refreshSessionsFromCloud = useCallback(async () => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) return;
+
+    try {
+      const synced = await loadSessions(currentUser);
+      sessionsRef.current = synced;
+      setSessions(synced);
+      sessionsSyncedRef.current = true;
+      setSessionsSynced(true);
+    } catch {
+      // Keep local state when a visibility or focus refresh cannot reach cloud.
+    }
+  }, []);
 
   // ── Auth listener ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -113,6 +134,7 @@ export function useUserData({
         sessionsSyncedRef.current = false;
         setSessionsSynced(false);
         setUser(null);
+        sessionsRef.current = [];
         setSessions([]);
         if (authReadyRef.current) {
           setAuthChecked(true);
@@ -139,7 +161,10 @@ export function useUserData({
       try {
         const raw = window.localStorage.getItem(`whelm:sessions:${nextUser.uid}`);
         const local = raw ? (JSON.parse(raw) as SessionDoc[]) : [];
-        if (local.length > 0) setSessions(local);
+        if (local.length > 0) {
+          sessionsRef.current = local;
+          setSessions(local);
+        }
       } catch { /* ignore */ }
 
       // Kick off the Firestore sync (localStorage→Firestore merge).
@@ -153,6 +178,7 @@ export function useUserData({
               sessionCount: synced.length,
               durationMs: Math.round(performance.now() - authEventStartedAt),
             });
+            sessionsRef.current = synced;
             setSessions(synced);
             sessionsSyncedRef.current = true;
             setSessionsSynced(true);
@@ -387,5 +413,6 @@ export function useUserData({
     currentUserId,
     currentUserCreatedAtISO,
     applySessionsSnapshot,
+    refreshSessionsFromCloud,
   };
 }

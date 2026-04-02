@@ -667,9 +667,11 @@ export function useLeaderboard({
     if (activeTab !== "leaderboard") return;
     const currentUser = user;
     if (!currentUser) return;
+    if (!sessionsSynced) return;
     const authedUser = currentUser;
 
     let cancelled = false;
+    let timeoutId: number | null = null;
 
     async function loadLeaderboard() {
       setLeaderboardLoading(true);
@@ -740,11 +742,23 @@ export function useLeaderboard({
       }
     }
 
-    void loadLeaderboard();
+    timeoutId = window.setTimeout(() => {
+      void loadLeaderboard();
+    }, 120);
     return () => {
       cancelled = true;
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
     };
-  }, [activeTab, leaderboardMetricTab, user]);
+  }, [
+    activeTab,
+    displayStreak,
+    leaderboardMetricTab,
+    lifetimeXpSummary.totalXp,
+    sessionsSynced,
+    user,
+  ]);
 
   useEffect(() => {
     leaderboardIsLiveRef.current = false;
