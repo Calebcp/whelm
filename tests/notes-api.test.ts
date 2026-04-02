@@ -375,3 +375,270 @@ test("notes GET keeps older non-empty body when newer subcollection body is blan
     restoreFetch();
   }
 });
+
+test("notes POST deletes stale cloud notes that are missing from the intended local set", async () => {
+  process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID = "demo-project";
+  process.env.NEXT_PUBLIC_FIREBASE_API_KEY = "demo-key";
+  process.env.FIREBASE_DATABASE_ID = "(default)";
+
+  const { POST: saveNotesRoute } = await import("@/app/api/notes/route");
+
+  const seenDeletes: string[] = [];
+
+  const restoreFetch = installFetchMock(async (input, init) => {
+    const url =
+      typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+
+    if (/\/userNotes\/user-notes\/notes\?key=demo-key$/.test(url)) {
+      assert.equal(init?.method, "GET");
+      return createJsonResponse({
+        json: {
+          documents: [
+            {
+              fields: {
+                id: { stringValue: "keep-note" },
+                title: { stringValue: "Keep" },
+                body: { stringValue: "<p>Keep me</p>" },
+                attachments: { arrayValue: {} },
+                color: { stringValue: "#e7e5e4" },
+                shellColor: { stringValue: "#fff7d6" },
+                surfaceStyle: { stringValue: "solid" },
+                isPinned: { booleanValue: false },
+                fontFamily: { stringValue: "Avenir Next" },
+                fontSizePx: { integerValue: "16" },
+                category: { stringValue: "personal" },
+                reminderAtISO: { stringValue: "" },
+                updatedAtISO: { stringValue: "2026-03-30T01:00:00.000Z" },
+                createdAtISO: { stringValue: "2026-03-29T01:00:00.000Z" },
+              },
+            },
+            {
+              fields: {
+                id: { stringValue: "stale-note" },
+                title: { stringValue: "Stale" },
+                body: { stringValue: "<p>Remove me</p>" },
+                attachments: { arrayValue: {} },
+                color: { stringValue: "#e7e5e4" },
+                shellColor: { stringValue: "#fff7d6" },
+                surfaceStyle: { stringValue: "solid" },
+                isPinned: { booleanValue: false },
+                fontFamily: { stringValue: "Avenir Next" },
+                fontSizePx: { integerValue: "16" },
+                category: { stringValue: "personal" },
+                reminderAtISO: { stringValue: "" },
+                updatedAtISO: { stringValue: "2026-03-30T00:00:00.000Z" },
+                createdAtISO: { stringValue: "2026-03-29T00:00:00.000Z" },
+              },
+            },
+          ],
+        },
+      });
+    }
+
+    if (/\/userNotes\/user-notes\?key=demo-key$/.test(url)) {
+      if (init?.method === "GET") {
+        return createJsonResponse({
+          json: {
+            fields: {
+              notesJson: {
+                stringValue: JSON.stringify([
+                  {
+                    id: "keep-note",
+                    title: "Keep",
+                    body: "<p>Keep me</p>",
+                    attachments: [],
+                    color: "#e7e5e4",
+                    shellColor: "#fff7d6",
+                    surfaceStyle: "solid",
+                    isPinned: false,
+                    fontFamily: "Avenir Next",
+                    fontSizePx: 16,
+                    category: "personal",
+                    reminderAtISO: "",
+                    updatedAtISO: "2026-03-30T01:00:00.000Z",
+                    createdAtISO: "2026-03-29T01:00:00.000Z",
+                  },
+                  {
+                    id: "stale-note",
+                    title: "Stale",
+                    body: "<p>Remove me</p>",
+                    attachments: [],
+                    color: "#e7e5e4",
+                    shellColor: "#fff7d6",
+                    surfaceStyle: "solid",
+                    isPinned: false,
+                    fontFamily: "Avenir Next",
+                    fontSizePx: 16,
+                    category: "personal",
+                    reminderAtISO: "",
+                    updatedAtISO: "2026-03-30T00:00:00.000Z",
+                    createdAtISO: "2026-03-29T00:00:00.000Z",
+                  },
+                ]),
+              },
+            },
+          },
+        });
+      }
+
+      assert.equal(init?.method, "PATCH");
+      return createJsonResponse({ json: { name: "projects/demo/documents/userNotes/user-notes" } });
+    }
+
+    if (/\/userNotes\/user-notes\/notes\/keep-note\?key=demo-key$/.test(url)) {
+      assert.equal(init?.method, "PATCH");
+      return createJsonResponse({ json: { name: "projects/demo/documents/userNotes/user-notes/notes/keep-note" } });
+    }
+
+    if (/\/userNotes\/user-notes\/notes\/stale-note\?key=demo-key$/.test(url)) {
+      assert.equal(init?.method, "DELETE");
+      seenDeletes.push("stale-note");
+      return createJsonResponse({ json: {} });
+    }
+
+    throw new Error(`Unexpected fetch: ${url}`);
+  });
+
+  try {
+    const request = new NextRequest("http://localhost/api/notes", {
+      method: "POST",
+      headers: {
+        authorization: "Bearer token-notes",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        uid: "user-notes",
+        notes: [
+          {
+            id: "keep-note",
+            title: "Keep",
+            body: "<p>Keep me</p>",
+            attachments: [],
+            color: "#e7e5e4",
+            shellColor: "#fff7d6",
+            surfaceStyle: "solid",
+            isPinned: false,
+            fontFamily: "Avenir Next",
+            fontSizePx: 16,
+            category: "personal",
+            reminderAtISO: "",
+            updatedAtISO: "2026-03-30T02:00:00.000Z",
+            createdAtISO: "2026-03-29T01:00:00.000Z",
+          },
+        ],
+      }),
+    });
+
+    const response = await saveNotesRoute(request);
+    const payload = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(payload.ok, true);
+    assert.deepEqual(seenDeletes, ["stale-note"]);
+  } finally {
+    restoreFetch();
+  }
+});
+
+test("notes DELETE for a single note also removes it from the legacy notesJson blob", async () => {
+  process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID = "demo-project";
+  process.env.NEXT_PUBLIC_FIREBASE_API_KEY = "demo-key";
+  process.env.FIREBASE_DATABASE_ID = "(default)";
+
+  const { DELETE: deleteNotesRoute } = await import("@/app/api/notes/route");
+
+  let legacyWriteBody: Record<string, unknown> | null = null;
+
+  const restoreFetch = installFetchMock(async (input, init) => {
+    const url =
+      typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+
+    if (/\/userNotes\/user-notes\/notes\/delete-me\?key=demo-key$/.test(url)) {
+      assert.equal(init?.method, "DELETE");
+      return createJsonResponse({ json: {} });
+    }
+
+    if (/\/userNotes\/user-notes\?key=demo-key$/.test(url)) {
+      if (init?.method === "GET") {
+        return createJsonResponse({
+          json: {
+            fields: {
+              notesJson: {
+                stringValue: JSON.stringify([
+                  {
+                    id: "delete-me",
+                    title: "Delete me",
+                    body: "<p>bye</p>",
+                    attachments: [],
+                    color: "#e7e5e4",
+                    shellColor: "#fff7d6",
+                    surfaceStyle: "solid",
+                    isPinned: false,
+                    fontFamily: "Avenir Next",
+                    fontSizePx: 16,
+                    category: "personal",
+                    reminderAtISO: "",
+                    updatedAtISO: "2026-03-30T00:00:00.000Z",
+                    createdAtISO: "2026-03-29T00:00:00.000Z",
+                  },
+                  {
+                    id: "keep-me",
+                    title: "Keep me",
+                    body: "<p>stay</p>",
+                    attachments: [],
+                    color: "#e7e5e4",
+                    shellColor: "#fff7d6",
+                    surfaceStyle: "solid",
+                    isPinned: false,
+                    fontFamily: "Avenir Next",
+                    fontSizePx: 16,
+                    category: "personal",
+                    reminderAtISO: "",
+                    updatedAtISO: "2026-03-30T01:00:00.000Z",
+                    createdAtISO: "2026-03-29T01:00:00.000Z",
+                  },
+                ]),
+              },
+            },
+          },
+        });
+      }
+
+      assert.equal(init?.method, "PATCH");
+      legacyWriteBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      return createJsonResponse({ json: { name: "projects/demo/documents/userNotes/user-notes" } });
+    }
+
+    throw new Error(`Unexpected fetch: ${url}`);
+  });
+
+  try {
+    const request = new NextRequest(
+      "http://localhost/api/notes?uid=user-notes&noteId=delete-me",
+      {
+        method: "DELETE",
+        headers: {
+          authorization: "Bearer token-notes",
+        },
+      },
+    );
+
+    const response = await deleteNotesRoute(request);
+    const payload = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(payload.ok, true);
+    assert.ok(legacyWriteBody);
+
+    const legacyFields = (legacyWriteBody as {
+      fields: {
+        notesJson?: { stringValue?: string };
+      };
+    }).fields;
+    const notesJson = legacyFields.notesJson?.stringValue ?? "";
+    assert.doesNotMatch(notesJson, /delete-me/);
+    assert.match(notesJson, /keep-me/);
+  } finally {
+    restoreFetch();
+  }
+});

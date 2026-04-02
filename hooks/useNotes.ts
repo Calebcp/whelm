@@ -13,6 +13,7 @@ import {
   readLocalNotes,
   registerPendingDeletedNoteId,
   retryNotesSync,
+  saveNoteRevisionSnapshot,
   saveNotePatchToFirestore,
   saveNoteToFirestore,
   saveNotesLocally,
@@ -237,11 +238,11 @@ function isEffectivelyEmptyEditorHtml(value: string) {
 function resolvePreferredEditorHtml(
   uid: string | null,
   note: WorkspaceNote | null,
-  fallbackHtml: string,
+  _fallbackHtml: string,
 ) {
   if (!note) return "";
 
-  let nextHtml = note.body ? normalizeBodyForEditor(note.body) : fallbackHtml;
+  let nextHtml = normalizeBodyForEditor(note.body || "");
   if (!uid) return nextHtml;
 
   const localDraft = readLocalNoteDraft(uid, note.id);
@@ -469,6 +470,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     }
 
     if (bodyDirtyRef.current && bodyDirtyNoteIdRef.current === note.id) return;
+    if (typeof document !== "undefined" && document.activeElement === editorRef.current) return;
 
     const resolvedEditorHtml = resolvePreferredEditorHtml(
       uid,
@@ -512,6 +514,8 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     const editorNeedsHydration =
       isEffectivelyEmptyEditorHtml(editorRef.current.innerHTML) &&
       !isEffectivelyEmptyEditorHtml(editorBodyDraft);
+    const editorIsFocused =
+      typeof document !== "undefined" && document.activeElement === editorRef.current;
 
     if (
       bodyDirtyRef.current &&
@@ -520,6 +524,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     ) {
       return;
     }
+    if (editorIsFocused && !editorNeedsHydration) return;
     if (editorRef.current.innerHTML !== editorBodyDraft) {
       editorRef.current.innerHTML = editorBodyDraft;
     }
@@ -758,6 +763,15 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
   ) {
     const currentUser = auth.currentUser;
     if (!currentUser) return;
+    const previousNote = notesRef.current.find((note) => note.id === noteId) ?? null;
+    if (
+      previousNote &&
+      typeof patch.body === "string" &&
+      patch.body !== previousNote.body &&
+      !isEffectivelyEmptyEditorHtml(normalizeBodyForEditor(previousNote.body))
+    ) {
+      saveNoteRevisionSnapshot(currentUser.uid, previousNote, "body-update");
+    }
 
     const now = new Date().toISOString();
     const nextNotes = notesRef.current.map((note) =>
@@ -890,6 +904,9 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
         : editorHtml || draftBody;
 
     if (nextBody === currentNote.body && !bodyDirtyRef.current) return;
+    if (!isEffectivelyEmptyEditorHtml(normalizeBodyForEditor(currentNote.body)) && nextBody !== currentNote.body) {
+      saveNoteRevisionSnapshot(currentUser.uid, currentNote, "body-update");
+    }
 
     const prevWordCount = countWords(currentNote.body);
     const nextWordCount = countWords(nextBody);
@@ -1097,6 +1114,9 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     const currentUser = auth.currentUser;
     if (!currentUser) return;
     const deleted = notesRef.current.find((note) => note.id === noteId) || null;
+    if (deleted) {
+      saveNoteRevisionSnapshot(currentUser.uid, deleted, "delete");
+    }
     const nextNotes = notesRef.current.filter((note) => note.id !== noteId);
     notesRef.current = nextNotes;
     setNotes(nextNotes);

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { firestoreCleanupDatabaseIds, resolveFirestoreDatabaseId } from "@/lib/firestore-database";
+import { getAdminAuth, getAdminDb, hasFirebaseAdmin } from "@/lib/firebase-admin";
 
 const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
 const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
@@ -116,6 +117,23 @@ function jsonError(message: string, status = 500) {
 function getAuthHeader(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
   return authHeader?.startsWith("Bearer ") ? authHeader : null;
+}
+
+async function resolveAuthorizedUid(request: NextRequest, uid: string) {
+  if (!uid) throw new Error("Missing uid.");
+  if (!hasFirebaseAdmin()) return uid;
+
+  const authHeader = getAuthHeader(request);
+  if (!authHeader) throw new Error("Missing Firebase auth token.");
+
+  const adminAuth = getAdminAuth();
+  if (!adminAuth) throw new Error("Firebase admin auth is not configured.");
+
+  const decoded = await adminAuth.verifyIdToken(authHeader.slice("Bearer ".length));
+  if (decoded.uid !== uid) {
+    throw new Error("Authenticated user mismatch.");
+  }
+  return decoded.uid;
 }
 
 // ── Field helpers ─────────────────────────────────────────────────────────────
@@ -387,6 +405,34 @@ async function listNoteDocuments(
   request: NextRequest,
   uid: string,
 ): Promise<WorkspaceNote[]> {
+  const adminDb = getAdminDb();
+  if (adminDb) {
+    const [subcollectionSnap, legacySnap] = await Promise.all([
+      adminDb.collection("userNotes").doc(uid).collection("notes").get(),
+      adminDb.collection("userNotes").doc(uid).get(),
+    ]);
+
+    const subcollectionNotes = normalizeNotes(
+      subcollectionSnap.docs.map((doc) => {
+        const data = doc.data() as Partial<WorkspaceNote>;
+        return { ...data, id: data.id || doc.id } as WorkspaceNote;
+      }),
+    );
+
+    const rawLegacy = legacySnap.get("notesJson");
+    let legacyNotes: WorkspaceNote[] = [];
+    if (typeof rawLegacy === "string" && rawLegacy) {
+      try {
+        const parsed = JSON.parse(rawLegacy) as WorkspaceNote[];
+        legacyNotes = Array.isArray(parsed) ? normalizeNotes(parsed) : [];
+      } catch {
+        legacyNotes = [];
+      }
+    }
+
+    return mergeNotesPreferNewest(legacyNotes, subcollectionNotes);
+  }
+
   const authHeader = getAuthHeader(request);
   if (!authHeader) throw new Error("Missing Firebase auth token.");
 
@@ -424,6 +470,12 @@ async function upsertNoteDocument(
   uid: string,
   note: WorkspaceNote,
 ): Promise<void> {
+  const adminDb = getAdminDb();
+  if (adminDb) {
+    await adminDb.collection("userNotes").doc(uid).collection("notes").doc(note.id).set(note, { merge: true });
+    return;
+  }
+
   const authHeader = getAuthHeader(request);
   if (!authHeader) throw new Error("Missing Firebase auth token.");
 
@@ -455,6 +507,19 @@ async function upsertLegacyNotesDocument(
   uid: string,
   notes: WorkspaceNote[],
 ): Promise<void> {
+  const adminDb = getAdminDb();
+  if (adminDb) {
+    await adminDb.collection("userNotes").doc(uid).set(
+      {
+        uid,
+        notesJson: JSON.stringify(normalizeNotes(notes)),
+        updatedAtISO: new Date().toISOString(),
+      },
+      { merge: true },
+    );
+    return;
+  }
+
   const authHeader = getAuthHeader(request);
   if (!authHeader) throw new Error("Missing Firebase auth token.");
 
@@ -490,6 +555,25 @@ async function deleteSingleNoteDocument(
   uid: string,
   noteId: string,
 ): Promise<void> {
+  const adminDb = getAdminDb();
+  if (adminDb) {
+    await adminDb.collection("userNotes").doc(uid).collection("notes").doc(noteId).delete();
+    const parentRef = adminDb.collection("userNotes").doc(uid);
+    const parentSnap = await parentRef.get();
+    const rawLegacy = parentSnap.get("notesJson");
+    if (typeof rawLegacy === "string" && rawLegacy) {
+      try {
+        const parsed = JSON.parse(rawLegacy) as WorkspaceNote[];
+        if (Array.isArray(parsed)) {
+          await upsertLegacyNotesDocument(request, uid, parsed.filter((note) => note.id !== noteId));
+        }
+      } catch {
+        // ignore malformed legacy blob
+      }
+    }
+    return;
+  }
+
   const authHeader = getAuthHeader(request);
   if (!authHeader) throw new Error("Missing Firebase auth token.");
 
@@ -530,10 +614,24 @@ async function deleteSingleNoteDocument(
   if (errors.length > 0) {
     console.error("[whelm] notes/route DELETE single: partial deletion failures:", errors);
   }
+
+  const legacyDocument = await fetchLegacyDocument(request, uid).catch(() => null);
+  const legacyNotes = legacyDocument ? parseLegacyNotes(legacyDocument) : [];
+  if (legacyNotes.length > 0) {
+    await upsertLegacyNotesDocument(request, uid, legacyNotes.filter((note) => note.id !== noteId));
+  }
 }
 
 /** Delete all note documents in the subcollection, then the legacy parent document. */
 async function deleteAllNoteDocuments(request: NextRequest, uid: string): Promise<void> {
+  const adminDb = getAdminDb();
+  if (adminDb) {
+    const notesSnap = await adminDb.collection("userNotes").doc(uid).collection("notes").get();
+    await Promise.all(notesSnap.docs.map((doc) => doc.ref.delete()));
+    await adminDb.collection("userNotes").doc(uid).delete();
+    return;
+  }
+
   const authHeader = getAuthHeader(request);
   if (!authHeader) throw new Error("Missing Firebase auth token.");
 
@@ -654,7 +752,8 @@ export async function GET(request: NextRequest) {
     const uid = request.nextUrl.searchParams.get("uid");
     if (!uid) return jsonError("Missing uid.", 400);
 
-    const notes = await listNoteDocuments(request, uid);
+    const authorizedUid = await resolveAuthorizedUid(request, uid);
+    const notes = await listNoteDocuments(request, authorizedUid);
     return NextResponse.json({ notes });
   } catch (error: unknown) {
     return jsonError(error instanceof Error ? error.message : "Failed to load notes.");
@@ -667,15 +766,16 @@ export async function POST(request: NextRequest) {
     if (!payload?.uid) return jsonError("Missing uid.", 400);
     if (!Array.isArray(payload.notes)) return jsonError("Missing notes array.", 400);
 
+    const authorizedUid = await resolveAuthorizedUid(request, payload.uid);
     const normalized = normalizeNotes(payload.notes);
-    const existingNotes = await listNoteDocuments(request, payload.uid);
-    await Promise.all(normalized.map((note) => upsertNoteDocument(request, payload.uid, note)));
+    const existingNotes = await listNoteDocuments(request, authorizedUid);
+    await Promise.all(normalized.map((note) => upsertNoteDocument(request, authorizedUid, note)));
     await Promise.all(
       existingNotes
         .filter((note) => !normalized.some((incoming) => incoming.id === note.id))
-        .map((note) => deleteSingleNoteDocument(request, payload.uid, note.id)),
+        .map((note) => deleteSingleNoteDocument(request, authorizedUid, note.id)),
     );
-    await upsertLegacyNotesDocument(request, payload.uid, normalized);
+    await upsertLegacyNotesDocument(request, authorizedUid, normalized);
     return NextResponse.json({ ok: true });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Failed to save notes.";
@@ -688,14 +788,15 @@ export async function DELETE(request: NextRequest) {
   try {
     const uid = request.nextUrl.searchParams.get("uid");
     if (!uid) return jsonError("Missing uid.", 400);
+    const authorizedUid = await resolveAuthorizedUid(request, uid);
     const noteId = request.nextUrl.searchParams.get("noteId");
 
     if (noteId) {
-      await deleteSingleNoteDocument(request, uid, noteId);
+      await deleteSingleNoteDocument(request, authorizedUid, noteId);
       return NextResponse.json({ ok: true });
     }
 
-    await deleteAllNoteDocuments(request, uid);
+    await deleteAllNoteDocuments(request, authorizedUid);
     return NextResponse.json({ ok: true });
   } catch (error: unknown) {
     return jsonError(error instanceof Error ? error.message : "Failed to delete notes.");

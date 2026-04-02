@@ -66,10 +66,22 @@ export type NotesSyncResult = {
   message?: string;
 };
 
+export type NoteRevision = {
+  id: string;
+  noteId: string;
+  title: string;
+  body: string;
+  capturedAtISO: string;
+  sourceUpdatedAtISO: string;
+  reason: "body-update" | "delete";
+};
+
 const storagePrefix = "whelm:notes:";
 const pendingDeleteStoragePrefix = "whelm:notes:pending-delete:";
+const noteRevisionStoragePrefix = "whelm:notes:revisions:";
 const NOTE_FIRESTORE_WRITE_TIMEOUT_MS = 4000;
 const NOTE_FIRESTORE_READ_TIMEOUT_MS = 8000;
+const NOTE_REVISION_HISTORY_LIMIT = 15;
 const legacyColorMap: Record<string, string> = {
   red: "#fecaca",
   green: "#bbf7d0",
@@ -86,6 +98,10 @@ function storageKey(uid: string) {
 
 function pendingDeleteStorageKey(uid: string) {
   return `${pendingDeleteStoragePrefix}${uid}`;
+}
+
+function noteRevisionStorageKey(uid: string, noteId: string) {
+  return `${noteRevisionStoragePrefix}${uid}:${noteId}`;
 }
 
 function sortNotes(notes: WorkspaceNote[]) {
@@ -274,6 +290,43 @@ function writePendingDeletedNoteIds(uid: string, noteIds: string[]) {
   }
 }
 
+function readLocalNoteRevisions(uid: string, noteId: string) {
+  try {
+    const raw = window.localStorage.getItem(noteRevisionStorageKey(uid, noteId));
+    if (!raw) return [] as NoteRevision[];
+    const parsed = JSON.parse(raw) as NoteRevision[];
+    if (!Array.isArray(parsed)) return [] as NoteRevision[];
+    return parsed.filter(
+      (revision): revision is NoteRevision =>
+        Boolean(
+          revision &&
+            typeof revision.id === "string" &&
+            typeof revision.noteId === "string" &&
+            typeof revision.title === "string" &&
+            typeof revision.body === "string" &&
+            typeof revision.capturedAtISO === "string" &&
+            typeof revision.sourceUpdatedAtISO === "string" &&
+            (revision.reason === "body-update" || revision.reason === "delete"),
+        ),
+    );
+  } catch {
+    return [] as NoteRevision[];
+  }
+}
+
+function writeLocalNoteRevisions(uid: string, noteId: string, revisions: NoteRevision[]) {
+  try {
+    const normalized = revisions.slice(0, NOTE_REVISION_HISTORY_LIMIT);
+    if (normalized.length === 0) {
+      window.localStorage.removeItem(noteRevisionStorageKey(uid, noteId));
+      return;
+    }
+    window.localStorage.setItem(noteRevisionStorageKey(uid, noteId), JSON.stringify(normalized));
+  } catch {
+    // Ignore localStorage failures; cloud revision write still has a chance.
+  }
+}
+
 export function registerPendingDeletedNoteId(uid: string, noteId: string) {
   const current = readPendingDeletedNoteIds(uid);
   if (current.includes(noteId)) return;
@@ -287,6 +340,53 @@ export function clearPendingDeletedNoteId(uid: string, noteId: string) {
     uid,
     current.filter((id) => id !== noteId),
   );
+}
+
+export function saveNoteRevisionSnapshot(
+  uid: string,
+  note: WorkspaceNote,
+  reason: NoteRevision["reason"],
+) {
+  if (!note.id || isEffectivelyEmptyNoteBody(note.body)) return;
+
+  const revisions = readLocalNoteRevisions(uid, note.id);
+  const latestRevision = revisions[0];
+  if (
+    latestRevision &&
+    latestRevision.title === note.title &&
+    latestRevision.body === note.body &&
+    latestRevision.sourceUpdatedAtISO === note.updatedAtISO &&
+    latestRevision.reason === reason
+  ) {
+    return;
+  }
+
+  const revision: NoteRevision = {
+    id:
+      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    noteId: note.id,
+    title: note.title,
+    body: note.body,
+    capturedAtISO: new Date().toISOString(),
+    sourceUpdatedAtISO: note.updatedAtISO,
+    reason,
+  };
+
+  writeLocalNoteRevisions(uid, note.id, [revision, ...revisions]);
+
+  void withTimeout(
+    setDoc(
+      firestoreDoc(collection(db, "userNotes", uid, "notes", note.id, "revisions"), revision.id),
+      revision,
+      { merge: true },
+    ),
+    NOTE_FIRESTORE_WRITE_TIMEOUT_MS,
+    "Firestore note revision write timed out.",
+  ).catch(() => {
+    // Keep the local revision copy even if the cloud revision write misses.
+  });
 }
 
 export function filterNotesAgainstPendingDeletes(uid: string, notes: WorkspaceNote[]) {
