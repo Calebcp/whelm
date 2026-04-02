@@ -10,14 +10,23 @@ function decodeCompactPrivateKey(compactKey: string) {
   return `-----BEGIN PRIVATE KEY-----\n${body}\n-----END PRIVATE KEY-----\n`;
 }
 
+function resolveCompactPrivateKey() {
+  const part1 = process.env.FIREBASE_ADMIN_PRIVATE_KEY_PART_1?.trim() || "";
+  const part2 = process.env.FIREBASE_ADMIN_PRIVATE_KEY_PART_2?.trim() || "";
+  const part3 = process.env.FIREBASE_ADMIN_PRIVATE_KEY_PART_3?.trim() || "";
+  const multipart = `${part1}${part2}${part3}`.trim();
+  if (multipart) return multipart;
+  return process.env.FIREBASE_ADMIN_PRIVATE_KEY_COMPACT?.trim() || "";
+}
+
 const adminProjectId =
   process.env.FIREBASE_ADMIN_PROJECT_ID?.trim() ||
   process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID?.trim() ||
   "";
 const adminClientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL?.trim() || "";
 const adminPrivateKey =
-  process.env.FIREBASE_ADMIN_PRIVATE_KEY_COMPACT?.trim()
-    ? decodeCompactPrivateKey(process.env.FIREBASE_ADMIN_PRIVATE_KEY_COMPACT)
+  resolveCompactPrivateKey()
+    ? decodeCompactPrivateKey(resolveCompactPrivateKey())
     : process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, "\n") || "";
 
 export function hasFirebaseAdmin() {
