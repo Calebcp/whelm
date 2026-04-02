@@ -450,6 +450,88 @@ async function upsertNoteDocument(
   }
 }
 
+async function upsertLegacyNotesDocument(
+  request: NextRequest,
+  uid: string,
+  notes: WorkspaceNote[],
+): Promise<void> {
+  const authHeader = getAuthHeader(request);
+  if (!authHeader) throw new Error("Missing Firebase auth token.");
+
+  const baseUrl = firestoreDocumentsBaseUrl();
+  const { apiKey } = requireConfig();
+  const response = await fetch(
+    `${baseUrl}/userNotes/${encodeURIComponent(uid)}?key=${apiKey}`,
+    {
+      method: "PATCH",
+      headers: { Authorization: authHeader, "Content-Type": "application/json" },
+      cache: "no-store",
+      body: JSON.stringify({
+        fields: {
+          uid: { stringValue: uid },
+          notesJson: { stringValue: JSON.stringify(normalizeNotes(notes)) },
+          updatedAtISO: { stringValue: new Date().toISOString() },
+        },
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as
+      | { error?: { message?: string; status?: string } }
+      | null;
+    const message = body?.error?.message || body?.error?.status || "Failed to save legacy notes blob.";
+    throw new Error(message);
+  }
+}
+
+async function deleteSingleNoteDocument(
+  request: NextRequest,
+  uid: string,
+  noteId: string,
+): Promise<void> {
+  const authHeader = getAuthHeader(request);
+  if (!authHeader) throw new Error("Missing Firebase auth token.");
+
+  const { apiKey } = requireConfig();
+  const errors: string[] = [];
+
+  for (const targetDatabaseId of deletionDatabaseIds()) {
+    const deleteRes = await fetch(
+      `${firestoreDocumentsBaseUrl(targetDatabaseId)}/userNotes/${encodeURIComponent(uid)}/notes/${encodeURIComponent(noteId)}?key=${apiKey}`,
+      {
+        method: "DELETE",
+        headers: { Authorization: authHeader, "Content-Type": "application/json" },
+        cache: "no-store",
+      },
+    );
+
+    if (deleteRes.status === 404) continue;
+    if (!deleteRes.ok) {
+      const body = (await deleteRes.json().catch(() => null)) as
+        | { error?: { message?: string; status?: string } }
+        | null;
+      const message =
+        body?.error?.message ||
+        body?.error?.status ||
+        `Failed to delete note "${noteId}" from Firestore database "${targetDatabaseId}".`;
+
+      if (shouldIgnoreDeletionError(message)) {
+        errors.push(`${targetDatabaseId}:${message}`);
+        continue;
+      }
+      throw new Error(message);
+    }
+  }
+
+  if (errors.length > 0 && errors.length === deletionDatabaseIds().length) {
+    throw new Error(`Unable to verify note deletion for "${noteId}" in any Firestore database.`);
+  }
+  if (errors.length > 0) {
+    console.error("[whelm] notes/route DELETE single: partial deletion failures:", errors);
+  }
+}
+
 /** Delete all note documents in the subcollection, then the legacy parent document. */
 async function deleteAllNoteDocuments(request: NextRequest, uid: string): Promise<void> {
   const authHeader = getAuthHeader(request);
@@ -587,8 +669,13 @@ export async function POST(request: NextRequest) {
 
     const normalized = normalizeNotes(payload.notes);
     const existingNotes = await listNoteDocuments(request, payload.uid);
-    const merged = mergeNotesPreferNewest(normalized, existingNotes);
-    await Promise.all(merged.map((note) => upsertNoteDocument(request, payload.uid, note)));
+    await Promise.all(normalized.map((note) => upsertNoteDocument(request, payload.uid, note)));
+    await Promise.all(
+      existingNotes
+        .filter((note) => !normalized.some((incoming) => incoming.id === note.id))
+        .map((note) => deleteSingleNoteDocument(request, payload.uid, note.id)),
+    );
+    await upsertLegacyNotesDocument(request, payload.uid, normalized);
     return NextResponse.json({ ok: true });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Failed to save notes.";
@@ -601,6 +688,12 @@ export async function DELETE(request: NextRequest) {
   try {
     const uid = request.nextUrl.searchParams.get("uid");
     if (!uid) return jsonError("Missing uid.", 400);
+    const noteId = request.nextUrl.searchParams.get("noteId");
+
+    if (noteId) {
+      await deleteSingleNoteDocument(request, uid, noteId);
+      return NextResponse.json({ ok: true });
+    }
 
     await deleteAllNoteDocuments(request, uid);
     return NextResponse.json({ ok: true });

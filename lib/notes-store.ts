@@ -67,6 +67,7 @@ export type NotesSyncResult = {
 };
 
 const storagePrefix = "whelm:notes:";
+const pendingDeleteStoragePrefix = "whelm:notes:pending-delete:";
 const NOTE_FIRESTORE_WRITE_TIMEOUT_MS = 4000;
 const NOTE_FIRESTORE_READ_TIMEOUT_MS = 8000;
 const legacyColorMap: Record<string, string> = {
@@ -81,6 +82,10 @@ const legacyColorMap: Record<string, string> = {
 
 function storageKey(uid: string) {
   return `${storagePrefix}${uid}`;
+}
+
+function pendingDeleteStorageKey(uid: string) {
+  return `${pendingDeleteStoragePrefix}${uid}`;
 }
 
 function sortNotes(notes: WorkspaceNote[]) {
@@ -244,6 +249,52 @@ function writeLocalNotes(uid: string, notes: WorkspaceNote[]) {
   }
 }
 
+export function readPendingDeletedNoteIds(uid: string) {
+  try {
+    const raw = window.localStorage.getItem(pendingDeleteStorageKey(uid));
+    if (!raw) return [] as string[];
+    const parsed = JSON.parse(raw) as string[];
+    if (!Array.isArray(parsed)) return [] as string[];
+    return [...new Set(parsed.filter((id): id is string => typeof id === "string" && id.length > 0))];
+  } catch {
+    return [] as string[];
+  }
+}
+
+function writePendingDeletedNoteIds(uid: string, noteIds: string[]) {
+  try {
+    const normalized = [...new Set(noteIds.filter((id) => typeof id === "string" && id.length > 0))];
+    if (normalized.length === 0) {
+      window.localStorage.removeItem(pendingDeleteStorageKey(uid));
+      return;
+    }
+    window.localStorage.setItem(pendingDeleteStorageKey(uid), JSON.stringify(normalized));
+  } catch {
+    // Ignore localStorage failures; in-memory note state still carries the delete.
+  }
+}
+
+export function registerPendingDeletedNoteId(uid: string, noteId: string) {
+  const current = readPendingDeletedNoteIds(uid);
+  if (current.includes(noteId)) return;
+  writePendingDeletedNoteIds(uid, [...current, noteId]);
+}
+
+export function clearPendingDeletedNoteId(uid: string, noteId: string) {
+  const current = readPendingDeletedNoteIds(uid);
+  if (current.length === 0) return;
+  writePendingDeletedNoteIds(
+    uid,
+    current.filter((id) => id !== noteId),
+  );
+}
+
+export function filterNotesAgainstPendingDeletes(uid: string, notes: WorkspaceNote[]) {
+  const pendingDeletedNoteIds = new Set(readPendingDeletedNoteIds(uid));
+  if (pendingDeletedNoteIds.size === 0) return normalizeNotes(notes);
+  return normalizeNotes(notes.filter((note) => !pendingDeletedNoteIds.has(note.id)));
+}
+
 function timeoutError(message: string) {
   const error = new Error(message);
   error.name = "TimeoutError";
@@ -317,6 +368,17 @@ async function saveNotesToApi(user: User, notes: WorkspaceNote[], timeoutMs = 80
   );
 }
 
+async function deleteSingleNoteFromApi(user: User, noteId: string, timeoutMs = 8000) {
+  await authorizedNotesRequest(
+    user,
+    resolveApiUrl(`/api/notes?uid=${encodeURIComponent(user.uid)}&noteId=${encodeURIComponent(noteId)}`),
+    {
+      method: "DELETE",
+    },
+    timeoutMs,
+  );
+}
+
 function notesMatch(a: WorkspaceNote[], b: WorkspaceNote[]) {
   return JSON.stringify(normalizeNotes(a)) === JSON.stringify(normalizeNotes(b));
 }
@@ -344,6 +406,22 @@ export function saveNotesLocally(uid: string, notes: WorkspaceNote[]) {
   writeLocalNotes(uid, notes);
 }
 
+async function syncLegacyNotesBlob(uid: string, notes: WorkspaceNote[]) {
+  await withTimeout(
+    setDoc(
+      firestoreDoc(db, "userNotes", uid),
+      {
+        uid,
+        notesJson: JSON.stringify(normalizeNotes(notes)),
+        updatedAtISO: new Date().toISOString(),
+      },
+      { merge: true },
+    ),
+    NOTE_FIRESTORE_WRITE_TIMEOUT_MS,
+    "Firestore legacy notes blob write timed out.",
+  );
+}
+
 // ── Individual document writes ────────────────────────────────────────────────
 
 /**
@@ -361,6 +439,7 @@ export async function saveNoteToFirestore(uid: string, note: WorkspaceNote): Pro
       NOTE_FIRESTORE_WRITE_TIMEOUT_MS,
       "Firestore note write timed out.",
     );
+    await syncLegacyNotesBlob(uid, readLocalNotes(uid));
     console.log("[whelm] saveNoteToFirestore: wrote userNotes/" + uid + "/notes/" + target.id);
     return { notes: [target], synced: true };
   } catch (err) {
@@ -423,6 +502,7 @@ export async function saveNotePatchToFirestore(
       NOTE_FIRESTORE_WRITE_TIMEOUT_MS,
       "Firestore note patch timed out.",
     );
+    await syncLegacyNotesBlob(uid, readLocalNotes(uid));
     console.log("[whelm] saveNotePatchToFirestore: wrote userNotes/" + uid + "/notes/" + noteId, {
       fields: Object.keys(normalizedPatch),
     });
@@ -452,19 +532,62 @@ export async function saveNotePatchToFirestore(
  * Throws on failure so the caller can handle the sync-status update.
  */
 export async function deleteNoteFromFirestore(uid: string, noteId: string): Promise<void> {
-  await withTimeout(
-    deleteDoc(firestoreDoc(db, "userNotes", uid, "notes", noteId)),
-    NOTE_FIRESTORE_WRITE_TIMEOUT_MS,
-    "Firestore note delete timed out.",
+  try {
+    await withTimeout(
+      deleteDoc(firestoreDoc(db, "userNotes", uid, "notes", noteId)),
+      NOTE_FIRESTORE_WRITE_TIMEOUT_MS,
+      "Firestore note delete timed out.",
+    );
+    await syncLegacyNotesBlob(
+      uid,
+      readLocalNotes(uid).filter((note) => note.id !== noteId),
+    );
+  } catch (error) {
+    const currentUser = auth.currentUser;
+    if (currentUser?.uid === uid) {
+      try {
+        await deleteSingleNoteFromApi(currentUser, noteId);
+        return;
+      } catch {
+        // Fall through to the original failure.
+      }
+    }
+    throw error;
+  }
+}
+
+export async function flushPendingDeletedNotes(user: User) {
+  const pendingDeletedNoteIds = readPendingDeletedNoteIds(user.uid);
+  if (pendingDeletedNoteIds.length === 0) return [] as string[];
+
+  const settled = await Promise.allSettled(
+    pendingDeletedNoteIds.map(async (noteId) => {
+      await deleteNoteFromFirestore(user.uid, noteId);
+      return noteId;
+    }),
   );
+
+  const clearedNoteIds = settled
+    .filter((result): result is PromiseFulfilledResult<string> => result.status === "fulfilled")
+    .map((result) => result.value);
+
+  if (clearedNoteIds.length > 0) {
+    writePendingDeletedNoteIds(
+      user.uid,
+      pendingDeletedNoteIds.filter((noteId) => !clearedNoteIds.includes(noteId)),
+    );
+  }
+
+  return pendingDeletedNoteIds.filter((noteId) => !clearedNoteIds.includes(noteId));
 }
 
 // ── Bulk helpers (used for initial load and retry sync) ───────────────────────
 
 export async function loadNotes(user: User): Promise<NotesSyncResult> {
-  const localNotes = readLocalNotes(user.uid);
+  const localNotes = filterNotesAgainstPendingDeletes(user.uid, readLocalNotes(user.uid));
 
   try {
+    let healingWriteFailed = false;
     const snap = await withTimeout(
       getDocs(collection(db, "userNotes", user.uid, "notes")),
       NOTE_FIRESTORE_READ_TIMEOUT_MS,
@@ -487,8 +610,12 @@ export async function loadNotes(user: User): Promise<NotesSyncResult> {
       }
     }
 
-    const cloudNotes = mergeNotesPreferNewest(legacyNotes, subcollectionNotes);
-    const mergedNotes = mergeNotesPreferNewest(localNotes, cloudNotes);
+    await flushPendingDeletedNotes(user);
+    const cloudNotes = filterNotesAgainstPendingDeletes(
+      user.uid,
+      mergeNotesPreferNewest(legacyNotes, subcollectionNotes),
+    );
+    const mergedNotes = filterNotesAgainstPendingDeletes(user.uid, mergeNotesPreferNewest(localNotes, cloudNotes));
     writeLocalNotes(user.uid, mergedNotes);
 
     // Push any local-only or newer-local notes up to Firestore.
@@ -496,7 +623,7 @@ export async function loadNotes(user: User): Promise<NotesSyncResult> {
       const toSync = mergedNotes.filter(
         (n) => !subcollectionNotes.some((c) => c.id === n.id && c.updatedAtISO >= n.updatedAtISO),
       );
-      await withTimeout(
+      const healingResults = await withTimeout(
         Promise.allSettled(
           toSync.map((n) =>
             setDoc(firestoreDoc(db, "userNotes", user.uid, "notes", n.id), n, { merge: true }),
@@ -505,13 +632,21 @@ export async function loadNotes(user: User): Promise<NotesSyncResult> {
         NOTE_FIRESTORE_READ_TIMEOUT_MS,
         "Firestore note healing write timed out.",
       );
+      healingWriteFailed = healingResults.some((result) => result.status === "rejected");
     }
 
-    return { notes: mergedNotes, synced: true };
+    return {
+      notes: mergedNotes,
+      synced: !healingWriteFailed,
+      message: healingWriteFailed ? "Saved locally. Cloud sync is currently pending." : "",
+    };
   } catch (error: unknown) {
     try {
       const apiNotes = await loadNotesFromApi(user);
-      const mergedNotes = mergeNotesPreferNewest(localNotes, apiNotes);
+      const mergedNotes = filterNotesAgainstPendingDeletes(
+        user.uid,
+        mergeNotesPreferNewest(localNotes, apiNotes),
+      );
       writeLocalNotes(user.uid, mergedNotes);
       return {
         notes: mergedNotes,
@@ -534,10 +669,11 @@ export async function loadNotes(user: User): Promise<NotesSyncResult> {
 }
 
 export async function saveNotes(user: User, notes: WorkspaceNote[]): Promise<NotesSyncResult> {
-  const normalized = normalizeNotes(notes);
+  const normalized = filterNotesAgainstPendingDeletes(user.uid, normalizeNotes(notes));
   writeLocalNotes(user.uid, normalized);
 
   try {
+    await flushPendingDeletedNotes(user);
     const existingSubcollectionSnap = await withTimeout(
       getDocs(collection(db, "userNotes", user.uid, "notes")),
       NOTE_FIRESTORE_READ_TIMEOUT_MS,
@@ -565,8 +701,11 @@ export async function saveNotes(user: User, notes: WorkspaceNote[]): Promise<Not
       }
     }
 
-    const mergedCloudNotes = mergeNotesPreferNewest(existingLegacyNotes, existingSubcollectionNotes);
-    const mergedNotes = mergeNotesPreferNewest(normalized, mergedCloudNotes);
+    const mergedCloudNotes = filterNotesAgainstPendingDeletes(
+      user.uid,
+      mergeNotesPreferNewest(existingLegacyNotes, existingSubcollectionNotes),
+    );
+    const mergedNotes = normalized;
 
     await withTimeout(
       Promise.all(
@@ -577,6 +716,16 @@ export async function saveNotes(user: User, notes: WorkspaceNote[]): Promise<Not
       NOTE_FIRESTORE_READ_TIMEOUT_MS,
       "Firestore note write timed out while syncing.",
     );
+    await withTimeout(
+      Promise.all(
+        mergedCloudNotes
+          .filter((note) => !mergedNotes.some((localNote) => localNote.id === note.id))
+          .map((note) => deleteDoc(firestoreDoc(db, "userNotes", user.uid, "notes", note.id))),
+      ),
+      NOTE_FIRESTORE_READ_TIMEOUT_MS,
+      "Firestore note delete timed out while syncing.",
+    );
+    await syncLegacyNotesBlob(user.uid, mergedNotes);
     writeLocalNotes(user.uid, mergedNotes);
     return { notes: mergedNotes, synced: true };
   } catch (error) {
@@ -595,7 +744,11 @@ export async function saveNotes(user: User, notes: WorkspaceNote[]): Promise<Not
 }
 
 export async function retryNotesSync(user: User, notes: WorkspaceNote[]) {
-  const currentLocalNotes = mergeNotesPreferNewest(readLocalNotes(user.uid), notes);
+  await flushPendingDeletedNotes(user);
+  const currentLocalNotes = filterNotesAgainstPendingDeletes(
+    user.uid,
+    mergeNotesPreferNewest(readLocalNotes(user.uid), notes),
+  );
   writeLocalNotes(user.uid, currentLocalNotes);
 
   console.info("[whelm:notes] retry sync started", {
@@ -604,7 +757,10 @@ export async function retryNotesSync(user: User, notes: WorkspaceNote[]) {
   });
 
   const loaded = await loadNotes(user);
-  const reconciledNotes = mergeNotesPreferNewest(currentLocalNotes, loaded.notes);
+  const reconciledNotes = filterNotesAgainstPendingDeletes(
+    user.uid,
+    mergeNotesPreferNewest(currentLocalNotes, loaded.notes),
+  );
   writeLocalNotes(user.uid, reconciledNotes);
 
   if (notesMatch(reconciledNotes, loaded.notes) && loaded.synced) {
@@ -617,7 +773,10 @@ export async function retryNotesSync(user: User, notes: WorkspaceNote[]) {
 
   const saved = await saveNotes(user, reconciledNotes);
   const verified = await loadNotes(user);
-  const finalNotes = mergeNotesPreferNewest(reconciledNotes, verified.notes);
+  const finalNotes = filterNotesAgainstPendingDeletes(
+    user.uid,
+    mergeNotesPreferNewest(reconciledNotes, verified.notes),
+  );
   writeLocalNotes(user.uid, finalNotes);
 
   return {

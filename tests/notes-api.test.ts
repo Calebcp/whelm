@@ -13,6 +13,7 @@ test("notes route writes note body into Firestore notesJson payload", async () =
 
   const noteBody = "<p>Persistent note body</p>";
   let firestoreWriteBody: Record<string, unknown> | null = null;
+  let legacyWriteBody: Record<string, unknown> | null = null;
 
   const restoreFetch = installFetchMock(async (input, init) => {
     const url =
@@ -24,8 +25,12 @@ test("notes route writes note body into Firestore notesJson payload", async () =
     }
 
     if (/\/userNotes\/user-notes\?key=demo-key$/.test(url)) {
-      assert.equal(init?.method, "GET");
-      return createJsonResponse({ status: 404, json: { error: { message: "Not found" } } });
+      if (init?.method === "GET") {
+        return createJsonResponse({ status: 404, json: { error: { message: "Not found" } } });
+      }
+      assert.equal(init?.method, "PATCH");
+      legacyWriteBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      return createJsonResponse({ json: { name: "projects/demo/documents/userNotes/user-notes" } });
     }
 
     assert.match(url, /\/userNotes\/user-notes\/notes\/note-1\?key=demo-key$/);
@@ -73,10 +78,13 @@ test("notes route writes note body into Firestore notesJson payload", async () =
     assert.equal(response.status, 200);
     assert.equal(payload.ok, true);
     assert.ok(firestoreWriteBody);
+    assert.ok(legacyWriteBody);
 
     const fields = (firestoreWriteBody as { fields: Record<string, { stringValue?: string }> }).fields;
     const body = fields.body?.stringValue ?? "";
     assert.match(body, /Persistent note body/);
+    const legacyFields = (legacyWriteBody as { fields: Record<string, { stringValue?: string }> }).fields;
+    assert.match(legacyFields.notesJson?.stringValue ?? "", /Persistent note body/);
   } finally {
     restoreFetch();
   }
@@ -90,6 +98,7 @@ test("notes route writes attachments into Firestore subcollection documents", as
   const { POST: saveNotesRoute } = await import("@/app/api/notes/route");
 
   let firestoreWriteBody: Record<string, unknown> | null = null;
+  let legacyWriteBody: Record<string, unknown> | null = null;
 
   const restoreFetch = installFetchMock(async (input, init) => {
     const url =
@@ -101,8 +110,12 @@ test("notes route writes attachments into Firestore subcollection documents", as
     }
 
     if (/\/userNotes\/user-notes\?key=demo-key$/.test(url)) {
-      assert.equal(init?.method, "GET");
-      return createJsonResponse({ status: 404, json: { error: { message: "Not found" } } });
+      if (init?.method === "GET") {
+        return createJsonResponse({ status: 404, json: { error: { message: "Not found" } } });
+      }
+      assert.equal(init?.method, "PATCH");
+      legacyWriteBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      return createJsonResponse({ json: { name: "projects/demo/documents/userNotes/user-notes" } });
     }
 
     firestoreWriteBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
@@ -153,6 +166,7 @@ test("notes route writes attachments into Firestore subcollection documents", as
     const response = await saveNotesRoute(request);
     assert.equal(response.status, 200);
     assert.ok(firestoreWriteBody);
+    assert.ok(legacyWriteBody);
 
     const fields = (firestoreWriteBody as {
       fields: {
@@ -168,6 +182,12 @@ test("notes route writes attachments into Firestore subcollection documents", as
     const firstAttachment = fields.attachments?.arrayValue?.values?.[0]?.mapValue?.fields;
     assert.equal(firstAttachment?.name?.stringValue, "spec.pdf");
     assert.equal(firstAttachment?.storagePath?.stringValue, "users/u/notes/note-2/spec.pdf");
+    const legacyFields = (legacyWriteBody as {
+      fields: {
+        notesJson?: { stringValue?: string };
+      };
+    }).fields;
+    assert.match(legacyFields.notesJson?.stringValue ?? "", /spec\.pdf/);
   } finally {
     restoreFetch();
   }

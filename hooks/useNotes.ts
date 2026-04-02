@@ -5,10 +5,13 @@ import { deleteObject, getDownloadURL, ref as storageRef, uploadBytesResumable }
 import { auth, storage } from "@/lib/firebase";
 import {
   deleteNoteFromFirestore,
+  clearPendingDeletedNoteId,
+  filterNotesAgainstPendingDeletes,
   loadNotes,
   mergeNotesPreferNewest,
   migrateNotesFromJson,
   readLocalNotes,
+  registerPendingDeletedNoteId,
   retryNotesSync,
   saveNotePatchToFirestore,
   saveNoteToFirestore,
@@ -631,10 +634,15 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
   const applyNotesSnapshot = useCallback((remoteNotes: WorkspaceNote[]) => {
     const currentUser = auth.currentUser;
     const uid = currentUser?.uid;
-    const localNotes = uid ? readLocalNotes(uid) : [];
+    const localNotes = uid ? filterNotesAgainstPendingDeletes(uid, readLocalNotes(uid)) : [];
     const inMemoryNotes = notesRef.current;
-    const newestLocalNotes = mergeNotesPreferNewest(localNotes, inMemoryNotes);
-    const mergedNotes = mergeNotesPreferNewest(newestLocalNotes, remoteNotes);
+    const newestLocalNotes = uid
+      ? filterNotesAgainstPendingDeletes(uid, mergeNotesPreferNewest(localNotes, inMemoryNotes))
+      : mergeNotesPreferNewest(localNotes, inMemoryNotes);
+    const filteredRemoteNotes = uid ? filterNotesAgainstPendingDeletes(uid, remoteNotes) : remoteNotes;
+    const mergedNotes = uid
+      ? filterNotesAgainstPendingDeletes(uid, mergeNotesPreferNewest(newestLocalNotes, filteredRemoteNotes))
+      : mergeNotesPreferNewest(newestLocalNotes, filteredRemoteNotes);
     const selectedCandidateId = selectedNoteIdRef.current;
     const selectedStillExists = selectedCandidateId
       ? mergedNotes.some((note) => note.id === selectedCandidateId)
@@ -1080,11 +1088,13 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     setNotes(nextNotes);
     setSelectedNoteId((current) => (current === noteId ? nextNotes[0]?.id ?? null : current));
     clearLocalNoteDraft(currentUser.uid, noteId);
+    registerPendingDeletedNoteId(currentUser.uid, noteId);
     saveNotesLocally(currentUser.uid, nextNotes);
     setNotesSyncStatus("syncing");
     setNotesSyncMessage("");
     try {
       await deleteNoteFromFirestore(currentUser.uid, noteId);
+      clearPendingDeletedNoteId(currentUser.uid, noteId);
       setNotesSyncStatus("synced");
       setNotesSyncMessage("");
     } catch {
@@ -1098,6 +1108,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
   async function undoDeleteNote() {
     const currentUser = auth.currentUser;
     if (!currentUser || !noteUndoItem) return;
+    clearPendingDeletedNoteId(currentUser.uid, noteUndoItem.id);
     const restored = [noteUndoItem, ...notesRef.current];
     notesRef.current = restored;
     setNotes(restored);
