@@ -24,12 +24,12 @@
 .card[data-appearance="dark"] {
   border-color: rgba(123, 138, 184, 0.18);
   background:
-    radial-gradient(circle at top right, color-mix(in srgb, var(--timer-accent) 28%, transparent), transparent 32%),
-    radial-gradient(circle at 16% 100%, color-mix(in srgb, var(--timer-glow) 18%, transparent), transparent 34%),
-    linear-gradient(180deg, rgba(18, 22, 40, 0.98), rgba(12, 16, 30, 0.96));
+    radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--timer-glow) 62%, transparent), transparent 34%),
+    radial-gradient(circle at 50% 100%, color-mix(in srgb, var(--timer-accent) 20%, transparent), transparent 28%),
+    linear-gradient(180deg, rgba(36, 53, 126, 0.96), rgba(34, 38, 102, 0.96) 46%, rgba(36, 27, 87, 0.96) 100%);
   box-shadow:
-    0 24px 60px rgba(3, 6, 18, 0.28),
-    inset 0 1px 0 rgba(155, 168, 218, 0.12);
+    0 24px 60px rgba(21, 29, 94, 0.24),
+    inset 0 1px 0 rgba(209, 224, 255, 0.16);
 }
 
 .card::before {
@@ -110,7 +110,8 @@
 
 .card[data-appearance="dark"] .timerFace {
   background:
-    radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--timer-accent) 14%, rgba(31, 38, 65, 0.98)), rgba(20, 25, 45, 0.94)),
+    radial-gradient(circle at 50% 24%, color-mix(in srgb, var(--timer-glow) 42%, rgba(255, 255, 255, 0.08)), transparent 44%),
+    radial-gradient(circle at 50% 58%, color-mix(in srgb, var(--timer-accent) 16%, rgba(255, 255, 255, 0.04)), transparent 52%),
     linear-gradient(180deg, var(--timer-surface-top), var(--timer-surface-bottom));
 }
 
@@ -227,14 +228,17 @@
   display: grid;
   justify-items: center;
   align-content: start;
-  min-height: 388px;
+  min-height: 396px;
   margin-top: 8px;
   border-radius: 32px;
   background:
     radial-gradient(circle at 50% 42%, rgba(255, 255, 255, 0.98), rgba(232, 240, 251, 0.94)),
     linear-gradient(180deg, rgba(246, 250, 255, 0.98), rgba(234, 242, 251, 0.92));
   overflow: hidden;
-  padding: 24px 16px 24px;
+  padding: 20px 16px 22px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 18px 40px rgba(24, 33, 92, 0.16);
 }
 
 .faceSettingsWrap {
@@ -247,15 +251,15 @@
 .faceSettingsButton {
   width: 40px;
   height: 40px;
-  border: 1px solid rgba(123, 138, 184, 0.2);
+  border: 1px solid rgba(210, 225, 255, 0.18);
   border-radius: 999px;
-  background: rgba(17, 23, 41, 0.74);
+  background: rgba(34, 47, 118, 0.78);
   display: grid;
   place-items: center;
   gap: 3px;
   box-shadow:
-    0 10px 26px rgba(3, 6, 18, 0.18),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    0 12px 28px rgba(30, 45, 120, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
 
 .faceSettingsButton span {
@@ -272,9 +276,9 @@
   right: 0;
   width: min(236px, calc(100vw - 56px));
   border-radius: 20px;
-  border: 1px solid rgba(123, 138, 184, 0.18);
-  background: rgba(18, 22, 40, 0.98);
-  box-shadow: 0 18px 40px rgba(3, 6, 18, 0.28);
+  border: 1px solid rgba(210, 225, 255, 0.14);
+  background: linear-gradient(180deg, rgba(41, 58, 144, 0.98), rgba(31, 39, 102, 0.98));
+  box-shadow: 0 18px 40px rgba(30, 45, 120, 0.24);
   padding: 10px;
   display: grid;
   gap: 10px;
@@ -283,7 +287,7 @@
 .faceMinutesPicker {
   display: grid;
   gap: 7px;
-  color: #c4cee8;
+  color: #e2ebff;
 }
 
 .faceMinutesPicker span,
@@ -292,15 +296,15 @@
   font-size: 0.68rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: #9fb0db;
+  color: #bed0ff;
 }
 
 .faceMinutesPicker input {
   width: 100%;
-  border: 1px solid rgba(123, 138, 184, 0.18);
+  border: 1px solid rgba(210, 225, 255, 0.14);
   border-radius: 12px;
   padding: 10px 12px;
-  background: rgba(52, 63, 107, 0.48);
+  background: rgba(78, 101, 206, 0.24);
   color: #f2f6ff;
 }
 
@@ -318,7 +322,7 @@
   position: relative;
   z-index: 2;
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr) minmax(0, 1fr);
   gap: 8px;
   align-items: stretch;
   width: min(100%, 620px);
@@ -337,9 +341,9 @@
 }
 
 .faceDockPrimaryButton {
-  background: linear-gradient(135deg, var(--timer-accent-strong), var(--timer-accent));
+  background: linear-gradient(135deg, color-mix(in srgb, var(--timer-accent-strong) 84%, white 16%), var(--timer-accent));
   color: #ffffff;
-  box-shadow: 0 10px 24px rgba(16, 32, 51, 0.16);
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--timer-accent) 24%, transparent);
 }
 
 .faceDockButton {
@@ -395,19 +399,19 @@
 }
 
 .card[data-appearance="dark"] .faceDockButton {
-  background: rgba(26, 31, 54, 0.9);
+  background: rgba(33, 41, 89, 0.82);
   color: #eef3ff;
-  border-color: rgba(123, 138, 184, 0.18);
+  border-color: rgba(196, 220, 255, 0.14);
 }
 
 .card[data-appearance="dark"] .faceDockMenu {
-  background: rgba(18, 22, 40, 0.98);
-  border-color: rgba(123, 138, 184, 0.18);
-  box-shadow: 0 14px 32px rgba(3, 6, 18, 0.22);
+  background: rgba(29, 37, 83, 0.98);
+  border-color: rgba(196, 220, 255, 0.16);
+  box-shadow: 0 14px 32px rgba(24, 33, 92, 0.22);
 }
 
 .card[data-appearance="dark"] .faceDockMenuButton {
-  background: rgba(34, 41, 70, 0.92);
+  background: rgba(47, 57, 114, 0.9);
   color: #eef3ff;
 }
 
@@ -416,9 +420,9 @@
   inset: 16% 20%;
   border-radius: 999px;
   background:
-    radial-gradient(circle, color-mix(in srgb, var(--timer-glow) 72%, transparent), transparent 60%),
-    radial-gradient(circle at 45% 55%, color-mix(in srgb, var(--timer-accent) 28%, transparent), transparent 46%);
-  filter: blur(14px);
+    radial-gradient(circle, color-mix(in srgb, var(--timer-glow) 82%, rgba(255, 255, 255, 0.14)), transparent 58%),
+    radial-gradient(circle at 45% 55%, color-mix(in srgb, var(--timer-accent) 36%, transparent), transparent 44%);
+  filter: blur(18px);
 }
 
 .faceGrid {
@@ -442,8 +446,8 @@
   width: min(76vw, 282px);
   aspect-ratio: 1;
   border-radius: 999px;
-  background: radial-gradient(circle, color-mix(in srgb, var(--timer-glow) 72%, rgba(255, 255, 255, 0.22)), transparent 66%);
-  filter: blur(8px);
+  background: radial-gradient(circle, color-mix(in srgb, var(--timer-glow) 84%, rgba(255, 255, 255, 0.26)), transparent 64%);
+  filter: blur(12px);
 }
 
 .ringTrack,
@@ -455,10 +459,10 @@
 }
 
 .ringTrack {
-  border: 20px solid color-mix(in srgb, var(--timer-accent) 16%, rgba(36, 74, 114, 0.12));
+  border: 18px solid color-mix(in srgb, var(--timer-accent) 24%, rgba(198, 221, 255, 0.12));
   box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.56),
-    0 12px 28px rgba(16, 32, 51, 0.06);
+    inset 0 0 0 1px rgba(255, 255, 255, 0.62),
+    0 18px 34px rgba(59, 85, 200, 0.12);
 }
 
 .ringProgress {
@@ -473,8 +477,8 @@
     rgba(0, 0, 0, 0) calc(var(--timer-progress-turn) + 0.006turn),
     rgba(0, 0, 0, 0) 1turn
   );
-  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 20px), #000 calc(100% - 19px));
-  mask: radial-gradient(farthest-side, transparent calc(100% - 20px), #000 calc(100% - 19px));
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 18px), #000 calc(100% - 17px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 18px), #000 calc(100% - 17px));
   opacity: 1;
   filter:
     drop-shadow(0 0 8px color-mix(in srgb, var(--timer-accent) 32%, transparent))
@@ -566,21 +570,21 @@
   display: grid;
   justify-items: center;
   align-content: center;
-  width: min(100%, 260px);
-  padding-top: 10px;
-  padding-bottom: 4px;
+  width: min(100%, 272px);
+  padding-top: 4px;
+  padding-bottom: 0;
 }
 
 .faceLabel {
-  margin: 0 0 12px;
+  margin: 0 0 10px;
   font-size: 0.74rem;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: color-mix(in srgb, var(--timer-accent-soft) 68%, #8aa0c3);
+  color: color-mix(in srgb, var(--timer-accent-soft) 76%, #acc3ff);
 }
 
 .identityAnchor {
-  margin: 0 0 10px;
+  margin: 0 0 8px;
   font-size: 0.9rem;
   letter-spacing: 0.28em;
   text-transform: uppercase;
@@ -591,20 +595,20 @@
 }
 
 .time {
-  font-size: clamp(3.2rem, 10vw, 5.5rem);
-  font-weight: 800;
-  line-height: 0.92;
-  letter-spacing: -0.09em;
+  font-size: clamp(3.85rem, 11vw, 6.2rem);
+  font-weight: 900;
+  line-height: 0.88;
+  letter-spacing: -0.1em;
   font-variant-numeric: tabular-nums;
   color: #f7f9ff;
   text-shadow:
-    0 0 26px color-mix(in srgb, var(--timer-glow) 38%, transparent),
-    0 16px 30px color-mix(in srgb, var(--timer-accent) 18%, transparent);
+    0 0 30px color-mix(in srgb, var(--timer-glow) 46%, transparent),
+    0 18px 34px color-mix(in srgb, var(--timer-accent) 20%, transparent);
 }
 
 .faceWhelm {
-  width: min(54vw, 170px);
-  margin-top: 10px;
+  width: min(46vw, 142px);
+  margin-top: 4px;
 }
 
 .faceWhelmFigure {
@@ -616,7 +620,7 @@
   width: 100%;
   height: auto;
   object-fit: contain;
-  filter: drop-shadow(0 12px 24px rgba(28, 20, 82, 0.18));
+  filter: drop-shadow(0 14px 24px rgba(72, 54, 192, 0.18));
 }
 
 .faceWhelmFigurePulse {
@@ -638,14 +642,14 @@
 }
 
 .whelmRotationHint {
-  margin: 10px auto 0;
-  max-width: 24ch;
-  font-size: 0.76rem;
-  line-height: 1.35;
-  letter-spacing: 0.06em;
+  margin: 8px auto 0;
+  max-width: 22ch;
+  font-size: 0.72rem;
+  line-height: 1.3;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   text-align: center;
-  color: color-mix(in srgb, var(--timer-accent-strong) 68%, white 32%);
+  color: color-mix(in srgb, var(--timer-accent-strong) 52%, white 48%);
   text-wrap: balance;
 }
 

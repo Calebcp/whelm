@@ -70,8 +70,8 @@ function createNote(): WorkspaceNote {
     title: "Untitled note",
     body: "",
     attachments: [],
-    color: "#e7e5e4",
-    shellColor: "#fff7d6",
+    color: "#f7fbff",
+    shellColor: "#eef5ff",
     surfaceStyle: "solid",
     isPinned: false,
     fontFamily: "Avenir Next",
@@ -331,7 +331,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
 
   // ── State ──────────────────────────────────────────────────────────────────
   const [notes, setNotes] = useState<WorkspaceNote[]>(initialLocalNotes);
-  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(initialLocalNotes[0]?.id ?? null);
+  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [notesSurface, setNotesSurface] = useState<"notes" | "cards">("notes");
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
   const [shellColorPickerOpen, setShellColorPickerOpen] = useState(false);
@@ -378,6 +378,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
   } | null>(null);
   const noteDraftMirrorTimeoutRef = useRef<number | null>(null);
   const notesRef = useRef<WorkspaceNote[]>([]);
+  const editorBodyDraftRef = useRef(editorBodyDraft);
   const notesSyncStatusRef = useRef<"synced" | "local-only" | "syncing">(
     initialLocalNotes.length > 0 ? "local-only" : "syncing",
   );
@@ -502,6 +503,10 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
   }, [notes]);
 
   useEffect(() => {
+    editorBodyDraftRef.current = editorBodyDraft;
+  }, [editorBodyDraft]);
+
+  useEffect(() => {
     selectedNoteIdRef.current = selectedNoteId;
   }, [selectedNoteId]);
 
@@ -522,7 +527,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
   // ── Clear selectedNoteId if note is no longer visible ──────────────────────
   useEffect(() => {
     if (selectedNoteId && !visibleNotes.some((note) => note.id === selectedNoteId)) {
-      setSelectedNoteId(visibleNotes[0]?.id ?? null);
+      setSelectedNoteId(null);
     }
   }, [selectedNoteId, visibleNotes]);
 
@@ -630,7 +635,10 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
       }
     });
     setNotes(result.notes);
-    const nextSelectedNoteId = selectedNoteIdRef.current ?? result.notes[0]?.id ?? null;
+    const nextSelectedNoteId =
+      selectedNoteIdRef.current && result.notes.some((note) => note.id === selectedNoteIdRef.current)
+        ? selectedNoteIdRef.current
+        : null;
     setSelectedNoteId(nextSelectedNoteId);
     syncEditorDraftFromNote(
       result.notes.find((note) => note.id === nextSelectedNoteId) ?? null,
@@ -644,7 +652,6 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
       const local = readLocalNotes(uid);
       if (local.length > 0) {
         setNotes(local);
-        setSelectedNoteId((current) => current ?? local[0]?.id ?? null);
         setNotesSyncUi("local-only", "Opening your local notes first while cloud sync catches up.");
       } else {
         setNotesSyncUi("syncing", "Loading your notes from your account...");
@@ -699,7 +706,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
       : false;
     const remoteWasStale = !notesMatch(mergedNotes, remoteNotes);
     const mergedMatchesCurrent = notesMatch(mergedNotes, inMemoryNotes);
-    const nextSelectedNoteId = selectedStillExists ? selectedCandidateId : (mergedNotes[0]?.id ?? null);
+    const nextSelectedNoteId = selectedStillExists ? selectedCandidateId : null;
     const selectedChanged = nextSelectedNoteId !== selectedNoteIdRef.current;
 
     if (!mergedMatchesCurrent) {
@@ -908,7 +915,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     await updateNoteById(currentSelectedNoteId, patch);
   }
 
-  async function flushSelectedNoteDraft() {
+  const flushSelectedNoteDraft = useCallback(async () => {
     const currentUser = auth.currentUser;
     if (!currentUser) return;
 
@@ -919,7 +926,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     if (!currentNote) return;
 
     const editorHtml = normalizeBodyForEditor(editorRef.current?.innerHTML ?? "");
-    const draftBody = normalizeBodyForEditor(editorBodyDraft);
+    const draftBody = normalizeBodyForEditor(editorBodyDraftRef.current);
     const currentBody = currentNote.body;
     const nextBody =
       isEffectivelyEmptyEditorHtml(editorHtml) &&
@@ -970,7 +977,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     }
     setNotesSyncStatus(result.synced ? "synced" : "local-only");
     setNotesSyncMessage(result.message ?? "");
-  }
+  }, []);
 
   async function togglePinned(noteId: string) {
     const currentUser = auth.currentUser;
@@ -1145,7 +1152,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     const nextNotes = notesRef.current.filter((note) => note.id !== noteId);
     notesRef.current = nextNotes;
     setNotes(nextNotes);
-    setSelectedNoteId((current) => (current === noteId ? nextNotes[0]?.id ?? null : current));
+    setSelectedNoteId((current) => (current === noteId ? null : current));
     clearLocalNoteDraft(currentUser.uid, noteId);
     registerPendingDeletedNoteId(currentUser.uid, noteId);
     saveNotesLocally(currentUser.uid, nextNotes);
@@ -1181,7 +1188,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     setNoteUndoItem(null);
   }
 
-  async function handleRetrySync() {
+  const handleRetrySync = useCallback(async () => {
     const currentUser = auth.currentUser;
     if (!currentUser) return;
     await flushSelectedNoteDraft();
@@ -1200,7 +1207,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
       const nextSelectedNoteId =
         selectedNoteIdRef.current && result.notes.some((note) => note.id === selectedNoteIdRef.current)
           ? selectedNoteIdRef.current
-          : (result.notes[0]?.id ?? null);
+          : null;
       setSelectedNoteId(nextSelectedNoteId);
 
       const selectedAfterRetry =
@@ -1208,10 +1215,10 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
       const repairedEditorHtml = resolvePreferredEditorHtml(
         currentUser.uid,
         selectedAfterRetry,
-        editorRef.current?.innerHTML ?? editorBodyDraft,
+        editorRef.current?.innerHTML ?? editorBodyDraftRef.current,
       );
 
-      if (selectedAfterRetry && repairedEditorHtml !== editorBodyDraft) {
+      if (selectedAfterRetry && repairedEditorHtml !== editorBodyDraftRef.current) {
         setEditorBodyDraft(repairedEditorHtml);
         if (editorRef.current && editorRef.current.innerHTML !== repairedEditorHtml) {
           editorRef.current.innerHTML = repairedEditorHtml;
@@ -1226,7 +1233,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
       setNotesSyncStatus("local-only");
       setNotesSyncMessage(result.message ?? "Retry failed.");
     }
-  }
+  }, [flushSelectedNoteDraft]);
 
   useEffect(() => {
     return () => {

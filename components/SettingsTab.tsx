@@ -20,28 +20,28 @@ import { WHELM_PRO_NAME, WHELM_STANDARD_NAME } from "@/lib/whelm-plans";
 
 const PRO_BACKGROUND_PRESETS = [
   {
-    id: "aurora",
-    label: "Aurora",
+    id: "whelm_core",
+    label: "Core Glow",
     background:
-      "radial-gradient(circle at 12% 0%, rgba(62, 115, 255, 0.24), transparent 28%), radial-gradient(circle at 88% 12%, rgba(82, 214, 255, 0.2), transparent 26%), linear-gradient(180deg, rgba(7, 9, 18, 0.92), rgba(14, 18, 34, 0.98))",
+      "radial-gradient(circle at 50% 12%, rgba(158, 212, 255, 0.46), transparent 24%), radial-gradient(circle at 50% 50%, rgba(72, 108, 255, 0.34), transparent 30%), radial-gradient(circle at 50% 78%, rgba(201, 96, 255, 0.28), transparent 22%), linear-gradient(180deg, #3a63c7 0%, #2d4ea8 24%, #2d328f 56%, #37257b 78%, #2a1f63 100%)",
   },
   {
-    id: "ember",
-    label: "Ember",
+    id: "blue_halo",
+    label: "Blue Halo",
     background:
-      "radial-gradient(circle at 18% 8%, rgba(255, 127, 80, 0.24), transparent 26%), radial-gradient(circle at 82% 0%, rgba(244, 63, 94, 0.18), transparent 24%), linear-gradient(180deg, rgba(19, 8, 12, 0.94), rgba(28, 14, 20, 0.98))",
+      "radial-gradient(circle at 50% 10%, rgba(181, 244, 255, 0.48), transparent 22%), radial-gradient(circle at 46% 46%, rgba(74, 211, 255, 0.34), transparent 28%), radial-gradient(circle at 56% 72%, rgba(86, 120, 255, 0.26), transparent 22%), linear-gradient(180deg, #2e72d6 0%, #2558ba 28%, #24439b 62%, #25306e 100%)",
   },
   {
-    id: "forest",
-    label: "Forest",
+    id: "violet_orbit",
+    label: "Violet Orbit",
     background:
-      "radial-gradient(circle at 10% 10%, rgba(34, 197, 94, 0.2), transparent 24%), radial-gradient(circle at 92% 0%, rgba(45, 212, 191, 0.14), transparent 22%), linear-gradient(180deg, rgba(6, 16, 14, 0.94), rgba(9, 24, 20, 0.98))",
+      "radial-gradient(circle at 50% 10%, rgba(187, 144, 255, 0.34), transparent 22%), radial-gradient(circle at 48% 44%, rgba(140, 88, 255, 0.3), transparent 28%), radial-gradient(circle at 52% 76%, rgba(247, 109, 255, 0.3), transparent 22%), linear-gradient(180deg, #5b56cf 0%, #4b3db3 28%, #4a2f93 62%, #331d63 100%)",
   },
   {
-    id: "dawn",
-    label: "Dawn",
+    id: "midnight_glass",
+    label: "Night Pulse",
     background:
-      "radial-gradient(circle at 12% 0%, rgba(251, 191, 36, 0.22), transparent 28%), radial-gradient(circle at 88% 10%, rgba(249, 115, 22, 0.18), transparent 26%), linear-gradient(180deg, rgba(20, 14, 9, 0.94), rgba(31, 22, 14, 0.98))",
+      "radial-gradient(circle at 50% 10%, rgba(255, 255, 255, 0.2), transparent 18%), radial-gradient(circle at 50% 42%, rgba(112, 143, 255, 0.24), transparent 26%), radial-gradient(circle at 50% 74%, rgba(154, 87, 255, 0.22), transparent 20%), linear-gradient(180deg, #314a8e 0%, #28396f 30%, #241f53 66%, #171334 100%)",
   },
 ] as const;
 
@@ -1083,7 +1083,7 @@ export default function SettingsTab({
                     onClick={() => onApplyBackgroundSetting({ kind: "default" })}
                   >
                     <span className={styles.backgroundPresetSwatch} />
-                    <strong>Standard shell</strong>
+                    <strong>Whelm Default</strong>
                   </button>
                   {PRO_BACKGROUND_PRESETS.map((preset) => (
                     <button
@@ -1115,7 +1115,7 @@ export default function SettingsTab({
                       className={sharedStyles.secondaryPlanButton}
                       onClick={() => onApplyBackgroundSetting({ kind: "default" })}
                     >
-                      Return to standard shell
+                      Return to Whelm Default
                     </button>
                   ) : null}
                 </div>

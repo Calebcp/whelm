@@ -280,6 +280,10 @@
   height: clamp(40px, 2.9vw, 50px);
 }
 
+.wbSurfaceTabIconGlobe {
+  transform: translateY(8px);
+}
+
 .wbSurfaceTabVectorIcon {
   width: clamp(34px, 2.45vw, 42px);
   height: clamp(34px, 2.45vw, 42px);

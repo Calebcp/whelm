@@ -305,7 +305,7 @@ function StreakTabIcon() {
 }
 
 const SURFACE_TABS: Array<{ id: WhelmboardSurfaceTab; label: string; icon: ReactNode }> = [
-  { id: "global", label: "Global", icon: <img src="/whelmboard-icons/globe-icon.png" alt="" aria-hidden="true" className={`${styles.wbSurfaceTabIcon} ${styles.wbSurfaceTabIconRaster}`} /> },
+  { id: "global", label: "Whelm Global", icon: <img src="/whelmboard-icons/globe-icon.png" alt="" aria-hidden="true" className={`${styles.wbSurfaceTabIcon} ${styles.wbSurfaceTabIconRaster} ${styles.wbSurfaceTabIconGlobe}`} /> },
   { id: "friends", label: "Friends", icon: <img src="/whelmboard-icons/friends-icon.png" alt="" aria-hidden="true" className={`${styles.wbSurfaceTabIcon} ${styles.wbSurfaceTabIconRaster}`} /> },
   { id: "bandana", label: "Bandana Tiers", icon: <StreakTabIcon /> },
 ];
@@ -551,7 +551,7 @@ export default function WhelmboardTab({
             <div className={styles.wbPaneHeader}>
               <span className={sharedStyles.sectionLabel}>Standings</span>
               <span className={styles.leaderboardCountPill}>
-                {(leaderboardSource === "snapshot" ? leaderboardTotalEntries : leaderboardRows.length)} players
+                {(leaderboardSource === "snapshot" ? leaderboardTotalEntries : leaderboardRows.length)} Whelmers
               </span>
             </div>
 

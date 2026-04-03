@@ -6,74 +6,74 @@
    ───────────────────────────────────────────────────────────── */
 :root {
   /* Page background */
-  --wh-page-bg: linear-gradient(160deg, #1a1a4e 0%, #2d1660 50%, #4a1a6e 100%);
-  --wh-page-glow-1: radial-gradient(ellipse at 12% 0%, rgba(120, 80, 255, 0.22), transparent 32%);
-  --wh-page-glow-2: radial-gradient(ellipse at 96% 14%, rgba(80, 140, 255, 0.16), transparent 28%);
+  --wh-page-bg: linear-gradient(180deg, #2b4f9b 0%, #243c84 20%, #2d328f 54%, #37257b 78%, #2a1f63 100%);
+  --wh-page-glow-1: radial-gradient(circle at 50% 14%, rgba(118, 170, 255, 0.38), transparent 26%);
+  --wh-page-glow-2: radial-gradient(circle at 50% 70%, rgba(199, 84, 255, 0.2), transparent 24%);
 
   /* Surface (cards, panels) */
-  --wh-surface-bg: linear-gradient(180deg, rgba(40, 28, 80, 0.88), rgba(22, 14, 52, 0.92));
-  --wh-surface-bg-alt: linear-gradient(135deg, rgba(60, 40, 120, 0.06), rgba(100, 50, 180, 0.04));
-  --wh-surface-border: rgba(160, 130, 255, 0.16);
-  --wh-surface-shadow: rgba(5, 2, 18, 0.36);
+  --wh-surface-bg: linear-gradient(180deg, rgba(21, 27, 78, 0.88), rgba(33, 28, 91, 0.92));
+  --wh-surface-bg-alt: linear-gradient(135deg, rgba(126, 170, 255, 0.08), rgba(185, 96, 255, 0.06));
+  --wh-surface-border: rgba(196, 220, 255, 0.18);
+  --wh-surface-shadow: rgba(17, 22, 74, 0.3);
 
   /* Text */
   --wh-text-primary: #ffffff;
-  --wh-text-secondary: rgba(210, 200, 255, 0.65);
-  --wh-text-tertiary: rgba(180, 165, 255, 0.45);
+  --wh-text-secondary: rgba(228, 236, 255, 0.74);
+  --wh-text-tertiary: rgba(197, 211, 255, 0.5);
 
   /* Accent */
-  --wh-accent: #8b5cf6;
-  --wh-accent-strong: #6d28d9;
-  --wh-accent-glow: rgba(139, 92, 246, 0.28);
+  --wh-accent: #6f8dff;
+  --wh-accent-strong: #495cff;
+  --wh-accent-glow: rgba(111, 141, 255, 0.3);
 
   /* Nav */
-  --wh-nav-bg: rgba(18, 10, 44, 0.96);
-  --wh-nav-border: rgba(160, 130, 255, 0.18);
-  --wh-nav-active: linear-gradient(180deg, rgba(120, 80, 255, 0.9), rgba(80, 40, 200, 0.95));
-  --wh-nav-text: rgba(200, 185, 255, 0.6);
+  --wh-nav-bg: rgba(17, 22, 66, 0.94);
+  --wh-nav-border: rgba(201, 223, 255, 0.18);
+  --wh-nav-active: linear-gradient(180deg, rgba(107, 138, 255, 0.96), rgba(82, 95, 234, 0.98));
+  --wh-nav-text: rgba(221, 232, 255, 0.68);
   --wh-nav-text-active: #ffffff;
 
   /* Input / control */
-  --wh-input-bg: rgba(255, 255, 255, 0.06);
-  --wh-input-border: rgba(160, 130, 255, 0.22);
+  --wh-input-bg: rgba(255, 255, 255, 0.08);
+  --wh-input-border: rgba(196, 220, 255, 0.24);
   --wh-input-text: #f0ebff;
-  --wh-input-placeholder: rgba(180, 165, 255, 0.4);
+  --wh-input-placeholder: rgba(211, 223, 255, 0.46);
 
   /* Buttons */
-  --wh-btn-primary-bg: linear-gradient(135deg, #29355f, #4b4cd0);
+  --wh-btn-primary-bg: linear-gradient(135deg, #4f76dc, #6374ff);
   --wh-btn-primary-text: #ffffff;
-  --wh-btn-secondary-bg: rgba(23, 29, 50, 0.86);
-  --wh-btn-secondary-border: rgba(123, 138, 184, 0.2);
+  --wh-btn-secondary-bg: rgba(29, 37, 88, 0.84);
+  --wh-btn-secondary-border: rgba(196, 220, 255, 0.18);
   --wh-btn-secondary-text: #eff4ff;
 
   /* Panel (modals, sheets, drawers) */
-  --wh-panel-bg: rgba(11, 15, 29, 0.98);
-  --wh-panel-border: rgba(123, 138, 184, 0.18);
-  --wh-panel-shadow: rgba(7, 18, 31, 0.3);
+  --wh-panel-bg: rgba(16, 21, 62, 0.98);
+  --wh-panel-border: rgba(196, 220, 255, 0.18);
+  --wh-panel-shadow: rgba(22, 27, 84, 0.28);
 }
 
 /* Light mode token overrides — document.body already gets data-theme="light" */
 body[data-theme="light"] {
-  --wh-page-bg: linear-gradient(160deg, #f0eeff 0%, #e8e0ff 52%, #ede4ff 100%);
-  --wh-page-glow-1: radial-gradient(ellipse at 12% 0%, rgba(120, 80, 255, 0.1), transparent 32%);
-  --wh-page-glow-2: radial-gradient(ellipse at 96% 14%, rgba(80, 120, 255, 0.08), transparent 28%);
+  --wh-page-bg: linear-gradient(180deg, #e6edff 0%, #dce5ff 30%, #e7e0ff 66%, #ede6ff 100%);
+  --wh-page-glow-1: radial-gradient(circle at 50% 12%, rgba(126, 170, 255, 0.22), transparent 28%);
+  --wh-page-glow-2: radial-gradient(circle at 50% 74%, rgba(187, 113, 255, 0.14), transparent 22%);
 
-  --wh-surface-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(248, 244, 255, 0.96));
-  --wh-surface-bg-alt: linear-gradient(135deg, rgba(120, 80, 255, 0.04), rgba(80, 120, 255, 0.03));
-  --wh-surface-border: rgba(106, 0, 200, 0.1);
-  --wh-surface-shadow: rgba(80, 40, 160, 0.1);
+  --wh-surface-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(243, 246, 255, 0.96));
+  --wh-surface-bg-alt: linear-gradient(135deg, rgba(126, 170, 255, 0.05), rgba(187, 113, 255, 0.03));
+  --wh-surface-border: rgba(90, 112, 198, 0.12);
+  --wh-surface-shadow: rgba(79, 105, 196, 0.1);
 
   --wh-text-primary: #1a1a4e;
   --wh-text-secondary: #4a4a8a;
   --wh-text-tertiary: #7a72a8;
 
-  --wh-accent: #6d28d9;
-  --wh-accent-strong: #5b21b6;
-  --wh-accent-glow: rgba(109, 40, 217, 0.18);
+  --wh-accent: #5b78ef;
+  --wh-accent-strong: #495cff;
+  --wh-accent-glow: rgba(91, 120, 239, 0.18);
 
   --wh-nav-bg: rgba(255, 255, 255, 0.96);
   --wh-nav-border: rgba(106, 0, 200, 0.12);
-  --wh-nav-active: linear-gradient(180deg, rgba(109, 40, 217, 0.9), rgba(91, 33, 182, 0.95));
+  --wh-nav-active: linear-gradient(180deg, rgba(95, 127, 245, 0.94), rgba(73, 92, 225, 0.98));
   --wh-nav-text: #7a72a8;
   --wh-nav-text-active: #ffffff;
 
@@ -83,9 +83,9 @@ body[data-theme="light"] {
   --wh-input-placeholder: #9d8fc0;
 
   /* Buttons */
-  --wh-btn-primary-bg: linear-gradient(135deg, #4769b6, #5f5fd4);
+  --wh-btn-primary-bg: linear-gradient(135deg, #4f76dc, #6374ff);
   --wh-btn-primary-text: #fffdf8;
-  --wh-btn-secondary-bg: linear-gradient(135deg, rgba(109, 118, 196, 0.96), rgba(88, 97, 180, 0.94));
+  --wh-btn-secondary-bg: linear-gradient(135deg, rgba(105, 130, 222, 0.96), rgba(88, 105, 205, 0.94));
   --wh-btn-secondary-border: rgba(102, 111, 188, 0.16);
   --wh-btn-secondary-text: #faf8f3;
 
@@ -3859,25 +3859,41 @@ body[data-theme="light"] {
   position: fixed;
   transform: translate(-50%, -100%);
   z-index: 950;
-  padding: 6px 13px;
-  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 18px;
   background: var(--wh-surface-bg, rgba(22, 24, 38, 0.96));
   border: 1px solid var(--wh-surface-border, rgba(255, 255, 255, 0.12));
   color: var(--wh-text-primary, #e8eaf6);
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  cursor: pointer;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.32);
-  white-space: nowrap;
   pointer-events: auto;
   transition: opacity 0.15s ease, transform 0.15s ease;
   margin-top: -4px;
 }
 
-.selectionCardPopup:hover {
+.selectionCardAction {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  padding: 7px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--wh-text-primary, #e8eaf6);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.selectionCardAction:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.selectionCardActionPrimary {
   background: var(--wh-accent, #5b7adc);
   border-color: transparent;
+  color: #fff;
 }
 
 .noteFooterActions {
@@ -8943,11 +8959,104 @@ body[data-theme="light"] {
 .cardsSummaryCard {
   display: grid;
   gap: 16px;
-  padding: 20px;
+  padding: 18px;
   border-radius: 24px;
   border: 1px solid rgba(136, 153, 208, 0.16);
-  background: rgba(16, 22, 42, 0.72);
+  background:
+    radial-gradient(circle at top, rgba(104, 138, 255, 0.14), transparent 44%),
+    linear-gradient(180deg, rgba(24, 33, 89, 0.9), rgba(18, 23, 70, 0.9));
   box-shadow: 0 20px 48px rgba(5, 8, 18, 0.18);
+}
+
+.cardsLibraryHero,
+.cardsDeckHero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 18px 20px;
+  border-radius: 24px;
+  border: 1px solid rgba(194, 216, 255, 0.14);
+  background:
+    radial-gradient(circle at top, rgba(135, 178, 255, 0.18), transparent 42%),
+    linear-gradient(135deg, rgba(71, 103, 228, 0.92), rgba(79, 51, 183, 0.92));
+  box-shadow: 0 24px 54px rgba(29, 40, 118, 0.22);
+}
+
+.cardsLibraryHeroCopy {
+  display: grid;
+  gap: 6px;
+  max-width: 42rem;
+}
+
+.cardsLibrarySearchBar {
+  display: grid;
+}
+
+.cardsLibrarySearchInput {
+  width: 100%;
+  min-height: 46px;
+  border-radius: 999px;
+  border: 1px solid rgba(210, 225, 255, 0.14);
+  background: rgba(14, 20, 56, 0.86);
+  color: #f2f7ff;
+  padding: 0 18px;
+  font: inherit;
+}
+
+.cardsLibrarySearchInput::placeholder {
+  color: rgba(214, 226, 255, 0.46);
+}
+
+.cardsFilterRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.cardsFilterChip,
+.cardsFilterChipActive {
+  border: 0;
+  border-radius: 999px;
+  padding: 9px 14px;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.cardsFilterChip {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(225, 233, 255, 0.76);
+}
+
+.cardsFilterChipActive {
+  background: linear-gradient(135deg, rgba(110, 154, 255, 0.96), rgba(133, 89, 255, 0.96));
+  color: #fff;
+  box-shadow: 0 12px 28px rgba(69, 89, 224, 0.22);
+}
+
+.cardsOverviewGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.cardsOverviewStat {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(194, 216, 255, 0.12);
+  background:
+    radial-gradient(circle at top left, rgba(110, 154, 255, 0.12), transparent 34%),
+    rgba(16, 23, 66, 0.76);
+}
+
+.cardsOverviewStat strong {
+  font-size: clamp(1.15rem, 1rem + 0.6vw, 1.55rem);
+  color: #f6f9ff;
 }
 
 .cardsHeader {
@@ -8966,39 +9075,211 @@ body[data-theme="light"] {
 
 .cardsBoardGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 14px;
-}
-
-.cardsZoneColumn {
-  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
-  padding: 16px;
-  border-radius: 20px;
-  border: 1px solid rgba(136, 153, 208, 0.14);
-  background: rgba(21, 27, 48, 0.72);
 }
 
-.cardsZoneHeader {
+.cardsCollectionCard {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 20px;
+  border: 1px solid rgba(194, 216, 255, 0.14);
+  background:
+    radial-gradient(circle at top left, rgba(114, 144, 255, 0.12), transparent 34%),
+    linear-gradient(180deg, rgba(21, 27, 79, 0.92), rgba(15, 19, 55, 0.92));
+  box-shadow: 0 18px 38px rgba(15, 23, 72, 0.18);
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+}
+
+.cardsCollectionHead,
+.cardsCollectionBody,
+.cardsCollectionPreview {
+  display: grid;
+  gap: 6px;
+}
+
+.cardsCollectionHead {
+  grid-template-columns: auto auto;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.cardsCollectionIcon {
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  display: inline-grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.cardsCollectionCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  padding: 0 10px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #eef4ff;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.cardsCollectionBody strong {
+  font-size: 1rem;
+  color: #fff;
+}
+
+.cardsCollectionBody p {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.cardsCollectionPreview {
+  gap: 4px;
+}
+
+.cardsCollectionPreviewLine {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(232, 239, 255, 0.82);
+  font-size: 0.76rem;
+}
+
+.cardsCollectionDue {
+  background:
+    radial-gradient(circle at top left, rgba(124, 214, 255, 0.18), transparent 34%),
+    linear-gradient(180deg, rgba(36, 82, 166, 0.94), rgba(29, 47, 114, 0.94));
+}
+
+.cardsCollectionNew {
+  background:
+    radial-gradient(circle at top left, rgba(122, 255, 198, 0.16), transparent 34%),
+    linear-gradient(180deg, rgba(36, 124, 144, 0.94), rgba(22, 67, 87, 0.94));
+}
+
+.cardsCollectionHard {
+  background:
+    radial-gradient(circle at top left, rgba(255, 188, 115, 0.18), transparent 34%),
+    linear-gradient(180deg, rgba(135, 88, 24, 0.94), rgba(89, 48, 16, 0.94));
+}
+
+.cardsCollectionLearning {
+  background:
+    radial-gradient(circle at top left, rgba(120, 163, 255, 0.18), transparent 34%),
+    linear-gradient(180deg, rgba(57, 74, 185, 0.94), rgba(42, 44, 110, 0.94));
+}
+
+.cardsCollectionEasy {
+  background:
+    radial-gradient(circle at top left, rgba(255, 163, 214, 0.18), transparent 34%),
+    linear-gradient(180deg, rgba(119, 63, 182, 0.94), rgba(77, 39, 135, 0.94));
+}
+
+.cardsCollectionMastery {
+  background:
+    radial-gradient(circle at top left, rgba(208, 189, 255, 0.16), transparent 34%),
+    linear-gradient(180deg, rgba(86, 70, 172, 0.94), rgba(55, 43, 118, 0.94));
+}
+
+.cardsDeckShell {
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+  border-radius: 24px;
+  border: 1px solid rgba(136, 153, 208, 0.16);
+  background:
+    radial-gradient(circle at top, rgba(104, 138, 255, 0.12), transparent 44%),
+    linear-gradient(180deg, rgba(17, 23, 68, 0.94), rgba(12, 16, 52, 0.94));
+}
+
+.cardsDeckTopBar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
-.cardsZoneList {
+.cardsDeckStats {
   display: grid;
-  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
 }
 
-.cardsTile {
+.cardsDeckStat {
   display: grid;
-  gap: 6px;
-  min-height: 72px;
-  padding: 14px;
+  gap: 4px;
+  padding: 14px 16px;
   border-radius: 18px;
-  border: 1px solid rgba(136, 153, 208, 0.14);
-  background: rgba(11, 16, 34, 0.78);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.cardsDeckStat strong {
+  font-size: 1.6rem;
+  color: #fff;
+}
+
+.cardsDeckStat span {
+  color: rgba(232, 239, 255, 0.76);
+  font-size: 0.84rem;
+}
+
+.cardsDeckList {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.cardsDeckItem {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 22px;
+  border: 1px solid rgba(194, 216, 255, 0.12);
+  background:
+    radial-gradient(circle at top left, rgba(120, 163, 255, 0.08), transparent 34%),
+    linear-gradient(180deg, rgba(16, 22, 58, 0.96), rgba(11, 16, 44, 0.92));
+}
+
+.cardsDeckItemCopy {
+  display: grid;
+  gap: 8px;
+}
+
+.cardsDeckItemCopy strong {
+  color: #f7faff;
+  font-size: 1rem;
+}
+
+.cardsDeckItemCopy p {
+  margin: 0;
+  color: rgba(220, 230, 255, 0.72);
+  line-height: 1.45;
+}
+
+.cardsDeckItemMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: rgba(196, 210, 246, 0.72);
+  font-size: 0.8rem;
 }
 
 .cardsReviewCard {
@@ -9163,6 +9444,13 @@ body[data-theme="light"] {
 }
 
 @media (max-width: 720px) {
+  .cardsOverviewGrid,
+  .cardsDeckStats,
+  .cardsDeckList,
+  .cardsBoardGrid {
+    grid-template-columns: 1fr;
+  }
+
   .cardsOutcomeRow {
     grid-template-columns: 1fr;
   }

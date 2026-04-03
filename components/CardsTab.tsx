@@ -23,7 +23,7 @@ type CardsTabProps = {
   onXPEarned: (amount: number) => void;
 };
 
-type CardsView = "board" | "review" | "editor";
+type CardsView = "library" | "deck" | "review" | "editor";
 type ReviewSummary = {
   reviewed: number;
   xpEarned: number;
@@ -35,7 +35,9 @@ type CardGroup = {
   title: string;
   description: string;
   cards: WhelCard[];
-  defaultOpen?: boolean;
+  icon: string;
+  accentClassName: string;
+  shelfTitle: string;
 };
 
 type OutcomeButtonMeta = {
@@ -52,6 +54,13 @@ const OUTCOME_BUTTONS: OutcomeButtonMeta[] = [
   { outcome: "good", label: "Good", hint: "Solid recall", className: "cardsOutcomeGood" },
   { outcome: "easy", label: "Easy", hint: "Locked in", className: "cardsOutcomeEasy" },
 ];
+const COLLECTION_FILTERS = [
+  { id: "all", label: "All" },
+  { id: "due-now", label: "Due now" },
+  { id: "new", label: "New" },
+  { id: "hard", label: "Hard" },
+  { id: "mastery", label: "Mastery" },
+] as const;
 
 function formatDueDate(timestamp: number): string {
   const diff = timestamp - Date.now();
@@ -64,12 +73,15 @@ function formatDueDate(timestamp: number): string {
 }
 
 export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
-  const [view, setView] = useState<CardsView>("board");
+  const [view, setView] = useState<CardsView>("library");
   const [cards, setCards] = useState<WhelCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState("");
   const [front, setFront] = useState("");
   const [back, setBack] = useState("");
+  const [cardsSearch, setCardsSearch] = useState("");
+  const [activeCollectionFilter, setActiveCollectionFilter] = useState<(typeof COLLECTION_FILTERS)[number]["id"]>("all");
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [cardFlipped, setCardFlipped] = useState(false);
   const [answerVisible, setAnswerVisible] = useState(false);
   const [answerOpenedAt, setAnswerOpenedAt] = useState<number | null>(null);
@@ -164,12 +176,60 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
 
   const cardGroups = useMemo<CardGroup[]>(() => {
     const groups: CardGroup[] = [
-      { id: "due-now", title: "Due now", description: "Cards ready for review right now.", cards: [], defaultOpen: false },
-      { id: "new", title: "New", description: "Fresh cards that have not been reviewed yet.", cards: [], defaultOpen: false },
-      { id: "hard", title: "Hard", description: "Cards that are still resisting recall.", cards: [], defaultOpen: false },
-      { id: "learning", title: "Learning", description: "Cards still moving through the active ladder.", cards: [], defaultOpen: false },
-      { id: "easy", title: "Easy", description: "Cards you recently rated easy.", cards: [], defaultOpen: false },
-      { id: "mastery", title: "Mastery", description: "Cards that are mostly settled.", cards: [], defaultOpen: false },
+      {
+        id: "due-now",
+        title: "Due now",
+        description: "Cards ready to study immediately.",
+        shelfTitle: "Review now",
+        icon: "●",
+        accentClassName: "cardsCollectionDue",
+        cards: [],
+      },
+      {
+        id: "new",
+        title: "New cards",
+        description: "Fresh cards that have not been reviewed yet.",
+        shelfTitle: "Fresh starts",
+        icon: "+",
+        accentClassName: "cardsCollectionNew",
+        cards: [],
+      },
+      {
+        id: "hard",
+        title: "Hard recalls",
+        description: "Cards that are still resisting recall.",
+        shelfTitle: "Needs another pass",
+        icon: "!",
+        accentClassName: "cardsCollectionHard",
+        cards: [],
+      },
+      {
+        id: "learning",
+        title: "Learning lane",
+        description: "Cards actively moving through the ladder.",
+        shelfTitle: "In motion",
+        icon: "~",
+        accentClassName: "cardsCollectionLearning",
+        cards: [],
+      },
+      {
+        id: "easy",
+        title: "Easy wins",
+        description: "Cards you recently rated easy.",
+        shelfTitle: "Fast recall",
+        icon: "✓",
+        accentClassName: "cardsCollectionEasy",
+        cards: [],
+      },
+      {
+        id: "mastery",
+        title: "Mastery",
+        description: "Cards that are mostly settled.",
+        shelfTitle: "Locked in",
+        icon: "◆",
+        accentClassName: "cardsCollectionMastery",
+        cards: [],
+      },
     ];
 
     for (const card of cards) {
@@ -190,6 +250,29 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
 
     return groups;
   }, [cards]);
+
+  const filteredGroups = useMemo(() => {
+    const query = cardsSearch.trim().toLowerCase();
+    return cardGroups
+      .filter((group) => activeCollectionFilter === "all" || group.id === activeCollectionFilter)
+      .map((group) => ({
+        ...group,
+        cards:
+          query.length === 0
+            ? group.cards
+            : group.cards.filter((card) =>
+                `${card.front} ${card.back}`.toLowerCase().includes(query),
+              ),
+      }))
+      .filter((group) => group.cards.length > 0 || query.length === 0);
+  }, [activeCollectionFilter, cardGroups, cardsSearch]);
+
+  const selectedGroup =
+    (selectedGroupId ? cardGroups.find((group) => group.id === selectedGroupId) : null) ?? filteredGroups[0] ?? cardGroups[0] ?? null;
+
+  const totalReviewableCount = cardsDue.length;
+  const totalNewCount = cardGroups.find((group) => group.id === "new")?.cards.length ?? 0;
+  const totalHardCount = cardGroups.find((group) => group.id === "hard")?.cards.length ?? 0;
 
   const masteryPct = cards.length === 0 ? 0 : Math.round((cardsByZone.mastery.length / cards.length) * 100);
 
@@ -231,7 +314,7 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
     setFront("");
     setBack("");
     setReviewSummary(null);
-    setView("board");
+    setView("library");
   }
 
   function startReviewSession() {
@@ -314,7 +397,7 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
       }
       setReviewQueueIds([]);
       setReviewSessionTotal(0);
-      setView("board");
+      setView("deck");
       return;
     }
 
@@ -339,39 +422,52 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
         </div>
       ) : null}
 
-      {view === "board" ? (
+      {view === "library" ? (
         <div className={styles.cardsBoardStack}>
-          <header className={styles.cardsHeader}>
-            <div>
-              <p className={styles.sectionLabel}>Notes Companion</p>
+          <header className={styles.cardsLibraryHero}>
+            <div className={styles.cardsLibraryHeroCopy}>
+              <p className={styles.sectionLabel}>Cards world</p>
               <h2 className={styles.cardTitle}>Whelm Cards</h2>
               <p className={styles.accountMeta}>
-                Today&apos;s cards XP: {todayCardsXp}. Build recall without leaving your notes lane.
+                Explore your recall library, open a collection, and study what is due without losing the bigger map.
               </p>
             </div>
             <div className={styles.cardsHeaderActions}>
-              <div>
-                <button
-                  type="button"
-                  className={`${styles.reportButton} ${cardsDue.length > 0 ? styles.cardsDueGlow : styles.cardsReviewButtonIdle}`}
-                  onClick={startReviewSession}
-                >
-                  Review Due Now
-                  {cardsDue.length > 0 ? (
-                    <span className={styles.cardsDueBadge}>{cardsDue.length}</span>
-                  ) : null}
-                </button>
-                {cardsDue.length === 0 && nextCardDueLabel ? (
-                  <p className={styles.accountMeta} style={{ marginTop: 4, fontSize: "0.75rem" }}>
-                    {nextCardDueLabel}
-                  </p>
-                ) : null}
-              </div>
+              <button
+                type="button"
+                className={`${styles.reportButton} ${cardsDue.length > 0 ? styles.cardsDueGlow : styles.cardsReviewButtonIdle}`}
+                onClick={startReviewSession}
+              >
+                Study due now
+                {cardsDue.length > 0 ? <span className={styles.cardsDueBadge}>{cardsDue.length}</span> : null}
+              </button>
               <button type="button" className={styles.secondaryPlanButton} onClick={() => setView("editor")}>
-                Add Card
+                Add card
               </button>
             </div>
           </header>
+
+          <div className={styles.cardsLibrarySearchBar}>
+            <input
+              value={cardsSearch}
+              onChange={(event) => setCardsSearch(event.target.value)}
+              className={styles.cardsLibrarySearchInput}
+              placeholder="Search cards"
+            />
+          </div>
+
+          <div className={styles.cardsFilterRow}>
+            {COLLECTION_FILTERS.map((filter) => (
+              <button
+                key={filter.id}
+                type="button"
+                className={filter.id === activeCollectionFilter ? styles.cardsFilterChipActive : styles.cardsFilterChip}
+                onClick={() => setActiveCollectionFilter(filter.id)}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
 
           {status ? <p className={styles.accountMeta}>{status}</p> : null}
           {reviewSummary ? (
@@ -385,11 +481,23 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
           ) : null}
 
           {cards.length > 0 && (
-            <div className={styles.cardsMasteryWrap}>
-              <span className={styles.cardsMasteryLabel}>Mastery {masteryPct}%</span>
-              <div className={styles.cardsMasteryTrack}>
-                <div className={styles.cardsMasteryFill} style={{ width: `${masteryPct}%` }} />
-              </div>
+            <div className={styles.cardsOverviewGrid}>
+              <article className={styles.cardsOverviewStat}>
+                <span className={styles.sectionLabel}>Due today</span>
+                <strong>{totalReviewableCount}</strong>
+              </article>
+              <article className={styles.cardsOverviewStat}>
+                <span className={styles.sectionLabel}>New</span>
+                <strong>{totalNewCount}</strong>
+              </article>
+              <article className={styles.cardsOverviewStat}>
+                <span className={styles.sectionLabel}>Hard</span>
+                <strong>{totalHardCount}</strong>
+              </article>
+              <article className={styles.cardsOverviewStat}>
+                <span className={styles.sectionLabel}>Mastery</span>
+                <strong>{masteryPct}%</strong>
+              </article>
             </div>
           )}
 
@@ -409,36 +517,93 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
             </div>
           ) : (
             <div className={styles.cardsBoardGrid}>
-              {cardGroups.map((group) => (
-                <details key={group.id} className={styles.cardsZoneColumn} open={group.defaultOpen}>
-                  <summary className={styles.cardsZoneHeader}>
-                    <span>
-                      <span className={styles.sectionLabel}>{group.title}</span>
-                      <span className={styles.accountMeta} style={{ display: "block", marginTop: 4 }}>
-                        {group.description}
-                      </span>
-                    </span>
-                    <strong>{group.cards.length}</strong>
-                  </summary>
-                  <div className={styles.cardsZoneList}>
-                    {group.cards.length === 0 ? (
-                      <p className={styles.emptyText}>No cards here right now.</p>
-                    ) : (
-                      group.cards.map((card) => (
-                        <article key={card.id} className={styles.cardsTile}>
-                          <strong>{card.front || "Untitled card"}</strong>
-                          <span className={styles.accountMeta}>
-                            Lv {card.level} · {card.reviewCount} review{card.reviewCount === 1 ? "" : "s"}
-                          </span>
-                          <span className={styles.cardsDueDate}>{formatDueDate(card.dueDate)}</span>
-                        </article>
-                      ))
-                    )}
+              {filteredGroups.map((group) => (
+                <button
+                  key={group.id}
+                  type="button"
+                  className={`${styles.cardsCollectionCard} ${styles[group.accentClassName as keyof typeof styles]}`}
+                  onClick={() => {
+                    setSelectedGroupId(group.id);
+                    setView("deck");
+                  }}
+                >
+                  <div className={styles.cardsCollectionHead}>
+                    <span className={styles.cardsCollectionIcon}>{group.icon}</span>
+                    <span className={styles.cardsCollectionCount}>{group.cards.length}</span>
                   </div>
-                </details>
+                  <div className={styles.cardsCollectionBody}>
+                    <span className={styles.sectionLabel}>{group.shelfTitle}</span>
+                    <strong>{group.title}</strong>
+                    <p className={styles.accountMeta}>{group.description}</p>
+                  </div>
+                  <div className={styles.cardsCollectionPreview}>
+                    {group.cards.slice(0, 2).map((card) => (
+                      <span key={card.id} className={styles.cardsCollectionPreviewLine}>
+                        {card.front || "Untitled card"}
+                      </span>
+                    ))}
+                  </div>
+                </button>
               ))}
             </div>
           )}
+        </div>
+      ) : null}
+
+      {view === "deck" && selectedGroup ? (
+        <div className={styles.cardsDeckShell}>
+          <div className={styles.cardsDeckTopBar}>
+            <button type="button" className={styles.secondaryPlanButton} onClick={() => setView("library")}>
+              Back to library
+            </button>
+            <div className={styles.cardsHeaderActions}>
+              <button
+                type="button"
+                className={`${styles.reportButton} ${selectedGroup.id === "due-now" && cardsDue.length > 0 ? styles.cardsDueGlow : ""}`}
+                onClick={startReviewSession}
+              >
+                Study cards
+              </button>
+              <button type="button" className={styles.secondaryPlanButton} onClick={() => setView("editor")}>
+                Add cards
+              </button>
+            </div>
+          </div>
+
+          <article className={`${styles.cardsDeckHero} ${styles[selectedGroup.accentClassName as keyof typeof styles]}`}>
+            <p className={styles.sectionLabel}>Card collection</p>
+            <h3 className={styles.cardTitle}>{selectedGroup.title}</h3>
+            <p className={styles.accountMeta}>{selectedGroup.description}</p>
+            <div className={styles.cardsDeckStats}>
+              <div className={styles.cardsDeckStat}>
+                <strong>{selectedGroup.cards.filter((card) => card.nextReviewAt <= Date.now()).length}</strong>
+                <span>Cards for today</span>
+              </div>
+              <div className={styles.cardsDeckStat}>
+                <strong>{selectedGroup.cards.length}</strong>
+                <span>Cards in collection</span>
+              </div>
+              <div className={styles.cardsDeckStat}>
+                <strong>{selectedGroup.cards.filter((card) => card.zone === "mastery").length}</strong>
+                <span>Mastered</span>
+              </div>
+            </div>
+          </article>
+
+          <div className={styles.cardsDeckList}>
+            {selectedGroup.cards.map((card) => (
+              <article key={card.id} className={styles.cardsDeckItem}>
+                <div className={styles.cardsDeckItemCopy}>
+                  <strong>{card.front || "Untitled card"}</strong>
+                  <p>{card.back || "No answer yet."}</p>
+                </div>
+                <div className={styles.cardsDeckItemMeta}>
+                  <span>Lv {card.level}</span>
+                  <span>{formatDueDate(card.dueDate)}</span>
+                </div>
+              </article>
+            ))}
+          </div>
         </div>
       ) : null}
 
@@ -456,7 +621,7 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
               onClick={() => {
                 setReviewQueueIds([]);
                 setReviewSessionTotal(0);
-                setView("board");
+                setView(selectedGroup ? "deck" : "library");
               }}
             >
               ← Exit
@@ -511,8 +676,8 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
           ) : (
             <div className={styles.cardsReviewCenterStage} style={{ alignItems: "center" }}>
               <strong style={{ color: "#f0f4ff", fontSize: "1.1rem" }}>No cards are due right now.</strong>
-              <button type="button" className={styles.secondaryPlanButton} onClick={() => setView("board")}>
-                Return to board
+              <button type="button" className={styles.secondaryPlanButton} onClick={() => setView(selectedGroup ? "deck" : "library")}>
+                Return to library
               </button>
             </div>
           )}
@@ -547,7 +712,7 @@ export default function CardsTab({ uid, onXPEarned }: CardsTabProps) {
             <button type="button" className={styles.reportButton} onClick={() => void handleSaveCard()}>
               Save Card
             </button>
-            <button type="button" className={styles.secondaryPlanButton} onClick={() => setView("board")}>
+            <button type="button" className={styles.secondaryPlanButton} onClick={() => setView(selectedGroup ? "deck" : "library")}>
               Cancel
             </button>
           </div>

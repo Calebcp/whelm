@@ -19,28 +19,52 @@ export default function QuickCardModal({
   onSetQuickCardForm,
   onSetSelectionPopup,
   onSave,
+  onBoldSelection,
+  onItalicSelection,
+  onUnderlineSelection,
+  onHighlightSelection,
 }: {
   selectionPopup: SelectionPopup | null;
   quickCardForm: QuickCardForm | null;
   onSetQuickCardForm: (value: QuickCardForm | null | ((current: QuickCardForm | null) => QuickCardForm | null)) => void;
   onSetSelectionPopup: (value: SelectionPopup | null) => void;
   onSave: () => void;
+  onBoldSelection: () => void;
+  onItalicSelection: () => void;
+  onUnderlineSelection: () => void;
+  onHighlightSelection: () => void;
 }) {
   return (
     <>
       {selectionPopup && !quickCardForm ? (
-        <button
-          type="button"
+        <div
           className={styles.selectionCardPopup}
           style={{ left: selectionPopup.x, top: selectionPopup.y }}
           onMouseDown={(event) => event.preventDefault()}
-          onClick={() => {
-            onSetQuickCardForm({ front: "", back: selectionPopup.text });
-            onSetSelectionPopup(null);
-          }}
         >
-          📇 Create Card
-        </button>
+          <button type="button" className={styles.selectionCardAction} onClick={onBoldSelection}>
+            Bold
+          </button>
+          <button type="button" className={styles.selectionCardAction} onClick={onItalicSelection}>
+            Italic
+          </button>
+          <button type="button" className={styles.selectionCardAction} onClick={onUnderlineSelection}>
+            Underline
+          </button>
+          <button type="button" className={styles.selectionCardAction} onClick={onHighlightSelection}>
+            Highlight
+          </button>
+          <button
+            type="button"
+            className={`${styles.selectionCardAction} ${styles.selectionCardActionPrimary}`}
+            onClick={() => {
+              onSetQuickCardForm({ front: "", back: selectionPopup.text });
+              onSetSelectionPopup(null);
+            }}
+          >
+            Create Card
+          </button>
+        </div>
       ) : null}
 
       {quickCardForm ? (
