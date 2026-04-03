@@ -43,6 +43,19 @@ test("inferCompletedBlocksByDayFromSessions recovers block completions from sess
   assert.equal(inferred.get("2026-04-02"), 1);
 });
 
+test("inferCompletedBlocksByDayFromSessions anchors planned completions to their UTC calendar day", () => {
+  const inferred = inferCompletedBlocksByDayFromSessions([
+    {
+      uid: "u1",
+      completedAtISO: "2026-03-25T01:00:00.000Z",
+      minutes: 30,
+      note: "Planned block completed: Morning block",
+    },
+  ]);
+
+  assert.equal(inferred.get("2026-03-25"), 1);
+});
+
 test("buildStreakLedger marks qualifying protected and v2 combo days", () => {
   const effectiveCompletedBlocksByDay = mergeCompletedBlocksByDay({
     completedBlocksByDay: new Map([["2026-04-03", 1]]),

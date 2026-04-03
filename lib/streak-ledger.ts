@@ -12,13 +12,24 @@ export type StreakLedgerEntry = {
   qualificationReason: "protected" | "legacy_focus" | "v2_combo" | "none";
 };
 
+function dayKeyUtc(iso: string) {
+  const date = new Date(iso);
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 export function inferCompletedBlocksByDayFromSessions(sessions: SessionDoc[]) {
   const map = new Map<string, number>();
 
   for (const session of sessions) {
     const note = session.note?.trim() ?? "";
     if (!note.toLowerCase().startsWith("planned block completed:")) continue;
-    const dateKey = dayKeyLocal(session.completedAtISO);
+    // Planned-block completion sessions encode the chosen calendar day into the
+    // ISO timestamp. Recover them by UTC date so the inferred block stays on
+    // the original planned day across devices and timezones.
+    const dateKey = dayKeyUtc(session.completedAtISO);
     map.set(dateKey, (map.get(dateKey) ?? 0) + 1);
   }
 
