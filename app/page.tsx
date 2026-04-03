@@ -86,6 +86,7 @@ import {
   buildStreakProfilePresentation,
   buildStreakTodayPresentation,
 } from "@/lib/streak-presentation";
+import { buildShellStreakRecord } from "@/lib/streak-record";
 import { subscribeToUserData } from "@/lib/firestore-sync";
 import { logClientRuntime } from "@/lib/client-runtime";
 import type { AppTab } from "@/lib/app-tabs";
@@ -1580,6 +1581,7 @@ export default function HomePage() {
     sessionMinutesByDay,
     streakQualifiedDateKeys,
     streak,
+    streakIsProvisional,
     bandanaColor,
     mascot,
     showMascot,
@@ -1979,6 +1981,8 @@ export default function HomePage() {
     streakMonthLabel,
     streakMonthCalendar,
     visibleBandanaColor,
+    streakSummaryBase,
+    streakDailyRecords,
   } = useShellStreakState({
     isPro,
     streak,
@@ -1990,6 +1994,7 @@ export default function HomePage() {
     sickDaySaveDismissals,
     lifetimeXpSummary,
     bandanaColor,
+    streakIsProvisional,
   });
 
   useEffect(() => {
@@ -2631,6 +2636,7 @@ export default function HomePage() {
     historicalStreaksByDay,
     sessions,
     sessionsSynced,
+    streakIsProvisional,
     weeklyXp,
   });
   const {
@@ -2730,22 +2736,14 @@ export default function HomePage() {
     getProfileTierTheme,
   });
   const onboardingStep = ONBOARDING_STEPS[Math.min(onboardingStepIndex, ONBOARDING_STEPS.length - 1)];
-  const streakProfilePresentation = useMemo(
+  const shellStreakRecord = useMemo(
     () =>
-      buildStreakProfilePresentation({
+      buildShellStreakRecord({
         profileTitle: profileTierTheme.title,
-        streakBandanaLabel: streakBandanaTier?.label,
-        displayStreak,
-        longestStreak,
-        nextBandanaMilestone,
+        streak: streakSummaryBase,
+        dailyRecords: streakDailyRecords,
       }),
-    [
-      displayStreak,
-      longestStreak,
-      nextBandanaMilestone,
-      profileTierTheme.title,
-      streakBandanaTier?.label,
-    ],
+    [profileTierTheme.title, streakDailyRecords, streakSummaryBase],
   );
   const streakTodayPresentation = useMemo(
     () =>
@@ -2764,6 +2762,14 @@ export default function HomePage() {
       streakStatusLine,
     ],
   );
+  const {
+    tierColor: shellTierColor,
+    currentStreakLabel: shellCurrentStreakLabel,
+    longestStreakLabel: shellLongestStreakLabel,
+    identityLine: shellIdentityLine,
+    nextAscentTitle: shellNextAscentTitle,
+    nextAscentBody: shellNextAscentBody,
+  } = shellStreakRecord.summary;
   const handleCalendarPrevMonth = useCallback(() => {
     setCalendarCursor((current) => shiftMonth(current, -1));
   }, [setCalendarCursor]);
@@ -3402,7 +3408,7 @@ export default function HomePage() {
       sessionReward,
       onDismissSessionReward: () => setSessionReward(null),
       getStreakTierColorTheme,
-      currentTierColor: visibleBandanaColor,
+      currentTierColor: shellTierColor,
       isPro,
       photoUrl: currentUserPhotoUrl,
       xpPops,
@@ -3412,19 +3418,19 @@ export default function HomePage() {
       profileSheetProps: {
         open: profileOpen,
         onClose: () => setProfileOpen(false),
-        tierColor: visibleBandanaColor,
+        tierColor: shellTierColor,
         isPro,
         photoUrl: currentUserPhotoUrl,
         profileDisplayName,
-        identityLine: streakProfilePresentation.identityLine,
+        identityLine: shellIdentityLine,
         nextPlannedBlock,
         normalizeTimeLabel,
-        currentStreakLabel: streakProfilePresentation.currentStreakLabel,
-        longestStreakLabel: streakProfilePresentation.longestStreakLabel,
+        currentStreakLabel: shellCurrentStreakLabel,
+        longestStreakLabel: shellLongestStreakLabel,
         lifetimeFocusMinutes,
         sessionsCount: sessions.length,
-        nextAscentTitle: streakProfilePresentation.nextAscentTitle,
-        nextAscentBody: streakProfilePresentation.nextAscentBody,
+        nextAscentTitle: shellNextAscentTitle,
+        nextAscentBody: shellNextAscentBody,
         onOpenStreaks: () => {
           setProfileOpen(false);
           setActiveTab("streaks");
@@ -3516,7 +3522,7 @@ export default function HomePage() {
         headerIcon: (
           <DailyRitualWaveIcon
             className={styles.dailyRitualCornerIconImage}
-            tierColor={visibleBandanaColor}
+            tierColor={shellTierColor}
           />
         ),
         submitDecoration: (
@@ -3577,7 +3583,7 @@ export default function HomePage() {
         streakNudge,
         onDismissStreakNudge: () => setStreakNudge(null),
         onStreakNudgeAction: handleStreakNudgeAction,
-        currentTierColor: visibleBandanaColor,
+        currentTierColor: shellTierColor,
         isPro,
         photoUrl: currentUserPhotoUrl,
         nextBandanaMilestone,
@@ -3727,11 +3733,11 @@ export default function HomePage() {
       streakSaveQuestionnaireOpen,
       streakSaveQuestionnairePreview,
       streakSaveStatus,
-      streakProfilePresentation.currentStreakLabel,
-      streakProfilePresentation.identityLine,
-      streakProfilePresentation.longestStreakLabel,
-      streakProfilePresentation.nextAscentBody,
-      streakProfilePresentation.nextAscentTitle,
+      shellCurrentStreakLabel,
+      shellIdentityLine,
+      shellLongestStreakLabel,
+      shellNextAscentBody,
+      shellNextAscentTitle,
       submitDailyRitual,
       subscriptionStatus,
       themeMode,
@@ -3918,7 +3924,7 @@ export default function HomePage() {
         dailyCap={lifetimeXpSummary.dailyCap}
         formattedLifetimeXp={formattedLifetimeXp}
         formattedXpToNextLevel={formattedXpToNextLevel}
-        tierColor={visibleBandanaColor}
+        tierColor={shellTierColor}
         isPro={isPro}
         photoUrl={currentUserPhotoUrl}
         isMobileViewport={isMobileViewport}

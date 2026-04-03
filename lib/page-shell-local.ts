@@ -1,4 +1,6 @@
 import { getCalendarToneMeta, type CalendarTone } from "@/lib/calendar-tones";
+import type { StreakLedgerEntry } from "@/lib/streak-ledger";
+import type { LifetimeXpSummary } from "@/lib/xp-engine";
 
 function plannedBlocksStorageKey(uid: string) {
   return `whelm:planned-focus:${uid}`;
@@ -28,6 +30,18 @@ function sickDaySaveDismissalsStorageKey(uid: string) {
   return `whelm:sick-day-save-dismissals:${uid}`;
 }
 
+function streakSnapshotStorageKey(uid: string) {
+  return `whelm:streak-snapshot:${uid}`;
+}
+
+export type LocalStreakSnapshot = {
+  streak: number;
+  qualifiedDateKeys: string[];
+  dailyRecords: StreakLedgerEntry[];
+  lifetimeXpSummary: LifetimeXpSummary;
+  updatedAtISO: string;
+};
+
 export function clearLocalAccountData(uid: string) {
   try {
     window.localStorage.removeItem(`whelm:notes:${uid}`);
@@ -40,9 +54,32 @@ export function clearLocalAccountData(uid: string) {
     window.localStorage.removeItem(streakMirrorStorageKey(uid));
     window.localStorage.removeItem(sickDaySaveStorageKey(uid));
     window.localStorage.removeItem(sickDaySaveDismissalsStorageKey(uid));
+    window.localStorage.removeItem(streakSnapshotStorageKey(uid));
     window.localStorage.removeItem("whelm-pro-state-v1");
   } catch {
     // Ignore storage cleanup failures in private / constrained webviews.
+  }
+}
+
+export function loadLocalStreakSnapshot(uid: string): LocalStreakSnapshot | null {
+  try {
+    const raw = window.localStorage.getItem(streakSnapshotStorageKey(uid));
+    const parsed = raw ? (JSON.parse(raw) as LocalStreakSnapshot) : null;
+    if (!parsed) return null;
+    if (!Array.isArray(parsed.qualifiedDateKeys) || !Array.isArray(parsed.dailyRecords)) return null;
+    if (!parsed.lifetimeXpSummary || typeof parsed.lifetimeXpSummary.totalXp !== "number") return null;
+    if (typeof parsed.streak !== "number") return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export function saveLocalStreakSnapshot(uid: string, snapshot: LocalStreakSnapshot) {
+  try {
+    window.localStorage.setItem(streakSnapshotStorageKey(uid), JSON.stringify(snapshot));
+  } catch {
+    // Ignore storage failures in private / constrained webviews.
   }
 }
 

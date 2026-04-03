@@ -210,6 +210,11 @@ export function useWhelmNotifications({
   const [notificationBusy, setNotificationBusy] = useState(false);
   const webTimeoutsRef = useRef<number[]>([]);
   const previousUidRef = useRef<string | null>(null);
+  const notificationStatusRef = useRef("");
+
+  useEffect(() => {
+    notificationStatusRef.current = notificationStatus;
+  }, [notificationStatus]);
 
   const clearWebTimeouts = useCallback(() => {
     webTimeoutsRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
@@ -330,13 +335,17 @@ export function useWhelmNotifications({
     if (!user) return;
     if (!normalizedSettings.enabled) {
       await clearScheduledNotifications();
-      setNotificationStatus("Whelm notifications are off.");
+      if (notificationStatusRef.current !== "Whelm notifications are off.") {
+        setNotificationStatus("Whelm notifications are off.");
+      }
       return;
     }
 
     if (permissionState !== "granted") {
       await clearScheduledNotifications();
-      setNotificationStatus("Enable notification permission to let Whelm reach you.");
+      if (notificationStatusRef.current !== "Enable notification permission to let Whelm reach you.") {
+        setNotificationStatus("Enable notification permission to let Whelm reach you.");
+      }
       return;
     }
 
@@ -348,7 +357,9 @@ export function useWhelmNotifications({
     await clearScheduledNotifications();
 
     if (!notificationSchedulePlan.payloads.length) {
-      setNotificationStatus("No Whelm notifications are queued right now.");
+      if (notificationStatusRef.current !== "No Whelm notifications are queued right now.") {
+        setNotificationStatus("No Whelm notifications are queued right now.");
+      }
       return;
     }
 
@@ -380,11 +391,12 @@ export function useWhelmNotifications({
       signature: notificationSchedulePlan.signature,
       ids: notificationSchedulePlan.payloads.map((payload) => payload.id),
     });
-    setNotificationStatus(
-      `${notificationSchedulePlan.payloads.length} Whelm notification${
-        notificationSchedulePlan.payloads.length === 1 ? "" : "s"
-      } queued.`,
-    );
+    const nextStatus = `${notificationSchedulePlan.payloads.length} Whelm notification${
+      notificationSchedulePlan.payloads.length === 1 ? "" : "s"
+    } queued.`;
+    if (notificationStatusRef.current !== nextStatus) {
+      setNotificationStatus(nextStatus);
+    }
   }, [
     clearScheduledNotifications,
     deliveryMode,

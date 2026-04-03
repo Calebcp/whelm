@@ -100,15 +100,27 @@ function writeLocalBlocks(uid: string, blocks: PlannedBlockDoc[]) {
 export function mergeBlocksPreferNewest(localBlocks: PlannedBlockDoc[], cloudBlocks: PlannedBlockDoc[]) {
   const merged = new Map<string, PlannedBlockDoc>();
 
+  const preferBlock = (current: PlannedBlockDoc | undefined, candidate: PlannedBlockDoc) => {
+    if (!current) return candidate;
+
+    const currentCompleted = current.status === "completed" && Boolean(current.completedAtISO);
+    const candidateCompleted = candidate.status === "completed" && Boolean(candidate.completedAtISO);
+
+    // Never let a stale local active copy erase a completed block that already
+    // exists in cloud history. Completed status is streak evidence, not just UI.
+    if (currentCompleted !== candidateCompleted) {
+      return candidateCompleted ? candidate : current;
+    }
+
+    return current.updatedAtISO < candidate.updatedAtISO ? candidate : current;
+  };
+
   for (const block of cloudBlocks) {
-    merged.set(block.id, block);
+    merged.set(block.id, preferBlock(merged.get(block.id), block));
   }
 
   for (const block of localBlocks) {
-    const existing = merged.get(block.id);
-    if (!existing || existing.updatedAtISO < block.updatedAtISO) {
-      merged.set(block.id, block);
-    }
+    merged.set(block.id, preferBlock(merged.get(block.id), block));
   }
 
   return normalizeBlocks([...merged.values()]);

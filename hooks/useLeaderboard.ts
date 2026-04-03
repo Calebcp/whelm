@@ -12,6 +12,11 @@ import {
 import type { AppTab } from "@/lib/app-tabs";
 import { resolveApiUrl } from "@/lib/api-base";
 import {
+  adoptCanonicalLeaderboardSelf,
+  buildCanonicalLeaderboardSelf,
+} from "@/lib/leaderboard-record";
+import { canSyncLeaderboardProfile } from "@/lib/leaderboard-sync";
+import {
   type LeaderboardBandanaHolder as RemoteLeaderboardBandanaHolder,
   type LeaderboardMetric,
   type LeaderboardPageResponse,
@@ -70,6 +75,7 @@ type UseLeaderboardOptions = {
   historicalStreaksByDay: Map<string, number>;
   sessions: SessionDoc[];
   sessionsSynced: boolean;
+  streakIsProvisional: boolean;
   weeklyXp: number;
 };
 
@@ -195,6 +201,7 @@ export function useLeaderboard({
   historicalStreaksByDay,
   sessions,
   sessionsSynced,
+  streakIsProvisional,
   weeklyXp,
 }: UseLeaderboardOptions) {
   const [leaderboardMetricTab, setLeaderboardMetricTab] = useState<LeaderboardMetricTab>("xp");
@@ -224,6 +231,31 @@ export function useLeaderboard({
     () => Math.round(sessions.reduce((sum, session) => sum + session.minutes, 0) / 60),
     [sessions],
   );
+  const canonicalCurrentUserEntry = useMemo(
+    () =>
+      buildCanonicalLeaderboardSelf({
+        currentUserId,
+        currentUserPhotoUrl,
+        currentUserCreatedAtISO,
+        profileDisplayName,
+        displayStreak,
+        isPro,
+        lifetimeXpSummary,
+        myBestStreak,
+        myTotalFocusHours,
+      }),
+    [
+      currentUserCreatedAtISO,
+      currentUserId,
+      currentUserPhotoUrl,
+      displayStreak,
+      isPro,
+      lifetimeXpSummary,
+      myBestStreak,
+      myTotalFocusHours,
+      profileDisplayName,
+    ],
+  );
 
   const leaderboardEntries = useMemo<LeaderboardEntry[]>(() => {
     const seeded = LEADERBOARD_SEED_DATA.map((entry) => ({
@@ -235,32 +267,9 @@ export function useLeaderboard({
       level: getLifetimeXpSummary(entry.totalXp, 0).currentLevel,
     }));
 
-    const currentEntry: LeaderboardEntry = {
-      id: currentUserId,
-      username: profileDisplayName,
-      createdAtISO: currentUserCreatedAtISO,
-      level: lifetimeXpSummary.currentLevel,
-      totalXp: lifetimeXpSummary.totalXp,
-      currentStreak: displayStreak,
-      bestStreak: myBestStreak,
-      totalFocusHours: myTotalFocusHours,
-      avatarUrl: currentUserPhotoUrl,
-      isProStyle: isPro,
-      isCurrentUser: true,
-    };
-
-    return [...seeded, currentEntry];
+    return [...seeded, canonicalCurrentUserEntry];
   }, [
-    currentUserCreatedAtISO,
-    currentUserId,
-    currentUserPhotoUrl,
-    displayStreak,
-    isPro,
-    lifetimeXpSummary.currentLevel,
-    lifetimeXpSummary.totalXp,
-    myBestStreak,
-    myTotalFocusHours,
-    profileDisplayName,
+    canonicalCurrentUserEntry,
   ]);
 
   const leaderboardPreviousSnapshotEntries = useMemo<LeaderboardEntry[]>(() => {
@@ -338,19 +347,22 @@ export function useLeaderboard({
             ? movementForRanks(entry.rank, previousRank)
             : movementFromSnapshot(entry);
         return {
-          entry: {
-            id: entry.userId,
-            username: isMe ? profileDisplayName : entry.username,
-            createdAtISO: entry.createdAtISO,
-            totalXp: isMe ? lifetimeXpSummary.totalXp : entry.totalXp,
-            currentStreak: isMe ? displayStreak : entry.currentStreak,
-            level: isMe ? lifetimeXpSummary.currentLevel : entry.level,
-            bestStreak: isMe ? myBestStreak : (entry.bestStreak ?? 0),
-            totalFocusHours: isMe ? myTotalFocusHours : (entry.totalFocusHours ?? 0),
-            avatarUrl: isMe ? currentUserPhotoUrl : null,
-            isProStyle: isMe ? isPro : false,
-            isCurrentUser: isMe,
-          },
+          entry: adoptCanonicalLeaderboardSelf(
+            {
+              id: entry.userId,
+              username: isMe ? profileDisplayName : entry.username,
+              createdAtISO: entry.createdAtISO,
+              totalXp: isMe ? lifetimeXpSummary.totalXp : entry.totalXp,
+              currentStreak: isMe ? displayStreak : entry.currentStreak,
+              level: isMe ? lifetimeXpSummary.currentLevel : entry.level,
+              bestStreak: isMe ? myBestStreak : (entry.bestStreak ?? 0),
+              totalFocusHours: isMe ? myTotalFocusHours : (entry.totalFocusHours ?? 0),
+              avatarUrl: isMe ? currentUserPhotoUrl : null,
+              isProStyle: isMe ? isPro : false,
+              isCurrentUser: isMe,
+            },
+            canonicalCurrentUserEntry,
+          ),
           rank: entry.rank,
           movement: resolvePersistentMovement(currentMovement, cachedMovementById.get(entry.userId)),
         };
@@ -358,6 +370,7 @@ export function useLeaderboard({
     [
       cachedMovementById,
       cachedPreviousRanks,
+      canonicalCurrentUserEntry,
       currentUserId,
       currentUserPhotoUrl,
       displayStreak,
@@ -381,19 +394,22 @@ export function useLeaderboard({
             ? movementForRanks(entry.rank, previousRank)
             : movementFromSnapshot(entry);
         return {
-          entry: {
-            id: entry.userId,
-            username: isMe ? profileDisplayName : entry.username,
-            createdAtISO: entry.createdAtISO,
-            totalXp: isMe ? lifetimeXpSummary.totalXp : entry.totalXp,
-            currentStreak: isMe ? displayStreak : entry.currentStreak,
-            level: isMe ? lifetimeXpSummary.currentLevel : entry.level,
-            bestStreak: isMe ? myBestStreak : (entry.bestStreak ?? 0),
-            totalFocusHours: isMe ? myTotalFocusHours : (entry.totalFocusHours ?? 0),
-            avatarUrl: isMe ? currentUserPhotoUrl : null,
-            isProStyle: isMe ? isPro : false,
-            isCurrentUser: isMe,
-          },
+          entry: adoptCanonicalLeaderboardSelf(
+            {
+              id: entry.userId,
+              username: isMe ? profileDisplayName : entry.username,
+              createdAtISO: entry.createdAtISO,
+              totalXp: isMe ? lifetimeXpSummary.totalXp : entry.totalXp,
+              currentStreak: isMe ? displayStreak : entry.currentStreak,
+              level: isMe ? lifetimeXpSummary.currentLevel : entry.level,
+              bestStreak: isMe ? myBestStreak : (entry.bestStreak ?? 0),
+              totalFocusHours: isMe ? myTotalFocusHours : (entry.totalFocusHours ?? 0),
+              avatarUrl: isMe ? currentUserPhotoUrl : null,
+              isProStyle: isMe ? isPro : false,
+              isCurrentUser: isMe,
+            },
+            canonicalCurrentUserEntry,
+          ),
           rank: entry.rank,
           movement: resolvePersistentMovement(currentMovement, cachedMovementById.get(entry.userId)),
         };
@@ -401,6 +417,7 @@ export function useLeaderboard({
     [
       cachedMovementById,
       cachedPreviousRanks,
+      canonicalCurrentUserEntry,
       currentUserId,
       currentUserPhotoUrl,
       displayStreak,
@@ -440,19 +457,22 @@ export function useLeaderboard({
         color: holder.color,
         label: holder.label,
         entry: holder.entry
-          ? {
-              id: holder.entry.userId,
-              username: holder.entry.username,
-              createdAtISO: holder.entry.createdAtISO,
-              totalXp: holder.entry.totalXp,
-              currentStreak: holder.entry.currentStreak,
-              level: holder.entry.level,
-              bestStreak: holder.entry.bestStreak,
-              totalFocusHours: holder.entry.totalFocusHours,
-              avatarUrl: holder.entry.userId === currentUserId ? currentUserPhotoUrl : null,
-              isProStyle: holder.entry.userId === currentUserId ? isPro : false,
-              isCurrentUser: holder.entry.userId === currentUserId,
-            }
+          ? adoptCanonicalLeaderboardSelf(
+              {
+                id: holder.entry.userId,
+                username: holder.entry.userId === currentUserId ? profileDisplayName : holder.entry.username,
+                createdAtISO: holder.entry.createdAtISO,
+                totalXp: holder.entry.userId === currentUserId ? lifetimeXpSummary.totalXp : holder.entry.totalXp,
+                currentStreak: holder.entry.userId === currentUserId ? displayStreak : holder.entry.currentStreak,
+                level: holder.entry.userId === currentUserId ? lifetimeXpSummary.currentLevel : holder.entry.level,
+                bestStreak: holder.entry.userId === currentUserId ? myBestStreak : holder.entry.bestStreak,
+                totalFocusHours: holder.entry.userId === currentUserId ? myTotalFocusHours : holder.entry.totalFocusHours,
+                avatarUrl: holder.entry.userId === currentUserId ? currentUserPhotoUrl : null,
+                isProStyle: holder.entry.userId === currentUserId ? isPro : false,
+                isCurrentUser: holder.entry.userId === currentUserId,
+              },
+              canonicalCurrentUserEntry,
+            )
           : null,
       }));
     }
@@ -489,6 +509,7 @@ export function useLeaderboard({
   }, [
     currentUserId,
     currentUserPhotoUrl,
+    canonicalCurrentUserEntry,
     displayStreak,
     isPro,
     leaderboardEntries,
@@ -608,7 +629,7 @@ export function useLeaderboard({
 
   useEffect(() => {
     const currentUser = user;
-    if (!currentUser || !sessionsSynced) return;
+    if (!currentUser || !canSyncLeaderboardProfile({ sessionsSynced, streakIsProvisional })) return;
     const authedUser = currentUser;
 
     const controller = new AbortController();
@@ -653,6 +674,7 @@ export function useLeaderboard({
     return () => controller.abort();
   }, [
     sessionsSynced,
+    streakIsProvisional,
     displayStreak,
     lifetimeXpSummary.currentLevel,
     lifetimeXpSummary.totalXp,

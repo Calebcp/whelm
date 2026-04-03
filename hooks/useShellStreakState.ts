@@ -3,6 +3,8 @@
 import { useMemo } from "react";
 
 import { useStreak } from "@/hooks/useStreak";
+import { buildStreakLedger } from "@/lib/streak-ledger";
+import type { ShellStreakSummaryBase } from "@/lib/streak-record";
 import { getWhelmStreakSaveMonthlyLimit } from "@/lib/whelm-plans";
 import type { WhelBandanaColor } from "@/lib/whelm-mascot";
 import type { LifetimeXpSummary } from "@/lib/xp-engine";
@@ -23,6 +25,7 @@ export function useShellStreakState({
   sickDaySaveDismissals,
   lifetimeXpSummary,
   bandanaColor,
+  streakIsProvisional,
 }: {
   isPro: boolean;
   streak: number;
@@ -34,6 +37,7 @@ export function useShellStreakState({
   sickDaySaveDismissals: string[];
   lifetimeXpSummary: LifetimeXpSummary;
   bandanaColor: WhelBandanaColor;
+  streakIsProvisional: boolean;
 }) {
   const streakState = useStreak({
     isPro,
@@ -57,9 +61,48 @@ export function useShellStreakState({
     [isPro],
   );
 
+  const streakSummaryBase = useMemo<ShellStreakSummaryBase>(
+    () => ({
+      isReady: !streakIsProvisional,
+      visibleBandanaColor,
+      streakBandanaLabel: streakState.streakBandanaTier?.label ?? null,
+      displayStreak: streakState.displayStreak,
+      longestStreak: streakState.longestStreak,
+      nextBandanaMilestone: streakState.nextBandanaMilestone,
+    }),
+    [
+      streakIsProvisional,
+      visibleBandanaColor,
+      streakState.displayStreak,
+      streakState.longestStreak,
+      streakState.nextBandanaMilestone,
+      streakState.streakBandanaTier?.label,
+    ],
+  );
+
+  const streakDailyRecords = useMemo(
+    () =>
+      buildStreakLedger({
+        sessionMinutesByDay,
+        completedBlocksByDay,
+        noteWordsByDay,
+        protectedStreakDateKeys: sickDaySaves.map((save) => save.dateKey),
+        todayKey: streakState.todayKey,
+      }),
+    [
+      completedBlocksByDay,
+      noteWordsByDay,
+      sessionMinutesByDay,
+      sickDaySaves,
+      streakState.todayKey,
+    ],
+  );
+
   return {
     ...streakState,
     visibleBandanaColor,
     streakSaveMonthlyLimit,
+    streakSummaryBase,
+    streakDailyRecords,
   };
 }

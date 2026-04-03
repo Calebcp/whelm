@@ -16,6 +16,11 @@ import { trackAppOpened } from "@/lib/analytics-tracker";
 import { dayKeyLocal } from "@/lib/date-utils";
 import { logClientRuntime } from "@/lib/client-runtime";
 import {
+  loadLocalStreakSnapshot,
+  saveLocalStreakSnapshot,
+  type LocalStreakSnapshot,
+} from "@/lib/page-shell-local";
+import {
   buildSessionMinutesByDayForStreakLedger,
   buildStreakLedger,
   inferCompletedBlocksByDayFromSessions,
@@ -78,6 +83,8 @@ export function useUserData({
   const appOpenTrackedRef = useRef<string | null>(null);
   const sessionsSyncInFlightRef = useRef(false);
   const sessionsRef = useRef<SessionDoc[]>([]);
+  const [persistedStreakSnapshot, setPersistedStreakSnapshot] = useState<LocalStreakSnapshot | null>(null);
+  const persistedSnapshotSignatureRef = useRef<string | null>(null);
 
   // ── XP/streak animation state ──────────────────────────────────────────────
   const [xpPops, setXpPops] = useState<XPPop[]>([]);
@@ -141,10 +148,12 @@ export function useUserData({
         console.info("[whelm:auth] signed out", { online: typeof navigator !== "undefined" ? navigator.onLine : undefined });
         appOpenTrackedRef.current = null;
         sessionsSyncedRef.current = false;
-        setSessionsSynced(false);
-        setUser(null);
+      setSessionsSynced(false);
+      setUser(null);
         sessionsRef.current = [];
         setSessions([]);
+        setPersistedStreakSnapshot(null);
+        persistedSnapshotSignatureRef.current = null;
         if (authReadyRef.current) {
           setAuthChecked(true);
         }
@@ -175,6 +184,15 @@ export function useUserData({
           setSessions(local);
         }
       } catch { /* ignore */ }
+      const nextSnapshot = loadLocalStreakSnapshot(nextUser.uid);
+      persistedSnapshotSignatureRef.current = nextSnapshot
+        ? JSON.stringify({
+            streak: nextSnapshot.streak,
+            qualifiedDateKeys: nextSnapshot.qualifiedDateKeys,
+            totalXp: nextSnapshot.lifetimeXpSummary.totalXp,
+          })
+        : null;
+      setPersistedStreakSnapshot(nextSnapshot);
 
       // Kick off the Firestore sync (localStorage→Firestore merge).
       // Mark sync done when it resolves so onSnapshot callbacks take over.
@@ -273,19 +291,29 @@ export function useUserData({
     () =>
       resolveHydratedStreak({
       computedStreak: computeStreak([], streakQualifiedDateKeys),
-      lastGoodStreak: lastGoodStreakRef.current,
+      lastGoodStreak: Math.max(lastGoodStreakRef.current, persistedStreakSnapshot?.streak ?? 0),
       sessionsSynced,
       plannedBlocksHydrated,
       notesHydrated,
     }),
-    [notesHydrated, plannedBlocksHydrated, sessionsSynced, streakQualifiedDateKeys],
+    [notesHydrated, persistedStreakSnapshot?.streak, plannedBlocksHydrated, sessionsSynced, streakQualifiedDateKeys],
   );
 
   useEffect(() => {
     lastGoodStreakRef.current = hydratedStreak.nextLastGoodStreak;
   }, [hydratedStreak.nextLastGoodStreak]);
 
-  const streak = hydratedStreak.streak;
+  const effectiveStreakQualifiedDateKeys = useMemo(
+    () =>
+      hydratedStreak.isProvisional && persistedStreakSnapshot
+        ? persistedStreakSnapshot.qualifiedDateKeys
+        : streakQualifiedDateKeys,
+    [hydratedStreak.isProvisional, persistedStreakSnapshot, streakQualifiedDateKeys],
+  );
+
+  const streak = hydratedStreak.isProvisional && persistedStreakSnapshot
+    ? persistedStreakSnapshot.streak
+    : hydratedStreak.streak;
   const streakIsProvisional = hydratedStreak.isProvisional;
 
   const bandanaColor = bandanaColorFromStreak(streak);
@@ -304,7 +332,7 @@ export function useUserData({
           sessionMinutesByDay,
           completedBlocksByDay: effectiveCompletedBlocksByDay,
           noteWordsByDay,
-          streakQualifiedDateKeys,
+          streakQualifiedDateKeys: effectiveStreakQualifiedDateKeys,
         }),
       );
   }, [
@@ -312,7 +340,7 @@ export function useUserData({
     noteWordsByDay,
     sessionMinutesByDay,
     streakLedger,
-    streakQualifiedDateKeys,
+    effectiveStreakQualifiedDateKeys,
   ]);
 
   const weeklyXp = useMemo(() => {
@@ -337,11 +365,41 @@ export function useUserData({
       lastGoodLifetimeXpRef.current = summary;
       return summary;
     }
+    if (persistedStreakSnapshot?.lifetimeXpSummary && !sessionsSyncedRef.current) {
+      return persistedStreakSnapshot.lifetimeXpSummary;
+    }
     if (!sessionsSyncedRef.current && lastGoodLifetimeXpRef.current) {
       return lastGoodLifetimeXpRef.current;
     }
     return summary;
-  }, [xpByDay, sessionsSyncedRef]);
+  }, [persistedStreakSnapshot, xpByDay, sessionsSyncedRef]);
+
+  useEffect(() => {
+    if (!user || streakIsProvisional) return;
+    const snapshot: LocalStreakSnapshot = {
+      streak,
+      qualifiedDateKeys: streakQualifiedDateKeys,
+      dailyRecords: streakLedger,
+      lifetimeXpSummary,
+      updatedAtISO: new Date().toISOString(),
+    };
+    const signature = JSON.stringify({
+      streak: snapshot.streak,
+      qualifiedDateKeys: snapshot.qualifiedDateKeys,
+      totalXp: snapshot.lifetimeXpSummary.totalXp,
+    });
+    if (persistedSnapshotSignatureRef.current === signature) return;
+    saveLocalStreakSnapshot(user.uid, snapshot);
+    persistedSnapshotSignatureRef.current = signature;
+    setPersistedStreakSnapshot(snapshot);
+  }, [
+    lifetimeXpSummary,
+    streak,
+    streakIsProvisional,
+    streakLedger,
+    streakQualifiedDateKeys,
+    user,
+  ]);
 
   // ── Profile display ────────────────────────────────────────────────────────
 
@@ -369,7 +427,7 @@ export function useUserData({
     setSessions,
     // Streak
     sessionMinutesByDay,
-    streakQualifiedDateKeys,
+    streakQualifiedDateKeys: effectiveStreakQualifiedDateKeys,
     streak,
     streakIsProvisional,
     bandanaColor,
