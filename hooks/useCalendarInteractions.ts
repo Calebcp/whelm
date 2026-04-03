@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useEffect, useMemo, useRef, type Dispatch, type SetStateAction } from "react";
 import type { User } from "firebase/auth";
 
 import { type CalendarTone, type PlannedBlock } from "@/hooks/usePlannedBlocks";
@@ -117,29 +117,29 @@ export function useCalendarInteractions<
     return dayViewTimelineItems.find((entry) => entry.id === overlapPickerEntryId) ?? null;
   }, [calendarView, dayViewTimelineItems, overlapPickerEntryId]);
 
-  function clearCalendarHoverPreviewDelay() {
+  const clearCalendarHoverPreviewDelay = useCallback(() => {
     if (calendarHoverPreviewTimeoutRef.current !== null) {
       window.clearTimeout(calendarHoverPreviewTimeoutRef.current);
       calendarHoverPreviewTimeoutRef.current = null;
     }
-  }
+  }, []);
 
-  function showCalendarHoverPreview(entryId: string) {
+  const showCalendarHoverPreview = useCallback((entryId: string) => {
     if (isMobileViewport || calendarPinnedEntryId) return;
     clearCalendarHoverPreviewDelay();
     setCalendarHoverEntryId(entryId);
-  }
+  }, [calendarPinnedEntryId, clearCalendarHoverPreviewDelay, isMobileViewport, setCalendarHoverEntryId]);
 
-  function scheduleCalendarHoverPreviewClear(entryId?: string) {
+  const scheduleCalendarHoverPreviewClear = useCallback((entryId?: string) => {
     if (isMobileViewport || calendarPinnedEntryId) return;
     clearCalendarHoverPreviewDelay();
     calendarHoverPreviewTimeoutRef.current = window.setTimeout(() => {
       setCalendarHoverEntryId((current) => (entryId && current !== entryId ? current : null));
       calendarHoverPreviewTimeoutRef.current = null;
     }, 120);
-  }
+  }, [calendarPinnedEntryId, clearCalendarHoverPreviewDelay, isMobileViewport, setCalendarHoverEntryId]);
 
-  function jumpToCalendarSection(sectionId: string) {
+  const jumpToCalendarSection = useCallback((sectionId: string) => {
     if (sectionId === "calendar-planner" && calendarView === "day") {
       openCalendarBlockComposer();
       sectionId = "calendar-day-chamber";
@@ -147,17 +147,17 @@ export function useCalendarInteractions<
     const target = document.getElementById(sectionId);
     if (!target) return;
     target.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
+  }, [calendarView, openCalendarBlockComposer]);
 
-  function openPlannedBlockDetail(blockId: string) {
+  const openPlannedBlockDetail = useCallback((blockId: string) => {
     setSelectedPlanDetailId(blockId);
-  }
+  }, [setSelectedPlanDetailId]);
 
-  function closePlannedBlockDetail() {
+  const closePlannedBlockDetail = useCallback(() => {
     setSelectedPlanDetailId(null);
-  }
+  }, [setSelectedPlanDetailId]);
 
-  function applyDayTone(dateKey: string, tone: CalendarTone | null) {
+  const applyDayTone = useCallback((dateKey: string, tone: CalendarTone | null) => {
     if (!user || !isPro) return;
     const next = { ...dayTones };
     if (tone) {
@@ -167,9 +167,9 @@ export function useCalendarInteractions<
     }
     setDayTones(next);
     persistDayTones(user.uid, next);
-  }
+  }, [dayTones, isPro, persistDayTones, setDayTones, user]);
 
-  function applyMonthTone(monthKey: string, tone: CalendarTone | null) {
+  const applyMonthTone = useCallback((monthKey: string, tone: CalendarTone | null) => {
     if (!user || !isPro) return;
     const next = { ...monthTones };
     if (tone) {
@@ -179,7 +179,7 @@ export function useCalendarInteractions<
     }
     setMonthTones(next);
     persistMonthTones(user.uid, next);
-  }
+  }, [isPro, monthTones, persistMonthTones, setMonthTones, user]);
 
   useEffect(() => {
     if (

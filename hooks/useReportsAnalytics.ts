@@ -131,35 +131,61 @@ export function useReportsAnalytics({
     return dayKeyLocal(local);
   }
 
+  const noteReportStats = useMemo(() => {
+    let notesUpdated7d = 0;
+    let notesWithReminders = 0;
+    const now = Date.now();
+
+    for (const note of notes) {
+      if (note.reminderAtISO) {
+        notesWithReminders += 1;
+      }
+      const updatedAt = new Date(note.updatedAtISO).getTime();
+      if (!Number.isNaN(updatedAt) && now - updatedAt <= 7 * 24 * 60 * 60 * 1000) {
+        notesUpdated7d += 1;
+      }
+    }
+
+    return {
+      notesUpdated7d,
+      notesWithReminders,
+    };
+  }, [notes]);
+
   const reportMetrics = useMemo(() => {
     const sessionCount = sessions.length;
-    const totalMinutes = sessions.reduce((sum, session) => sum + session.minutes, 0);
+    let totalMinutes = 0;
+    let plannedCompletionCount = 0;
+    for (const session of sessions) {
+      totalMinutes += session.minutes;
+      if ((session.note || "").startsWith("Planned block completed:")) {
+        plannedCompletionCount += 1;
+      }
+    }
     const averageSession = sessionCount === 0 ? 0 : Math.round(totalMinutes / sessionCount);
-    const bestTrend = [...trendPoints].sort((a, b) => b.minutes - a.minutes)[0];
+    let bestTrendLabel = "N/A";
+    let bestTrendMinutes = 0;
+    for (const point of trendPoints) {
+      if (point.minutes > bestTrendMinutes) {
+        bestTrendMinutes = point.minutes;
+        bestTrendLabel = point.label;
+      }
+    }
     const weeklyTarget = 420;
     const weeklyProgress = Math.min(100, Math.round((focusMetrics.weekMinutes / weeklyTarget) * 100));
-    const plannedCompletionCount = sessions.filter((session) =>
-      (session.note || "").startsWith("Planned block completed:"),
-    ).length;
-    const notesUpdated7d = notes.filter((note) => {
-      const updated = new Date(note.updatedAtISO);
-      const now = new Date();
-      return now.getTime() - updated.getTime() <= 7 * 24 * 60 * 60 * 1000;
-    }).length;
-    const notesWithReminders = notes.filter((note) => Boolean(note.reminderAtISO)).length;
 
     return {
       sessionCount,
       totalMinutes,
       averageSession,
-      bestTrendLabel: bestTrend?.label ?? "N/A",
-      bestTrendMinutes: bestTrend?.minutes ?? 0,
+      bestTrendLabel,
+      bestTrendMinutes,
       weeklyProgress,
       plannedCompletionCount,
-      notesUpdated7d,
-      notesWithReminders,
+      notesUpdated7d: noteReportStats.notesUpdated7d,
+      notesWithReminders: noteReportStats.notesWithReminders,
     };
-  }, [focusMetrics.weekMinutes, notes, sessions, trendPoints]);
+  }, [focusMetrics.weekMinutes, noteReportStats.notesUpdated7d, noteReportStats.notesWithReminders, sessions, trendPoints]);
 
   const analyticsDateRange = useMemo(() => {
     const endDate = dayKeyLocal(new Date());
@@ -297,32 +323,45 @@ export function useReportsAnalytics({
     }
   }, [focusMetrics, streak, user]);
 
-  const maxAnalyticsScore = Math.max(100, ...analyticsScoreHistory.map((entry) => entry.score));
-  const analyticsScorePath = analyticsScoreHistory
-    .map((entry, index) => {
-      const x = (index / Math.max(1, analyticsScoreHistory.length - 1)) * 100;
-      const y = 100 - (entry.score / maxAnalyticsScore) * 100;
-      return `${x},${y}`;
-    })
-    .join(" ");
-  const analyticsTopHours = analyticsBestHours?.hours.slice(0, 4) ?? [];
-  const analyticsTopSubjects = analyticsWeeklySummary
-    ? (Object.entries(analyticsWeeklySummary.subjectBreakdown) as Array<
-        [
-          "language" | "school" | "work" | "general",
-          { focusMinutes: number; sessionsCompleted: number; tasksCompleted: number },
-        ]
-      >)
-        .map(([key, value]) => ({
-          key,
-          label: key === "general" ? "General" : key.charAt(0).toUpperCase() + key.slice(1),
-          ...value,
-        }))
-        .sort((a, b) => b.focusMinutes - a.focusMinutes)
-    : [];
-  const analyticsTopSubjectMinutes = Math.max(1, ...analyticsTopSubjects.map((subject) => subject.focusMinutes));
+  const analyticsPresentation = useMemo(() => {
+    const maxAnalyticsScore = Math.max(100, ...analyticsScoreHistory.map((entry) => entry.score));
+    const analyticsScorePath = analyticsScoreHistory
+      .map((entry, index) => {
+        const x = (index / Math.max(1, analyticsScoreHistory.length - 1)) * 100;
+        const y = 100 - (entry.score / maxAnalyticsScore) * 100;
+        return `${x},${y}`;
+      })
+      .join(" ");
+    const analyticsTopHours = analyticsBestHours?.hours.slice(0, 4) ?? [];
+    const analyticsTopSubjects = analyticsWeeklySummary
+      ? (Object.entries(analyticsWeeklySummary.subjectBreakdown) as Array<
+          [
+            "language" | "school" | "work" | "general",
+            { focusMinutes: number; sessionsCompleted: number; tasksCompleted: number },
+          ]
+        >)
+          .map(([key, value]) => ({
+            key,
+            label: key === "general" ? "General" : key.charAt(0).toUpperCase() + key.slice(1),
+            ...value,
+          }))
+          .sort((a, b) => b.focusMinutes - a.focusMinutes)
+      : [];
+    const analyticsTopSubjectMinutes = Math.max(
+      1,
+      ...analyticsTopSubjects.map((subject) => subject.focusMinutes),
+    );
+
+    return {
+      analyticsScorePath,
+      analyticsTopHours,
+      analyticsTopSubjects,
+      analyticsTopSubjectMinutes,
+    };
+  }, [analyticsBestHours, analyticsScoreHistory, analyticsWeeklySummary]);
   const analyticsLeadInsight = analyticsInsights[0] ?? null;
-  const analyticsLeadSubject = analyticsTopSubjects.find((subject) => subject.focusMinutes > 0) ?? null;
+  const analyticsLeadSubject =
+    analyticsPresentation.analyticsTopSubjects.find((subject) => subject.focusMinutes > 0) ?? null;
   const analyticsLeadNotification = analyticsNotificationPlan?.notifications[0] ?? null;
 
   return {
@@ -342,10 +381,10 @@ export function useReportsAnalytics({
     analyticsDateRange,
     analyticsNotificationPlan,
     copyWeeklyReport,
-    analyticsScorePath,
-    analyticsTopHours,
-    analyticsTopSubjects,
-    analyticsTopSubjectMinutes,
+    analyticsScorePath: analyticsPresentation.analyticsScorePath,
+    analyticsTopHours: analyticsPresentation.analyticsTopHours,
+    analyticsTopSubjects: analyticsPresentation.analyticsTopSubjects,
+    analyticsTopSubjectMinutes: analyticsPresentation.analyticsTopSubjectMinutes,
     analyticsLeadInsight,
     analyticsLeadSubject,
     analyticsLeadNotification,

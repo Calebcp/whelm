@@ -1,11 +1,12 @@
 "use client";
 
+import { memo } from "react";
 import { useRive } from "@rive-app/react-canvas";
 
 import styles from "@/app/page.module.css";
 import { getStreakBandanaAssetPath } from "@/lib/profile-tier";
 
-export default function XpBandanaLevelMark({
+const XpBandanaLevelMark = memo(function XpBandanaLevelMark({
   className,
   tierColor,
   level,
@@ -14,8 +15,6 @@ export default function XpBandanaLevelMark({
   tierColor: string | null | undefined;
   level: number;
 }) {
-  "use no memo";
-
   const { RiveComponent } = useRive({
     src: getStreakBandanaAssetPath(tierColor),
     autoplay: true,
@@ -27,4 +26,6 @@ export default function XpBandanaLevelMark({
       <span className={styles.xpBandanaLevelValue}>{level}</span>
     </div>
   );
-}
+});
+
+export default XpBandanaLevelMark;

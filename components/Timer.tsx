@@ -1,7 +1,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import styles from "./Timer.module.css";
 
 type TimerTheme = {
@@ -124,6 +124,283 @@ const TIMER_WHELM_ROTATION = [
   },
 ] as const;
 
+const TimerFacePanel = memo(function TimerFacePanel({
+  mode,
+  configuredMinutes,
+  running,
+  done,
+  submitting,
+  focusIdentity,
+  showTimerSettings,
+  entryModeLabel,
+  isPro,
+  timerFigure,
+  timerFaceLabel,
+  mm,
+  ss,
+  actionLabel,
+  sessionNoteCount,
+  showNotebookMenu,
+  canResume,
+  onSetMode,
+  onToggleTimerSettings,
+  onSetConfiguredMinutes,
+  onSetFocusIdentity,
+  onStartSession,
+  onPauseSession,
+  onHandleComplete,
+  onReset,
+  onOpenNotebookMenu,
+  onOpenNotebook,
+  onOpenSessionNotes,
+}: {
+  mode: "countdown" | "stopwatch";
+  configuredMinutes: number;
+  running: boolean;
+  done: boolean;
+  submitting: boolean;
+  focusIdentity: FocusIdentity;
+  showTimerSettings: boolean;
+  entryModeLabel: string | null;
+  isPro: boolean;
+  timerFigure: (typeof TIMER_WHELM_ROTATION)[number];
+  timerFaceLabel: string;
+  mm: number;
+  ss: number;
+  actionLabel: string;
+  sessionNoteCount: number;
+  showNotebookMenu: boolean;
+  canResume: boolean;
+  onSetMode: (mode: "countdown" | "stopwatch") => void;
+  onToggleTimerSettings: () => void;
+  onSetConfiguredMinutes: (minutes: number) => void;
+  onSetFocusIdentity: (identity: FocusIdentity) => void;
+  onStartSession: () => void;
+  onPauseSession: () => void;
+  onHandleComplete: () => void;
+  onReset: () => void;
+  onOpenNotebookMenu: () => void;
+  onOpenNotebook: () => void;
+  onOpenSessionNotes?: () => void;
+}) {
+  const identityTheme = FOCUS_IDENTITIES[focusIdentity];
+
+  return (
+    <>
+      <div className={styles.modeRow}>
+        <div className={styles.modeTabs}>
+          <button
+            type="button"
+            onClick={() => onSetMode("countdown")}
+            className={`${styles.modeTab} ${mode === "countdown" ? styles.modeTabActive : ""}`}
+          >
+            Countdown
+          </button>
+          <button
+            type="button"
+            onClick={() => onSetMode("stopwatch")}
+            className={`${styles.modeTab} ${mode === "stopwatch" ? styles.modeTabActive : ""}`}
+          >
+            Stopwatch
+          </button>
+        </div>
+      </div>
+
+      <div className={styles.timerFace} data-focus-mode={focusIdentity}>
+        <div className={styles.faceSettingsWrap}>
+          <button
+            type="button"
+            className={styles.faceSettingsButton}
+            onClick={onToggleTimerSettings}
+            disabled={running || submitting}
+            aria-label="Open timer settings"
+            aria-expanded={showTimerSettings}
+          >
+            <span />
+            <span />
+            <span />
+          </button>
+
+          {showTimerSettings && (
+            <div className={styles.faceSettingsMenu}>
+              {mode === "countdown" && (
+                <label className={styles.faceMinutesPicker}>
+                  <span>Minutes</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={480}
+                    value={configuredMinutes}
+                    onChange={(event) => {
+                      const next = Number(event.target.value);
+                      if (Number.isFinite(next)) {
+                        onSetConfiguredMinutes(Math.min(480, Math.max(1, next)));
+                      }
+                    }}
+                    disabled={running}
+                  />
+                </label>
+              )}
+
+              <div className={styles.faceIdentityGroup}>
+                <p className={styles.faceSettingsLabel}>Focus Mode</p>
+                <div className={styles.faceIdentityOptions}>
+                  {(
+                    Object.entries(FOCUS_IDENTITIES) as Array<
+                      [FocusIdentity, (typeof FOCUS_IDENTITIES)[FocusIdentity]]
+                    >
+                  ).map(([identityKey, identity]) => (
+                    <button
+                      key={identityKey}
+                      type="button"
+                      className={`${styles.settingsMenuButton} ${
+                        focusIdentity === identityKey ? styles.settingsMenuButtonActive : ""
+                      }`}
+                      onClick={() => onSetFocusIdentity(identityKey)}
+                    >
+                      <span>{identity.label}</span>
+                      {identity.descriptor ? <span>{identity.descriptor}</span> : null}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+        <div className={styles.faceAura} aria-hidden="true" />
+        <div className={styles.faceGrid} aria-hidden="true">
+          <span />
+          <span />
+          <span />
+        </div>
+        <div className={styles.faceHalo} aria-hidden="true" />
+        <div className={styles.ringTrack} aria-hidden="true" />
+        <div className={styles.ringProgress} aria-hidden="true" />
+        <div className={styles.ringPulse} aria-hidden="true" />
+        {entryModeLabel && (
+          <div className={styles.entryOverlay}>
+            <span className={styles.entryEyebrow}>Entering</span>
+            <strong className={styles.entryMode}>{entryModeLabel} mode</strong>
+          </div>
+        )}
+        <div className={styles.faceInner}>
+          <p className={styles.faceLabel}>{timerFaceLabel}</p>
+          <p className={styles.identityAnchor}>{identityTheme.entryLabel}</p>
+          <div className={styles.time}>
+            {String(mm).padStart(2, "0")}:{String(ss).padStart(2, "0")}
+          </div>
+          <div className={styles.faceWhelm}>
+            {isPro ? (
+              <div className={`${styles.faceWhelmFigure} ${running ? styles.faceWhelmFigurePulse : ""}`}>
+                <img src={timerFigure.src} alt={timerFigure.alt} className={styles.faceWhelmImage} />
+              </div>
+            ) : (
+              <div className={styles.faceWhelmFigure}>
+                <img src={timerFigure.src} alt={timerFigure.alt} className={styles.faceWhelmImage} />
+              </div>
+            )}
+          </div>
+          {!running && isPro ? (
+            <p className={styles.whelmRotationHint}>Every five minutes: a new Whelm stays with you.</p>
+          ) : null}
+        </div>
+        <div className={styles.faceDock}>
+          {!running && !done ? (
+            <button onClick={onStartSession} className={styles.faceDockPrimaryButton}>
+              {canResume ? "Resume" : "Start"}
+            </button>
+          ) : running ? (
+            <button onClick={onPauseSession} className={styles.faceDockPrimaryButton}>
+              Pause
+            </button>
+          ) : (
+            <button onClick={onHandleComplete} className={styles.faceDockPrimaryButton} disabled={submitting}>
+              {submitting ? "Saving..." : actionLabel}
+            </button>
+          )}
+
+          <button onClick={onReset} className={styles.faceDockButton}>
+            Reset
+          </button>
+
+          <div className={styles.faceDockNoteWrap}>
+            <button onClick={onOpenNotebookMenu} className={styles.faceDockButton} disabled={submitting}>
+              Session note
+              {sessionNoteCount > 0 && <span className={styles.faceDockBadge}>{sessionNoteCount}</span>}
+            </button>
+            {showNotebookMenu && (
+              <div className={styles.faceDockMenu}>
+                <button type="button" className={styles.faceDockMenuButton} onClick={onOpenNotebook}>
+                  New note
+                </button>
+                <button
+                  type="button"
+                  className={styles.faceDockMenuButton}
+                  onClick={onOpenSessionNotes}
+                >
+                  See notes
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+});
+
+const SessionNotebook = memo(function SessionNotebook({
+  done,
+  showNotebook,
+  note,
+  actionLabel,
+  submitting,
+  onSetNote,
+  onComplete,
+  onClose,
+}: {
+  done: boolean;
+  showNotebook: boolean;
+  note: string;
+  actionLabel: string;
+  submitting: boolean;
+  onSetNote: (value: string) => void;
+  onComplete: () => void;
+  onClose: () => void;
+}) {
+  if (!done && !showNotebook) {
+    return null;
+  }
+
+  return (
+    <div className={styles.notebook}>
+      <div className={styles.notebookHeader}>
+        <h3 className={styles.notebookTitle}>Session notebook</h3>
+        <p className={styles.notebookCopy}>
+          Write what this focus block was for. It will be saved with a timestamp.
+        </p>
+      </div>
+
+      <textarea
+        value={note}
+        onChange={(event) => onSetNote(event.target.value)}
+        placeholder="What did you work on? What mattered in this session?"
+        className={styles.notebookInput}
+        rows={4}
+      />
+
+      <div className={styles.notebookActions}>
+        <button onClick={onComplete} className={styles.completeButton} disabled={submitting}>
+          {submitting ? "Saving..." : actionLabel}
+        </button>
+        <button onClick={onClose} className={styles.secondaryButton} disabled={submitting}>
+          Keep editing later
+        </button>
+      </div>
+    </div>
+  );
+});
+
 export default function Timer({
   minutes = 30,
   title,
@@ -196,6 +473,14 @@ export default function Timer({
   const shouldPersistOnUnmountRef = useRef(true);
   const isRestoringPersistedTimerRef = useRef(false);
 
+  runningRef.current = running;
+  modeRef.current = mode;
+  configuredMinutesRef.current = configuredMinutes;
+  secondsLeftRef.current = secondsLeft;
+  secondsElapsedRef.current = secondsElapsed;
+  focusIdentityRef.current = focusIdentity;
+  noteRef.current = note;
+
   const identityTheme = FOCUS_IDENTITIES[focusIdentity];
 
   function clearPersistedTimer() {
@@ -225,34 +510,6 @@ export default function Timer({
       // Ignore storage failures.
     }
   }
-
-  useEffect(() => {
-    runningRef.current = running;
-  }, [running]);
-
-  useEffect(() => {
-    modeRef.current = mode;
-  }, [mode]);
-
-  useEffect(() => {
-    configuredMinutesRef.current = configuredMinutes;
-  }, [configuredMinutes]);
-
-  useEffect(() => {
-    secondsLeftRef.current = secondsLeft;
-  }, [secondsLeft]);
-
-  useEffect(() => {
-    secondsElapsedRef.current = secondsElapsed;
-  }, [secondsElapsed]);
-
-  useEffect(() => {
-    focusIdentityRef.current = focusIdentity;
-  }, [focusIdentity]);
-
-  useEffect(() => {
-    noteRef.current = note;
-  }, [note]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -514,6 +771,17 @@ export default function Timer({
     setShowNotebookMenu((current) => !current);
   }
 
+  function pauseSession() {
+    clearPersistedTimer();
+    setRunning(false);
+    if (sessionContextRef.current) {
+      sessionContextRef.current = {
+        ...sessionContextRef.current,
+        interruptionCount: sessionContextRef.current.interruptionCount + 1,
+      };
+    }
+  }
+
   function startSession() {
     if (!isOnline) {
       setPauseNotice("Timer works only while you are online.");
@@ -590,227 +858,57 @@ export default function Timer({
           )}
         </div>
       </div>
+      <TimerFacePanel
+        mode={mode}
+        configuredMinutes={configuredMinutes}
+        running={running}
+        done={done}
+        submitting={submitting}
+        focusIdentity={focusIdentity}
+        showTimerSettings={showTimerSettings}
+        entryModeLabel={entryModeLabel}
+        isPro={isPro}
+        timerFigure={timerFigure}
+        timerFaceLabel={timerFaceLabel}
+        mm={mm}
+        ss={ss}
+        actionLabel={actionLabel}
+        sessionNoteCount={sessionNoteCount}
+        showNotebookMenu={showNotebookMenu}
+        canResume={Boolean(sessionContextRef.current)}
+        onSetMode={setMode}
+        onToggleTimerSettings={() => setShowTimerSettings((current) => !current)}
+        onSetConfiguredMinutes={setConfiguredMinutes}
+        onSetFocusIdentity={(identity) => {
+          setFocusIdentity(identity);
+          setShowTimerSettings(false);
+        }}
+        onStartSession={startSession}
+        onPauseSession={pauseSession}
+        onHandleComplete={() => {
+          void handleComplete();
+        }}
+        onReset={reset}
+        onOpenNotebookMenu={openNotebookMenu}
+        onOpenNotebook={openNotebook}
+        onOpenSessionNotes={() => {
+          setShowNotebookMenu(false);
+          onOpenSessionNotes?.();
+        }}
+      />
 
-      <div className={styles.modeRow}>
-        <div className={styles.modeTabs}>
-          <button
-            type="button"
-            onClick={() => setMode("countdown")}
-            className={`${styles.modeTab} ${
-              mode === "countdown" ? styles.modeTabActive : ""
-            }`}
-          >
-            Countdown
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode("stopwatch")}
-            className={`${styles.modeTab} ${
-              mode === "stopwatch" ? styles.modeTabActive : ""
-            }`}
-          >
-            Stopwatch
-          </button>
-        </div>
-      </div>
-
-      <div className={styles.timerFace} data-focus-mode={focusIdentity}>
-        <div className={styles.faceSettingsWrap}>
-          <button
-            type="button"
-            className={styles.faceSettingsButton}
-            onClick={() => setShowTimerSettings((current) => !current)}
-            disabled={running || submitting}
-            aria-label="Open timer settings"
-            aria-expanded={showTimerSettings}
-          >
-            <span />
-            <span />
-            <span />
-          </button>
-
-          {showTimerSettings && (
-            <div className={styles.faceSettingsMenu}>
-              {mode === "countdown" && (
-                <label className={styles.faceMinutesPicker}>
-                  <span>Minutes</span>
-                  <input
-                    type="number"
-                    min={1}
-                    max={480}
-                    value={configuredMinutes}
-                    onChange={(event) => {
-                      const next = Number(event.target.value);
-                      if (Number.isFinite(next)) {
-                        setConfiguredMinutes(Math.min(480, Math.max(1, next)));
-                      }
-                    }}
-                    disabled={running}
-                  />
-                </label>
-              )}
-
-              <div className={styles.faceIdentityGroup}>
-                <p className={styles.faceSettingsLabel}>Focus Mode</p>
-                <div className={styles.faceIdentityOptions}>
-                  {(
-                    Object.entries(FOCUS_IDENTITIES) as Array<
-                      [FocusIdentity, (typeof FOCUS_IDENTITIES)[FocusIdentity]]
-                    >
-                  ).map(([identityKey, identity]) => (
-                    <button
-                      key={identityKey}
-                      type="button"
-                      className={`${styles.settingsMenuButton} ${
-                        focusIdentity === identityKey ? styles.settingsMenuButtonActive : ""
-                      }`}
-                      onClick={() => {
-                        setFocusIdentity(identityKey);
-                        setShowTimerSettings(false);
-                      }}
-                    >
-                      <span>{identity.label}</span>
-                      {identity.descriptor ? <span>{identity.descriptor}</span> : null}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-        <div className={styles.faceAura} aria-hidden="true" />
-        <div className={styles.faceGrid} aria-hidden="true">
-          <span />
-          <span />
-          <span />
-        </div>
-        <div className={styles.faceHalo} aria-hidden="true" />
-        <div className={styles.ringTrack} aria-hidden="true" />
-        <div className={styles.ringProgress} aria-hidden="true" />
-        <div className={styles.ringPulse} aria-hidden="true" />
-        {entryModeLabel && (
-          <div className={styles.entryOverlay}>
-            <span className={styles.entryEyebrow}>Entering</span>
-            <strong className={styles.entryMode}>{entryModeLabel} mode</strong>
-          </div>
-        )}
-        <div className={styles.faceInner}>
-          <p className={styles.faceLabel}>{timerFaceLabel}</p>
-          <p className={styles.identityAnchor}>{identityTheme.entryLabel}</p>
-          <div className={styles.time}>
-            {String(mm).padStart(2, "0")}:{String(ss).padStart(2, "0")}
-          </div>
-          <div className={styles.faceWhelm}>
-            {isPro ? (
-              <div className={`${styles.faceWhelmFigure} ${running ? styles.faceWhelmFigurePulse : ""}`}>
-                <img src={timerFigure.src} alt={timerFigure.alt} className={styles.faceWhelmImage} />
-              </div>
-            ) : (
-              <div className={styles.faceWhelmFigure}>
-                <img src={timerFigure.src} alt={timerFigure.alt} className={styles.faceWhelmImage} />
-              </div>
-            )}
-          </div>
-          {!running && isPro ? (
-            <p className={styles.whelmRotationHint}>Every five minutes: a new Whelm stays with you.</p>
-          ) : null}
-        </div>
-        <div className={styles.faceDock}>
-          {!running && !done ? (
-            <button onClick={startSession} className={styles.faceDockPrimaryButton}>
-              {sessionContextRef.current ? "Resume" : "Start"}
-            </button>
-          ) : running ? (
-            <button
-              onClick={() => {
-                clearPersistedTimer();
-                setRunning(false);
-                if (sessionContextRef.current) {
-                  sessionContextRef.current = {
-                    ...sessionContextRef.current,
-                    interruptionCount: sessionContextRef.current.interruptionCount + 1,
-                  };
-                }
-              }}
-              className={styles.faceDockPrimaryButton}
-            >
-              Pause
-            </button>
-          ) : (
-            <button onClick={handleComplete} className={styles.faceDockPrimaryButton} disabled={submitting}>
-              {submitting ? "Saving..." : actionLabel}
-            </button>
-          )}
-
-          <button onClick={reset} className={styles.faceDockButton}>
-            Reset
-          </button>
-
-          <div className={styles.faceDockNoteWrap}>
-            <button
-              onClick={openNotebookMenu}
-              className={styles.faceDockButton}
-              disabled={submitting}
-            >
-              Session note
-              {sessionNoteCount > 0 && <span className={styles.faceDockBadge}>{sessionNoteCount}</span>}
-            </button>
-            {showNotebookMenu && (
-              <div className={styles.faceDockMenu}>
-                <button type="button" className={styles.faceDockMenuButton} onClick={openNotebook}>
-                  New note
-                </button>
-                <button
-                  type="button"
-                  className={styles.faceDockMenuButton}
-                  onClick={() => {
-                    setShowNotebookMenu(false);
-                    onOpenSessionNotes?.();
-                  }}
-                >
-                  See notes
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {(done || showNotebook) && (
-        <div className={styles.notebook}>
-          <div className={styles.notebookHeader}>
-            <h3 className={styles.notebookTitle}>Session notebook</h3>
-            <p className={styles.notebookCopy}>
-              Write what this focus block was for. It will be saved with a timestamp.
-            </p>
-          </div>
-
-          <textarea
-            value={note}
-            onChange={(event) => setNote(event.target.value)}
-            placeholder="What did you work on? What mattered in this session?"
-            className={styles.notebookInput}
-            rows={4}
-          />
-
-          <div className={styles.notebookActions}>
-            <button
-              onClick={handleComplete}
-              className={styles.completeButton}
-              disabled={submitting}
-            >
-              {submitting ? "Saving..." : actionLabel}
-            </button>
-            <button
-              onClick={() => setShowNotebook(false)}
-              className={styles.secondaryButton}
-              disabled={submitting}
-            >
-              Keep editing later
-            </button>
-          </div>
-        </div>
-      )}
+      <SessionNotebook
+        done={done}
+        showNotebook={showNotebook}
+        note={note}
+        actionLabel={actionLabel}
+        submitting={submitting}
+        onSetNote={setNote}
+        onComplete={() => {
+          void handleComplete();
+        }}
+        onClose={() => setShowNotebook(false)}
+      />
 
     </section>
   );

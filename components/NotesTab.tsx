@@ -5,6 +5,7 @@ import {
   type ChangeEvent,
   type Ref,
   type RefObject,
+  memo,
 } from "react";
 import { motion } from "motion/react";
 
@@ -469,6 +470,928 @@ export type NotesTabProps = {
   onOpenUpgradeFlow: () => void;
 };
 
+type MobileNotesPanelProps = {
+  selectedNoteId: string | null;
+  selectedNote: WorkspaceNote | null | undefined;
+  filteredNotes: WorkspaceNote[];
+  selectedNoteWordCount: number;
+  resolvedTheme: ThemeMode;
+  selectedNoteSurfaceColor: string | undefined;
+  selectedNotePageColor: string | undefined;
+  xpTierTheme: { accent: string; accentStrong: string; accentGlow: string };
+  streakBandanaTier: StreakBandanaTier | null;
+  notesSearch: string;
+  onSetNotesSearch: (value: string) => void;
+  mobileNotesRecentOpen: boolean;
+  onSetMobileNotesRecentOpen: (value: boolean | ((prev: boolean) => boolean)) => void;
+  mobileNotesEditorOpen: boolean;
+  onSetMobileNotesEditorOpen: (value: boolean | ((prev: boolean) => boolean)) => void;
+  mobileNotesToolsOpen: "format" | "type" | "color" | null;
+  onSetMobileNotesToolsOpen: (
+    value:
+      | "format"
+      | "type"
+      | "color"
+      | null
+      | ((prev: "format" | "type" | "color" | null) => "format" | "type" | "color" | null),
+  ) => void;
+  colorPickerOpen: boolean;
+  onSetColorPickerOpen: (value: boolean | ((prev: boolean) => boolean)) => void;
+  shellColorPickerOpen: boolean;
+  onSetShellColorPickerOpen: (value: boolean | ((prev: boolean) => boolean)) => void;
+  textColorPickerOpen: boolean;
+  onSetTextColorPickerOpen: (value: boolean | ((prev: boolean) => boolean)) => void;
+  highlightPickerOpen: boolean;
+  onSetHighlightPickerOpen: (value: boolean | ((prev: boolean) => boolean)) => void;
+  editorBandanaCaret: { left: number; top: number; visible: boolean };
+  onSetEditorBandanaCaret: NotesTabProps["onSetEditorBandanaCaret"];
+  notesSyncStatus: "synced" | "syncing" | "local-only";
+  notesSyncMessage: string;
+  noteAttachmentBusy: boolean;
+  noteAttachmentStatus: string;
+  pendingNoteAttachments: PendingNoteAttachment[];
+  notesStartRef: Ref<HTMLElement>;
+  notesRecentRef: RefObject<HTMLElement | null>;
+  notesEditorRef: Ref<HTMLElement>;
+  editorRef: RefObject<HTMLDivElement | null>;
+  noteBodyShellRef: RefObject<HTMLDivElement | null>;
+  onOpenAttachmentPicker: () => void;
+  onOpenNoteAttachment: (attachment: NoteAttachment) => void;
+  onRemoveNoteAttachment: (attachment: NoteAttachment) => void;
+  onConvertNoteToBlock: (noteId: string) => void | Promise<void>;
+  onDeleteNote: (noteId: string) => void | Promise<void>;
+  onUpdateSelectedNote: (patch: Partial<WorkspaceNote>) => void;
+  onFlushPendingTitleSync: () => void | Promise<void>;
+  onCaptureEditorDraft: () => void;
+  onSaveEditorSelection: () => void;
+  onApplyEditorCommand: (command: string, value?: string) => void;
+  onCheckEditorSelection: () => void;
+  onUpdateEditorBandanaCaret: () => void;
+  onFlushNoteDraft: () => void | Promise<void>;
+  onMobileCreateNote: () => void | Promise<void>;
+  onOpenMobileEditor: (noteId: string) => void | Promise<void>;
+  onOpenCurrentMobileNote: () => void | Promise<void>;
+  onRetrySync: () => void | Promise<void>;
+  onApplyHighlightColor: (value: string) => void;
+  onScrollToSection: (target: HTMLElement | null) => void;
+  onSetSelectedNoteId: (id: string | null) => void;
+  isPro: boolean;
+  proPanelNotesOpen: boolean;
+  onToggleProNotesPanel: () => void;
+  onStartProPreview: () => void;
+  syncStatusLabel: string;
+  syncButtonLabel: string;
+};
+
+type MobileRecentNotesCardProps = Pick<
+  MobileNotesPanelProps,
+  | "filteredNotes"
+  | "notesSearch"
+  | "onSetNotesSearch"
+  | "mobileNotesRecentOpen"
+  | "onSetMobileNotesRecentOpen"
+  | "notesRecentRef"
+  | "onOpenMobileEditor"
+  | "onScrollToSection"
+> & {
+  notesStartRef: Ref<HTMLElement>;
+};
+
+const MobileRecentNotesCard = memo(function MobileRecentNotesCard({
+  filteredNotes,
+  notesSearch,
+  onSetNotesSearch,
+  mobileNotesRecentOpen,
+  onSetMobileNotesRecentOpen,
+  notesRecentRef,
+  onOpenMobileEditor,
+}: MobileRecentNotesCardProps) {
+  return (
+    <article className={styles.mobileNotesRecentCard} ref={notesRecentRef}>
+      <button
+        type="button"
+        className={sharedStyles.mobileSectionToggle}
+        onClick={() => onSetMobileNotesRecentOpen((open) => !open)}
+        aria-expanded={mobileNotesRecentOpen}
+      >
+        <div>
+          <p className={sharedStyles.sectionLabel}>Recent Notes</p>
+          <strong className={sharedStyles.mobileSectionToggleTitle}>Reopen the latest writing fast</strong>
+        </div>
+        <span>{mobileNotesRecentOpen ? "Hide" : "Open"}</span>
+      </button>
+
+      {mobileNotesRecentOpen && (
+        <>
+          <input
+            value={notesSearch}
+            onChange={(event) => onSetNotesSearch(event.target.value)}
+            placeholder="Search notes"
+            className={styles.notesSearchInput}
+          />
+          <div className={styles.mobileRecentList}>
+            {filteredNotes.map((note) => {
+              const wordCount = countWords(note.body);
+              return (
+                <button
+                  key={note.id}
+                  type="button"
+                  className={styles.mobileRecentNote}
+                  style={{
+                    ...notePreviewStyle(note.shellColor || "#fff7d6"),
+                    backgroundColor: note.shellColor || "#fff7d6",
+                  }}
+                  onClick={() => void onOpenMobileEditor(note.id)}
+                >
+                  <div className={styles.mobileRecentNoteHeader}>
+                    <strong className={styles.mobileRecentNoteTitle}>
+                      {note.title || "Untitled note"}
+                    </strong>
+                    <div className={styles.mobileRecentNoteBadges}>
+                      {note.attachments.length > 0 ? (
+                        <span className={sharedStyles.attachmentIndicatorChip}>
+                          {attachmentIndicatorLabel(note.attachments.length)}
+                        </span>
+                      ) : null}
+                      {wordCount > 0 ? (
+                        <span className={styles.wordCountChip}>
+                          {wordCount}w
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                  <span className={styles.mobileRecentMeta}>
+                    {new Date(note.updatedAtISO).toLocaleDateString()}
+                    {note.category ? ` · ${note.category.toUpperCase()}` : ""}
+                    {note.attachments.length > 0
+                      ? ` · ${note.attachments.length} file${note.attachments.length === 1 ? "" : "s"}`
+                      : ""}
+                  </span>
+                </button>
+              );
+            })}
+            {filteredNotes.length === 0 && (
+              <p className={sharedStyles.emptyText}>No notes yet. Start your first one.</p>
+            )}
+          </div>
+        </>
+      )}
+    </article>
+  );
+});
+
+type MobileNoteEditorCardProps = Omit<
+  MobileNotesPanelProps,
+  | "selectedNoteId"
+  | "filteredNotes"
+  | "notesSearch"
+  | "onSetNotesSearch"
+  | "mobileNotesRecentOpen"
+  | "onSetMobileNotesRecentOpen"
+  | "notesStartRef"
+  | "notesRecentRef"
+> & {
+  selectedNote: WorkspaceNote;
+};
+
+const MobileNoteEditorCard = memo(function MobileNoteEditorCard({
+  selectedNote,
+  selectedNoteWordCount,
+  resolvedTheme,
+  selectedNoteSurfaceColor,
+  selectedNotePageColor,
+  xpTierTheme,
+  streakBandanaTier,
+  mobileNotesToolsOpen,
+  onSetMobileNotesToolsOpen,
+  colorPickerOpen,
+  onSetColorPickerOpen,
+  shellColorPickerOpen,
+  onSetShellColorPickerOpen,
+  textColorPickerOpen,
+  onSetTextColorPickerOpen,
+  highlightPickerOpen,
+  onSetHighlightPickerOpen,
+  editorBandanaCaret,
+  onSetEditorBandanaCaret,
+  mobileNotesEditorOpen: _mobileNotesEditorOpen,
+  onSetMobileNotesEditorOpen,
+  notesSyncStatus,
+  notesSyncMessage,
+  noteAttachmentBusy,
+  noteAttachmentStatus,
+  pendingNoteAttachments,
+  notesEditorRef,
+  editorRef,
+  noteBodyShellRef,
+  onOpenAttachmentPicker,
+  onOpenNoteAttachment,
+  onRemoveNoteAttachment,
+  onConvertNoteToBlock,
+  onDeleteNote,
+  onUpdateSelectedNote,
+  onFlushPendingTitleSync,
+  onCaptureEditorDraft,
+  onSaveEditorSelection,
+  onApplyEditorCommand,
+  onCheckEditorSelection,
+  onUpdateEditorBandanaCaret,
+  onFlushNoteDraft,
+  onRetrySync,
+  onApplyHighlightColor,
+  onSetSelectedNoteId,
+  isPro,
+  proPanelNotesOpen,
+  onToggleProNotesPanel,
+  onStartProPreview,
+  syncStatusLabel,
+  syncButtonLabel,
+}: MobileNoteEditorCardProps) {
+  return (
+    <article
+      className={styles.mobileNotesEditorCard}
+      ref={notesEditorRef}
+      style={notesShellBackground(
+        resolvedTheme,
+        selectedNoteSurfaceColor,
+        selectedNotePageColor,
+        xpTierTheme.accent,
+        xpTierTheme.accentStrong,
+        xpTierTheme.accentGlow,
+      )}
+      data-note-fill={selectedNote.surfaceStyle}
+    >
+      <div className={styles.notesStudioHero}>
+        <div>
+          <p className={`${sharedStyles.sectionLabel} ${styles.noteHeroLabel}`}>Editing</p>
+          <h2 className={`${sharedStyles.cardTitle} ${styles.noteHeroTitle}`}>
+            {selectedNote.title || "Untitled note"}
+          </h2>
+        </div>
+        <div className={sharedStyles.noteFooterActions}>
+          <div className={styles.noteToneControlRow}>
+            {isPro ? (
+              <div className={styles.noteFillModeSwitch}>
+                <button
+                  type="button"
+                  className={`${styles.noteFillModeButton} ${
+                    selectedNote.surfaceStyle === "solid" ? styles.noteFillModeButtonActive : ""
+                  }`}
+                  onClick={() => void onUpdateSelectedNote({ surfaceStyle: "solid" })}
+                >
+                  Solid
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.noteFillModeButton} ${
+                    selectedNote.surfaceStyle === "airy" ? styles.noteFillModeButtonActive : ""
+                  }`}
+                  onClick={() => void onUpdateSelectedNote({ surfaceStyle: "airy" })}
+                >
+                  Airy
+                </button>
+              </div>
+            ) : null}
+            <div className={styles.noteTonePopoverAnchor}>
+              <button
+                type="button"
+                className={`${styles.noteColorPickerTrigger} ${styles.noteToneButton}`}
+                style={{ ["--note-tone-color" as const]: selectedNote.color || "#e7e5e4" } as CSSProperties}
+                onClick={() => {
+                  onSetColorPickerOpen((open) => !open);
+                  onSetShellColorPickerOpen(false);
+                  onSetTextColorPickerOpen(false);
+                  onSetHighlightPickerOpen(false);
+                }}
+              >
+                <span className={styles.noteToneButtonLabel}>Page tone</span>
+                <span className={styles.noteColorPickerPreview}>
+                  <span
+                    className={styles.noteColorPickerPreviewFill}
+                    style={{ backgroundColor: selectedNote.color || "#e7e5e4" }}
+                  />
+                </span>
+              </button>
+              {colorPickerOpen && (
+                <div className={styles.noteColorPickerPopover}>
+                  {(isPro ? NOTE_COLORS : STANDARD_NOTE_COLORS).map((color) => (
+                    <button
+                      type="button"
+                      key={color.value}
+                      className={`${styles.noteColorSwatch} ${
+                        selectedNote.color === color.value ? styles.noteColorSwatchActive : ""
+                      }`}
+                      style={{ backgroundColor: color.value }}
+                      title={color.label}
+                      onClick={() => {
+                        void onUpdateSelectedNote({ color: color.value });
+                        onSetColorPickerOpen(false);
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+            {isPro ? (
+              <div className={styles.noteTonePopoverAnchor}>
+                <button
+                  type="button"
+                  className={`${styles.noteColorPickerTrigger} ${styles.noteShellButton}`}
+                  style={{ ["--note-tone-color" as const]: selectedNote.shellColor || "#fff7d6" } as CSSProperties}
+                  onClick={() => {
+                    onSetShellColorPickerOpen((open) => !open);
+                    onSetColorPickerOpen(false);
+                    onSetTextColorPickerOpen(false);
+                    onSetHighlightPickerOpen(false);
+                  }}
+                >
+                  <span className={styles.noteToneButtonLabel}>Notebook color</span>
+                  <span className={styles.noteColorPickerPreview}>
+                    <span
+                      className={styles.noteColorPickerPreviewFill}
+                      style={{ backgroundColor: selectedNote.shellColor || "#fff7d6" }}
+                    />
+                  </span>
+                </button>
+                {shellColorPickerOpen && (
+                  <div className={styles.noteColorPickerPopover}>
+                    {NOTE_COLORS.map((color) => (
+                      <button
+                        type="button"
+                        key={color.value}
+                        className={`${styles.noteColorSwatch} ${
+                          selectedNote.shellColor === color.value ? styles.noteColorSwatchActive : ""
+                        }`}
+                        style={{ backgroundColor: color.value }}
+                        title={color.label}
+                        onClick={() => {
+                          void onUpdateSelectedNote({ shellColor: color.value });
+                          onSetShellColorPickerOpen(false);
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : null}
+          </div>
+          <button
+            type="button"
+            className={`${sharedStyles.secondaryPlanButton} ${styles.noteDoneButton}`}
+            onClick={() => {
+              void onFlushNoteDraft();
+              onSetMobileNotesEditorOpen(false);
+            }}
+          >
+            Done
+          </button>
+        </div>
+      </div>
+
+      <div className={styles.mobileNotesControls}>
+        <button
+          type="button"
+          className={`${sharedStyles.mobileControlToggle} ${
+            mobileNotesToolsOpen === "format" ? sharedStyles.mobileControlToggleActive : ""
+          }`}
+          onClick={() => onSetMobileNotesToolsOpen((current) => (current === "format" ? null : "format"))}
+        >
+          Format
+        </button>
+        <button
+          type="button"
+          className={`${sharedStyles.mobileControlToggle} ${
+            mobileNotesToolsOpen === "type" ? sharedStyles.mobileControlToggleActive : ""
+          }`}
+          disabled={!isPro}
+          onClick={() => onSetMobileNotesToolsOpen((current) => (current === "type" ? null : "type"))}
+        >
+          Type
+        </button>
+        <button
+          type="button"
+          className={`${sharedStyles.mobileControlToggle} ${
+            mobileNotesToolsOpen === "color" ? sharedStyles.mobileControlToggleActive : ""
+          }`}
+          disabled={!isPro}
+          onClick={() => onSetMobileNotesToolsOpen((current) => (current === "color" ? null : "color"))}
+        >
+          Color
+        </button>
+      </div>
+
+      {mobileNotesToolsOpen === "format" && (
+        <div className={sharedStyles.mobileToolPanel}>
+          {[
+            ["Bold", "bold"],
+            ["Italic", "italic"],
+            ["Underline", "underline"],
+            ["Bullet", "insertUnorderedList"],
+          ].map(([label, command]) => (
+            <button
+              key={command}
+              type="button"
+              className={styles.noteToolButton}
+              onMouseDown={(event) => {
+                event.preventDefault();
+                onSaveEditorSelection();
+              }}
+              onClick={() => onApplyEditorCommand(command)}
+            >
+              {label}
+            </button>
+          ))}
+          {[
+            ["H1", "H1"],
+            ["H2", "H2"],
+          ].map(([label, block]) => (
+            <button
+              key={block}
+              type="button"
+              className={styles.noteToolButton}
+              onMouseDown={(event) => {
+                event.preventDefault();
+                onSaveEditorSelection();
+              }}
+              onClick={() => onApplyEditorCommand("formatBlock", block)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {mobileNotesToolsOpen === "type" && (
+        <div className={sharedStyles.mobileToolPanel}>
+          <select
+            className={styles.noteToolSelect}
+            value={selectedNote.fontFamily}
+            onMouseDown={() => onSaveEditorSelection()}
+            onChange={(event) => {
+              const nextFont = event.target.value;
+              onApplyEditorCommand("fontName", nextFont);
+              void onUpdateSelectedNote({ fontFamily: nextFont });
+            }}
+          >
+            {NOTE_FONTS.map((font) => (
+              <option key={font.label} value={font.value}>
+                {font.label}
+              </option>
+            ))}
+          </select>
+          <select
+            className={styles.noteToolSelect}
+            value={String(selectedNote.fontSizePx)}
+            onMouseDown={() => onSaveEditorSelection()}
+            onChange={(event) => {
+              const nextSize = Number(event.target.value);
+              const option = NOTE_FONT_SIZES.find((item) => item.value === nextSize);
+              onApplyEditorCommand("fontSize", option?.command ?? "4");
+              void onUpdateSelectedNote({ fontSizePx: nextSize });
+            }}
+          >
+            {NOTE_FONT_SIZES.map((size) => (
+              <option key={size.value} value={size.value}>
+                {size.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {mobileNotesToolsOpen === "color" && (
+        <div className={sharedStyles.mobileToolPanel}>
+          <button
+            type="button"
+            className={styles.noteToolButton}
+            onMouseDown={(event) => {
+              event.preventDefault();
+              onSaveEditorSelection();
+            }}
+            onClick={() => {
+              onSetTextColorPickerOpen((open) => !open);
+              onSetHighlightPickerOpen(false);
+            }}
+          >
+            Text color
+          </button>
+          <button
+            type="button"
+            className={styles.noteToolButton}
+            onMouseDown={(event) => {
+              event.preventDefault();
+              onSaveEditorSelection();
+            }}
+            onClick={() => {
+              onSetHighlightPickerOpen((open) => !open);
+              onSetTextColorPickerOpen(false);
+            }}
+          >
+            Highlight
+          </button>
+          {textColorPickerOpen && (
+            <div className={styles.noteInlinePalettePopover}>
+              {NOTE_TEXT_COLORS.map((color) => (
+                <button
+                  type="button"
+                  key={color.value}
+                  className={styles.noteInlineSwatch}
+                  style={{ backgroundColor: color.value }}
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    onSaveEditorSelection();
+                  }}
+                  onClick={() => {
+                    onApplyEditorCommand("foreColor", color.value);
+                    onSetTextColorPickerOpen(false);
+                  }}
+                />
+              ))}
+            </div>
+          )}
+          {highlightPickerOpen && (
+            <div className={styles.noteInlinePalettePopover}>
+              {NOTE_HIGHLIGHTS.map((color) => (
+                <button
+                  type="button"
+                  key={color.value}
+                  className={styles.noteInlineSwatch}
+                  style={{ backgroundColor: color.value }}
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    onSaveEditorSelection();
+                  }}
+                  onClick={() => {
+                    onApplyHighlightColor(color.value);
+                    onSetHighlightPickerOpen(false);
+                  }}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      {!isPro ? (
+        <ProUnlockCard
+          title="Full note styling"
+          body={`${WHELM_STANDARD_NAME} keeps a focused page-tone palette. ${WHELM_PRO_NAME} adds notebook color, surface styling, custom fonts, text colors, and highlights.`}
+          open={proPanelNotesOpen}
+          onToggle={onToggleProNotesPanel}
+          onPreview={onStartProPreview}
+          preview={
+            <div className={styles.noteStylePreview}>
+              <div className={styles.noteStylePreviewToolbar}>
+                <span className={styles.noteStylePreviewChip}>Page tone</span>
+                <span className={styles.noteStylePreviewChip}>Fraunces</span>
+                <span className={styles.noteStylePreviewChip}>Highlight</span>
+              </div>
+              <article className={styles.noteStylePreviewCard}>
+                <p className={styles.noteStylePreviewEyebrow}>Whelm Pro Writing Studio</p>
+                <h3>Shape the page like a finished thought.</h3>
+                <p>
+                  Make the page calmer, sharper, or warmer with tone, type, and emphasis that change
+                  how the note feels before a word is even read.
+                </p>
+                <p>
+                  <mark>Show the premium surface first.</mark>
+                </p>
+              </article>
+            </div>
+          }
+        />
+      ) : null}
+
+      <input
+        value={selectedNote.title}
+        onChange={(event) => {
+          void onUpdateSelectedNote({ title: event.target.value });
+        }}
+        onBlur={() => {
+          void onFlushPendingTitleSync();
+        }}
+        placeholder="Note title"
+        className={styles.noteTitleInput}
+      />
+      <div className={styles.noteBodyShell} ref={noteBodyShellRef}>
+        {notesSyncStatus === "local-only" ? (
+          <div className={styles.noteSyncInlineNotice} role="status" aria-live="polite">
+            <span className={styles.noteSyncInlineDot} />
+            <span>
+              Saved locally — cloud sync pending.
+              {notesSyncMessage ? ` ${notesSyncMessage}` : ""}
+            </span>
+            <button
+              type="button"
+              className={sharedStyles.retrySyncButton}
+              style={{ marginLeft: 8 }}
+              onClick={() => void onRetrySync()}
+            >
+              {syncButtonLabel}
+            </button>
+          </div>
+        ) : null}
+        <div
+          ref={editorRef}
+          className={styles.noteBodyInput}
+          contentEditable
+          suppressContentEditableWarning
+          style={{
+            fontFamily: selectedNote.fontFamily,
+            fontSize: `${selectedNote.fontSizePx}px`,
+          }}
+          onInput={() => {
+            onCaptureEditorDraft();
+            onSaveEditorSelection();
+            onUpdateEditorBandanaCaret();
+          }}
+          onKeyUp={() => {
+            onSaveEditorSelection();
+            onUpdateEditorBandanaCaret();
+            onCheckEditorSelection();
+          }}
+          onPaste={() => {
+            window.setTimeout(() => {
+              onCaptureEditorDraft();
+              onSaveEditorSelection();
+              onUpdateEditorBandanaCaret();
+            }, 0);
+          }}
+          onCompositionEnd={() => {
+            onSaveEditorSelection();
+            onUpdateEditorBandanaCaret();
+          }}
+          onBlur={() => {
+            onCaptureEditorDraft();
+            void onFlushNoteDraft();
+            onSetEditorBandanaCaret((current) =>
+              current.visible ? { ...current, visible: false } : current,
+            );
+          }}
+          onMouseUp={() => {
+            onSaveEditorSelection();
+            onUpdateEditorBandanaCaret();
+            onCheckEditorSelection();
+          }}
+          onFocus={() => {
+            onSaveEditorSelection();
+            onUpdateEditorBandanaCaret();
+          }}
+          onScroll={() => onUpdateEditorBandanaCaret()}
+        />
+        {editorBandanaCaret.visible ? (
+          <img
+            className={styles.noteBandanaCaret}
+            src={bandanaCursorAssetPath(streakBandanaTier?.color, 256)}
+            srcSet={`${bandanaCursorAssetPath(streakBandanaTier?.color, 256)} 1x`}
+            alt=""
+            style={{
+              left: `${editorBandanaCaret.left}px`,
+              top: `${editorBandanaCaret.top}px`,
+            }}
+          />
+        ) : null}
+        <div className={styles.noteEditorFooter}>
+          <NoteAttachmentsSection
+            note={selectedNote}
+            pendingUploads={pendingNoteAttachments}
+            uploadBusy={noteAttachmentBusy}
+            uploadStatus={noteAttachmentStatus}
+            onAttach={onOpenAttachmentPicker}
+            onOpen={onOpenNoteAttachment}
+            onRemove={(attachment) => void onRemoveNoteAttachment(attachment)}
+          />
+          <span className={styles.noteWordCount}>
+            {selectedNoteWordCount} word{selectedNoteWordCount === 1 ? "" : "s"}
+            {selectedNoteWordCount >= 33 ? " · streak writing met" : ""}
+          </span>
+          <span className={styles.noteSyncIndicator}>{syncStatusLabel}</span>
+        </div>
+      </div>
+      <div className={sharedStyles.noteFooterActions}>
+        <button
+          type="button"
+          className={`${sharedStyles.secondaryPlanButton} ${styles.noteDoneButton}`}
+          onClick={() => {
+            void (async () => {
+              await onFlushNoteDraft();
+              onSetSelectedNoteId(null);
+            })();
+          }}
+        >
+          Done
+        </button>
+        <button
+          type="button"
+          className={`${sharedStyles.reportButton} ${sharedStyles.blockActionButton}`}
+          onClick={() => {
+            void (async () => {
+              await onFlushNoteDraft();
+              await onConvertNoteToBlock(selectedNote.id);
+            })();
+          }}
+        >
+          Turn into block
+        </button>
+        <button
+          type="button"
+          className={sharedStyles.retrySyncButton}
+          onClick={() => void onRetrySync()}
+        >
+          {syncButtonLabel}
+        </button>
+        <button
+          type="button"
+          className={sharedStyles.deleteNoteButton}
+          onClick={() => void onDeleteNote(selectedNote.id)}
+        >
+          Remove note
+        </button>
+      </div>
+    </article>
+  );
+});
+
+const MobileNotesPanel = memo(function MobileNotesPanel({
+  selectedNoteId,
+  selectedNote,
+  filteredNotes,
+  selectedNoteWordCount,
+  resolvedTheme,
+  selectedNoteSurfaceColor,
+  selectedNotePageColor,
+  xpTierTheme,
+  streakBandanaTier,
+  notesSearch,
+  onSetNotesSearch,
+  mobileNotesRecentOpen,
+  onSetMobileNotesRecentOpen,
+  mobileNotesEditorOpen,
+  onSetMobileNotesEditorOpen,
+  mobileNotesToolsOpen,
+  onSetMobileNotesToolsOpen,
+  colorPickerOpen,
+  onSetColorPickerOpen,
+  shellColorPickerOpen,
+  onSetShellColorPickerOpen,
+  textColorPickerOpen,
+  onSetTextColorPickerOpen,
+  highlightPickerOpen,
+  onSetHighlightPickerOpen,
+  editorBandanaCaret,
+  onSetEditorBandanaCaret,
+  notesSyncStatus,
+  notesSyncMessage,
+  noteAttachmentBusy,
+  noteAttachmentStatus,
+  pendingNoteAttachments,
+  notesStartRef,
+  notesRecentRef,
+  notesEditorRef,
+  editorRef,
+  noteBodyShellRef,
+  onOpenAttachmentPicker,
+  onOpenNoteAttachment,
+  onRemoveNoteAttachment,
+  onConvertNoteToBlock,
+  onDeleteNote,
+  onUpdateSelectedNote,
+  onFlushPendingTitleSync,
+  onCaptureEditorDraft,
+  onSaveEditorSelection,
+  onApplyEditorCommand,
+  onCheckEditorSelection,
+  onUpdateEditorBandanaCaret,
+  onFlushNoteDraft,
+  onMobileCreateNote,
+  onOpenMobileEditor,
+  onOpenCurrentMobileNote,
+  onRetrySync,
+  onApplyHighlightColor,
+  onScrollToSection,
+  onSetSelectedNoteId,
+  isPro,
+  proPanelNotesOpen,
+  onToggleProNotesPanel,
+  onStartProPreview,
+  syncStatusLabel,
+  syncButtonLabel,
+}: MobileNotesPanelProps) {
+  return (
+    <div className={styles.mobileNotesPanel}>
+      <article className={styles.mobileNotesStartCard} ref={notesStartRef}>
+        <div className={styles.mobileNotesStartHeaderCompact}>
+          <div>
+            <p className={sharedStyles.sectionLabel}>Writing Studio</p>
+            <h2 className={sharedStyles.cardTitle}>Write clean</h2>
+            <p className={sharedStyles.accountMeta}>Start a note or reopen one. Keep the page clear and the thought alive.</p>
+          </div>
+          <button
+            type="button"
+            data-tour="notes-create"
+            className={sharedStyles.newNoteButton}
+            onClick={() => void onMobileCreateNote()}
+          >
+            New note
+          </button>
+        </div>
+        <div className={styles.mobileNotesActions}>
+          {selectedNoteId && (
+            <button
+              type="button"
+              className={sharedStyles.secondaryPlanButton}
+              onClick={onOpenCurrentMobileNote}
+            >
+              Return to current note
+            </button>
+          )}
+          <button
+            type="button"
+            className={sharedStyles.mobileJumpButton}
+            onClick={() => {
+              onSetMobileNotesRecentOpen(true);
+              window.setTimeout(() => onScrollToSection(notesRecentRef.current), 80);
+            }}
+          >
+            Recent notes
+          </button>
+        </div>
+      </article>
+
+      <MobileRecentNotesCard
+        filteredNotes={filteredNotes}
+        notesSearch={notesSearch}
+        onSetNotesSearch={onSetNotesSearch}
+        mobileNotesRecentOpen={mobileNotesRecentOpen}
+        onSetMobileNotesRecentOpen={onSetMobileNotesRecentOpen}
+        notesRecentRef={notesRecentRef}
+        onOpenMobileEditor={onOpenMobileEditor}
+        onScrollToSection={onScrollToSection}
+        notesStartRef={notesStartRef}
+      />
+
+      {mobileNotesEditorOpen && selectedNote ? (
+        <MobileNoteEditorCard
+          selectedNote={selectedNote}
+          selectedNoteWordCount={selectedNoteWordCount}
+          resolvedTheme={resolvedTheme}
+          selectedNoteSurfaceColor={selectedNoteSurfaceColor}
+          selectedNotePageColor={selectedNotePageColor}
+          xpTierTheme={xpTierTheme}
+          streakBandanaTier={streakBandanaTier}
+          mobileNotesToolsOpen={mobileNotesToolsOpen}
+          onSetMobileNotesToolsOpen={onSetMobileNotesToolsOpen}
+          colorPickerOpen={colorPickerOpen}
+          onSetColorPickerOpen={onSetColorPickerOpen}
+          shellColorPickerOpen={shellColorPickerOpen}
+          onSetShellColorPickerOpen={onSetShellColorPickerOpen}
+          textColorPickerOpen={textColorPickerOpen}
+          onSetTextColorPickerOpen={onSetTextColorPickerOpen}
+          highlightPickerOpen={highlightPickerOpen}
+          onSetHighlightPickerOpen={onSetHighlightPickerOpen}
+          editorBandanaCaret={editorBandanaCaret}
+          onSetEditorBandanaCaret={onSetEditorBandanaCaret}
+          mobileNotesEditorOpen={mobileNotesEditorOpen}
+          onSetMobileNotesEditorOpen={onSetMobileNotesEditorOpen}
+          notesSyncStatus={notesSyncStatus}
+          notesSyncMessage={notesSyncMessage}
+          noteAttachmentBusy={noteAttachmentBusy}
+          noteAttachmentStatus={noteAttachmentStatus}
+          pendingNoteAttachments={pendingNoteAttachments}
+          notesEditorRef={notesEditorRef}
+          editorRef={editorRef}
+          noteBodyShellRef={noteBodyShellRef}
+          onOpenAttachmentPicker={onOpenAttachmentPicker}
+          onOpenNoteAttachment={onOpenNoteAttachment}
+          onRemoveNoteAttachment={onRemoveNoteAttachment}
+          onConvertNoteToBlock={onConvertNoteToBlock}
+          onDeleteNote={onDeleteNote}
+          onUpdateSelectedNote={onUpdateSelectedNote}
+          onFlushPendingTitleSync={onFlushPendingTitleSync}
+          onCaptureEditorDraft={onCaptureEditorDraft}
+          onSaveEditorSelection={onSaveEditorSelection}
+          onApplyEditorCommand={onApplyEditorCommand}
+          onCheckEditorSelection={onCheckEditorSelection}
+          onUpdateEditorBandanaCaret={onUpdateEditorBandanaCaret}
+          onFlushNoteDraft={onFlushNoteDraft}
+          onMobileCreateNote={onMobileCreateNote}
+          onOpenMobileEditor={onOpenMobileEditor}
+          onOpenCurrentMobileNote={onOpenCurrentMobileNote}
+          onRetrySync={onRetrySync}
+          onApplyHighlightColor={onApplyHighlightColor}
+          onScrollToSection={onScrollToSection}
+          onSetSelectedNoteId={onSetSelectedNoteId}
+          isPro={isPro}
+          proPanelNotesOpen={proPanelNotesOpen}
+          onToggleProNotesPanel={onToggleProNotesPanel}
+          onStartProPreview={onStartProPreview}
+          syncStatusLabel={syncStatusLabel}
+          syncButtonLabel={syncButtonLabel}
+        />
+      ) : null}
+    </div>
+  );
+});
+
 export default function NotesTab({
   sectionRef,
   notesSurface,
@@ -603,662 +1526,73 @@ export default function NotesTab({
         </div>
       ) : (
         <>
-          {isMobileViewport && <div className={styles.mobileNotesPanel}>
-            <article className={styles.mobileNotesStartCard} ref={notesStartRef}>
-              <div className={styles.mobileNotesStartHeaderCompact}>
-                <div>
-                  <p className={sharedStyles.sectionLabel}>Writing Studio</p>
-                  <h2 className={sharedStyles.cardTitle}>Write clean</h2>
-                  <p className={sharedStyles.accountMeta}>Start a note or reopen one. Keep the page clear and the thought alive.</p>
-                </div>
-                <button
-                  type="button"
-                  data-tour="notes-create"
-                  className={sharedStyles.newNoteButton}
-                  onClick={() => void onMobileCreateNote()}
-                >
-                  New note
-                </button>
-              </div>
-              <div className={styles.mobileNotesActions}>
-                {selectedNoteId && (
-                  <button
-                    type="button"
-                    className={sharedStyles.secondaryPlanButton}
-                    onClick={onOpenCurrentMobileNote}
-                  >
-                    Return to current note
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className={sharedStyles.mobileJumpButton}
-                  onClick={() => {
-                    onSetMobileNotesRecentOpen(true);
-                    window.setTimeout(() => onScrollToSection(notesRecentRef.current), 80);
-                  }}
-                >
-                  Recent notes
-                </button>
-              </div>
-            </article>
-
-            <article className={styles.mobileNotesRecentCard} ref={notesRecentRef}>
-              <button
-                type="button"
-                className={sharedStyles.mobileSectionToggle}
-                onClick={() => onSetMobileNotesRecentOpen((open) => !open)}
-                aria-expanded={mobileNotesRecentOpen}
-              >
-                <div>
-                  <p className={sharedStyles.sectionLabel}>Recent Notes</p>
-                  <strong className={sharedStyles.mobileSectionToggleTitle}>Reopen the latest writing fast</strong>
-                </div>
-                <span>{mobileNotesRecentOpen ? "Hide" : "Open"}</span>
-              </button>
-
-              {mobileNotesRecentOpen && (
-                <>
-                  <input
-                    value={notesSearch}
-                    onChange={(event) => onSetNotesSearch(event.target.value)}
-                    placeholder="Search notes"
-                    className={styles.notesSearchInput}
-                  />
-                  <div className={styles.mobileRecentList}>
-                    {filteredNotes.map((note) => (
-                      (() => {
-                        const wordCount = countWords(note.body);
-                        return (
-                      <button
-                        key={note.id}
-                        type="button"
-                        className={styles.mobileRecentNote}
-                        style={{
-                          ...notePreviewStyle(note.shellColor || "#fff7d6"),
-                          backgroundColor: note.shellColor || "#fff7d6",
-                        }}
-                        onClick={() => void onOpenMobileEditor(note.id)}
-                      >
-                        <div className={styles.mobileRecentNoteHeader}>
-                          <strong className={styles.mobileRecentNoteTitle}>
-                            {note.title || "Untitled note"}
-                          </strong>
-                          <div className={styles.mobileRecentNoteBadges}>
-                            {note.attachments.length > 0 ? (
-                              <span className={sharedStyles.attachmentIndicatorChip}>
-                                {attachmentIndicatorLabel(note.attachments.length)}
-                              </span>
-                            ) : null}
-                            {wordCount > 0 ? (
-                              <span className={styles.wordCountChip}>
-                                {wordCount}w
-                              </span>
-                            ) : null}
-                          </div>
-                        </div>
-                        <span className={styles.mobileRecentMeta}>
-                          {new Date(note.updatedAtISO).toLocaleDateString()}
-                          {note.category ? ` · ${note.category.toUpperCase()}` : ""}
-                          {note.attachments.length > 0
-                            ? ` · ${note.attachments.length} file${note.attachments.length === 1 ? "" : "s"}`
-                            : ""}
-                        </span>
-                      </button>
-                        );
-                      })()
-                    ))}
-                    {filteredNotes.length === 0 && (
-                      <p className={sharedStyles.emptyText}>No notes yet. Start your first one.</p>
-                    )}
-                  </div>
-                </>
-              )}
-            </article>
-
-            {mobileNotesEditorOpen && selectedNote ? (
-              <article
-                className={styles.mobileNotesEditorCard}
-                ref={notesEditorRef}
-                style={notesShellBackground(
-                  resolvedTheme,
-                  selectedNoteSurfaceColor,
-                  selectedNotePageColor,
-                  xpTierTheme.accent,
-                  xpTierTheme.accentStrong,
-                  xpTierTheme.accentGlow,
-                )}
-                data-note-fill={selectedNote.surfaceStyle}
-              >
-                <div className={styles.notesStudioHero}>
-                  <div>
-                    <p className={`${sharedStyles.sectionLabel} ${styles.noteHeroLabel}`}>Editing</p>
-                    <h2 className={`${sharedStyles.cardTitle} ${styles.noteHeroTitle}`}>
-                      {selectedNote.title || "Untitled note"}
-                    </h2>
-                  </div>
-                  <div className={sharedStyles.noteFooterActions}>
-                    <div className={styles.noteToneControlRow}>
-                      {isPro ? (
-                        <div className={styles.noteFillModeSwitch}>
-                          <button
-                            type="button"
-                            className={`${styles.noteFillModeButton} ${
-                              selectedNote.surfaceStyle === "solid" ? styles.noteFillModeButtonActive : ""
-                            }`}
-                            onClick={() => void onUpdateSelectedNote({ surfaceStyle: "solid" })}
-                          >
-                            Solid
-                          </button>
-                          <button
-                            type="button"
-                            className={`${styles.noteFillModeButton} ${
-                              selectedNote.surfaceStyle === "airy" ? styles.noteFillModeButtonActive : ""
-                            }`}
-                            onClick={() => void onUpdateSelectedNote({ surfaceStyle: "airy" })}
-                          >
-                            Airy
-                          </button>
-                        </div>
-                      ) : null}
-                      <div className={styles.noteTonePopoverAnchor}>
-                        <button
-                          type="button"
-                          className={`${styles.noteColorPickerTrigger} ${styles.noteToneButton}`}
-                          style={
-                            { ["--note-tone-color" as const]: selectedNote.color || "#e7e5e4" } as CSSProperties
-                          }
-                          onClick={() => {
-                            onSetColorPickerOpen((open) => !open);
-                            onSetShellColorPickerOpen(false);
-                            onSetTextColorPickerOpen(false);
-                            onSetHighlightPickerOpen(false);
-                          }}
-                        >
-                          <span className={styles.noteToneButtonLabel}>Page tone</span>
-                          <span className={styles.noteColorPickerPreview}>
-                            <span
-                              className={styles.noteColorPickerPreviewFill}
-                              style={{ backgroundColor: selectedNote.color || "#e7e5e4" }}
-                            />
-                          </span>
-                        </button>
-                        {colorPickerOpen && (
-                          <div className={styles.noteColorPickerPopover}>
-                            {(isPro ? NOTE_COLORS : STANDARD_NOTE_COLORS).map((color) => (
-                              <button
-                                type="button"
-                                key={color.value}
-                                className={`${styles.noteColorSwatch} ${
-                                  selectedNote.color === color.value ? styles.noteColorSwatchActive : ""
-                                }`}
-                                style={{ backgroundColor: color.value }}
-                                title={color.label}
-                                onClick={() => {
-                                  void onUpdateSelectedNote({ color: color.value });
-                                  onSetColorPickerOpen(false);
-                                }}
-                              />
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      {isPro ? (
-                        <div className={styles.noteTonePopoverAnchor}>
-                          <button
-                            type="button"
-                            className={`${styles.noteColorPickerTrigger} ${styles.noteShellButton}`}
-                            style={
-                              { ["--note-tone-color" as const]: selectedNote.shellColor || "#fff7d6" } as CSSProperties
-                            }
-                            onClick={() => {
-                              onSetShellColorPickerOpen((open) => !open);
-                              onSetColorPickerOpen(false);
-                              onSetTextColorPickerOpen(false);
-                              onSetHighlightPickerOpen(false);
-                            }}
-                          >
-                            <span className={styles.noteToneButtonLabel}>Notebook color</span>
-                            <span className={styles.noteColorPickerPreview}>
-                              <span
-                                className={styles.noteColorPickerPreviewFill}
-                                style={{ backgroundColor: selectedNote.shellColor || "#fff7d6" }}
-                              />
-                            </span>
-                          </button>
-                          {isPro && shellColorPickerOpen && (
-                            <div className={styles.noteColorPickerPopover}>
-                              {NOTE_COLORS.map((color) => (
-                                <button
-                                  type="button"
-                                  key={color.value}
-                                  className={`${styles.noteColorSwatch} ${
-                                    selectedNote.shellColor === color.value ? styles.noteColorSwatchActive : ""
-                                  }`}
-                                  style={{ backgroundColor: color.value }}
-                                  title={color.label}
-                                  onClick={() => {
-                                    void onUpdateSelectedNote({ shellColor: color.value });
-                                    onSetShellColorPickerOpen(false);
-                                  }}
-                                />
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      ) : null}
-                    </div>
-                    <button
-                      type="button"
-                      className={`${sharedStyles.secondaryPlanButton} ${styles.noteDoneButton}`}
-                      onClick={() => {
-                        void onFlushNoteDraft();
-                        onSetMobileNotesEditorOpen(false);
-                      }}
-                    >
-                      Done
-                    </button>
-                  </div>
-                </div>
-
-                <div className={styles.mobileNotesControls}>
-                  <button
-                    type="button"
-                    className={`${sharedStyles.mobileControlToggle} ${
-                      mobileNotesToolsOpen === "format" ? sharedStyles.mobileControlToggleActive : ""
-                    }`}
-                    onClick={() =>
-                      onSetMobileNotesToolsOpen((current) => (current === "format" ? null : "format"))
-                    }
-                  >
-                    Format
-                  </button>
-                  <button
-                    type="button"
-                    className={`${sharedStyles.mobileControlToggle} ${
-                      mobileNotesToolsOpen === "type" ? sharedStyles.mobileControlToggleActive : ""
-                    }`}
-                    disabled={!isPro}
-                    onClick={() =>
-                      onSetMobileNotesToolsOpen((current) => (current === "type" ? null : "type"))
-                    }
-                  >
-                    Type
-                  </button>
-                  <button
-                    type="button"
-                    className={`${sharedStyles.mobileControlToggle} ${
-                      mobileNotesToolsOpen === "color" ? sharedStyles.mobileControlToggleActive : ""
-                    }`}
-                    disabled={!isPro}
-                    onClick={() =>
-                      onSetMobileNotesToolsOpen((current) => (current === "color" ? null : "color"))
-                    }
-                  >
-                    Color
-                  </button>
-                </div>
-
-                {mobileNotesToolsOpen === "format" && (
-                  <div className={sharedStyles.mobileToolPanel}>
-                    <button
-                      type="button"
-                      className={styles.noteToolButton}
-                      onMouseDown={(event) => {
-                        event.preventDefault();
-                        onSaveEditorSelection();
-                      }}
-                      onClick={() => onApplyEditorCommand("bold")}
-                    >
-                      Bold
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.noteToolButton}
-                      onMouseDown={(event) => {
-                        event.preventDefault();
-                        onSaveEditorSelection();
-                      }}
-                      onClick={() => onApplyEditorCommand("italic")}
-                    >
-                      Italic
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.noteToolButton}
-                      onMouseDown={(event) => {
-                        event.preventDefault();
-                        onSaveEditorSelection();
-                      }}
-                      onClick={() => onApplyEditorCommand("underline")}
-                    >
-                      Underline
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.noteToolButton}
-                      onMouseDown={(event) => {
-                        event.preventDefault();
-                        onSaveEditorSelection();
-                      }}
-                      onClick={() => onApplyEditorCommand("insertUnorderedList")}
-                    >
-                      Bullet
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.noteToolButton}
-                      onMouseDown={(event) => {
-                        event.preventDefault();
-                        onSaveEditorSelection();
-                      }}
-                      onClick={() => onApplyEditorCommand("formatBlock", "H1")}
-                    >
-                      H1
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.noteToolButton}
-                      onMouseDown={(event) => {
-                        event.preventDefault();
-                        onSaveEditorSelection();
-                      }}
-                      onClick={() => onApplyEditorCommand("formatBlock", "H2")}
-                    >
-                      H2
-                    </button>
-                  </div>
-                )}
-
-                {mobileNotesToolsOpen === "type" && (
-                  <div className={sharedStyles.mobileToolPanel}>
-                    <select
-                      className={styles.noteToolSelect}
-                      value={selectedNote.fontFamily}
-                      onMouseDown={() => onSaveEditorSelection()}
-                      onChange={(event) => {
-                        const nextFont = event.target.value;
-                        onApplyEditorCommand("fontName", nextFont);
-                        void onUpdateSelectedNote({ fontFamily: nextFont });
-                      }}
-                    >
-                      {NOTE_FONTS.map((font) => (
-                        <option key={font.label} value={font.value}>
-                          {font.label}
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      className={styles.noteToolSelect}
-                      value={String(selectedNote.fontSizePx)}
-                      onMouseDown={() => onSaveEditorSelection()}
-                      onChange={(event) => {
-                        const nextSize = Number(event.target.value);
-                        const option = NOTE_FONT_SIZES.find((item) => item.value === nextSize);
-                        onApplyEditorCommand("fontSize", option?.command ?? "4");
-                        void onUpdateSelectedNote({ fontSizePx: nextSize });
-                      }}
-                    >
-                      {NOTE_FONT_SIZES.map((size) => (
-                        <option key={size.value} value={size.value}>
-                          {size.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                {mobileNotesToolsOpen === "color" && (
-                  <div className={sharedStyles.mobileToolPanel}>
-                    <button
-                      type="button"
-                      className={styles.noteToolButton}
-                      onMouseDown={(event) => {
-                        event.preventDefault();
-                        onSaveEditorSelection();
-                      }}
-                      onClick={() => {
-                        onSetTextColorPickerOpen((open) => !open);
-                        onSetHighlightPickerOpen(false);
-                      }}
-                    >
-                      Text color
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.noteToolButton}
-                      onMouseDown={(event) => {
-                        event.preventDefault();
-                        onSaveEditorSelection();
-                      }}
-                      onClick={() => {
-                        onSetHighlightPickerOpen((open) => !open);
-                        onSetTextColorPickerOpen(false);
-                      }}
-                    >
-                      Highlight
-                    </button>
-                    {textColorPickerOpen && (
-                      <div className={styles.noteInlinePalettePopover}>
-                        {NOTE_TEXT_COLORS.map((color) => (
-                          <button
-                            type="button"
-                            key={color.value}
-                            className={styles.noteInlineSwatch}
-                            style={{ backgroundColor: color.value }}
-                            onMouseDown={(event) => {
-                              event.preventDefault();
-                              onSaveEditorSelection();
-                            }}
-                            onClick={() => {
-                              onApplyEditorCommand("foreColor", color.value);
-                              onSetTextColorPickerOpen(false);
-                            }}
-                          />
-                        ))}
-                      </div>
-                    )}
-                    {highlightPickerOpen && (
-                      <div className={styles.noteInlinePalettePopover}>
-                        {NOTE_HIGHLIGHTS.map((color) => (
-                          <button
-                            type="button"
-                            key={color.value}
-                            className={styles.noteInlineSwatch}
-                            style={{ backgroundColor: color.value }}
-                            onMouseDown={(event) => {
-                              event.preventDefault();
-                              onSaveEditorSelection();
-                            }}
-                            onClick={() => {
-                              onApplyHighlightColor(color.value);
-                              onSetHighlightPickerOpen(false);
-                            }}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-                {!isPro ? (
-                  <ProUnlockCard
-                    title="Full note styling"
-                    body={`${WHELM_STANDARD_NAME} keeps a focused page-tone palette. ${WHELM_PRO_NAME} adds notebook color, surface styling, custom fonts, text colors, and highlights.`}
-                    open={proPanelNotesOpen}
-                    onToggle={onToggleProNotesPanel}
-                    onPreview={onStartProPreview}
-                    preview={
-                      <div className={styles.noteStylePreview}>
-                        <div className={styles.noteStylePreviewToolbar}>
-                          <span className={styles.noteStylePreviewChip}>Page tone</span>
-                          <span className={styles.noteStylePreviewChip}>Fraunces</span>
-                          <span className={styles.noteStylePreviewChip}>Highlight</span>
-                        </div>
-                        <article className={styles.noteStylePreviewCard}>
-                          <p className={styles.noteStylePreviewEyebrow}>Whelm Pro Writing Studio</p>
-                          <h3>Shape the page like a finished thought.</h3>
-                          <p>
-                            Make the page calmer, sharper, or warmer with tone, type, and emphasis that change
-                            how the note feels before a word is even read.
-                          </p>
-                          <p>
-                            <mark>Show the premium surface first.</mark>
-                          </p>
-                        </article>
-                      </div>
-                    }
-                  />
-                ) : null}
-
-                <input
-                  value={selectedNote.title}
-                  onChange={(event) => {
-                    void onUpdateSelectedNote({ title: event.target.value });
-                  }}
-                  onBlur={() => {
-                    void onFlushPendingTitleSync();
-                  }}
-                  placeholder="Note title"
-                  className={styles.noteTitleInput}
-                />
-                <div className={styles.noteBodyShell} ref={noteBodyShellRef}>
-                  {notesSyncStatus === "local-only" ? (
-                    <div className={styles.noteSyncInlineNotice} role="status" aria-live="polite">
-                      <span className={styles.noteSyncInlineDot} />
-                      <span>
-                        Saved locally — cloud sync pending.
-                        {notesSyncMessage ? ` ${notesSyncMessage}` : ""}
-                      </span>
-                      <button
-                        type="button"
-                        className={sharedStyles.retrySyncButton}
-                        style={{ marginLeft: 8 }}
-                        onClick={() => void onRetrySync()}
-                      >
-                        {syncButtonLabel}
-                      </button>
-                    </div>
-                  ) : null}
-                  <div
-                    ref={editorRef}
-                    className={styles.noteBodyInput}
-                    contentEditable
-                    suppressContentEditableWarning
-                    style={{
-                      fontFamily: selectedNote.fontFamily,
-                      fontSize: `${selectedNote.fontSizePx}px`,
-                    }}
-                    onInput={() => {
-                      onCaptureEditorDraft();
-                      onSaveEditorSelection();
-                      onUpdateEditorBandanaCaret();
-                    }}
-                    onKeyUp={() => {
-                      onSaveEditorSelection();
-                      onUpdateEditorBandanaCaret();
-                      onCheckEditorSelection();
-                    }}
-                    onPaste={() => {
-                      window.setTimeout(() => {
-                        onCaptureEditorDraft();
-                        onSaveEditorSelection();
-                        onUpdateEditorBandanaCaret();
-                      }, 0);
-                    }}
-                    onCompositionEnd={() => {
-                      onSaveEditorSelection();
-                      onUpdateEditorBandanaCaret();
-                    }}
-                    onBlur={() => {
-                      onCaptureEditorDraft();
-                      void onFlushNoteDraft();
-                      onSetEditorBandanaCaret((current) =>
-                        current.visible ? { ...current, visible: false } : current,
-                      );
-                    }}
-                    onMouseUp={() => {
-                      onSaveEditorSelection();
-                      onUpdateEditorBandanaCaret();
-                      onCheckEditorSelection();
-                    }}
-                    onFocus={() => {
-                      onSaveEditorSelection();
-                      onUpdateEditorBandanaCaret();
-                    }}
-                    onScroll={() => onUpdateEditorBandanaCaret()}
-                  />
-                  {editorBandanaCaret.visible ? (
-                    <img
-                      className={styles.noteBandanaCaret}
-                      src={bandanaCursorAssetPath(streakBandanaTier?.color, 256)}
-                      srcSet={`${bandanaCursorAssetPath(streakBandanaTier?.color, 256)} 1x`}
-                      alt=""
-                      style={{
-                        left: `${editorBandanaCaret.left}px`,
-                        top: `${editorBandanaCaret.top}px`,
-                      }}
-                    />
-                  ) : null}
-                  <div className={styles.noteEditorFooter}>
-                    <NoteAttachmentsSection
-                      note={selectedNote}
-                      pendingUploads={pendingNoteAttachments}
-                      uploadBusy={noteAttachmentBusy}
-                      uploadStatus={noteAttachmentStatus}
-                      onAttach={onOpenAttachmentPicker}
-                      onOpen={onOpenNoteAttachment}
-                      onRemove={(attachment) => void onRemoveNoteAttachment(attachment)}
-                    />
-                    <span className={styles.noteWordCount}>
-                      {selectedNoteWordCount} word{selectedNoteWordCount === 1 ? "" : "s"}
-                      {selectedNoteWordCount >= 33 ? " · streak writing met" : ""}
-                    </span>
-                    <span className={styles.noteSyncIndicator}>{syncStatusLabel}</span>
-                  </div>
-                </div>
-                <div className={sharedStyles.noteFooterActions}>
-                  <button
-                    type="button"
-                    className={`${sharedStyles.secondaryPlanButton} ${styles.noteDoneButton}`}
-                    onClick={() => {
-                      void (async () => {
-                        await onFlushNoteDraft();
-                        onSetSelectedNoteId(null);
-                      })();
-                    }}
-                  >
-                    Done
-                  </button>
-                  <button
-                    type="button"
-                    className={`${sharedStyles.reportButton} ${sharedStyles.blockActionButton}`}
-                    onClick={() => {
-                      void (async () => {
-                        await onFlushNoteDraft();
-                        await onConvertNoteToBlock(selectedNote.id);
-                      })();
-                    }}
-                  >
-                    Turn into block
-                  </button>
-                  <button
-                    type="button"
-                    className={sharedStyles.retrySyncButton}
-                    onClick={() => void onRetrySync()}
-                  >
-                    {syncButtonLabel}
-                  </button>
-                  <button
-                    type="button"
-                    className={sharedStyles.deleteNoteButton}
-                    onClick={() => void onDeleteNote(selectedNote.id)}
-                  >
-                    Remove note
-                  </button>
-                </div>
-              </article>
-            ) : null}
-          </div>}
+          {isMobileViewport ? (
+            <MobileNotesPanel
+              selectedNoteId={selectedNoteId}
+              selectedNote={selectedNote}
+              filteredNotes={filteredNotes}
+              selectedNoteWordCount={selectedNoteWordCount}
+              resolvedTheme={resolvedTheme}
+              selectedNoteSurfaceColor={selectedNoteSurfaceColor}
+              selectedNotePageColor={selectedNotePageColor}
+              xpTierTheme={xpTierTheme}
+              streakBandanaTier={streakBandanaTier}
+              notesSearch={notesSearch}
+              onSetNotesSearch={onSetNotesSearch}
+              mobileNotesRecentOpen={mobileNotesRecentOpen}
+              onSetMobileNotesRecentOpen={onSetMobileNotesRecentOpen}
+              mobileNotesEditorOpen={mobileNotesEditorOpen}
+              onSetMobileNotesEditorOpen={onSetMobileNotesEditorOpen}
+              mobileNotesToolsOpen={mobileNotesToolsOpen}
+              onSetMobileNotesToolsOpen={onSetMobileNotesToolsOpen}
+              colorPickerOpen={colorPickerOpen}
+              onSetColorPickerOpen={onSetColorPickerOpen}
+              shellColorPickerOpen={shellColorPickerOpen}
+              onSetShellColorPickerOpen={onSetShellColorPickerOpen}
+              textColorPickerOpen={textColorPickerOpen}
+              onSetTextColorPickerOpen={onSetTextColorPickerOpen}
+              highlightPickerOpen={highlightPickerOpen}
+              onSetHighlightPickerOpen={onSetHighlightPickerOpen}
+              editorBandanaCaret={editorBandanaCaret}
+              onSetEditorBandanaCaret={onSetEditorBandanaCaret}
+              notesSyncStatus={notesSyncStatus}
+              notesSyncMessage={notesSyncMessage}
+              noteAttachmentBusy={noteAttachmentBusy}
+              noteAttachmentStatus={noteAttachmentStatus}
+              pendingNoteAttachments={pendingNoteAttachments}
+              notesStartRef={notesStartRef}
+              notesRecentRef={notesRecentRef}
+              notesEditorRef={notesEditorRef}
+              editorRef={editorRef}
+              noteBodyShellRef={noteBodyShellRef}
+              onOpenAttachmentPicker={onOpenAttachmentPicker}
+              onOpenNoteAttachment={onOpenNoteAttachment}
+              onRemoveNoteAttachment={onRemoveNoteAttachment}
+              onConvertNoteToBlock={onConvertNoteToBlock}
+              onDeleteNote={onDeleteNote}
+              onUpdateSelectedNote={onUpdateSelectedNote}
+              onFlushPendingTitleSync={onFlushPendingTitleSync}
+              onCaptureEditorDraft={onCaptureEditorDraft}
+              onSaveEditorSelection={onSaveEditorSelection}
+              onApplyEditorCommand={onApplyEditorCommand}
+              onCheckEditorSelection={onCheckEditorSelection}
+              onUpdateEditorBandanaCaret={onUpdateEditorBandanaCaret}
+              onFlushNoteDraft={onFlushNoteDraft}
+              onMobileCreateNote={onMobileCreateNote}
+              onOpenMobileEditor={onOpenMobileEditor}
+              onOpenCurrentMobileNote={onOpenCurrentMobileNote}
+              onRetrySync={onRetrySync}
+              onApplyHighlightColor={onApplyHighlightColor}
+              onScrollToSection={onScrollToSection}
+              onSetSelectedNoteId={onSetSelectedNoteId}
+              isPro={isPro}
+              proPanelNotesOpen={proPanelNotesOpen}
+              onToggleProNotesPanel={onToggleProNotesPanel}
+              onStartProPreview={onStartProPreview}
+              syncStatusLabel={syncStatusLabel}
+              syncButtonLabel={syncButtonLabel}
+            />
+          ) : null}
 
           {!isMobileViewport && (
             <motion.aside
@@ -1315,18 +1649,11 @@ export default function NotesTab({
               </div>
               <div className={styles.noteList}>
                 {filteredNotes.map((note) => (
-                  <motion.div
+                  <div
                     key={note.id}
                     className={styles.noteListRow}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{
-                      duration: 0.24,
-                      delay: Math.min(filteredNotes.findIndex((item) => item.id === note.id) * 0.03, 0.24),
-                      ease: [0.22, 1, 0.36, 1],
-                    }}
                   >
-                    <motion.button
+                    <button
                       type="button"
                       className={`${styles.noteListItem} ${selectedNoteId === note.id ? styles.noteListItemActive : ""}`}
                       style={notePreviewStyle(note.shellColor || "#fff7d6")}
@@ -1337,8 +1664,6 @@ export default function NotesTab({
                           onSetSelectedNoteId(note.id);
                         })();
                       }}
-                      whileHover={{ y: -2, scale: 1.01 }}
-                      whileTap={{ scale: 0.99 }}
                     >
                       <span className={styles.noteListTitle}>
                         {note.isPinned ? "★ " : ""}
@@ -1361,7 +1686,7 @@ export default function NotesTab({
                           ? ` · ${note.attachments.length} attachment${note.attachments.length === 1 ? "" : "s"}`
                           : ""}
                       </span>
-                    </motion.button>
+                    </button>
                     <button
                       type="button"
                       className={styles.notePinButton}
@@ -1371,7 +1696,7 @@ export default function NotesTab({
                     >
                       {note.isPinned ? "★" : "☆"}
                     </button>
-                  </motion.div>
+                  </div>
                 ))}
                 {filteredNotes.length === 0 && (
                   <p className={sharedStyles.emptyText}>No notes match your filters.</p>

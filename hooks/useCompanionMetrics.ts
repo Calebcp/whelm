@@ -90,12 +90,19 @@ export function useCompanionMetrics({
     let todaySessions = 0;
     let weekMinutes = 0;
     let monthMinutes = 0;
+    let totalMinutes = 0;
+    let recentStartHourTotal = 0;
+    let recentStartHourCount = 0;
+    let lastSessionHoursAgo: number | null = null;
+    const uniqueDayKeys: string[] = [];
+    const seenDayKeys = new Set<string>();
     const byDay = new Map<string, number>();
 
-    for (const session of sessions) {
+    sessions.forEach((session, index) => {
       const sessionDate = new Date(session.completedAtISO);
       const key = dayKeyLocal(sessionDate);
       byDay.set(key, (byDay.get(key) ?? 0) + session.minutes);
+      totalMinutes += session.minutes;
 
       if (key === todayKey) {
         todayMinutes += session.minutes;
@@ -103,7 +110,19 @@ export function useCompanionMetrics({
       }
       if (sessionDate >= weekStart && sessionDate <= now) weekMinutes += session.minutes;
       if (sessionDate >= monthStart && sessionDate <= now) monthMinutes += session.minutes;
-    }
+      if (index < 14) {
+        recentStartHourTotal += sessionDate.getHours() + sessionDate.getMinutes() / 60;
+        recentStartHourCount += 1;
+      }
+      if (index === 0) {
+        const ms = now.getTime() - sessionDate.getTime();
+        lastSessionHoursAgo = Math.max(0, ms / (1000 * 60 * 60));
+      }
+      if (!seenDayKeys.has(key)) {
+        seenDayKeys.add(key);
+        uniqueDayKeys.push(key);
+      }
+    });
 
     let activeDaysInMonth = 0;
     for (let i = 0; i < 30; i += 1) {
@@ -175,6 +194,7 @@ export function useCompanionMetrics({
       todaySessions,
       weekMinutes,
       monthMinutes,
+      totalMinutes,
       activeDaysInMonth,
       disciplineScore: summarizeDisciplineScore({
         todayMinutes,
@@ -182,6 +202,10 @@ export function useCompanionMetrics({
         streak,
         weekMinutes,
       }),
+      averageSessionStartHour:
+        recentStartHourCount === 0 ? null : recentStartHourTotal / recentStartHourCount,
+      lastSessionHoursAgo,
+      uniqueDayKeys,
       calendar,
       monthCalendar,
       trendPoints7: buildTrendPoints(7),
@@ -196,39 +220,22 @@ export function useCompanionMetrics({
     return focusMetrics.trendPoints7;
   }, [focusMetrics, trendRange]);
 
-  const averageSessionStartHour = useMemo(() => {
-    const recentSessions = sessions.slice(0, 14);
-    if (recentSessions.length === 0) return null;
-    const total = recentSessions.reduce((sum, session) => {
-      const date = new Date(session.completedAtISO);
-      return sum + date.getHours() + date.getMinutes() / 60;
-    }, 0);
-    return total / recentSessions.length;
-  }, [sessions]);
-
-  const lastSessionHoursAgo = useMemo(() => {
-    const iso = sessions[0]?.completedAtISO;
-    if (!iso) return null;
-    const ms = Date.now() - new Date(iso).getTime();
-    return Math.max(0, ms / (1000 * 60 * 60));
-  }, [sessions]);
-
   const comebackDaysAway = useMemo(() => {
     const todayKey = dayKeyLocal(new Date());
-    const previousDayKeys = [...new Set(sessions.map((session) => dayKeyLocal(session.completedAtISO)))].filter(
-      (key) => key !== todayKey,
-    );
-    if (focusMetrics.todaySessions === 0 || previousDayKeys.length === 0) return 0;
-    const previous = previousDayKeys[0];
+    const previous = focusMetrics.uniqueDayKeys.find((key) => key !== todayKey);
+    if (focusMetrics.todaySessions === 0 || !previous) return 0;
     const today = startOfDayLocal(new Date());
     const prior = startOfDayLocal(new Date(`${previous}T00:00:00`));
     const days = Math.round((today.getTime() - prior.getTime()) / (1000 * 60 * 60 * 24)) - 1;
     return Math.max(0, days);
-  }, [focusMetrics.todaySessions, sessions, startOfDayLocal]);
+  }, [focusMetrics.todaySessions, focusMetrics.uniqueDayKeys, startOfDayLocal]);
 
   const missedYesterday = useMemo(
-    () => focusMetrics.todaySessions === 0 && lastSessionHoursAgo !== null && lastSessionHoursAgo >= 24,
-    [focusMetrics.todaySessions, lastSessionHoursAgo],
+    () =>
+      focusMetrics.todaySessions === 0 &&
+      focusMetrics.lastSessionHoursAgo !== null &&
+      focusMetrics.lastSessionHoursAgo >= 24,
+    [focusMetrics.lastSessionHoursAgo, focusMetrics.todaySessions],
   );
 
   const nextSenseiMilestone = useMemo(() => milestoneForStreak(streak), [milestoneForStreak, streak]);
@@ -245,7 +252,7 @@ export function useCompanionMetrics({
         now: new Date(),
         activeTab: senseiActiveTab,
         totalSessions: sessions.length,
-        totalMinutes: sessions.reduce((sum, session) => sum + session.minutes, 0),
+        totalMinutes: focusMetrics.totalMinutes,
         todaySessions: focusMetrics.todaySessions,
         todayMinutes: focusMetrics.todayMinutes,
         weekMinutes: focusMetrics.weekMinutes,
@@ -256,21 +263,19 @@ export function useCompanionMetrics({
         notesUpdated7d,
         nextMilestone: nextSenseiMilestone.next,
         nextMilestoneRemaining: nextSenseiMilestone.remaining,
-        averageStartHour: averageSessionStartHour,
-        lastSessionHoursAgo,
+        averageStartHour: focusMetrics.averageSessionStartHour,
+        lastSessionHoursAgo: focusMetrics.lastSessionHoursAgo,
         comebackDaysAway,
         missedYesterday,
         companionStyle,
       }),
     [
-      averageSessionStartHour,
       comebackDaysAway,
       companionStyle,
       dueReminderCount,
       focusMetrics.todayMinutes,
       focusMetrics.todaySessions,
       focusMetrics.weekMinutes,
-      lastSessionHoursAgo,
       missedYesterday,
       nextSenseiMilestone.next,
       nextSenseiMilestone.remaining,
@@ -301,8 +306,8 @@ export function useCompanionMetrics({
   return {
     focusMetrics,
     trendPoints,
-    averageSessionStartHour,
-    lastSessionHoursAgo,
+    averageSessionStartHour: focusMetrics.averageSessionStartHour,
+    lastSessionHoursAgo: focusMetrics.lastSessionHoursAgo,
     comebackDaysAway,
     missedYesterday,
     nextSenseiMilestone,

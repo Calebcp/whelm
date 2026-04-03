@@ -1,6 +1,6 @@
 "use client";
 
-import { type CSSProperties, type Ref, type RefObject } from "react";
+import { memo, useMemo, type CSSProperties, type Ref, type RefObject } from "react";
 import { motion } from "motion/react";
 
 import styles from "@/app/page.module.css";
@@ -341,7 +341,1593 @@ export type ScheduleTabProps = {
   onUpgrade: () => void;
 };
 
-export default function ScheduleTab({
+type DayTimelinePanelProps = Pick<
+  ScheduleTabProps,
+  | "calendarTimelineRef"
+  | "mobileDayTimelineScrollRef"
+  | "isMobileViewport"
+  | "mobileDayTimelineHeight"
+  | "currentTimeMarker"
+  | "dayViewTimeline"
+  | "activatedCalendarEntryId"
+  | "activeOverlapPickerItem"
+  | "activeDayViewPreviewItem"
+  | "activeCalendarPreview"
+  | "calendarPinnedEntryId"
+  | "plannedBlockById"
+  | "onSetCalendarPinnedEntryId"
+  | "onSetOverlapPickerEntryId"
+  | "onShowCalendarHoverPreview"
+  | "onScheduleCalendarHoverPreviewClear"
+  | "onClearCalendarHoverPreviewDelay"
+  | "onSetCalendarHoverEntryId"
+  | "onOpenPlannedBlockDetail"
+  | "onOpenNote"
+  | "onSetActiveTabHistory"
+  | "onCompletePlannedBlock"
+>;
+
+type MonthGridPanelProps = Pick<
+  ScheduleTabProps,
+  | "dynamicMonthCalendar"
+  | "calendarEntriesByDate"
+  | "selectedDateKey"
+  | "selectedDateDayTone"
+  | "onSelectCalendarDate"
+  | "onSetCalendarView"
+  | "onSetCalendarHoverEntryId"
+  | "onOpenPlannedBlockDetail"
+  | "onSetCalendarPinnedEntryId"
+>;
+
+type DayPortalPanelProps = Pick<
+  ScheduleTabProps,
+  | "selectedDateDayTone"
+  | "isSelectedDateToday"
+  | "selectedDateSummary"
+  | "selectedDateCanAddBlocks"
+  | "isMobileViewport"
+  | "selectedDateFocusedMinutes"
+  | "selectedDatePlanGroups"
+  | "selectedDateEntries"
+  | "selectedDateKey"
+  | "isPro"
+  | "dayPortalComposerOpen"
+  | "planTitle"
+  | "planNoteExpanded"
+  | "planNote"
+  | "planTone"
+  | "planConflictWarning"
+  | "planTime"
+  | "planDuration"
+  | "bandanaColor"
+  | "onOpenCalendarBlockComposer"
+  | "onSetCalendarView"
+  | "onToggleMobileCalendarControls"
+  | "onApplyDayTone"
+  | "onUpgrade"
+  | "onCloseBlockComposer"
+  | "onSetPlanTitle"
+  | "onSetPlanNoteExpanded"
+  | "onSetPlanNote"
+  | "onSetPlanTone"
+  | "onSetPlanConflictWarning"
+  | "onSetPlanTime"
+  | "onSetPlanDuration"
+  | "onAddPlannedBlock"
+>;
+
+type CalendarAuxPanelProps = Pick<
+  ScheduleTabProps,
+  | "calendarPlannerRef"
+  | "calendarHeroRef"
+  | "calendarView"
+  | "selectedDateDayTone"
+  | "calendarAuxPanel"
+  | "calendarCompanionPulse"
+  | "bandanaColor"
+  | "focusMetricsCalendar"
+  | "historicalStreaksByDay"
+  | "selectedDateKey"
+  | "selectedDateEntries"
+  | "selectedDatePlanGroups"
+  | "selectedDateAgendaStateSummary"
+  | "isMobileViewport"
+  | "mobileAgendaEntriesOpen"
+  | "selectedDateFocusedMinutes"
+  | "plannedBlockById"
+  | "plannerSectionsOpen"
+  | "draggedPlanId"
+  | "isPro"
+  | "onSetCalendarAuxPanel"
+  | "onSetMobileAgendaEntriesOpen"
+  | "onOpenNote"
+  | "onOpenPlannedBlockDetail"
+  | "onCompletePlannedBlock"
+  | "onSetActiveTabHistory"
+  | "onSetPlannerSectionsOpen"
+  | "onSetDraggedPlanId"
+  | "onReorderPlannedBlocks"
+  | "onUpdatePlannedBlockTime"
+  | "onDeletePlannedBlock"
+>;
+
+type MobileBlockSheetProps = Pick<
+  ScheduleTabProps,
+  | "mobileBlockSheetOpen"
+  | "isMobileViewport"
+  | "selectedDateCanAddBlocks"
+  | "selectedDateKey"
+  | "planTitle"
+  | "planNoteExpanded"
+  | "planNote"
+  | "planTone"
+  | "isPro"
+  | "planConflictWarning"
+  | "planTime"
+  | "planDuration"
+  | "editingPlannedBlockId"
+  | "planStatus"
+  | "selectedDatePlanGroups"
+  | "onCloseBlockComposer"
+  | "onSetPlanTitle"
+  | "onSetPlanNoteExpanded"
+  | "onSetPlanNote"
+  | "onSetPlanTone"
+  | "onUpgrade"
+  | "onSetPlanConflictWarning"
+  | "onSetPlanTime"
+  | "onSetPlanDuration"
+  | "onAddPlannedBlock"
+>;
+
+const MonthGridPanel = memo(function MonthGridPanel({
+  dynamicMonthCalendar,
+  calendarEntriesByDate,
+  selectedDateKey,
+  selectedDateDayTone,
+  onSelectCalendarDate,
+  onSetCalendarView,
+  onSetCalendarHoverEntryId,
+  onOpenPlannedBlockDetail,
+  onSetCalendarPinnedEntryId,
+}: MonthGridPanelProps) {
+  return (
+    <>
+      <div id="calendar-main-view" className={styles.calendarHeader}>
+        <span>Sun</span>
+        <span>Mon</span>
+        <span>Tue</span>
+        <span>Wed</span>
+        <span>Thu</span>
+        <span>Fri</span>
+        <span>Sat</span>
+      </div>
+      <div className={styles.monthGrid}>
+        {dynamicMonthCalendar.map((day) => {
+          const effectiveDayTone =
+            day.dayNumber && day.key === selectedDateKey ? selectedDateDayTone ?? day.tone : day.tone;
+          const dayEntries = calendarEntriesByDate.get(day.key) ?? [];
+
+          return (
+            <motion.div
+              key={day.key}
+              className={`${styles.monthDayCell} ${
+                effectiveDayTone ? "" : styles[`streakLevel${day.level}`]
+              } ${day.dayNumber && day.key === selectedDateKey ? styles.monthDayCellSelected : ""} ${
+                effectiveDayTone ? styles[`calendarToneSurface${effectiveDayTone}`] : ""
+              } ${effectiveDayTone ? styles.calendarToneSurfaceDay : ""} ${
+                day.dayNumber && day.key === selectedDateKey && effectiveDayTone
+                  ? styles.monthDayCellToneSelected
+                  : ""
+              }`}
+              style={getCalendarToneStyle(effectiveDayTone)}
+              role={day.dayNumber ? "button" : undefined}
+              tabIndex={day.dayNumber ? 0 : -1}
+              aria-disabled={!day.dayNumber}
+              title={
+                day.dayNumber
+                  ? `${day.dayNumber}: ${day.minutes}m focus, ${dayEntries.length} entries`
+                  : "Outside current month"
+              }
+              onClick={() => {
+                if (!day.dayNumber) return;
+                onSelectCalendarDate(day.key);
+                onSetCalendarView("day");
+              }}
+              onKeyDown={(event) => {
+                if (!day.dayNumber) return;
+                if (event.key !== "Enter" && event.key !== " ") return;
+                event.preventDefault();
+                onSelectCalendarDate(day.key);
+                onSetCalendarView("day");
+              }}
+              initial={{ opacity: 0, y: 8, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{
+                duration: 0.24,
+                delay: Math.min((day.dayNumber ?? 0) * 0.006, 0.18),
+                ease: [0.22, 1, 0.36, 1],
+              }}
+            >
+              {day.dayNumber && (
+                <>
+                  <div className={styles.monthDayHead}>
+                    <span className={styles.monthDayNumber}>{day.dayNumber}</span>
+                    <span className={styles.monthDayMinutes}>{day.minutes}m</span>
+                  </div>
+                  <div className={styles.monthEntries}>
+                    {dayEntries.slice(0, 2).map((entry) => (
+                      <button
+                        key={entry.id}
+                        type="button"
+                        className={`${styles.monthEntryChip} ${
+                          styles[`monthEntry${entry.tone}`]
+                        } ${entry.isCompleted ? styles.monthEntryCompleted : ""}`}
+                        onMouseEnter={() => onSetCalendarHoverEntryId(entry.id)}
+                        onMouseLeave={() =>
+                          onSetCalendarHoverEntryId((current) => (current === entry.id ? null : current))
+                        }
+                        onFocus={() => onSetCalendarHoverEntryId(entry.id)}
+                        onBlur={() =>
+                          onSetCalendarHoverEntryId((current) => (current === entry.id ? null : current))
+                        }
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          onSelectCalendarDate(day.key);
+                          onSetCalendarView("day");
+                          if (entry.source === "plan" && entry.planId) {
+                            onOpenPlannedBlockDetail(entry.planId);
+                            return;
+                          }
+                          onSetCalendarPinnedEntryId((current) => (current === entry.id ? null : entry.id));
+                        }}
+                      >
+                        {entry.timeLabel} {entry.title}
+                      </button>
+                    ))}
+                    {dayEntries.length > 2 && (
+                      <span className={styles.monthMoreChip}>+{dayEntries.length - 2} more</span>
+                    )}
+                  </div>
+                </>
+              )}
+            </motion.div>
+          );
+        })}
+      </div>
+    </>
+  );
+});
+
+const DayPortalPanel = memo(function DayPortalPanel({
+  selectedDateDayTone,
+  isSelectedDateToday,
+  selectedDateSummary,
+  selectedDateCanAddBlocks,
+  isMobileViewport,
+  selectedDateFocusedMinutes,
+  selectedDatePlanGroups,
+  selectedDateEntries,
+  selectedDateKey,
+  isPro,
+  dayPortalComposerOpen,
+  planTitle,
+  planNoteExpanded,
+  planNote,
+  planTone,
+  planConflictWarning,
+  planTime,
+  planDuration,
+  bandanaColor,
+  onOpenCalendarBlockComposer,
+  onSetCalendarView,
+  onToggleMobileCalendarControls,
+  onApplyDayTone,
+  onUpgrade,
+  onCloseBlockComposer,
+  onSetPlanTitle,
+  onSetPlanNoteExpanded,
+  onSetPlanNote,
+  onSetPlanTone,
+  onSetPlanConflictWarning,
+  onSetPlanTime,
+  onSetPlanDuration,
+  onAddPlannedBlock,
+}: DayPortalPanelProps) {
+  return (
+    <div id="calendar-day-chamber" className={styles.dayPortalCard}>
+      <div
+        className={`${styles.dayPortalBody} ${
+          selectedDateDayTone ? styles[`calendarToneSurface${selectedDateDayTone}`] : ""
+        } ${selectedDateDayTone ? styles.calendarToneSurfaceDayPortal : ""}`}
+        style={getCalendarToneStyle(selectedDateDayTone)}
+      >
+        <div className={styles.dayPortalCopy}>
+          <div className={styles.dayPortalHeader}>
+            <div>
+              <p className={styles.sectionLabel}>
+                {isSelectedDateToday ? "Today Chamber" : selectedDateSummary.eyebrow}
+              </p>
+              <h3 className={styles.dayPortalTitle}>{selectedDateSummary.title}</h3>
+            </div>
+            <div className={styles.dayPortalActions}>
+              {selectedDateCanAddBlocks ? (
+                <button
+                  type="button"
+                  data-tour="schedule-add-block"
+                  className={`${styles.planAddButton} ${styles.dayPortalBlockButton}`}
+                  onClick={onOpenCalendarBlockComposer}
+                >
+                  + Block
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className={styles.secondaryPlanButton}
+                onClick={() => onSetCalendarView("month")}
+              >
+                Back to month
+              </button>
+              {isMobileViewport && (
+                <button
+                  type="button"
+                  className={styles.calendarSectionButton}
+                  onClick={onToggleMobileCalendarControls}
+                >
+                  Jump
+                </button>
+              )}
+            </div>
+          </div>
+          {!isMobileViewport && <p className={styles.dayPortalMeta}>{selectedDateSummary.body}</p>}
+          {!isMobileViewport && (
+            <div className={styles.dayPortalStats}>
+              <span className={styles.dayPortalPill}>Focus: {selectedDateFocusedMinutes}m</span>
+              <span className={styles.dayPortalPill}>Plans: {selectedDatePlanGroups.visible.length}</span>
+              <span className={styles.dayPortalPill}>Entries: {selectedDateEntries.length}</span>
+            </div>
+          )}
+          <CalendarTonePicker
+            label="Day tone"
+            selectedTone={selectedDateDayTone}
+            onSelectTone={(tone) => onApplyDayTone(selectedDateKey, tone)}
+            isPro={isPro}
+            onUpgrade={onUpgrade}
+          />
+          {!isMobileViewport && selectedDateCanAddBlocks && dayPortalComposerOpen && (
+            <div id="calendar-planner" className={styles.dayPortalComposer}>
+              <div className={styles.dayPortalComposerHeader}>
+                <div>
+                  <p className={styles.sectionLabel}>Add Block</p>
+                  <p className={styles.accountMeta}>Place the next block without leaving the day view.</p>
+                </div>
+                <button
+                  type="button"
+                  className={styles.secondaryPlanButton}
+                  onClick={onCloseBlockComposer}
+                >
+                  Close
+                </button>
+              </div>
+              <input
+                value={planTitle}
+                onChange={(event) => onSetPlanTitle(event.target.value)}
+                placeholder="Task title (e.g. Deep work sprint)"
+                className={styles.planInput}
+                disabled={!selectedDateCanAddBlocks}
+              />
+              <div className={styles.planNoteRow}>
+                <button
+                  type="button"
+                  className={styles.planNoteToggle}
+                  onClick={() => onSetPlanNoteExpanded((current) => !current)}
+                >
+                  {planNoteExpanded || planNote ? "Hide note" : "+ Note"}
+                </button>
+              </div>
+              {planNoteExpanded && (
+                <textarea
+                  value={planNote}
+                  onChange={(event) => onSetPlanNote(event.target.value.slice(0, 280))}
+                  placeholder="Optional note, intention, or instruction for this block"
+                  className={styles.planNoteInput}
+                  disabled={!selectedDateCanAddBlocks}
+                />
+              )}
+              <CalendarTonePicker
+                label="Block tone"
+                selectedTone={planTone}
+                onSelectTone={onSetPlanTone}
+                isPro={isPro}
+                onUpgrade={onUpgrade}
+              />
+              {planConflictWarning && (
+                <div className={styles.planConflictBanner}>
+                  <p className={styles.planConflictText}>{planConflictWarning.message}</p>
+                  <div className={styles.planConflictActions}>
+                    <button
+                      type="button"
+                      className={styles.secondaryPlanButton}
+                      onClick={() => onSetPlanConflictWarning(null)}
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              )}
+              <div className={styles.planFormRow}>
+                <label className={styles.planLabel}>
+                  Time
+                  <input
+                    type="time"
+                    value={planTime}
+                    onChange={(event) => onSetPlanTime(event.target.value)}
+                    className={styles.planControl}
+                    disabled={!selectedDateCanAddBlocks}
+                  />
+                </label>
+                <label className={styles.planLabel}>
+                  Minutes
+                  <input
+                    type="number"
+                    min={MIN_PLANNED_BLOCK_MINUTES}
+                    max={MAX_PLANNED_BLOCK_MINUTES}
+                    value={planDuration}
+                    onChange={(event) => {
+                      const next = Number(event.target.value);
+                      if (Number.isFinite(next)) {
+                        onSetPlanDuration(next);
+                      }
+                    }}
+                    className={styles.planControl}
+                    disabled={!selectedDateCanAddBlocks}
+                  />
+                </label>
+                <button
+                  type="button"
+                  className={`${styles.planAddButton} ${styles.blockActionButton}`}
+                  disabled={!selectedDateCanAddBlocks}
+                  onClick={() => {
+                    const added = onAddPlannedBlock();
+                    if (added) {
+                      onCloseBlockComposer();
+                    }
+                  }}
+                >
+                  Add Block
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+        {!isMobileViewport && (
+          <SenseiAvatar
+            message={
+              selectedDateEntries.length === 0
+                ? "Quiet room. Set the tone."
+                : "You entered the day. Now shape it."
+            }
+            variant={
+              selectedDateEntries.length === 0
+                ? "meditate"
+                : selectedDateFocusedMinutes >= 60
+                  ? "victory"
+                  : selectedDateEntries.some((entry) => entry.source === "reminder")
+                    ? "scholar"
+                    : "neutral"
+            }
+            bandanaColor={bandanaColor}
+            compact
+          />
+        )}
+      </div>
+    </div>
+  );
+});
+
+const CalendarAuxPanel = memo(function CalendarAuxPanel({
+  calendarPlannerRef,
+  calendarHeroRef,
+  calendarView,
+  selectedDateDayTone,
+  calendarAuxPanel,
+  calendarCompanionPulse,
+  bandanaColor,
+  focusMetricsCalendar,
+  historicalStreaksByDay,
+  selectedDateKey,
+  selectedDateEntries,
+  selectedDatePlanGroups,
+  selectedDateAgendaStateSummary,
+  isMobileViewport,
+  mobileAgendaEntriesOpen,
+  selectedDateFocusedMinutes,
+  plannedBlockById,
+  plannerSectionsOpen,
+  draggedPlanId,
+  isPro,
+  onSetCalendarAuxPanel,
+  onSetMobileAgendaEntriesOpen,
+  onOpenNote,
+  onOpenPlannedBlockDetail,
+  onCompletePlannedBlock,
+  onSetActiveTabHistory,
+  onSetPlannerSectionsOpen,
+  onSetDraggedPlanId,
+  onReorderPlannedBlocks,
+  onUpdatePlannedBlockTime,
+  onDeletePlannedBlock,
+}: CalendarAuxPanelProps) {
+  const visiblePlanTone = (tone: CalendarTone | null | undefined) => (isPro ? (tone ?? null) : null);
+
+  return (
+    <article
+      className={`${styles.card} ${styles.calendarAuxCard} ${
+        calendarView === "day" && selectedDateDayTone ? styles[`calendarToneSurface${selectedDateDayTone}`] : ""
+      } ${calendarView === "day" && selectedDateDayTone ? styles.calendarToneSurfaceDayCard : ""}`}
+      style={calendarView === "day" ? getCalendarToneStyle(selectedDateDayTone) : undefined}
+      ref={calendarPlannerRef}
+    >
+      <div className={styles.calendarAuxTabs}>
+        <button
+          type="button"
+          className={`${styles.calendarAuxTab} ${calendarAuxPanel === "agenda" ? styles.calendarAuxTabActive : ""}`}
+          onClick={() => onSetCalendarAuxPanel("agenda")}
+        >
+          Agenda
+        </button>
+        <button
+          type="button"
+          className={`${styles.calendarAuxTab} ${calendarAuxPanel === "streak" ? styles.calendarAuxTabActive : ""}`}
+          onClick={() => onSetCalendarAuxPanel("streak")}
+        >
+          Streak
+        </button>
+        <button
+          type="button"
+          className={`${styles.calendarAuxTab} ${calendarAuxPanel === "guide" ? styles.calendarAuxTabActive : ""}`}
+          onClick={() => onSetCalendarAuxPanel("guide")}
+        >
+          Guide
+        </button>
+      </div>
+
+      {calendarAuxPanel === "guide" && (
+        <div ref={calendarHeroRef}>
+          <CompanionPulse {...calendarCompanionPulse} bandanaColor={bandanaColor} />
+        </div>
+      )}
+
+      {calendarAuxPanel === "streak" && (
+        <>
+          <p className={styles.sectionLabel}>Last 4 Weeks</p>
+          <h2 className={styles.cardTitle}>Streak heatmap</h2>
+          <div className={styles.streakGrid}>
+            {focusMetricsCalendar.map((day, index, days) => {
+              const previous = days[index - 1];
+              const next = days[index + 1];
+              const historicalStreakLength = historicalStreaksByDay.get(day.dateKey) ?? 0;
+              const streakDay = historicalStreakLength > 0;
+              const leftConnected =
+                streakDay &&
+                index % 14 !== 0 &&
+                (historicalStreaksByDay.get(previous?.dateKey ?? "") ?? 0) > 0;
+              const rightConnected =
+                streakDay &&
+                index % 14 !== 13 &&
+                (historicalStreaksByDay.get(next?.dateKey ?? "") ?? 0) > 0;
+
+              return (
+                <div
+                  key={day.dateKey}
+                  className={[
+                    styles.streakCell,
+                    styles[`streakLevel${day.level}`],
+                    streakDay ? styles.streakCellRun : "",
+                    leftConnected ? styles.streakCellConnectLeft : "",
+                    rightConnected ? styles.streakCellConnectRight : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  title={`${day.label}: ${day.minutes}m`}
+                >
+                  {streakDay ? <StreakBandana streakDays={historicalStreakLength} /> : null}
+                </div>
+              );
+            })}
+          </div>
+          <div className={styles.streakLegend}>
+            <span>No focus</span>
+            <span>Light</span>
+            <span>Strong</span>
+            <span>Deep</span>
+          </div>
+          <p className={styles.streakLegendNote}>Moving bandana = streak day</p>
+        </>
+      )}
+
+      {calendarAuxPanel === "agenda" && (
+        <>
+          <p className={styles.sectionLabel}>Scheduler</p>
+          <h2 className={styles.cardTitle}>
+            {isMobileViewport ? "Day overview for " : "Day agenda for "}
+            {new Date(`${selectedDateKey}T00:00:00`).toLocaleDateString(undefined, {
+              weekday: "short",
+              month: "short",
+              day: "numeric",
+            })}
+          </h2>
+          <p className={styles.accountMeta}>
+            {selectedDateEntries.length} entries: {selectedDatePlanGroups.visible.length} planned,{" "}
+            {selectedDateEntries.filter((entry) => entry.source === "reminder").length} reminders,{" "}
+            {selectedDateEntries.filter((entry) => entry.source === "session").length} completed sessions
+          </p>
+          <div className={styles.agendaCommandGrid}>
+            <article className={styles.agendaCommandCard}>
+              <span>Now</span>
+              <strong>{selectedDateAgendaStateSummary.activeNow?.title ?? "No active block"}</strong>
+              <small>
+                {selectedDateAgendaStateSummary.activeNow
+                  ? selectedDateAgendaStateSummary.activeNow.timeLabel
+                  : "The room is open for the next deliberate block."}
+              </small>
+            </article>
+            <article className={styles.agendaCommandCard}>
+              <span>Next</span>
+              <strong>{selectedDateAgendaStateSummary.nextUp?.title ?? "No queued block"}</strong>
+              <small>
+                {selectedDateAgendaStateSummary.nextUp
+                  ? `${selectedDateAgendaStateSummary.nextUp.timeLabel} · set the next move early`
+                  : "Queue the next thing before drift decides it."}
+              </small>
+            </article>
+            <article className={styles.agendaCommandCard}>
+              <span>Pressure</span>
+              <strong>
+                {selectedDateAgendaStateSummary.overdueCount > 0
+                  ? `${selectedDateAgendaStateSummary.overdueCount} overdue`
+                  : "Board clear"}
+              </strong>
+              <small>
+                {selectedDateAgendaStateSummary.focusMinutes}m focus · {selectedDateAgendaStateSummary.reminderCount} reminders
+              </small>
+            </article>
+          </div>
+
+          {isMobileViewport ? (
+            <>
+              <div className={styles.mobileAgendaSummary}>
+                <div className={styles.mobileAgendaStat}>
+                  <span>Blocks</span>
+                  <strong>{selectedDatePlanGroups.visible.length}</strong>
+                </div>
+                <div className={styles.mobileAgendaStat}>
+                  <span>Reminders</span>
+                  <strong>{selectedDateEntries.filter((entry) => entry.source === "reminder").length}</strong>
+                </div>
+                <div className={styles.mobileAgendaStat}>
+                  <span>Focus</span>
+                  <strong>{selectedDateFocusedMinutes}m</strong>
+                </div>
+              </div>
+
+              <section className={styles.planSection}>
+                <button
+                  type="button"
+                  className={styles.planSectionHeader}
+                  onClick={() => onSetMobileAgendaEntriesOpen((open) => !open)}
+                >
+                  <span>Entries</span>
+                  <span>{mobileAgendaEntriesOpen ? "Hide" : selectedDateEntries.length}</span>
+                </button>
+                {mobileAgendaEntriesOpen && (
+                  <div className={styles.dayAgendaList}>
+                    {selectedDateEntries.length === 0 ? (
+                      <p className={styles.emptyText}>No events for this date yet.</p>
+                    ) : (
+                      selectedDateEntries.slice(0, 6).map((entry) => {
+                        const agendaState =
+                          entry.source === "session"
+                            ? ("logged" as const)
+                            : resolveAgendaTimingState(
+                                selectedDateKey,
+                                entry.startMinute,
+                                entry.endMinute,
+                                entry.isCompleted,
+                              );
+                        return (
+                          <div
+                            key={entry.id}
+                            className={`${styles.dayAgendaItem} ${
+                              entry.source === "plan" ? styles.dayAgendaItemTinted : ""
+                            } ${entry.source === "plan" ? styles[`dayViewEvent${entry.tone}`] : ""} ${
+                              entry.source === "plan" && getCalendarToneMeta(entry.tone as CalendarTone)
+                                ? styles.calendarToneSurfaceBlock
+                                : ""
+                            } ${entry.isCompleted ? styles.dayAgendaItemCompleted : ""}`}
+                            style={
+                              entry.source === "plan"
+                                ? getCalendarToneStyle(entry.tone as CalendarTone)
+                                : undefined
+                            }
+                          >
+                            <div>
+                              <div className={styles.dayAgendaHeadline}>
+                                <p className={styles.dayAgendaTime}>{entry.timeLabel}</p>
+                                <span className={`${styles.agendaStatePill} ${styles[`agendaStatePill${agendaState.charAt(0).toUpperCase()}${agendaState.slice(1)}`]}`}>
+                                  {agendaState === "logged" ? "Logged" : agendaState}
+                                </span>
+                              </div>
+                              <strong className={styles.dayAgendaTitle}>{entry.title}</strong>
+                              <p className={styles.dayAgendaMeta}>{entry.subtitle}</p>
+                            </div>
+                            <div className={styles.dayAgendaActions}>
+                              {entry.source === "reminder" && entry.noteId && (
+                                <button
+                                  type="button"
+                                  className={styles.secondaryPlanButton}
+                                  onClick={() => onOpenNote(entry.noteId ?? null)}
+                                >
+                                  Open note
+                                </button>
+                              )}
+                              {entry.source === "plan" && entry.planId && plannedBlockById.get(entry.planId) && (
+                                <button
+                                  type="button"
+                                  className={styles.secondaryPlanButton}
+                                  onClick={() => onOpenPlannedBlockDetail(entry.planId ?? "")}
+                                >
+                                  Open block
+                                </button>
+                              )}
+                              {entry.source === "plan" &&
+                                entry.planId &&
+                                plannedBlockById.get(entry.planId) &&
+                                !entry.isCompleted && (
+                                  <button
+                                    type="button"
+                                    className={styles.planCompleteButton}
+                                    onClick={() => {
+                                      const plan = plannedBlockById.get(entry.planId ?? "");
+                                      if (!plan) return;
+                                      void onCompletePlannedBlock(plan);
+                                    }}
+                                  >
+                                    Complete
+                                  </button>
+                                )}
+                              {entry.source === "session" && (
+                                <button
+                                  type="button"
+                                  className={styles.secondaryPlanButton}
+                                  onClick={onSetActiveTabHistory}
+                                >
+                                  View history
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+              </section>
+            </>
+          ) : (
+            <div className={styles.dayAgendaList}>
+              {selectedDateEntries.length === 0 ? (
+                <p className={styles.emptyText}>No events for this date yet.</p>
+              ) : (
+                selectedDateEntries.slice(0, 8).map((entry) => {
+                  const agendaState =
+                    entry.source === "session"
+                      ? ("logged" as const)
+                      : resolveAgendaTimingState(
+                          selectedDateKey,
+                          entry.startMinute,
+                          entry.endMinute,
+                          entry.isCompleted,
+                        );
+                  return (
+                    <div
+                      key={entry.id}
+                      className={`${styles.dayAgendaItem} ${
+                        entry.source === "plan" ? styles.dayAgendaItemTinted : ""
+                      } ${entry.source === "plan" ? styles[`dayViewEvent${entry.tone}`] : ""} ${
+                        entry.source === "plan" && getCalendarToneMeta(entry.tone as CalendarTone)
+                          ? styles.calendarToneSurfaceBlock
+                          : ""
+                      } ${entry.isCompleted ? styles.dayAgendaItemCompleted : ""}`}
+                      style={
+                        entry.source === "plan"
+                          ? getCalendarToneStyle(entry.tone as CalendarTone)
+                          : undefined
+                      }
+                    >
+                      <div>
+                        <div className={styles.dayAgendaHeadline}>
+                          <p className={styles.dayAgendaTime}>{entry.timeLabel}</p>
+                          <span className={`${styles.agendaStatePill} ${styles[`agendaStatePill${agendaState.charAt(0).toUpperCase()}${agendaState.slice(1)}`]}`}>
+                            {agendaState === "logged" ? "Logged" : agendaState}
+                          </span>
+                        </div>
+                        <strong className={styles.dayAgendaTitle}>{entry.title}</strong>
+                        <p className={styles.dayAgendaMeta}>{entry.subtitle}</p>
+                      </div>
+                      <div className={styles.dayAgendaActions}>
+                        {entry.source === "reminder" && entry.noteId && (
+                          <button
+                            type="button"
+                            className={styles.secondaryPlanButton}
+                            onClick={() => onOpenNote(entry.noteId ?? null)}
+                          >
+                            Open note
+                          </button>
+                        )}
+                        {entry.source === "plan" && entry.planId && plannedBlockById.get(entry.planId) && (
+                          <button
+                            type="button"
+                            className={styles.secondaryPlanButton}
+                            onClick={() => onOpenPlannedBlockDetail(entry.planId ?? "")}
+                          >
+                            Open block
+                          </button>
+                        )}
+                        {entry.source === "plan" &&
+                          entry.planId &&
+                          plannedBlockById.get(entry.planId) &&
+                          !entry.isCompleted && (
+                            <button
+                              type="button"
+                              className={styles.planCompleteButton}
+                              onClick={() => {
+                                const plan = plannedBlockById.get(entry.planId ?? "");
+                                if (!plan) return;
+                                void onCompletePlannedBlock(plan);
+                              }}
+                            >
+                              Complete
+                            </button>
+                          )}
+                        {entry.source === "session" && (
+                          <button
+                            type="button"
+                            className={styles.secondaryPlanButton}
+                            onClick={onSetActiveTabHistory}
+                          >
+                            View history
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          )}
+
+          <div className={styles.planSectionStack}>
+            <section className={styles.planSection}>
+              <button
+                type="button"
+                className={styles.planSectionHeader}
+                onClick={() =>
+                  onSetPlannerSectionsOpen((current) => ({ ...current, active: !current.active }))
+                }
+              >
+                <span>Planned Blocks</span>
+                <span>{selectedDatePlanGroups.visible.length}</span>
+              </button>
+              {plannerSectionsOpen.active && (
+                <div className={styles.planList}>
+                  {selectedDatePlanGroups.visible.length === 0 ? (
+                    <p className={styles.emptyText}>No planned blocks for this day.</p>
+                  ) : (
+                    selectedDatePlanGroups.visible.map((item) => {
+                      const completed = item.status === "completed";
+                      const planState = completed
+                        ? ("completed" as const)
+                        : resolveAgendaTimingState(
+                            item.dateKey,
+                            parseTimeToMinutes(item.timeOfDay),
+                            parseTimeToMinutes(item.timeOfDay) + item.durationMinutes,
+                          );
+                      return (
+                        <div
+                          key={item.id}
+                          className={`${completed ? styles.planItemStatic : styles.planItem} ${
+                            completed ? styles.planItemCompleted : ""
+                          } ${visiblePlanTone(item.tone) ? styles[`calendarToneSurface${visiblePlanTone(item.tone)}`] : ""} ${
+                            visiblePlanTone(item.tone) ? styles.calendarToneSurfaceBlock : ""
+                          }`}
+                          style={getCalendarToneStyle(visiblePlanTone(item.tone))}
+                          onClick={() => onOpenPlannedBlockDetail(item.id)}
+                          draggable={!completed}
+                          onDragStart={() => {
+                            if (completed) return;
+                            onSetDraggedPlanId(item.id);
+                          }}
+                          onDragEnd={() => onSetDraggedPlanId(null)}
+                          onDragOver={(event) => {
+                            if (completed) return;
+                            event.preventDefault();
+                          }}
+                          onDrop={() => {
+                            if (completed || !draggedPlanId) return;
+                            onReorderPlannedBlocks(draggedPlanId, item.id);
+                            onSetDraggedPlanId(null);
+                          }}
+                        >
+                          <div>
+                            <div className={styles.planItemHeadline}>
+                              <strong>{item.title}</strong>
+                              {item.attachmentCount ? (
+                                <span className={styles.attachmentIndicatorChip}>
+                                  {attachmentIndicatorLabel(item.attachmentCount)}
+                                </span>
+                              ) : null}
+                              <span className={`${styles.agendaStatePill} ${styles[`agendaStatePill${planState.charAt(0).toUpperCase()}${planState.slice(1)}`]}`}>
+                                {planState}
+                              </span>
+                            </div>
+                            <div className={styles.planMetaRow}>
+                              {completed ? (
+                                <span>{normalizeTimeLabel(item.timeOfDay)}</span>
+                              ) : (
+                                <input
+                                  type="time"
+                                  value={item.timeOfDay}
+                                  className={styles.planItemTime}
+                                  onChange={(event) => onUpdatePlannedBlockTime(item.id, event.target.value)}
+                                />
+                              )}
+                              <span>{item.durationMinutes}m</span>
+                            </div>
+                            {item.note.trim() && <p className={styles.planItemNote}>{item.note}</p>}
+                          </div>
+                          <div className={styles.planActions}>
+                            {completed ? (
+                              <div className={styles.planStatusPill}>✓ Done</div>
+                            ) : (
+                              <>
+                                <button
+                                  type="button"
+                                  className={styles.planCompleteButton}
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    void onCompletePlannedBlock(item);
+                                  }}
+                                >
+                                  Complete
+                                </button>
+                                <button
+                                  type="button"
+                                  className={styles.planDeleteButton}
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    onDeletePlannedBlock(item.id);
+                                  }}
+                                >
+                                  Remove
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+            </section>
+
+            <section className={styles.planSection}>
+              <button
+                type="button"
+                className={styles.planSectionHeader}
+                onClick={() =>
+                  onSetPlannerSectionsOpen((current) => ({
+                    ...current,
+                    incomplete: !current.incomplete,
+                  }))
+                }
+              >
+                <span>Incomplete Blocks</span>
+                <span>{selectedDatePlanGroups.incomplete.length}</span>
+              </button>
+              {plannerSectionsOpen.incomplete && (
+                <div className={styles.planList}>
+                  {selectedDatePlanGroups.incomplete.length === 0 ? (
+                    <p className={styles.emptyText}>No incomplete blocks for this day.</p>
+                  ) : (
+                    selectedDatePlanGroups.incomplete.map((item) => {
+                      const planState = resolveAgendaTimingState(
+                        item.dateKey,
+                        parseTimeToMinutes(item.timeOfDay),
+                        parseTimeToMinutes(item.timeOfDay) + item.durationMinutes,
+                      );
+                      return (
+                        <div
+                          key={item.id}
+                          className={`${styles.planItemStatic} ${
+                            visiblePlanTone(item.tone) ? styles[`calendarToneSurface${visiblePlanTone(item.tone)}`] : ""
+                          } ${visiblePlanTone(item.tone) ? styles.calendarToneSurfaceBlock : ""}`}
+                          style={getCalendarToneStyle(visiblePlanTone(item.tone))}
+                          onClick={() => onOpenPlannedBlockDetail(item.id)}
+                        >
+                          <div>
+                            <div className={styles.planItemHeadline}>
+                              <strong>{item.title}</strong>
+                              {item.attachmentCount ? (
+                                <span className={styles.attachmentIndicatorChip}>
+                                  {attachmentIndicatorLabel(item.attachmentCount)}
+                                </span>
+                              ) : null}
+                              <span className={`${styles.agendaStatePill} ${styles[`agendaStatePill${planState.charAt(0).toUpperCase()}${planState.slice(1)}`]}`}>
+                                {planState}
+                              </span>
+                            </div>
+                            <div className={styles.planMetaRow}>
+                              <span>{normalizeTimeLabel(item.timeOfDay)}</span>
+                              <span>{item.durationMinutes}m</span>
+                            </div>
+                            {item.note.trim() && <p className={styles.planItemNote}>{item.note}</p>}
+                          </div>
+                          <div className={styles.planStatusPillMuted}>Incomplete</div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+            </section>
+          </div>
+        </>
+      )}
+    </article>
+  );
+});
+
+const MobileBlockSheet = memo(function MobileBlockSheet({
+  mobileBlockSheetOpen,
+  isMobileViewport,
+  selectedDateCanAddBlocks,
+  selectedDateKey,
+  planTitle,
+  planNoteExpanded,
+  planNote,
+  planTone,
+  isPro,
+  planConflictWarning,
+  planTime,
+  planDuration,
+  editingPlannedBlockId,
+  planStatus,
+  selectedDatePlanGroups,
+  onCloseBlockComposer,
+  onSetPlanTitle,
+  onSetPlanNoteExpanded,
+  onSetPlanNote,
+  onSetPlanTone,
+  onUpgrade,
+  onSetPlanConflictWarning,
+  onSetPlanTime,
+  onSetPlanDuration,
+  onAddPlannedBlock,
+}: MobileBlockSheetProps) {
+  if (!isMobileViewport || !mobileBlockSheetOpen || !selectedDateCanAddBlocks) {
+    return null;
+  }
+
+  return (
+    <div className={styles.feedbackOverlay} onClick={onCloseBlockComposer}>
+      <div className={styles.mobileBlockModal} onClick={(event) => event.stopPropagation()}>
+        <div className={styles.feedbackHeader}>
+          <div>
+            <p className={styles.sectionLabel}>Time Block</p>
+            <h2 className={styles.feedbackTitle}>
+              Block out{" "}
+              {new Date(`${selectedDateKey}T00:00:00`).toLocaleDateString(undefined, {
+                weekday: "short",
+                month: "short",
+                day: "numeric",
+              })}
+            </h2>
+          </div>
+          <button type="button" className={styles.feedbackClose} onClick={onCloseBlockComposer}>
+            Close
+          </button>
+        </div>
+        <p className={styles.paywallCopy}>
+          Time blocks are central in Whelm. Add one fast, then return to the calendar.
+        </p>
+        <div className={styles.planForm}>
+          <input
+            value={planTitle}
+            onChange={(event) => onSetPlanTitle(event.target.value)}
+            placeholder="Task title"
+            className={styles.planInput}
+            disabled={!selectedDateCanAddBlocks}
+          />
+          <div className={styles.planNoteRow}>
+            <button
+              type="button"
+              className={styles.planNoteToggle}
+              onClick={() => onSetPlanNoteExpanded((current) => !current)}
+            >
+              {planNoteExpanded || planNote ? "Hide note" : "+ Note"}
+            </button>
+          </div>
+          {planNoteExpanded && (
+            <textarea
+              value={planNote}
+              onChange={(event) => onSetPlanNote(event.target.value.slice(0, 280))}
+              placeholder="Optional note, intention, or instruction for this block"
+              className={styles.planNoteInput}
+              disabled={!selectedDateCanAddBlocks}
+            />
+          )}
+          <CalendarTonePicker
+            label="Block tone"
+            selectedTone={planTone}
+            onSelectTone={onSetPlanTone}
+            isPro={isPro}
+            onUpgrade={onUpgrade}
+          />
+          {planConflictWarning && (
+            <div className={styles.planConflictBanner}>
+              <p className={styles.planConflictText}>{planConflictWarning.message}</p>
+              <div className={styles.planConflictActions}>
+                <button
+                  type="button"
+                  className={styles.secondaryPlanButton}
+                  onClick={() => onSetPlanConflictWarning(null)}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          )}
+          <div className={styles.planFormRow}>
+            <label className={styles.planLabel}>
+              Time
+              <input
+                type="time"
+                value={planTime}
+                onChange={(event) => onSetPlanTime(event.target.value)}
+                className={styles.planControl}
+                disabled={!selectedDateCanAddBlocks}
+              />
+            </label>
+            <label className={styles.planLabel}>
+              Minutes
+              <input
+                type="number"
+                min={MIN_PLANNED_BLOCK_MINUTES}
+                max={MAX_PLANNED_BLOCK_MINUTES}
+                value={planDuration}
+                onChange={(event) => {
+                  const next = Number(event.target.value);
+                  if (Number.isFinite(next)) {
+                    onSetPlanDuration(next);
+                  }
+                }}
+                className={styles.planControl}
+                disabled={!selectedDateCanAddBlocks}
+              />
+            </label>
+            <button
+              type="button"
+              className={`${styles.planAddButton} ${styles.blockActionButton}`}
+              disabled={!selectedDateCanAddBlocks}
+              onClick={() => {
+                const added = onAddPlannedBlock();
+                if (added) {
+                  onCloseBlockComposer();
+                }
+              }}
+            >
+              {editingPlannedBlockId ? "Save changes" : "Add block"}
+            </button>
+          </div>
+          {planStatus && <p className={styles.accountMeta}>{planStatus}</p>}
+        </div>
+        <div className={styles.mobileBlockList}>
+          {selectedDatePlanGroups.visible.slice(0, 4).map((item) => (
+            <div
+              key={item.id}
+              className={`${styles.mobileBlockItem} ${
+                item.status === "completed" ? styles.mobileBlockItemCompleted : ""
+              }`}
+            >
+              <strong>
+                {item.title}
+                {item.attachmentCount ? (
+                  <span className={styles.attachmentIndicatorChip}>
+                    {attachmentIndicatorLabel(item.attachmentCount)}
+                  </span>
+                ) : null}
+              </strong>
+              <span>
+                {item.timeOfDay} • {item.durationMinutes}m
+                {item.status === "completed" ? " • completed" : ""}
+              </span>
+            </div>
+          ))}
+          {selectedDatePlanGroups.visible.length === 0 && (
+            <p className={styles.emptyText}>No blocks yet for this day.</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+});
+
+const DayTimelinePanel = memo(function DayTimelinePanel({
+  calendarTimelineRef,
+  mobileDayTimelineScrollRef,
+  isMobileViewport,
+  mobileDayTimelineHeight,
+  currentTimeMarker,
+  dayViewTimeline,
+  activatedCalendarEntryId,
+  activeOverlapPickerItem,
+  activeDayViewPreviewItem,
+  activeCalendarPreview,
+  calendarPinnedEntryId,
+  plannedBlockById,
+  onSetCalendarPinnedEntryId,
+  onSetOverlapPickerEntryId,
+  onShowCalendarHoverPreview,
+  onScheduleCalendarHoverPreviewClear,
+  onClearCalendarHoverPreviewDelay,
+  onSetCalendarHoverEntryId,
+  onOpenPlannedBlockDetail,
+  onOpenNote,
+  onSetActiveTabHistory,
+  onCompletePlannedBlock,
+}: DayTimelinePanelProps) {
+  const timelineItemById = useMemo(
+    () => new Map(dayViewTimeline.items.map((item) => [item.id, item])),
+    [dayViewTimeline.items],
+  );
+  const overlapPreviewTitlesById = useMemo(() => {
+    const next = new Map<string, string>();
+    for (const item of dayViewTimeline.items) {
+      if (item.overlapIds.length === 0) continue;
+      const labels = item.overlapIds
+        .slice(0, 2)
+        .map((id) => timelineItemById.get(id)?.title)
+        .filter((title): title is string => Boolean(title));
+      next.set(item.id, labels.join(", "));
+    }
+    return next;
+  }, [dayViewTimeline.items, timelineItemById]);
+  const activeCalendarPreviewDateLabel = useMemo(() => {
+    if (!activeCalendarPreview) return null;
+    return new Date(`${activeCalendarPreview.dateKey}T00:00:00`).toLocaleDateString(undefined, {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    });
+  }, [activeCalendarPreview]);
+
+  return (
+    <>
+      <div
+        id="calendar-timeline"
+        className={isMobileViewport ? styles.dayViewScrollShell : undefined}
+        ref={isMobileViewport ? mobileDayTimelineScrollRef : undefined}
+      >
+        <div className={styles.dayViewGrid} ref={calendarTimelineRef}>
+          <div
+            className={styles.dayViewTicks}
+            style={isMobileViewport ? { height: `${mobileDayTimelineHeight}px` } : undefined}
+          >
+            {dayViewTimeline.hourTicks.map((tick) => (
+              <span key={tick.minute}>{tick.label}</span>
+            ))}
+            {currentTimeMarker && (
+              <span className={styles.dayViewNowLabel} style={{ top: `${currentTimeMarker.topPct}%` }}>
+                {currentTimeMarker.label}
+              </span>
+            )}
+          </div>
+          <div
+            className={styles.dayViewTrack}
+            style={isMobileViewport ? { height: `${mobileDayTimelineHeight}px` } : undefined}
+            onClick={() => {
+              onSetCalendarPinnedEntryId(null);
+              onSetOverlapPickerEntryId(null);
+            }}
+          >
+            {dayViewTimeline.hourTicks.map((tick) => (
+              <div
+                key={tick.minute}
+                className={styles.dayViewRow}
+                style={{
+                  top: `${((tick.minute - dayViewTimeline.startMinute) / dayViewTimeline.totalMinutes) * 100}%`,
+                }}
+              />
+            ))}
+            {currentTimeMarker && (
+              <div className={styles.dayViewNowLine} style={{ top: `${currentTimeMarker.topPct}%` }}>
+                <span className={styles.dayViewNowDot} />
+              </div>
+            )}
+            {dayViewTimeline.items.map((entry) => (
+              <motion.button
+                type="button"
+                key={`timeline-${entry.id}`}
+                data-calendar-entry-id={entry.id}
+                className={`${styles.dayViewEvent} ${styles[`dayViewEvent${entry.tone}`]} ${
+                  isMobileViewport ? styles.dayViewEventMobile : ""
+                } ${entry.durationMinutes < 40 ? styles.dayViewEventCompact : ""} ${
+                  activatedCalendarEntryId === entry.id ? styles.dayViewEventActivated : ""
+                } ${entry.isCompleted ? styles.dayViewEventCompleted : ""} ${
+                  entry.isCompleted ? styles.dayViewEventResolved : ""
+                } ${entry.source === "plan" && getCalendarToneMeta(entry.tone as CalendarTone)
+                  ? styles.calendarToneSurfaceBlock
+                  : ""}`}
+                style={{
+                  top: `${entry.topPct}%`,
+                  height: `${entry.heightPct}%`,
+                  left:
+                    entry.totalCols > 1
+                      ? `calc(${(entry.col / entry.totalCols) * 100}% + ${entry.col > 0 ? "2px" : "0px"})`
+                      : undefined,
+                  width:
+                    entry.totalCols > 1
+                      ? `calc(${(1 / entry.totalCols) * 100}% - ${entry.col > 0 ? "2px" : "0px"})`
+                      : undefined,
+                  zIndex: entry.totalCols > 1 ? 10 + entry.col : undefined,
+                  ...getCalendarToneStyle(entry.source === "plan" ? (entry.tone as CalendarTone) : null),
+                }}
+                onMouseEnter={() => onShowCalendarHoverPreview(entry.id)}
+                onMouseLeave={() => onScheduleCalendarHoverPreviewClear(entry.id)}
+                onFocus={() => onShowCalendarHoverPreview(entry.id)}
+                onBlur={() => onScheduleCalendarHoverPreviewClear(entry.id)}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onClearCalendarHoverPreviewDelay();
+                  if (entry.source === "plan" && entry.planId) {
+                    onOpenPlannedBlockDetail(entry.planId);
+                    return;
+                  }
+                  onSetCalendarPinnedEntryId((current) => (current === entry.id ? null : entry.id));
+                }}
+                initial={{ opacity: 0, x: -8, scale: 0.98 }}
+                animate={{ opacity: 1, x: 0, scale: 1 }}
+                transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
+              >
+                <span className={styles.dayViewEventTime}>{entry.timeLabel}</span>
+                <strong>{entry.title}</strong>
+                {entry.overlapIds.length > 0 && entry.durationMinutes >= 25 && (
+                  <span className={styles.dayViewOverlapWarning}>
+                    {"⚠ Overlaps with "}
+                    {overlapPreviewTitlesById.get(entry.id)}
+                  </span>
+                )}
+                {entry.overlapIds.length > 0 && (
+                  <span
+                    className={styles.dayViewOverlapHandle}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onClearCalendarHoverPreviewDelay();
+                      onSetCalendarHoverEntryId(null);
+                      onSetCalendarPinnedEntryId(null);
+                      onSetOverlapPickerEntryId((current) => (current === entry.id ? null : entry.id));
+                    }}
+                  >
+                    {entry.overlapIds.slice(0, 3).map((overlapId, index) => {
+                      const overlapEntry = timelineItemById.get(overlapId);
+                      if (!overlapEntry) return null;
+                      return (
+                        <span
+                          key={overlapId}
+                          className={`${styles.dayViewOverlapSlice} ${styles[`dayViewOverlapSlice${overlapEntry.tone}`]}`}
+                          style={{ right: `${index * 8}px` }}
+                        />
+                      );
+                    })}
+                  </span>
+                )}
+              </motion.button>
+            ))}
+          </div>
+          {activeOverlapPickerItem && activeOverlapPickerItem.overlapIds.length > 0 && (
+            <div
+              className={`${styles.overlapPicker} ${
+                activeOverlapPickerItem.topPct + activeOverlapPickerItem.heightPct / 2 > 55
+                  ? styles.overlapPickerAbove
+                  : styles.overlapPickerBelow
+              }`}
+              style={
+                activeOverlapPickerItem.topPct + activeOverlapPickerItem.heightPct / 2 > 55
+                  ? { bottom: `calc(${100 - activeOverlapPickerItem.topPct + 2}%)` }
+                  : {
+                      top: `calc(${Math.min(
+                        92,
+                        activeOverlapPickerItem.topPct + activeOverlapPickerItem.heightPct + 2,
+                      )}%)`,
+                    }
+              }
+              onClick={(event) => event.stopPropagation()}
+            >
+              <p className={styles.overlapPickerLabel}>Overlapping blocks</p>
+              <div className={styles.overlapPickerList}>
+                {[activeOverlapPickerItem.id, ...activeOverlapPickerItem.overlapIds].map((optionId) => {
+                  const option = timelineItemById.get(optionId);
+                  if (!option) return null;
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      className={styles.overlapPickerItem}
+                      onClick={() => {
+                        onSetOverlapPickerEntryId(null);
+                        onSetCalendarPinnedEntryId(option.id);
+                        onShowCalendarHoverPreview(option.id);
+                      }}
+                    >
+                      <span className={`${styles.overlapPickerSwatch} ${styles[`dayViewOverlapSlice${option.tone}`]}`} />
+                      <span>{option.timeLabel}</span>
+                      <strong>{option.title}</strong>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          {activeCalendarPreview &&
+            activeDayViewPreviewItem &&
+            (!isMobileViewport || activeCalendarPreview.source === "session") && (
+            <div
+              className={`${styles.calendarEntryPopover} ${
+                calendarPinnedEntryId ? styles.calendarEntryPopoverPinned : ""
+              } ${
+                activeDayViewPreviewItem.topPct + activeDayViewPreviewItem.heightPct / 2 > 55
+                  ? styles.calendarEntryPopoverAbove
+                  : styles.calendarEntryPopoverBelow
+              }`}
+              style={
+                activeDayViewPreviewItem.topPct + activeDayViewPreviewItem.heightPct / 2 > 55
+                  ? { bottom: `calc(${100 - activeDayViewPreviewItem.topPct + 2}%)` }
+                  : {
+                      top: `calc(${Math.min(
+                        92,
+                        activeDayViewPreviewItem.topPct + activeDayViewPreviewItem.heightPct + 2,
+                      )}%)`,
+                    }
+              }
+              onMouseEnter={() => {
+                if (!isMobileViewport && !calendarPinnedEntryId) {
+                  onShowCalendarHoverPreview(activeCalendarPreview.id);
+                }
+              }}
+              onMouseLeave={() => {
+                if (!isMobileViewport && !calendarPinnedEntryId) {
+                  onScheduleCalendarHoverPreviewClear(activeCalendarPreview.id);
+                }
+              }}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div>
+                <p className={styles.calendarEntryPreviewLabel}>
+                  {activeCalendarPreviewDateLabel} • {activeCalendarPreview.timeLabel}
+                </p>
+                <h3 className={styles.calendarEntryPreviewTitle}>{activeCalendarPreview.title}</h3>
+                {!previewDuplicatesTitle(activeCalendarPreview.title, activeCalendarPreview.preview) && (
+                  <p className={styles.calendarEntryPreviewBody}>{activeCalendarPreview.preview}</p>
+                )}
+              </div>
+              <div className={styles.calendarEntryPreviewActions}>
+                {activeCalendarPreview.source === "reminder" && activeCalendarPreview.noteId && (
+                  <button
+                    type="button"
+                    className={styles.secondaryPlanButton}
+                    onClick={() => {
+                      onOpenNote(activeCalendarPreview.noteId ?? null);
+                    }}
+                  >
+                    Open note
+                  </button>
+                )}
+                {activeCalendarPreview.source === "plan" && activeCalendarPreview.planId && (
+                  <button
+                    type="button"
+                    className={styles.secondaryPlanButton}
+                    onClick={() => onOpenPlannedBlockDetail(activeCalendarPreview.planId ?? "")}
+                  >
+                    Open block
+                  </button>
+                )}
+                {activeCalendarPreview.source === "plan" && activeCalendarPreview.planId && (
+                  <button
+                    type="button"
+                    className={styles.planCompleteButton}
+                    onClick={() => {
+                      const plan = plannedBlockById.get(activeCalendarPreview.planId ?? "");
+                      if (!plan) return;
+                      void onCompletePlannedBlock(plan);
+                    }}
+                  >
+                    Complete
+                  </button>
+                )}
+                {activeCalendarPreview.source === "session" && (
+                  <button type="button" className={styles.secondaryPlanButton} onClick={onSetActiveTabHistory}>
+                    View history
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className={styles.secondaryPlanButton}
+                  onClick={() => onSetCalendarPinnedEntryId(null)}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+      {isMobileViewport && activeCalendarPreview && activeCalendarPreview.source !== "session" && (
+        <div className={styles.calendarEntryPreview}>
+          <div>
+            <p className={styles.calendarEntryPreviewLabel}>
+              {activeCalendarPreviewDateLabel} • {activeCalendarPreview.timeLabel}
+            </p>
+            <h3 className={styles.calendarEntryPreviewTitle}>{activeCalendarPreview.title}</h3>
+            {!previewDuplicatesTitle(activeCalendarPreview.title, activeCalendarPreview.preview) && (
+              <p className={styles.calendarEntryPreviewBody}>{activeCalendarPreview.preview}</p>
+            )}
+          </div>
+          <div className={styles.calendarEntryPreviewActions}>
+            {activeCalendarPreview.source === "reminder" && activeCalendarPreview.noteId && (
+              <button
+                type="button"
+                className={styles.secondaryPlanButton}
+                onClick={() => {
+                  onOpenNote(activeCalendarPreview.noteId ?? null);
+                }}
+              >
+                Open note
+              </button>
+            )}
+            {activeCalendarPreview.source === "plan" && activeCalendarPreview.planId && (
+              <button
+                type="button"
+                className={styles.secondaryPlanButton}
+                onClick={() => onOpenPlannedBlockDetail(activeCalendarPreview.planId ?? "")}
+              >
+                Open block
+              </button>
+            )}
+            {activeCalendarPreview.source === "plan" && activeCalendarPreview.planId && (
+              <button
+                type="button"
+                className={styles.planCompleteButton}
+                onClick={() => {
+                  const plan = plannedBlockById.get(activeCalendarPreview.planId ?? "");
+                  if (!plan) return;
+                  void onCompletePlannedBlock(plan);
+                }}
+              >
+                Complete
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  );
+});
+
+function ScheduleTab({
   sectionRef,
   calendarMonthRef,
   calendarPlannerRef,
@@ -611,684 +2197,78 @@ export default function ScheduleTab({
           )}
         </div>
         {calendarView === "month" ? (
-          <>
-            <div id="calendar-main-view" className={styles.calendarHeader}>
-              <span>Sun</span>
-              <span>Mon</span>
-              <span>Tue</span>
-              <span>Wed</span>
-              <span>Thu</span>
-              <span>Fri</span>
-              <span>Sat</span>
-            </div>
-            <div className={styles.monthGrid}>
-              {dynamicMonthCalendar.map((day) => {
-                const effectiveDayTone =
-                  day.dayNumber && day.key === selectedDateKey
-                    ? selectedDateDayTone ?? day.tone
-                    : day.tone;
-
-                return (
-                <motion.div
-                  key={day.key}
-                  className={`${styles.monthDayCell} ${
-                    effectiveDayTone ? "" : styles[`streakLevel${day.level}`]
-                  } ${
-                    day.dayNumber && day.key === selectedDateKey ? styles.monthDayCellSelected : ""
-                  } ${effectiveDayTone ? styles[`calendarToneSurface${effectiveDayTone}`] : ""} ${
-                    effectiveDayTone ? styles.calendarToneSurfaceDay : ""
-                  } ${
-                    day.dayNumber && day.key === selectedDateKey && effectiveDayTone
-                      ? styles.monthDayCellToneSelected
-                      : ""
-                  }`}
-                  style={getCalendarToneStyle(effectiveDayTone)}
-                  role={day.dayNumber ? "button" : undefined}
-                  tabIndex={day.dayNumber ? 0 : -1}
-                  aria-disabled={!day.dayNumber}
-                  title={
-                    day.dayNumber
-                      ? `${day.dayNumber}: ${day.minutes}m focus, ${
-                          (calendarEntriesByDate.get(day.key) ?? []).length
-                        } entries`
-                      : "Outside current month"
-                  }
-                  onClick={() => {
-                    if (!day.dayNumber) return;
-                    onSelectCalendarDate(day.key);
-                    onSetCalendarView("day");
-                  }}
-                  onKeyDown={(event) => {
-                    if (!day.dayNumber) return;
-                    if (event.key !== "Enter" && event.key !== " ") return;
-                    event.preventDefault();
-                    onSelectCalendarDate(day.key);
-                    onSetCalendarView("day");
-                  }}
-                  initial={{ opacity: 0, y: 8, scale: 0.98 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  transition={{
-                    duration: 0.24,
-                    delay: Math.min((day.dayNumber ?? 0) * 0.006, 0.18),
-                    ease: [0.22, 1, 0.36, 1],
-                  }}
-                >
-                  {day.dayNumber && (
-                    <>
-                      <div className={styles.monthDayHead}>
-                        <span className={styles.monthDayNumber}>{day.dayNumber}</span>
-                        <span className={styles.monthDayMinutes}>{day.minutes}m</span>
-                      </div>
-                      <div className={styles.monthEntries}>
-                        {(calendarEntriesByDate.get(day.key) ?? []).slice(0, 2).map((entry) => (
-                          <button
-                            key={entry.id}
-                            type="button"
-                            className={`${styles.monthEntryChip} ${
-                              styles[`monthEntry${entry.tone}`]
-                            } ${entry.isCompleted ? styles.monthEntryCompleted : ""}`}
-                            onMouseEnter={() => onSetCalendarHoverEntryId(entry.id)}
-                            onMouseLeave={() => onSetCalendarHoverEntryId((current) =>
-                              current === entry.id ? null : current,
-                            )}
-                            onFocus={() => onSetCalendarHoverEntryId(entry.id)}
-                            onBlur={() => onSetCalendarHoverEntryId((current) =>
-                              current === entry.id ? null : current,
-                            )}
-                            onClick={(event) => {
-                              event.preventDefault();
-                              event.stopPropagation();
-                              onSelectCalendarDate(day.key);
-                              onSetCalendarView("day");
-                              if (entry.source === "plan" && entry.planId) {
-                                onOpenPlannedBlockDetail(entry.planId);
-                                return;
-                              }
-                              onSetCalendarPinnedEntryId((current) =>
-                                current === entry.id ? null : entry.id,
-                              );
-                            }}
-                          >
-                            {entry.timeLabel} {entry.title}
-                          </button>
-                        ))}
-                        {(calendarEntriesByDate.get(day.key) ?? []).length > 2 && (
-                          <span className={styles.monthMoreChip}>
-                            +{(calendarEntriesByDate.get(day.key) ?? []).length - 2} more
-                          </span>
-                        )}
-                      </div>
-                    </>
-                  )}
-                </motion.div>
-                );
-              })}
-            </div>
-          </>
+          <MonthGridPanel
+            dynamicMonthCalendar={dynamicMonthCalendar}
+            calendarEntriesByDate={calendarEntriesByDate}
+            selectedDateKey={selectedDateKey}
+            selectedDateDayTone={selectedDateDayTone}
+            onSelectCalendarDate={onSelectCalendarDate}
+            onSetCalendarView={onSetCalendarView}
+            onSetCalendarHoverEntryId={onSetCalendarHoverEntryId}
+            onOpenPlannedBlockDetail={onOpenPlannedBlockDetail}
+            onSetCalendarPinnedEntryId={onSetCalendarPinnedEntryId}
+          />
         ) : (
-            <div className={styles.dayViewShell}>
-            <div id="calendar-day-chamber" className={styles.dayPortalCard}>
-              <div
-                className={`${styles.dayPortalBody} ${
-                  selectedDateDayTone ? styles[`calendarToneSurface${selectedDateDayTone}`] : ""
-                } ${selectedDateDayTone ? styles.calendarToneSurfaceDayPortal : ""}`}
-                style={getCalendarToneStyle(selectedDateDayTone)}
-              >
-                <div className={styles.dayPortalCopy}>
-                  <div className={styles.dayPortalHeader}>
-                    <div>
-                      <p className={styles.sectionLabel}>
-                        {isSelectedDateToday ? "Today Chamber" : selectedDateSummary.eyebrow}
-                      </p>
-                      <h3 className={styles.dayPortalTitle}>{selectedDateSummary.title}</h3>
-                    </div>
-                    <div className={styles.dayPortalActions}>
-                      {selectedDateCanAddBlocks ? (
-                        <button
-                          type="button"
-                          data-tour="schedule-add-block"
-                          className={`${styles.planAddButton} ${styles.dayPortalBlockButton}`}
-                          onClick={() => {
-                            onOpenCalendarBlockComposer();
-                          }}
-                        >
-                          + Block
-                        </button>
-                      ) : null}
-                      <button
-                        type="button"
-                        className={styles.secondaryPlanButton}
-                        onClick={() => onSetCalendarView("month")}
-                      >
-                        Back to month
-                      </button>
-                      {isMobileViewport && (
-                        <button
-                          type="button"
-                          className={styles.calendarSectionButton}
-                          onClick={onToggleMobileCalendarControls}
-                        >
-                          Jump
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  {!isMobileViewport && (
-                    <p className={styles.dayPortalMeta}>{selectedDateSummary.body}</p>
-                  )}
-                  {!isMobileViewport && (
-                    <div className={styles.dayPortalStats}>
-                      <span className={styles.dayPortalPill}>
-                        Focus: {selectedDateFocusedMinutes}m
-                      </span>
-                      <span className={styles.dayPortalPill}>
-                        Plans: {selectedDatePlanGroups.visible.length}
-                      </span>
-                      <span className={styles.dayPortalPill}>
-                        Entries: {selectedDateEntries.length}
-                      </span>
-                    </div>
-                  )}
-                  <CalendarTonePicker
-                    label="Day tone"
-                    selectedTone={selectedDateDayTone}
-                    onSelectTone={(tone) => onApplyDayTone(selectedDateKey, tone)}
-                    isPro={isPro}
-                    onUpgrade={onUpgrade}
-                  />
-                  {!isMobileViewport && selectedDateCanAddBlocks && dayPortalComposerOpen && (
-                    <div id="calendar-planner" className={styles.dayPortalComposer}>
-                      <div className={styles.dayPortalComposerHeader}>
-                        <div>
-                          <p className={styles.sectionLabel}>Add Block</p>
-                          <p className={styles.accountMeta}>
-                            Place the next block without leaving the day view.
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          className={styles.secondaryPlanButton}
-                          onClick={onCloseBlockComposer}
-                        >
-                          Close
-                        </button>
-                      </div>
-                      <input
-                        value={planTitle}
-                        onChange={(event) => onSetPlanTitle(event.target.value)}
-                        placeholder="Task title (e.g. Deep work sprint)"
-                        className={styles.planInput}
-                        disabled={!selectedDateCanAddBlocks}
-                      />
-                      <div className={styles.planNoteRow}>
-                        <button
-                          type="button"
-                          className={styles.planNoteToggle}
-                          onClick={() => onSetPlanNoteExpanded((current) => !current)}
-                        >
-                          {planNoteExpanded || planNote ? "Hide note" : "+ Note"}
-                        </button>
-                      </div>
-                      {planNoteExpanded && (
-                        <textarea
-                          value={planNote}
-                          onChange={(event) => onSetPlanNote(event.target.value.slice(0, 280))}
-                          placeholder="Optional note, intention, or instruction for this block"
-                          className={styles.planNoteInput}
-                          disabled={!selectedDateCanAddBlocks}
-                        />
-                      )}
-                      <CalendarTonePicker
-                        label="Block tone"
-                        selectedTone={planTone}
-                        onSelectTone={onSetPlanTone}
-                        isPro={isPro}
-                        onUpgrade={onUpgrade}
-                      />
-                      {planConflictWarning && (
-                        <div className={styles.planConflictBanner}>
-                          <p className={styles.planConflictText}>{planConflictWarning.message}</p>
-                          <div className={styles.planConflictActions}>
-                            <button
-                              type="button"
-                              className={styles.secondaryPlanButton}
-                              onClick={() => onSetPlanConflictWarning(null)}
-                            >
-                              Close
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                      <div className={styles.planFormRow}>
-                        <label className={styles.planLabel}>
-                          Time
-                          <input
-                            type="time"
-                            value={planTime}
-                            onChange={(event) => onSetPlanTime(event.target.value)}
-                            className={styles.planControl}
-                            disabled={!selectedDateCanAddBlocks}
-                          />
-                        </label>
-                        <label className={styles.planLabel}>
-                          Minutes
-                          <input
-                            type="number"
-                            min={MIN_PLANNED_BLOCK_MINUTES}
-                            max={MAX_PLANNED_BLOCK_MINUTES}
-                            value={planDuration}
-                            onChange={(event) => {
-                              const next = Number(event.target.value);
-                              if (Number.isFinite(next)) {
-                                onSetPlanDuration(next);
-                              }
-                            }}
-                            className={styles.planControl}
-                            disabled={!selectedDateCanAddBlocks}
-                          />
-                        </label>
-                        <button
-                          type="button"
-                          className={`${styles.planAddButton} ${styles.blockActionButton}`}
-                          disabled={!selectedDateCanAddBlocks}
-                          onClick={() => {
-                            const added = onAddPlannedBlock();
-                            if (added) {
-                              onCloseBlockComposer();
-                            }
-                          }}
-                        >
-                          Add Block
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                {!isMobileViewport && (
-                  <SenseiAvatar
-                    message={
-                      selectedDateEntries.length === 0
-                        ? "Quiet room. Set the tone."
-                        : "You entered the day. Now shape it."
-                    }
-                    variant={
-                      selectedDateEntries.length === 0
-                        ? "meditate"
-                        : selectedDateFocusedMinutes >= 60
-                          ? "victory"
-                          : selectedDateEntries.some((entry) => entry.source === "reminder")
-                            ? "scholar"
-                            : "neutral"
-                    }
-                    bandanaColor={bandanaColor}
-                    compact
-                  />
-                )}
-              </div>
-            </div>
-            <div
-              id="calendar-timeline"
-              className={isMobileViewport ? styles.dayViewScrollShell : undefined}
-              ref={isMobileViewport ? mobileDayTimelineScrollRef : undefined}
-            >
-              <div className={styles.dayViewGrid} ref={calendarTimelineRef}>
-                <div
-                  className={styles.dayViewTicks}
-                  style={isMobileViewport ? { height: `${mobileDayTimelineHeight}px` } : undefined}
-                >
-                  {dayViewTimeline.hourTicks.map((tick) => (
-                    <span key={tick.minute}>{tick.label}</span>
-                  ))}
-                  {currentTimeMarker && (
-                    <span
-                      className={styles.dayViewNowLabel}
-                      style={{ top: `${currentTimeMarker.topPct}%` }}
-                    >
-                      {currentTimeMarker.label}
-                    </span>
-                  )}
-                </div>
-                <div
-                  className={styles.dayViewTrack}
-                  style={isMobileViewport ? { height: `${mobileDayTimelineHeight}px` } : undefined}
-                  onClick={() => {
-                    onSetCalendarPinnedEntryId(null);
-                    onSetOverlapPickerEntryId(null);
-                  }}
-                >
-                  {dayViewTimeline.hourTicks.map((tick) => (
-                    <div
-                      key={tick.minute}
-                      className={styles.dayViewRow}
-                      style={{
-                        top: `${((tick.minute - dayViewTimeline.startMinute) / dayViewTimeline.totalMinutes) * 100}%`,
-                      }}
-                    />
-                  ))}
-                  {currentTimeMarker && (
-                    <div
-                      className={styles.dayViewNowLine}
-                      style={{ top: `${currentTimeMarker.topPct}%` }}
-                    >
-                      <span className={styles.dayViewNowDot} />
-                    </div>
-                  )}
-                  {dayViewTimeline.items.map((entry) => (
-                    <motion.button
-                      type="button"
-                      key={`timeline-${entry.id}`}
-                      data-calendar-entry-id={entry.id}
-                      className={`${styles.dayViewEvent} ${styles[`dayViewEvent${entry.tone}`]} ${
-                        isMobileViewport ? styles.dayViewEventMobile : ""
-                      } ${entry.durationMinutes < 40 ? styles.dayViewEventCompact : ""} ${
-                        activatedCalendarEntryId === entry.id ? styles.dayViewEventActivated : ""
-                      } ${entry.isCompleted ? styles.dayViewEventCompleted : ""} ${
-                        entry.isCompleted ? styles.dayViewEventResolved : ""
-                      } ${entry.source === "plan" && getCalendarToneMeta(entry.tone as CalendarTone)
-                        ? styles.calendarToneSurfaceBlock
-                        : ""}`}
-                      style={{
-                        top: `${entry.topPct}%`,
-                        height: `${entry.heightPct}%`,
-                        left: entry.totalCols > 1 ? `calc(${(entry.col / entry.totalCols) * 100}% + ${entry.col > 0 ? "2px" : "0px"})` : undefined,
-                        width: entry.totalCols > 1 ? `calc(${(1 / entry.totalCols) * 100}% - ${entry.col > 0 ? "2px" : "0px"})` : undefined,
-                        zIndex: entry.totalCols > 1 ? 10 + entry.col : undefined,
-                        ...getCalendarToneStyle(
-                          entry.source === "plan" ? (entry.tone as CalendarTone) : null,
-                        ),
-                      }}
-                      onMouseEnter={() => onShowCalendarHoverPreview(entry.id)}
-                      onMouseLeave={() => onScheduleCalendarHoverPreviewClear(entry.id)}
-                      onFocus={() => onShowCalendarHoverPreview(entry.id)}
-                      onBlur={() => onScheduleCalendarHoverPreviewClear(entry.id)}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onClearCalendarHoverPreviewDelay();
-                        if (entry.source === "plan" && entry.planId) {
-                          onOpenPlannedBlockDetail(entry.planId);
-                          return;
-                        }
-                        onSetCalendarPinnedEntryId((current) => (current === entry.id ? null : entry.id))
-                      }}
-                      initial={{ opacity: 0, x: -8, scale: 0.98 }}
-                      animate={{ opacity: 1, x: 0, scale: 1 }}
-                      transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
-                    >
-                      <span className={styles.dayViewEventTime}>{entry.timeLabel}</span>
-                      <strong>{entry.title}</strong>
-                      {entry.overlapIds.length > 0 && entry.durationMinutes >= 25 && (
-                        <span className={styles.dayViewOverlapWarning}>
-                          {"⚠ Overlaps with "}
-                          {(() => {
-                            const names = entry.overlapIds.slice(0, 2).map((id) => {
-                              const ov = dayViewTimeline.items.find((it) => it.id === id);
-                              return ov ? ov.title : null;
-                            }).filter(Boolean);
-                            return names.join(", ");
-                          })()}
-                        </span>
-                      )}
-                      {entry.overlapIds.length > 0 && (
-                        <span
-                          className={styles.dayViewOverlapHandle}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            onClearCalendarHoverPreviewDelay();
-                            onSetCalendarHoverEntryId(null);
-                            onSetCalendarPinnedEntryId(null);
-                            onSetOverlapPickerEntryId((current) =>
-                              current === entry.id ? null : entry.id,
-                            );
-                          }}
-                        >
-                          {entry.overlapIds.slice(0, 3).map((overlapId, index) => {
-                            const overlapEntry = dayViewTimeline.items.find((item) => item.id === overlapId);
-                            if (!overlapEntry) return null;
-                            return (
-                              <span
-                                key={overlapId}
-                                className={`${styles.dayViewOverlapSlice} ${
-                                  styles[`dayViewOverlapSlice${overlapEntry.tone}`]
-                                }`}
-                                style={{ right: `${index * 8}px` }}
-                              />
-                            );
-                          })}
-                        </span>
-                      )}
-                    </motion.button>
-                  ))}
-                </div>
-                {activeOverlapPickerItem && activeOverlapPickerItem.overlapIds.length > 0 && (
-                  <div
-                    className={`${styles.overlapPicker} ${
-                      activeOverlapPickerItem.topPct + activeOverlapPickerItem.heightPct / 2 > 55
-                        ? styles.overlapPickerAbove
-                        : styles.overlapPickerBelow
-                    }`}
-                    style={
-                      activeOverlapPickerItem.topPct + activeOverlapPickerItem.heightPct / 2 > 55
-                        ? {
-                            bottom: `calc(${100 - activeOverlapPickerItem.topPct + 2}%)`,
-                          }
-                        : {
-                            top: `calc(${
-                              Math.min(
-                                92,
-                                activeOverlapPickerItem.topPct + activeOverlapPickerItem.heightPct + 2,
-                              )
-                            }%)`,
-                          }
-                    }
-                    onClick={(event) => event.stopPropagation()}
-                  >
-                    <p className={styles.overlapPickerLabel}>Overlapping blocks</p>
-                    <div className={styles.overlapPickerList}>
-                      {[activeOverlapPickerItem.id, ...activeOverlapPickerItem.overlapIds].map((optionId) => {
-                        const option = dayViewTimeline.items.find((item) => item.id === optionId);
-                        if (!option) return null;
-                        return (
-                          <button
-                            key={option.id}
-                            type="button"
-                            className={styles.overlapPickerItem}
-                            onClick={() => {
-                              onSetOverlapPickerEntryId(null);
-                              onSetCalendarPinnedEntryId(option.id);
-                              onShowCalendarHoverPreview(option.id);
-                            }}
-                          >
-                            <span
-                              className={`${styles.overlapPickerSwatch} ${
-                                styles[`dayViewOverlapSlice${option.tone}`]
-                              }`}
-                            />
-                            <span>{option.timeLabel}</span>
-                            <strong>{option.title}</strong>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-                {activeCalendarPreview &&
-                  activeDayViewPreviewItem &&
-                  (!isMobileViewport || activeCalendarPreview.source === "session") && (
-                  <div
-                    className={`${styles.calendarEntryPopover} ${
-                      calendarPinnedEntryId ? styles.calendarEntryPopoverPinned : ""
-                    } ${
-                      activeDayViewPreviewItem.topPct + activeDayViewPreviewItem.heightPct / 2 > 55
-                        ? styles.calendarEntryPopoverAbove
-                        : styles.calendarEntryPopoverBelow
-                    }`}
-                    style={
-                      activeDayViewPreviewItem.topPct + activeDayViewPreviewItem.heightPct / 2 > 55
-                        ? {
-                            bottom: `calc(${100 - activeDayViewPreviewItem.topPct + 2}%)`,
-                          }
-                        : {
-                            top: `calc(${
-                              Math.min(
-                                92,
-                                activeDayViewPreviewItem.topPct + activeDayViewPreviewItem.heightPct + 2,
-                              )
-                            }%)`,
-                          }
-                    }
-                    onMouseEnter={() => {
-                      if (!isMobileViewport && !calendarPinnedEntryId) {
-                        onShowCalendarHoverPreview(activeCalendarPreview.id);
-                      }
-                    }}
-                    onMouseLeave={() => {
-                      if (!isMobileViewport && !calendarPinnedEntryId) {
-                        onScheduleCalendarHoverPreviewClear(activeCalendarPreview.id);
-                      }
-                    }}
-                    onClick={(event) => event.stopPropagation()}
-                  >
-                    <div>
-                      <p className={styles.calendarEntryPreviewLabel}>
-                        {new Date(`${activeCalendarPreview.dateKey}T00:00:00`).toLocaleDateString(
-                          undefined,
-                          { weekday: "short", month: "short", day: "numeric" },
-                        )}{" "}
-                        • {activeCalendarPreview.timeLabel}
-                      </p>
-                      <h3 className={styles.calendarEntryPreviewTitle}>
-                        {activeCalendarPreview.title}
-                      </h3>
-                      {!previewDuplicatesTitle(
-                        activeCalendarPreview.title,
-                        activeCalendarPreview.preview,
-                      ) && (
-                        <p className={styles.calendarEntryPreviewBody}>
-                          {activeCalendarPreview.preview}
-                        </p>
-                      )}
-                    </div>
-                    <div className={styles.calendarEntryPreviewActions}>
-                      {activeCalendarPreview.source === "reminder" && activeCalendarPreview.noteId && (
-                        <button
-                          type="button"
-                          className={styles.secondaryPlanButton}
-                          onClick={() => {
-                            onOpenNote(activeCalendarPreview.noteId ?? null);
-                          }}
-                        >
-                          Open note
-                        </button>
-                      )}
-                      {activeCalendarPreview.source === "plan" && activeCalendarPreview.planId && (
-                        <button
-                          type="button"
-                          className={styles.secondaryPlanButton}
-                          onClick={() => onOpenPlannedBlockDetail(activeCalendarPreview.planId ?? "")}
-                        >
-                          Open block
-                        </button>
-                      )}
-                      {activeCalendarPreview.source === "plan" && activeCalendarPreview.planId && (
-                        <button
-                          type="button"
-                          className={styles.planCompleteButton}
-                          onClick={() => {
-                            const plan = plannedBlockById.get(activeCalendarPreview.planId ?? "");
-                            if (!plan) return;
-                            void onCompletePlannedBlock(plan);
-                          }}
-                        >
-                          Complete
-                        </button>
-                      )}
-                      {activeCalendarPreview.source === "session" && (
-                        <button
-                          type="button"
-                          className={styles.secondaryPlanButton}
-                          onClick={onSetActiveTabHistory}
-                        >
-                          View history
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        className={styles.secondaryPlanButton}
-                        onClick={() => onSetCalendarPinnedEntryId(null)}
-                      >
-                        Close
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-            {isMobileViewport && activeCalendarPreview && activeCalendarPreview.source !== "session" && (
-              <div className={styles.calendarEntryPreview}>
-                <div>
-                  <p className={styles.calendarEntryPreviewLabel}>
-                    {new Date(`${activeCalendarPreview.dateKey}T00:00:00`).toLocaleDateString(
-                      undefined,
-                      { weekday: "short", month: "short", day: "numeric" },
-                    )}{" "}
-                    • {activeCalendarPreview.timeLabel}
-                  </p>
-                  <h3 className={styles.calendarEntryPreviewTitle}>
-                    {activeCalendarPreview.title}
-                  </h3>
-                  {!previewDuplicatesTitle(
-                    activeCalendarPreview.title,
-                    activeCalendarPreview.preview,
-                  ) && (
-                    <p className={styles.calendarEntryPreviewBody}>
-                      {activeCalendarPreview.preview}
-                    </p>
-                  )}
-                </div>
-                <div className={styles.calendarEntryPreviewActions}>
-                  {activeCalendarPreview.source === "reminder" && activeCalendarPreview.noteId && (
-                    <button
-                      type="button"
-                      className={styles.secondaryPlanButton}
-                      onClick={() => {
-                        onOpenNote(activeCalendarPreview.noteId ?? null);
-                      }}
-                    >
-                      Open note
-                    </button>
-                  )}
-                  {activeCalendarPreview.source === "plan" && activeCalendarPreview.planId && (
-                    <button
-                      type="button"
-                      className={styles.secondaryPlanButton}
-                      onClick={() => onOpenPlannedBlockDetail(activeCalendarPreview.planId ?? "")}
-                    >
-                      Open block
-                    </button>
-                  )}
-                  {activeCalendarPreview.source === "plan" && activeCalendarPreview.planId && (
-                    <button
-                      type="button"
-                      className={styles.planCompleteButton}
-                      onClick={() => {
-                        const plan = plannedBlockById.get(activeCalendarPreview.planId ?? "");
-                        if (!plan) return;
-                        void onCompletePlannedBlock(plan);
-                      }}
-                    >
-                      Complete
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    className={styles.secondaryPlanButton}
-                    onClick={() => onSetCalendarPinnedEntryId(null)}
-                  >
-                    Close
-                  </button>
-                </div>
-              </div>
-            )}
+          <div className={styles.dayViewShell}>
+            <DayPortalPanel
+              selectedDateDayTone={selectedDateDayTone}
+              isSelectedDateToday={isSelectedDateToday}
+              selectedDateSummary={selectedDateSummary}
+              selectedDateCanAddBlocks={selectedDateCanAddBlocks}
+              isMobileViewport={isMobileViewport}
+              selectedDateFocusedMinutes={selectedDateFocusedMinutes}
+              selectedDatePlanGroups={selectedDatePlanGroups}
+              selectedDateEntries={selectedDateEntries}
+              selectedDateKey={selectedDateKey}
+              isPro={isPro}
+              dayPortalComposerOpen={dayPortalComposerOpen}
+              planTitle={planTitle}
+              planNoteExpanded={planNoteExpanded}
+              planNote={planNote}
+              planTone={planTone}
+              planConflictWarning={planConflictWarning}
+              planTime={planTime}
+              planDuration={planDuration}
+              bandanaColor={bandanaColor}
+              onOpenCalendarBlockComposer={onOpenCalendarBlockComposer}
+              onSetCalendarView={onSetCalendarView}
+              onToggleMobileCalendarControls={onToggleMobileCalendarControls}
+              onApplyDayTone={onApplyDayTone}
+              onUpgrade={onUpgrade}
+              onCloseBlockComposer={onCloseBlockComposer}
+              onSetPlanTitle={onSetPlanTitle}
+              onSetPlanNoteExpanded={onSetPlanNoteExpanded}
+              onSetPlanNote={onSetPlanNote}
+              onSetPlanTone={onSetPlanTone}
+              onSetPlanConflictWarning={onSetPlanConflictWarning}
+              onSetPlanTime={onSetPlanTime}
+              onSetPlanDuration={onSetPlanDuration}
+              onAddPlannedBlock={onAddPlannedBlock}
+            />
+            <DayTimelinePanel
+              calendarTimelineRef={calendarTimelineRef}
+              mobileDayTimelineScrollRef={mobileDayTimelineScrollRef}
+              isMobileViewport={isMobileViewport}
+              mobileDayTimelineHeight={mobileDayTimelineHeight}
+              currentTimeMarker={currentTimeMarker}
+              dayViewTimeline={dayViewTimeline}
+              activatedCalendarEntryId={activatedCalendarEntryId}
+              activeOverlapPickerItem={activeOverlapPickerItem}
+              activeDayViewPreviewItem={activeDayViewPreviewItem}
+              activeCalendarPreview={activeCalendarPreview}
+              calendarPinnedEntryId={calendarPinnedEntryId}
+              plannedBlockById={plannedBlockById}
+              onSetCalendarPinnedEntryId={onSetCalendarPinnedEntryId}
+              onSetOverlapPickerEntryId={onSetOverlapPickerEntryId}
+              onShowCalendarHoverPreview={onShowCalendarHoverPreview}
+              onScheduleCalendarHoverPreviewClear={onScheduleCalendarHoverPreviewClear}
+              onClearCalendarHoverPreviewDelay={onClearCalendarHoverPreviewDelay}
+              onSetCalendarHoverEntryId={onSetCalendarHoverEntryId}
+              onOpenPlannedBlockDetail={onOpenPlannedBlockDetail}
+              onOpenNote={onOpenNote}
+              onSetActiveTabHistory={onSetActiveTabHistory}
+              onCompletePlannedBlock={onCompletePlannedBlock}
+            />
           </div>
         )}
         {calendarView !== "day" && activeCalendarPreview && (
@@ -1369,701 +2349,70 @@ export default function ScheduleTab({
       </article>
 
       {!isMobileViewport && (
-      <article
-        className={`${styles.card} ${styles.calendarAuxCard} ${
-          calendarView === "day" && selectedDateDayTone ? styles[`calendarToneSurface${selectedDateDayTone}`] : ""
-        } ${calendarView === "day" && selectedDateDayTone ? styles.calendarToneSurfaceDayCard : ""}`}
-        style={calendarView === "day" ? getCalendarToneStyle(selectedDateDayTone) : undefined}
-        ref={calendarPlannerRef}
-      >
-        <div className={styles.calendarAuxTabs}>
-          <button
-            type="button"
-            className={`${styles.calendarAuxTab} ${
-              calendarAuxPanel === "agenda" ? styles.calendarAuxTabActive : ""
-            }`}
-            onClick={() => onSetCalendarAuxPanel("agenda")}
-          >
-            Agenda
-          </button>
-          <button
-            type="button"
-            className={`${styles.calendarAuxTab} ${
-              calendarAuxPanel === "streak" ? styles.calendarAuxTabActive : ""
-            }`}
-            onClick={() => onSetCalendarAuxPanel("streak")}
-          >
-            Streak
-          </button>
-          <button
-            type="button"
-            className={`${styles.calendarAuxTab} ${
-              calendarAuxPanel === "guide" ? styles.calendarAuxTabActive : ""
-            }`}
-            onClick={() => onSetCalendarAuxPanel("guide")}
-          >
-            Guide
-          </button>
-        </div>
-
-        {calendarAuxPanel === "guide" && (
-          <div ref={calendarHeroRef}>
-            <CompanionPulse {...calendarCompanionPulse} bandanaColor={bandanaColor} />
-          </div>
-        )}
-
-        {calendarAuxPanel === "streak" && (
-          <>
-            <p className={styles.sectionLabel}>Last 4 Weeks</p>
-            <h2 className={styles.cardTitle}>Streak heatmap</h2>
-            <div className={styles.streakGrid}>
-              {focusMetricsCalendar.map((day, index, days) => {
-                const previous = days[index - 1];
-                const next = days[index + 1];
-                const historicalStreakLength = historicalStreaksByDay.get(day.dateKey) ?? 0;
-                const streakDay = historicalStreakLength > 0;
-                const leftConnected =
-                  streakDay &&
-                  index % 14 !== 0 &&
-                  (historicalStreaksByDay.get(previous?.dateKey ?? "") ?? 0) > 0;
-                const rightConnected =
-                  streakDay &&
-                  index % 14 !== 13 &&
-                  (historicalStreaksByDay.get(next?.dateKey ?? "") ?? 0) > 0;
-
-                return (
-                  <div
-                    key={day.dateKey}
-                    className={[
-                      styles.streakCell,
-                      styles[`streakLevel${day.level}`],
-                      streakDay ? styles.streakCellRun : "",
-                      leftConnected ? styles.streakCellConnectLeft : "",
-                      rightConnected ? styles.streakCellConnectRight : "",
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}
-                    title={`${day.label}: ${day.minutes}m`}
-                  >
-                    {streakDay ? <StreakBandana streakDays={historicalStreakLength} /> : null}
-                  </div>
-                );
-              })}
-            </div>
-            <div className={styles.streakLegend}>
-              <span>No focus</span>
-              <span>Light</span>
-              <span>Strong</span>
-              <span>Deep</span>
-            </div>
-            <p className={styles.streakLegendNote}>Moving bandana = streak day</p>
-          </>
-        )}
-
-        {calendarAuxPanel === "agenda" && (
-          <>
-            <p className={styles.sectionLabel}>Scheduler</p>
-            <h2 className={styles.cardTitle}>
-              {isMobileViewport ? "Day overview for " : "Day agenda for "}
-              {new Date(`${selectedDateKey}T00:00:00`).toLocaleDateString(undefined, {
-                weekday: "short",
-                month: "short",
-                day: "numeric",
-              })}
-            </h2>
-            <p className={styles.accountMeta}>
-              {selectedDateEntries.length} entries: {selectedDatePlanGroups.visible.length} planned,{" "}
-              {selectedDateEntries.filter((entry) => entry.source === "reminder").length} reminders,{" "}
-              {selectedDateEntries.filter((entry) => entry.source === "session").length} completed sessions
-            </p>
-            <div className={styles.agendaCommandGrid}>
-              <article className={styles.agendaCommandCard}>
-                <span>Now</span>
-                <strong>{selectedDateAgendaStateSummary.activeNow?.title ?? "No active block"}</strong>
-                <small>
-                  {selectedDateAgendaStateSummary.activeNow
-                    ? selectedDateAgendaStateSummary.activeNow.timeLabel
-                    : "The room is open for the next deliberate block."}
-                </small>
-              </article>
-              <article className={styles.agendaCommandCard}>
-                <span>Next</span>
-                <strong>{selectedDateAgendaStateSummary.nextUp?.title ?? "No queued block"}</strong>
-                <small>
-                  {selectedDateAgendaStateSummary.nextUp
-                    ? `${selectedDateAgendaStateSummary.nextUp.timeLabel} · set the next move early`
-                    : "Queue the next thing before drift decides it."}
-                </small>
-              </article>
-              <article className={styles.agendaCommandCard}>
-                <span>Pressure</span>
-                <strong>
-                  {selectedDateAgendaStateSummary.overdueCount > 0
-                    ? `${selectedDateAgendaStateSummary.overdueCount} overdue`
-                    : "Board clear"}
-                </strong>
-                <small>
-                  {selectedDateAgendaStateSummary.focusMinutes}m focus · {selectedDateAgendaStateSummary.reminderCount} reminders
-                </small>
-              </article>
-            </div>
-
-            {isMobileViewport ? (
-              <>
-                <div className={styles.mobileAgendaSummary}>
-                  <div className={styles.mobileAgendaStat}>
-                    <span>Blocks</span>
-                    <strong>{selectedDatePlanGroups.visible.length}</strong>
-                  </div>
-                  <div className={styles.mobileAgendaStat}>
-                    <span>Reminders</span>
-                    <strong>
-                      {selectedDateEntries.filter((entry) => entry.source === "reminder").length}
-                    </strong>
-                  </div>
-                  <div className={styles.mobileAgendaStat}>
-                    <span>Focus</span>
-                    <strong>{selectedDateFocusedMinutes}m</strong>
-                  </div>
-                </div>
-
-                <section className={styles.planSection}>
-                  <button
-                    type="button"
-                    className={styles.planSectionHeader}
-                    onClick={() => onSetMobileAgendaEntriesOpen((open) => !open)}
-                  >
-                    <span>Entries</span>
-                    <span>{mobileAgendaEntriesOpen ? "Hide" : selectedDateEntries.length}</span>
-                  </button>
-                  {mobileAgendaEntriesOpen && (
-                    <div className={styles.dayAgendaList}>
-                      {selectedDateEntries.length === 0 ? (
-                        <p className={styles.emptyText}>No events for this date yet.</p>
-                      ) : (
-                        selectedDateEntries.slice(0, 6).map((entry) => {
-                          const agendaState =
-                            entry.source === "session"
-                              ? ("logged" as const)
-                              : resolveAgendaTimingState(
-                                  selectedDateKey,
-                                  entry.startMinute,
-                                  entry.endMinute,
-                                  entry.isCompleted,
-                                );
-                          return (
-                          <div
-                            key={entry.id}
-                            className={`${styles.dayAgendaItem} ${
-                              entry.source === "plan" ? styles.dayAgendaItemTinted : ""
-                            } ${
-                              entry.source === "plan" ? styles[`dayViewEvent${entry.tone}`] : ""
-                            } ${
-                              entry.source === "plan" && getCalendarToneMeta(entry.tone as CalendarTone)
-                                ? styles.calendarToneSurfaceBlock
-                                : ""
-                            } ${entry.isCompleted ? styles.dayAgendaItemCompleted : ""}`}
-                            style={
-                              entry.source === "plan"
-                                ? getCalendarToneStyle(entry.tone as CalendarTone)
-                                : undefined
-                            }
-                          >
-                            <div>
-                              <div className={styles.dayAgendaHeadline}>
-                                <p className={styles.dayAgendaTime}>{entry.timeLabel}</p>
-                                <span className={`${styles.agendaStatePill} ${styles[`agendaStatePill${agendaState.charAt(0).toUpperCase()}${agendaState.slice(1)}`]}`}>
-                                  {agendaState === "logged" ? "Logged" : agendaState}
-                                </span>
-                              </div>
-                              <strong className={styles.dayAgendaTitle}>{entry.title}</strong>
-                              <p className={styles.dayAgendaMeta}>{entry.subtitle}</p>
-                            </div>
-                            <div className={styles.dayAgendaActions}>
-                              {entry.source === "reminder" && entry.noteId && (
-                                <button
-                                  type="button"
-                                  className={styles.secondaryPlanButton}
-                                  onClick={() => {
-                                    onOpenNote(entry.noteId ?? null);
-                                  }}
-                                >
-                                  Open note
-                                </button>
-                              )}
-                              {entry.source === "plan" && entry.planId && plannedBlockById.get(entry.planId) && (
-                                <button
-                                  type="button"
-                                  className={styles.secondaryPlanButton}
-                                  onClick={() => onOpenPlannedBlockDetail(entry.planId ?? "")}
-                                >
-                                  Open block
-                                </button>
-                              )}
-                              {entry.source === "plan" &&
-                                entry.planId &&
-                                plannedBlockById.get(entry.planId) &&
-                                !entry.isCompleted && (
-                                <button
-                                  type="button"
-                                  className={styles.planCompleteButton}
-                                  onClick={() => {
-                                    const plan = plannedBlockById.get(entry.planId ?? "");
-                                    if (!plan) return;
-                                    void onCompletePlannedBlock(plan);
-                                  }}
-                                >
-                                  Complete
-                                </button>
-                              )}
-                              {entry.source === "session" && (
-                                <button
-                                  type="button"
-                                  className={styles.secondaryPlanButton}
-                                  onClick={onSetActiveTabHistory}
-                                >
-                                  View history
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  )}
-                </section>
-              </>
-            ) : (
-              <div className={styles.dayAgendaList}>
-                {selectedDateEntries.length === 0 ? (
-                  <p className={styles.emptyText}>No events for this date yet.</p>
-                ) : (
-                  selectedDateEntries.slice(0, 8).map((entry) => {
-                    const agendaState =
-                      entry.source === "session"
-                        ? ("logged" as const)
-                        : resolveAgendaTimingState(
-                            selectedDateKey,
-                            entry.startMinute,
-                            entry.endMinute,
-                            entry.isCompleted,
-                          );
-                    return (
-                    <div
-                      key={entry.id}
-                      className={`${styles.dayAgendaItem} ${
-                        entry.source === "plan" ? styles.dayAgendaItemTinted : ""
-                      } ${
-                        entry.source === "plan" ? styles[`dayViewEvent${entry.tone}`] : ""
-                      } ${
-                        entry.source === "plan" && getCalendarToneMeta(entry.tone as CalendarTone)
-                          ? styles.calendarToneSurfaceBlock
-                          : ""
-                      } ${entry.isCompleted ? styles.dayAgendaItemCompleted : ""}`}
-                      style={
-                        entry.source === "plan"
-                          ? getCalendarToneStyle(entry.tone as CalendarTone)
-                          : undefined
-                      }
-                    >
-                      <div>
-                        <div className={styles.dayAgendaHeadline}>
-                          <p className={styles.dayAgendaTime}>{entry.timeLabel}</p>
-                          <span className={`${styles.agendaStatePill} ${styles[`agendaStatePill${agendaState.charAt(0).toUpperCase()}${agendaState.slice(1)}`]}`}>
-                            {agendaState === "logged" ? "Logged" : agendaState}
-                          </span>
-                        </div>
-                        <strong className={styles.dayAgendaTitle}>{entry.title}</strong>
-                        <p className={styles.dayAgendaMeta}>{entry.subtitle}</p>
-                      </div>
-                      <div className={styles.dayAgendaActions}>
-                        {entry.source === "reminder" && entry.noteId && (
-                          <button
-                            type="button"
-                            className={styles.secondaryPlanButton}
-                            onClick={() => {
-                              onOpenNote(entry.noteId ?? null);
-                            }}
-                          >
-                            Open note
-                          </button>
-                        )}
-                        {entry.source === "plan" && entry.planId && plannedBlockById.get(entry.planId) && (
-                          <button
-                            type="button"
-                            className={styles.secondaryPlanButton}
-                            onClick={() => onOpenPlannedBlockDetail(entry.planId ?? "")}
-                          >
-                            Open block
-                          </button>
-                        )}
-                        {entry.source === "plan" &&
-                          entry.planId &&
-                          plannedBlockById.get(entry.planId) &&
-                          !entry.isCompleted && (
-                          <button
-                            type="button"
-                            className={styles.planCompleteButton}
-                            onClick={() => {
-                              const plan = plannedBlockById.get(entry.planId ?? "");
-                              if (!plan) return;
-                              void onCompletePlannedBlock(plan);
-                            }}
-                          >
-                            Complete
-                          </button>
-                        )}
-                        {entry.source === "session" && (
-                          <button
-                            type="button"
-                            className={styles.secondaryPlanButton}
-                            onClick={onSetActiveTabHistory}
-                          >
-                            View history
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                    );
-                  })
-                )}
-              </div>
-            )}
-
-            <div className={styles.planSectionStack}>
-          <section className={styles.planSection}>
-            <button
-              type="button"
-              className={styles.planSectionHeader}
-              onClick={() =>
-                onSetPlannerSectionsOpen((current) => ({ ...current, active: !current.active }))
-              }
-            >
-              <span>Planned Blocks</span>
-              <span>{selectedDatePlanGroups.visible.length}</span>
-            </button>
-            {plannerSectionsOpen.active && (
-              <div className={styles.planList}>
-                {selectedDatePlanGroups.visible.length === 0 ? (
-                  <p className={styles.emptyText}>No planned blocks for this day.</p>
-                ) : (
-                  selectedDatePlanGroups.visible.map((item) => {
-                    const completed = item.status === "completed";
-                    const planState = completed
-                      ? ("completed" as const)
-                      : resolveAgendaTimingState(
-                          item.dateKey,
-                          parseTimeToMinutes(item.timeOfDay),
-                          parseTimeToMinutes(item.timeOfDay) + item.durationMinutes,
-                        );
-                    return (
-                      <div
-                        key={item.id}
-                        className={`${completed ? styles.planItemStatic : styles.planItem} ${
-                          completed ? styles.planItemCompleted : ""
-                        } ${visiblePlanTone(item.tone) ? styles[`calendarToneSurface${visiblePlanTone(item.tone)}`] : ""} ${
-                          visiblePlanTone(item.tone) ? styles.calendarToneSurfaceBlock : ""
-                        }`}
-                        style={getCalendarToneStyle(visiblePlanTone(item.tone))}
-                        onClick={() => onOpenPlannedBlockDetail(item.id)}
-                        draggable={!completed}
-                        onDragStart={() => {
-                          if (completed) return;
-                          onSetDraggedPlanId(item.id);
-                        }}
-                        onDragEnd={() => onSetDraggedPlanId(null)}
-                        onDragOver={(event) => {
-                          if (completed) return;
-                          event.preventDefault();
-                        }}
-                        onDrop={() => {
-                          if (completed || !draggedPlanId) return;
-                          onReorderPlannedBlocks(draggedPlanId, item.id);
-                          onSetDraggedPlanId(null);
-                        }}
-                      >
-                      <div>
-                        <div className={styles.planItemHeadline}>
-                          <strong>{item.title}</strong>
-                          {item.attachmentCount ? (
-                            <span className={styles.attachmentIndicatorChip}>
-                              {attachmentIndicatorLabel(item.attachmentCount)}
-                            </span>
-                          ) : null}
-                          <span className={`${styles.agendaStatePill} ${styles[`agendaStatePill${planState.charAt(0).toUpperCase()}${planState.slice(1)}`]}`}>
-                            {planState}
-                          </span>
-                        </div>
-                        <div className={styles.planMetaRow}>
-                          {completed ? (
-                            <span>{normalizeTimeLabel(item.timeOfDay)}</span>
-                          ) : (
-                            <input
-                              type="time"
-                              value={item.timeOfDay}
-                              className={styles.planItemTime}
-                              onChange={(event) =>
-                                onUpdatePlannedBlockTime(item.id, event.target.value)
-                              }
-                            />
-                          )}
-                          <span>{item.durationMinutes}m</span>
-                        </div>
-                        {item.note.trim() && <p className={styles.planItemNote}>{item.note}</p>}
-                      </div>
-                      <div className={styles.planActions}>
-                        {completed ? (
-                          <div className={styles.planStatusPill}>✓ Done</div>
-                        ) : (
-                          <>
-                            <button
-                              type="button"
-                              className={styles.planCompleteButton}
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                void onCompletePlannedBlock(item);
-                              }}
-                            >
-                              Complete
-                            </button>
-                            <button
-                              type="button"
-                              className={styles.planDeleteButton}
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                onDeletePlannedBlock(item.id);
-                              }}
-                            >
-                              Remove
-                            </button>
-                          </>
-                        )}
-                      </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            )}
-          </section>
-
-          <section className={styles.planSection}>
-            <button
-              type="button"
-              className={styles.planSectionHeader}
-              onClick={() =>
-                onSetPlannerSectionsOpen((current) => ({ ...current, incomplete: !current.incomplete }))
-              }
-            >
-              <span>Incomplete Blocks</span>
-              <span>{selectedDatePlanGroups.incomplete.length}</span>
-            </button>
-            {plannerSectionsOpen.incomplete && (
-              <div className={styles.planList}>
-                {selectedDatePlanGroups.incomplete.length === 0 ? (
-                  <p className={styles.emptyText}>No incomplete blocks for this day.</p>
-                ) : (
-                  selectedDatePlanGroups.incomplete.map((item) => {
-                    const planState = resolveAgendaTimingState(
-                      item.dateKey,
-                      parseTimeToMinutes(item.timeOfDay),
-                      parseTimeToMinutes(item.timeOfDay) + item.durationMinutes,
-                    );
-                    return (
-                    <div
-                      key={item.id}
-                      className={`${styles.planItemStatic} ${
-                        visiblePlanTone(item.tone) ? styles[`calendarToneSurface${visiblePlanTone(item.tone)}`] : ""
-                      } ${visiblePlanTone(item.tone) ? styles.calendarToneSurfaceBlock : ""
-                      }`}
-                      style={getCalendarToneStyle(visiblePlanTone(item.tone))}
-                      onClick={() => onOpenPlannedBlockDetail(item.id)}
-                    >
-                      <div>
-                        <div className={styles.planItemHeadline}>
-                          <strong>{item.title}</strong>
-                          {item.attachmentCount ? (
-                            <span className={styles.attachmentIndicatorChip}>
-                              {attachmentIndicatorLabel(item.attachmentCount)}
-                            </span>
-                          ) : null}
-                          <span className={`${styles.agendaStatePill} ${styles[`agendaStatePill${planState.charAt(0).toUpperCase()}${planState.slice(1)}`]}`}>
-                            {planState}
-                          </span>
-                        </div>
-                        <div className={styles.planMetaRow}>
-                          <span>{normalizeTimeLabel(item.timeOfDay)}</span>
-                          <span>{item.durationMinutes}m</span>
-                        </div>
-                        {item.note.trim() && <p className={styles.planItemNote}>{item.note}</p>}
-                      </div>
-                      <div className={styles.planStatusPillMuted}>Incomplete</div>
-                    </div>
-                    );
-                  })
-                )}
-              </div>
-            )}
-          </section>
-            </div>
-          </>
-        )}
-      </article>
+        <CalendarAuxPanel
+          calendarPlannerRef={calendarPlannerRef}
+          calendarHeroRef={calendarHeroRef}
+          calendarView={calendarView}
+          selectedDateDayTone={selectedDateDayTone}
+          calendarAuxPanel={calendarAuxPanel}
+          calendarCompanionPulse={calendarCompanionPulse}
+          bandanaColor={bandanaColor}
+          focusMetricsCalendar={focusMetricsCalendar}
+          historicalStreaksByDay={historicalStreaksByDay}
+          selectedDateKey={selectedDateKey}
+          selectedDateEntries={selectedDateEntries}
+          selectedDatePlanGroups={selectedDatePlanGroups}
+          selectedDateAgendaStateSummary={selectedDateAgendaStateSummary}
+          isMobileViewport={isMobileViewport}
+          mobileAgendaEntriesOpen={mobileAgendaEntriesOpen}
+          selectedDateFocusedMinutes={selectedDateFocusedMinutes}
+          plannedBlockById={plannedBlockById}
+          plannerSectionsOpen={plannerSectionsOpen}
+          draggedPlanId={draggedPlanId}
+          isPro={isPro}
+          onSetCalendarAuxPanel={onSetCalendarAuxPanel}
+          onSetMobileAgendaEntriesOpen={onSetMobileAgendaEntriesOpen}
+          onOpenNote={onOpenNote}
+          onOpenPlannedBlockDetail={onOpenPlannedBlockDetail}
+          onCompletePlannedBlock={onCompletePlannedBlock}
+          onSetActiveTabHistory={onSetActiveTabHistory}
+          onSetPlannerSectionsOpen={onSetPlannerSectionsOpen}
+          onSetDraggedPlanId={onSetDraggedPlanId}
+          onReorderPlannedBlocks={onReorderPlannedBlocks}
+          onUpdatePlannedBlockTime={onUpdatePlannedBlockTime}
+          onDeletePlannedBlock={onDeletePlannedBlock}
+        />
       )}
 
-      {isMobileViewport && mobileBlockSheetOpen && selectedDateCanAddBlocks && (
-        <div
-          className={styles.feedbackOverlay}
-          onClick={onCloseBlockComposer}
-        >
-          <div
-            className={styles.mobileBlockModal}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className={styles.feedbackHeader}>
-              <div>
-                <p className={styles.sectionLabel}>Time Block</p>
-                <h2 className={styles.feedbackTitle}>
-                  Block out{" "}
-                  {new Date(`${selectedDateKey}T00:00:00`).toLocaleDateString(undefined, {
-                    weekday: "short",
-                    month: "short",
-                    day: "numeric",
-                  })}
-                </h2>
-              </div>
-              <button
-                type="button"
-                className={styles.feedbackClose}
-                onClick={onCloseBlockComposer}
-              >
-                Close
-              </button>
-            </div>
-            <p className={styles.paywallCopy}>
-              Time blocks are central in Whelm. Add one fast, then return to the calendar.
-            </p>
-            <div className={styles.planForm}>
-              <input
-                value={planTitle}
-                onChange={(event) => onSetPlanTitle(event.target.value)}
-                placeholder="Task title"
-                className={styles.planInput}
-                disabled={!selectedDateCanAddBlocks}
-              />
-              <div className={styles.planNoteRow}>
-                <button
-                  type="button"
-                  className={styles.planNoteToggle}
-                  onClick={() => onSetPlanNoteExpanded((current) => !current)}
-                >
-                  {planNoteExpanded || planNote ? "Hide note" : "+ Note"}
-                </button>
-              </div>
-              {planNoteExpanded && (
-                <textarea
-                  value={planNote}
-                  onChange={(event) => onSetPlanNote(event.target.value.slice(0, 280))}
-                  placeholder="Optional note, intention, or instruction for this block"
-                  className={styles.planNoteInput}
-                  disabled={!selectedDateCanAddBlocks}
-                />
-              )}
-              <CalendarTonePicker
-                label="Block tone"
-                selectedTone={planTone}
-                onSelectTone={onSetPlanTone}
-                isPro={isPro}
-                onUpgrade={onUpgrade}
-              />
-              {planConflictWarning && (
-                <div className={styles.planConflictBanner}>
-                  <p className={styles.planConflictText}>{planConflictWarning.message}</p>
-                  <div className={styles.planConflictActions}>
-                    <button
-                      type="button"
-                      className={styles.secondaryPlanButton}
-                      onClick={() => onSetPlanConflictWarning(null)}
-                    >
-                      Close
-                    </button>
-                  </div>
-                </div>
-              )}
-              <div className={styles.planFormRow}>
-                <label className={styles.planLabel}>
-                  Time
-                  <input
-                    type="time"
-                    value={planTime}
-                    onChange={(event) => onSetPlanTime(event.target.value)}
-                    className={styles.planControl}
-                    disabled={!selectedDateCanAddBlocks}
-                  />
-                </label>
-                <label className={styles.planLabel}>
-                  Minutes
-                  <input
-                    type="number"
-                    min={MIN_PLANNED_BLOCK_MINUTES}
-                    max={MAX_PLANNED_BLOCK_MINUTES}
-                    value={planDuration}
-                    onChange={(event) => {
-                      const next = Number(event.target.value);
-                      if (Number.isFinite(next)) {
-                        onSetPlanDuration(next);
-                      }
-                    }}
-                    className={styles.planControl}
-                    disabled={!selectedDateCanAddBlocks}
-                  />
-                </label>
-                <button
-                  type="button"
-                  className={`${styles.planAddButton} ${styles.blockActionButton}`}
-                  disabled={!selectedDateCanAddBlocks}
-                  onClick={() => {
-                    const added = onAddPlannedBlock();
-                    if (added) {
-                      onCloseBlockComposer();
-                    }
-                  }}
-                >
-                  {editingPlannedBlockId ? "Save changes" : "Add block"}
-                </button>
-              </div>
-              {planStatus && <p className={styles.accountMeta}>{planStatus}</p>}
-            </div>
-            <div className={styles.mobileBlockList}>
-              {selectedDatePlanGroups.visible.slice(0, 4).map((item) => (
-                <div
-                  key={item.id}
-                  className={`${styles.mobileBlockItem} ${
-                    item.status === "completed" ? styles.mobileBlockItemCompleted : ""
-                  }`}
-                >
-                  <strong>
-                    {item.title}
-                    {item.attachmentCount ? (
-                      <span className={styles.attachmentIndicatorChip}>
-                        {attachmentIndicatorLabel(item.attachmentCount)}
-                      </span>
-                    ) : null}
-                  </strong>
-                  <span>
-                    {item.timeOfDay} • {item.durationMinutes}m
-                    {item.status === "completed" ? " • completed" : ""}
-                  </span>
-                </div>
-              ))}
-              {selectedDatePlanGroups.visible.length === 0 && (
-                <p className={styles.emptyText}>No blocks yet for this day.</p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <MobileBlockSheet
+        mobileBlockSheetOpen={mobileBlockSheetOpen}
+        isMobileViewport={isMobileViewport}
+        selectedDateCanAddBlocks={selectedDateCanAddBlocks}
+        selectedDateKey={selectedDateKey}
+        planTitle={planTitle}
+        planNoteExpanded={planNoteExpanded}
+        planNote={planNote}
+        planTone={planTone}
+        isPro={isPro}
+        planConflictWarning={planConflictWarning}
+        planTime={planTime}
+        planDuration={planDuration}
+        editingPlannedBlockId={editingPlannedBlockId}
+        planStatus={planStatus}
+        selectedDatePlanGroups={selectedDatePlanGroups}
+        onCloseBlockComposer={onCloseBlockComposer}
+        onSetPlanTitle={onSetPlanTitle}
+        onSetPlanNoteExpanded={onSetPlanNoteExpanded}
+        onSetPlanNote={onSetPlanNote}
+        onSetPlanTone={onSetPlanTone}
+        onUpgrade={onUpgrade}
+        onSetPlanConflictWarning={onSetPlanConflictWarning}
+        onSetPlanTime={onSetPlanTime}
+        onSetPlanDuration={onSetPlanDuration}
+        onAddPlannedBlock={onAddPlannedBlock}
+      />
     </AnimatedTabSection>
   );
 }
+
+export default memo(ScheduleTab);

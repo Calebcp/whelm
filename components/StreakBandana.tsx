@@ -1,19 +1,18 @@
 "use client";
 
+import { memo } from "react";
 import { useRive } from "@rive-app/react-canvas";
 
 import styles from "@/app/page.module.css";
 import { getStreakBandanaTier } from "@/lib/streak-bandanas";
 
-export default function StreakBandana({
+const StreakBandana = memo(function StreakBandana({
   streakDays,
   className,
 }: {
   streakDays: number;
   className?: string;
 }) {
-  "use no memo";
-
   const tier = getStreakBandanaTier(streakDays);
   const { RiveComponent } = useRive({
     src: tier ? `/streak/${tier.assetFile}` : "/streak/moveband.riv",
@@ -29,4 +28,6 @@ export default function StreakBandana({
       <RiveComponent className={styles.streakBandanaRive} />
     </div>
   );
-}
+});
+
+export default StreakBandana;

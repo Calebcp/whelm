@@ -216,6 +216,39 @@ export function useWhelmNotifications({
     webTimeoutsRef.current = [];
   }, []);
 
+  const notificationSchedulePlan = useMemo(() => {
+    const now = new Date();
+    const payloads: ScheduledNotificationPayload[] = [];
+
+    if (normalizedSettings.enabled && normalizedSettings.performanceNudges) {
+      payloads.push(...buildPerformancePayloads(analyticsNotificationPlan, now));
+    }
+
+    if (normalizedSettings.enabled && normalizedSettings.noteReminders) {
+      payloads.push(...buildReminderPayloads(notes, now));
+    }
+
+    payloads.sort((a, b) => a.at.getTime() - b.at.getTime());
+
+    return {
+      payloads,
+      signature: JSON.stringify(
+        payloads.map((payload) => ({
+          id: payload.id,
+          at: payload.at.toISOString(),
+          title: payload.title,
+          body: payload.body,
+        })),
+      ),
+    };
+  }, [
+    analyticsNotificationPlan,
+    normalizedSettings.enabled,
+    normalizedSettings.noteReminders,
+    normalizedSettings.performanceNudges,
+    notes,
+  ]);
+
   const clearScheduledNotifications = useCallback(async () => {
     clearWebTimeouts();
 
@@ -293,27 +326,6 @@ export function useWhelmNotifications({
     }
   }, [deliveryMode]);
 
-  const scheduledPayloads = useMemo(() => {
-    const now = new Date();
-    const payloads: ScheduledNotificationPayload[] = [];
-
-    if (normalizedSettings.enabled && normalizedSettings.performanceNudges) {
-      payloads.push(...buildPerformancePayloads(analyticsNotificationPlan, now));
-    }
-
-    if (normalizedSettings.enabled && normalizedSettings.noteReminders) {
-      payloads.push(...buildReminderPayloads(notes, now));
-    }
-
-    return payloads.sort((a, b) => a.at.getTime() - b.at.getTime());
-  }, [
-    analyticsNotificationPlan,
-    normalizedSettings.enabled,
-    normalizedSettings.noteReminders,
-    normalizedSettings.performanceNudges,
-    notes,
-  ]);
-
   const scheduleNotifications = useCallback(async (force = false) => {
     if (!user) return;
     if (!normalizedSettings.enabled) {
@@ -328,29 +340,21 @@ export function useWhelmNotifications({
       return;
     }
 
-    const signature = JSON.stringify(
-      scheduledPayloads.map((payload) => ({
-        id: payload.id,
-        at: payload.at.toISOString(),
-        title: payload.title,
-        body: payload.body,
-      })),
-    );
     const stored = readStoredSchedule(user.uid);
-    if (!force && stored?.signature === signature) {
+    if (!force && stored?.signature === notificationSchedulePlan.signature) {
       return;
     }
 
     await clearScheduledNotifications();
 
-    if (!scheduledPayloads.length) {
+    if (!notificationSchedulePlan.payloads.length) {
       setNotificationStatus("No Whelm notifications are queued right now.");
       return;
     }
 
     if (deliveryMode === "native") {
       await LocalNotifications.schedule({
-        notifications: scheduledPayloads.map((payload) => ({
+        notifications: notificationSchedulePlan.payloads.map((payload) => ({
           id: payload.id,
           title: payload.title,
           body: payload.body,
@@ -359,7 +363,7 @@ export function useWhelmNotifications({
       });
     } else if (deliveryMode === "web" && typeof window !== "undefined") {
       const now = Date.now();
-      webTimeoutsRef.current = scheduledPayloads
+      webTimeoutsRef.current = notificationSchedulePlan.payloads
         .filter((payload) => payload.at.getTime() > now)
         .map((payload) =>
           window.setTimeout(() => {
@@ -373,18 +377,20 @@ export function useWhelmNotifications({
     }
 
     writeStoredSchedule(user.uid, {
-      signature,
-      ids: scheduledPayloads.map((payload) => payload.id),
+      signature: notificationSchedulePlan.signature,
+      ids: notificationSchedulePlan.payloads.map((payload) => payload.id),
     });
     setNotificationStatus(
-      `${scheduledPayloads.length} Whelm notification${scheduledPayloads.length === 1 ? "" : "s"} queued.`,
+      `${notificationSchedulePlan.payloads.length} Whelm notification${
+        notificationSchedulePlan.payloads.length === 1 ? "" : "s"
+      } queued.`,
     );
   }, [
     clearScheduledNotifications,
     deliveryMode,
+    notificationSchedulePlan,
     normalizedSettings.enabled,
     permissionState,
-    scheduledPayloads,
     user,
   ]);
 
@@ -444,7 +450,7 @@ export function useWhelmNotifications({
     permissionState,
     notificationStatus,
     notificationBusy,
-    scheduledNotificationCount: scheduledPayloads.length,
+    scheduledNotificationCount: notificationSchedulePlan.payloads.length,
     requestNotificationPermission,
     resyncNotifications,
   };

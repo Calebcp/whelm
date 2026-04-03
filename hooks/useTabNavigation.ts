@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 
 import type { AppTab } from "@/lib/app-tabs";
 
@@ -255,10 +255,10 @@ export function useTabNavigation({
     }
   }
 
-  function scrollToSection(target: HTMLElement | null) {
+  const scrollToSection = useCallback((target: HTMLElement | null) => {
     if (!target) return;
     target.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
+  }, []);
 
   function scrollTabToTop(tab: AppTab) {
     cancelActiveMotion();
@@ -295,7 +295,7 @@ export function useTabNavigation({
     return Math.max(0, relative * contentHeight - viewportHeight * 0.5);
   }
 
-  function scrollCalendarTimelineToNow(options?: { immediate?: boolean; guided?: boolean }) {
+  const scrollCalendarTimelineToNow = useCallback((options?: { immediate?: boolean; guided?: boolean }) => {
     const container = anchors.mobileDayTimelineScrollRef.current;
     const targetScrollTop = getDayTimelineScrollTarget();
     if (!container || targetScrollTop === null) return;
@@ -310,9 +310,9 @@ export function useTabNavigation({
       immediate: options?.immediate ?? false,
       duration: options?.immediate ? 0 : 360,
     });
-  }
+  }, [anchors.mobileDayTimelineScrollRef, currentTimeMarkerMinute, dayViewTimeline.items, dayViewTimeline.startMinute, dayViewTimeline.totalMinutes]);
 
-  function handleTabSelect(tab: AppTab | "more") {
+  const handleTabSelect = useCallback((tab: AppTab | "more") => {
     const now = Date.now();
     const previousTap = lastTabTapRef.current;
     const isDoubleTap = previousTap && previousTap.key === tab && now - previousTap.at < 360;
@@ -336,15 +336,15 @@ export function useTabNavigation({
     }
     setMobileMoreOpen(false);
     setActiveTab(tab);
-  }
+  }, [activeTab, isMobileViewport, setActiveTab]);
 
-  function handleMobileTabSelect(tab: AppTab | "more") {
+  const handleMobileTabSelect = useCallback((tab: AppTab | "more") => {
     handleTabSelect(tab);
-  }
+  }, [handleTabSelect]);
 
-  function openNotesTab() {
+  const openNotesTab = useCallback(() => {
     setActiveTab("notes");
-  }
+  }, [setActiveTab]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;

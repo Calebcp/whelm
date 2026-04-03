@@ -77,31 +77,54 @@ export function useHistoryData({
 
   const normalizedHistorySearch = historySearch.trim().toLowerCase();
 
-  const proFilteredSessions = useMemo(() => {
-    return sessions.filter((session) => {
-      const withinWindow =
-        historyWindow === "all" ||
-        isDateKeyWithinRecentWindow(dayKeyLocal(session.completedAtISO), historyWindow);
-      if (!withinWindow) return false;
-      if (!normalizedHistorySearch) return true;
-      const note = (session.note ?? "").toLowerCase();
-      return note.includes(normalizedHistorySearch);
-    });
-  }, [historyWindow, isDateKeyWithinRecentWindow, normalizedHistorySearch, sessions]);
+  const historySourceData = useMemo(() => {
+    const filteredSessions: SessionDoc[] = [];
+    const filteredPlannedBlocks: PlannedBlockLike[] = [];
+    let hasLockedBlockHistory = false;
 
-  const proFilteredPlannedBlocks = useMemo(() => {
-    return plannedBlocks.filter((item) => {
+    for (const session of sessions) {
+      const sessionDateKey = dayKeyLocal(session.completedAtISO);
       const withinWindow =
-        historyWindow === "all" ||
-        isDateKeyWithinRecentWindow(item.dateKey, historyWindow);
-      if (!withinWindow) return false;
-      if (!normalizedHistorySearch) return true;
-      return (
-        item.title.toLowerCase().includes(normalizedHistorySearch) ||
-        item.note.toLowerCase().includes(normalizedHistorySearch)
-      );
-    });
-  }, [historyWindow, isDateKeyWithinRecentWindow, normalizedHistorySearch, plannedBlocks]);
+        historyWindow === "all" || isDateKeyWithinRecentWindow(sessionDateKey, historyWindow);
+      if (!withinWindow) continue;
+      if (normalizedHistorySearch) {
+        const note = (session.note ?? "").toLowerCase();
+        if (!note.includes(normalizedHistorySearch)) continue;
+      }
+      filteredSessions.push(session);
+    }
+
+    for (const item of plannedBlocks) {
+      const withinWindow =
+        historyWindow === "all" || isDateKeyWithinRecentWindow(item.dateKey, historyWindow);
+      if (!withinWindow) continue;
+      if (normalizedHistorySearch) {
+        const matchesSearch =
+          item.title.toLowerCase().includes(normalizedHistorySearch) ||
+          item.note.toLowerCase().includes(normalizedHistorySearch);
+        if (!matchesSearch) continue;
+      }
+      if (!isPro && !isDateKeyWithinRecentWindow(item.dateKey, proHistoryFreeDays)) {
+        hasLockedBlockHistory = true;
+        continue;
+      }
+      filteredPlannedBlocks.push(item);
+    }
+
+    return {
+      filteredSessions,
+      filteredPlannedBlocks,
+      hasLockedBlockHistory,
+    };
+  }, [
+    historyWindow,
+    isDateKeyWithinRecentWindow,
+    isPro,
+    normalizedHistorySearch,
+    plannedBlocks,
+    proHistoryFreeDays,
+    sessions,
+  ]);
 
   const sessionHistoryGroups = useMemo<SessionHistoryMonthGroup[]>(() => {
     const grouped = new Map<
@@ -118,7 +141,7 @@ export function useHistoryData({
       }
     >();
 
-    for (const session of (isPro ? proFilteredSessions : sessions)) {
+    for (const session of historySourceData.filteredSessions) {
       const completedAt = new Date(session.completedAtISO);
       const monthKey = `${completedAt.getFullYear()}-${String(completedAt.getMonth() + 1).padStart(2, "0")}`;
       const weekKey = weekStartKeyLocal(completedAt);
@@ -183,7 +206,12 @@ export function useHistoryData({
           weeks,
         };
       });
-  }, [formatHistoryWeekLabel, isPro, proFilteredSessions, sessions, startOfDayLocal, weekStartKeyLocal]);
+  }, [
+    formatHistoryWeekLabel,
+    historySourceData.filteredSessions,
+    startOfDayLocal,
+    weekStartKeyLocal,
+  ]);
 
   const freeSessionHistoryGroups = useMemo<SessionHistoryMonthGroup[]>(() => {
     return sessionHistoryGroups
@@ -232,8 +260,7 @@ export function useHistoryData({
   }, [isDateKeyWithinRecentWindow, proHistoryFreeDays, sessionHistoryGroups]);
 
   const plannedBlockHistory = useMemo(() => {
-    const sorted = [...(isPro ? proFilteredPlannedBlocks : plannedBlocks)]
-      .filter((item) => isPro || isDateKeyWithinRecentWindow(item.dateKey, proHistoryFreeDays))
+    const sorted = [...historySourceData.filteredPlannedBlocks]
       .sort((a, b) => {
         if (a.dateKey !== b.dateKey) return b.dateKey.localeCompare(a.dateKey);
         return a.timeOfDay.localeCompare(b.timeOfDay);
@@ -242,14 +269,9 @@ export function useHistoryData({
       completed: sorted.filter((item) => item.status === "completed"),
       incomplete: sorted.filter((item) => item.status === "active" && isDateKeyBeforeToday(item.dateKey)),
     };
-  }, [isDateKeyBeforeToday, isDateKeyWithinRecentWindow, isPro, plannedBlocks, proFilteredPlannedBlocks, proHistoryFreeDays]);
+  }, [historySourceData.filteredPlannedBlocks, isDateKeyBeforeToday]);
 
-  const hasLockedBlockHistory = useMemo(
-    () =>
-      !isPro &&
-      plannedBlocks.some((item) => !isDateKeyWithinRecentWindow(item.dateKey, proHistoryFreeDays)),
-    [isDateKeyWithinRecentWindow, isPro, plannedBlocks, proHistoryFreeDays],
-  );
+  const hasLockedBlockHistory = isPro ? false : historySourceData.hasLockedBlockHistory;
 
   const toggleHistorySection = useCallback((key: keyof HistorySectionsOpen) => {
     setHistorySectionsOpen((current) => ({ ...current, [key]: !current[key] }));

@@ -189,36 +189,52 @@ export function useCalendarAgenda({
   isDateKeyBeforeToday,
   isDateKeyWithinRecentWindow,
 }: UseCalendarAgendaOptions) {
-  const selectedDatePlanGroups = useMemo(() => {
-    const allForDate = plannedBlocks.filter((item) => item.dateKey === selectedDateKey && item.status !== "deleted");
-    const active = allForDate.filter((item) => item.status === "active" && !isDateKeyBeforeToday(item.dateKey));
-    const completed = allForDate.filter((item) => item.status === "completed");
-    const incomplete = allForDate.filter((item) => item.status === "active" && isDateKeyBeforeToday(item.dateKey));
-    return { active, completed, incomplete, visible: [...active, ...completed, ...incomplete] };
-  }, [isDateKeyBeforeToday, plannedBlocks, selectedDateKey]);
-
   const selectedDateDayTone = isPro ? (dayTones[selectedDateKey] ?? null) : null;
   const visiblePlanTone = (tone: CalendarTone | null | undefined) => (isPro ? (tone ?? null) : null);
+  const { plannedBlockById, plannedBlocksByDate } = useMemo(() => {
+    const byId = new Map<string, PlannedBlockLike>();
+    const byDate = new Map<string, PlannedBlockLike[]>();
 
-  const plannedBlockById = useMemo(
-    () => new Map(plannedBlocks.map((item) => [item.id, item])),
-    [plannedBlocks],
-  );
+    for (const item of plannedBlocks) {
+      byId.set(item.id, item);
+      if (item.status === "deleted") continue;
+      const list = byDate.get(item.dateKey) ?? [];
+      list.push(item);
+      byDate.set(item.dateKey, list);
+    }
+
+    return {
+      plannedBlockById: byId,
+      plannedBlocksByDate: byDate,
+    };
+  }, [plannedBlocks]);
+
+  const selectedDatePlanGroups = useMemo(() => {
+    const allForDate = plannedBlocksByDate.get(selectedDateKey) ?? [];
+    const active: PlannedBlockLike[] = [];
+    const completed: PlannedBlockLike[] = [];
+    const incomplete: PlannedBlockLike[] = [];
+
+    for (const item of allForDate) {
+      if (item.status === "completed") {
+        completed.push(item);
+        continue;
+      }
+
+      if (isDateKeyBeforeToday(item.dateKey)) {
+        incomplete.push(item);
+        continue;
+      }
+
+      active.push(item);
+    }
+
+    return { active, completed, incomplete, visible: [...active, ...completed, ...incomplete] };
+  }, [isDateKeyBeforeToday, plannedBlocksByDate, selectedDateKey]);
 
   const calendarEntriesByDate = useMemo(() => {
     const entries = new Map<string, CalendarEntry[]>();
-    const completedPlanSessionKeys = new Set(
-      plannedBlocks
-        .filter((item) => item.status === "completed")
-        .map((item) =>
-          completedBlockSessionKey({
-            dateKey: item.dateKey,
-            timeOfDay: item.timeOfDay,
-            durationMinutes: item.durationMinutes,
-            title: item.title,
-          }),
-        ),
-    );
+    const completedPlansBySlot = new Map<string, string[]>();
 
     function pushEntry(dateKey: string, entry: CalendarEntry) {
       const list = entries.get(dateKey) ?? [];
@@ -229,6 +245,12 @@ export function useCalendarAgenda({
     plannedBlocks.forEach((item) => {
       if (item.status === "deleted") return;
       if (!isPro && !isDateKeyWithinRecentWindow(item.dateKey, proHistoryFreeDays)) return;
+      if (item.status === "completed") {
+        const slotKey = [item.dateKey, item.timeOfDay || "", String(Math.max(0, item.durationMinutes))].join("::");
+        const list = completedPlansBySlot.get(slotKey) ?? [];
+        list.push(item.title.trim().toLowerCase());
+        completedPlansBySlot.set(slotKey, list);
+      }
       const startMinute = parseTimeToMinutes(item.timeOfDay || "09:00");
       const endMinute = Math.min(24 * 60, startMinute + Math.max(10, item.durationMinutes));
       pushEntry(item.dateKey, {
@@ -287,18 +309,13 @@ export function useCalendarAgenda({
       if (!isPro && !isDateKeyWithinRecentWindow(dateKey, proHistoryFreeDays)) return;
       const strippedNote = session.note?.trim() ? stripCompletedBlockPrefix(session.note.trim()) : "";
       const sortTime = `${String(completed.getHours()).padStart(2, "0")}:${String(completed.getMinutes()).padStart(2, "0")}`;
+      const completedPlanTitles = completedPlansBySlot.get(
+        [dateKey, sortTime, String(Math.max(0, session.minutes))].join("::"),
+      );
       if (
         session.note?.trim() &&
         /^Planned block completed:\s*/i.test(session.note) &&
-        [...completedPlanSessionKeys].some((key) => {
-          const [planDateKey, planTimeOfDay, planDurationMinutes, planTitle] = key.split("::");
-          return (
-            planDateKey === dateKey &&
-            planTimeOfDay === sortTime &&
-            Number(planDurationMinutes) === session.minutes &&
-            completedSessionMatchesPlanTitle(strippedNote, planTitle)
-          );
-        })
+        completedPlanTitles?.some((planTitle) => completedSessionMatchesPlanTitle(strippedNote, planTitle))
       ) {
         return;
       }
@@ -464,15 +481,21 @@ export function useCalendarAgenda({
 
   const selectedDateAgendaStateSummary = useMemo(() => {
     const plans = selectedDateEntries.filter((entry) => entry.source === "plan");
-    const activeNow = plans.find(
-      (entry) => resolveAgendaTimingState(selectedDateKey, entry.startMinute, entry.endMinute, entry.isCompleted) === "now",
-    );
-    const nextUp = plans.find(
-      (entry) => resolveAgendaTimingState(selectedDateKey, entry.startMinute, entry.endMinute, entry.isCompleted) === "next",
-    );
-    const overdueCount = plans.filter(
-      (entry) => resolveAgendaTimingState(selectedDateKey, entry.startMinute, entry.endMinute, entry.isCompleted) === "overdue",
-    ).length;
+    let activeNow: CalendarEntry | null | undefined;
+    let nextUp: CalendarEntry | null | undefined;
+    let overdueCount = 0;
+
+    for (const entry of plans) {
+      const state = resolveAgendaTimingState(
+        selectedDateKey,
+        entry.startMinute,
+        entry.endMinute,
+        entry.isCompleted,
+      );
+      if (state === "now" && !activeNow) activeNow = entry;
+      if (state === "next" && !nextUp) nextUp = entry;
+      if (state === "overdue") overdueCount += 1;
+    }
 
     return {
       activeNow,

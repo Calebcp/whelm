@@ -106,7 +106,7 @@ body[data-theme="light"] {
 
 .pageShellGlass {
   --glass-surface-opacity: 0.72;
-  --glass-blur: 18px;
+  --glass-blur: 12px;
   --glass-border-alpha: 0.24;
   --glass-highlight-alpha: 0.08;
   --glass-shadow-alpha: 0.34;

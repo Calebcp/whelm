@@ -13,7 +13,14 @@ import CalendarTonePicker from "@/components/CalendarTonePicker";
 import CollapsibleSectionCard from "@/components/CollapsibleSectionCard";
 import DailyPlanningModal from "@/components/DailyPlanningModal";
 import { DailyRitualSubmitBandana, DailyRitualWaveIcon } from "@/components/DailyRitualDecorations";
+import HomeActiveTabContent from "@/components/HomeActiveTabContent";
+import HomeOverlayHost from "@/components/HomeOverlayHost";
 import FeedbackModal from "@/components/FeedbackModal";
+import HomeShellFrame, {
+  MOBILE_MORE_TABS,
+  renderAppNavIcon,
+  tabTitle,
+} from "@/components/HomeShellFrame";
 import IntroSplash from "@/components/IntroSplash";
 import KpiDetailModal from "@/components/KpiDetailModal";
 import LeaderboardProfileModal from "@/components/LeaderboardProfileModal";
@@ -25,17 +32,7 @@ import QuickCardModal from "@/components/QuickCardModal";
 import SessionRewardToast from "@/components/SessionRewardToast";
 import ThemePromptModal from "@/components/ThemePromptModal";
 import StreakOverlayCluster from "@/components/StreakOverlayCluster";
-import TopAppBar from "@/components/TopAppBar";
 import XpBandanaLevelMark from "@/components/XpBandanaLevelMark";
-import SettingsTab from "@/components/SettingsTab";
-import HistoryTab from "@/components/HistoryTab";
-import WhelmboardTab from "@/components/WhelmboardTab";
-import StreaksTab from "@/components/StreaksTab";
-import MirrorTab from "@/components/MirrorTab";
-import NotesTab from "@/components/NotesTab";
-import ReportsTab from "@/components/ReportsTab";
-import ScheduleTab from "@/components/ScheduleTab";
-import TodayTab from "@/components/TodayTab";
 import WhelMascot from "@/components/WhelMascot";
 import WhelmEmote from "@/components/WhelmEmote";
 import WhelmRitualScene from "@/components/WhelmRitualScene";
@@ -133,6 +130,21 @@ import { useHistoryData } from "@/hooks/useHistoryData";
 import { useModalFlows } from "@/hooks/useModalFlows";
 import { useReflection } from "@/hooks/useReflection";
 import { useReportsAnalytics } from "@/hooks/useReportsAnalytics";
+import {
+  type NotesShellHandlers,
+  type NotesShellRefs,
+  type NotesShellState,
+} from "@/hooks/useNotesShellViewModel";
+import {
+  type ScheduleShellHandlers,
+  type ScheduleShellRefs,
+  type ScheduleShellState,
+} from "@/hooks/useScheduleShellViewModel";
+import {
+  type TodayShellHandlers,
+  type TodayShellRefs,
+  type TodayShellState,
+} from "@/hooks/useTodayShellViewModel";
 import { useSessions } from "@/hooks/useSessions";
 import { useShellLifecycle } from "@/hooks/useShellLifecycle";
 import { useStreak } from "@/hooks/useStreak";
@@ -935,7 +947,6 @@ function analyticsSubjectModeFromText(text: string): "language" | "school" | "wo
   return "general";
 }
 
-type NavIconKey = AppTab | "more";
 type AppBackgroundSetting =
   | { kind: "default" }
   | { kind: "preset"; value: string }
@@ -1050,203 +1061,6 @@ function getStreakTierColorTheme(tierColor: string | null | undefined) {
 
 
 
-function WhelmNavIcon({ icon }: { icon: NavIconKey }) {
-  const svgProps = {
-    viewBox: "0 0 64 64",
-    "aria-hidden": true as const,
-    className: styles.navIconSvg,
-  };
-
-  switch (icon) {
-    case "mirror":
-      return <img src="/mirror-icon-tab.png" alt="" className={styles.navIconImage} />;
-    case "today":
-      return (
-        <svg {...svgProps}>
-          <defs>
-            <linearGradient id="todayFill" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#A7F6FF" />
-              <stop offset="100%" stopColor="#45D4FF" />
-            </linearGradient>
-          </defs>
-          <circle cx="32" cy="32" r="22" fill="url(#todayFill)" opacity="0.24" />
-          <circle cx="32" cy="32" r="17.5" fill="none" stroke="#1E86FF" strokeWidth="6" />
-          <circle cx="32" cy="32" r="8.5" fill="#83EEFF" stroke="#1E86FF" strokeWidth="3" />
-        </svg>
-      );
-    case "calendar":
-      return (
-        <svg {...svgProps}>
-          <defs>
-            <linearGradient id="calendarFill" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#A3F4FF" />
-              <stop offset="100%" stopColor="#48D0FF" />
-            </linearGradient>
-          </defs>
-          <rect x="9" y="12" width="46" height="42" rx="12" fill="url(#calendarFill)" stroke="#1E86FF" strokeWidth="3.5" />
-          <rect x="9" y="20" width="46" height="8" rx="4" fill="#1E86FF" opacity="0.9" />
-          <rect x="18" y="8" width="6" height="12" rx="3" fill="#C7FBFF" stroke="#1E86FF" strokeWidth="2" />
-          <rect x="40" y="8" width="6" height="12" rx="3" fill="#C7FBFF" stroke="#1E86FF" strokeWidth="2" />
-          <line x1="19" y1="35" x2="45" y2="35" stroke="#1E86FF" strokeWidth="3.5" strokeLinecap="round" />
-          <line x1="19" y1="44" x2="45" y2="44" stroke="#1E86FF" strokeWidth="3.5" strokeLinecap="round" opacity="0.8" />
-        </svg>
-      );
-    case "leaderboard":
-      return <img src="/leaderboard-icon-tab.png" alt="" className={styles.navIconImage} />;
-    case "notes":
-      return (
-        <svg {...svgProps}>
-          <defs>
-            <linearGradient id="notesFill" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#A5F5FF" />
-              <stop offset="100%" stopColor="#4DD5FF" />
-            </linearGradient>
-          </defs>
-          <path d="M17 19h30v28a5 5 0 0 1-5 5H22a5 5 0 0 1-5-5V19Z" fill="url(#notesFill)" stroke="#1E86FF" strokeWidth="3.5" />
-          <path d="M24 16h16" stroke="#1E86FF" strokeWidth="4" strokeLinecap="round" />
-          <path d="m41 12 10 10" stroke="#1E86FF" strokeWidth="4" strokeLinecap="round" />
-          <circle cx="47" cy="18" r="8" fill="#FF6262" stroke="#261318" strokeWidth="3" />
-          <path d="M44.5 21.5 33 33" stroke="#261318" strokeWidth="3.5" strokeLinecap="round" />
-        </svg>
-      );
-    case "streaks":
-      return (
-        <svg {...svgProps}>
-          <defs>
-            <linearGradient id="streakFill" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#8FF2FF" />
-              <stop offset="100%" stopColor="#39C6FF" />
-            </linearGradient>
-          </defs>
-          <path
-            d="M8 33c8-9 18-11 31-11 8 0 13 2 17 4-1 5-4 9-9 11l-5 2 9 10c-5 2-11 0-15-4l-3-4c-3 4-7 7-13 8 2-6 4-10 5-13l-17 3Z"
-            fill="url(#streakFill)"
-            stroke="#1388F5"
-            strokeWidth="3.5"
-            strokeLinejoin="round"
-          />
-          <path d="M16 32c8-4 18-6 28-5" stroke="#D8FFFF" strokeWidth="2.5" strokeLinecap="round" opacity="0.75" />
-        </svg>
-      );
-    case "history":
-      return (
-        <svg {...svgProps}>
-          <defs>
-            <linearGradient id="historyFill" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#A0F2FF" />
-              <stop offset="100%" stopColor="#46CCFF" />
-            </linearGradient>
-          </defs>
-          <rect x="10" y="10" width="44" height="44" rx="14" fill="url(#historyFill)" stroke="#1E86FF" strokeWidth="3.5" />
-          <circle cx="22" cy="32" r="3.5" fill="none" stroke="#1E86FF" strokeWidth="3" />
-          <circle cx="32" cy="32" r="3.5" fill="none" stroke="#1E86FF" strokeWidth="3" />
-          <circle cx="42" cy="32" r="3.5" fill="none" stroke="#1E86FF" strokeWidth="3" />
-        </svg>
-      );
-    case "reports":
-      return (
-        <svg {...svgProps}>
-          <defs>
-            <linearGradient id="reportsFill" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#9AEFFF" />
-              <stop offset="100%" stopColor="#41CBFF" />
-            </linearGradient>
-          </defs>
-          <circle cx="32" cy="32" r="22" fill="url(#reportsFill)" stroke="#1E86FF" strokeWidth="3.5" />
-          <path d="M32 32V10a22 22 0 0 1 22 22H32Z" fill="#7CE8FF" stroke="#1E86FF" strokeWidth="3" strokeLinejoin="round" />
-          <path d="M32 32 16.5 47.5A22 22 0 0 1 10 32h22Z" fill="#5AD9FF" stroke="#1E86FF" strokeWidth="3" strokeLinejoin="round" />
-          <circle cx="32" cy="32" r="4" fill="#1E86FF" />
-        </svg>
-      );
-    case "settings":
-      return (
-        <svg {...svgProps}>
-          <defs>
-            <linearGradient id="settingsFill" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#99F0FF" />
-              <stop offset="100%" stopColor="#3CCBFF" />
-            </linearGradient>
-          </defs>
-          <path
-            d="m32 11 4 2 5-1 4 5 5 2-1 5 2 4-2 4 1 5-5 2-4 5-5-1-4 2-4-2-5 1-4-5-5-2 1-5-2-4 2-4-1-5 5-2 4-5 5 1 4-2Z"
-            fill="url(#settingsFill)"
-            stroke="#1E86FF"
-            strokeWidth="3.5"
-            strokeLinejoin="round"
-          />
-          <circle cx="32" cy="32" r="9" fill="#CCFCFF" stroke="#1E86FF" strokeWidth="3.5" />
-        </svg>
-      );
-    case "more":
-      return (
-        <svg {...svgProps}>
-          <defs>
-            <linearGradient id="moreFill" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#9EF1FF" />
-              <stop offset="100%" stopColor="#44D0FF" />
-            </linearGradient>
-          </defs>
-          <rect x="10" y="10" width="44" height="44" rx="14" fill="url(#moreFill)" stroke="#1E86FF" strokeWidth="3.5" />
-          <circle cx="22" cy="32" r="3.5" fill="none" stroke="#1E86FF" strokeWidth="3" />
-          <circle cx="32" cy="32" r="3.5" fill="none" stroke="#1E86FF" strokeWidth="3" />
-          <circle cx="42" cy="32" r="3.5" fill="none" stroke="#1E86FF" strokeWidth="3" />
-        </svg>
-      );
-  }
-}
-
-function iconForTab(tab: AppTab) {
-  return <WhelmNavIcon icon={tab} />;
-}
-
-function iconForNavKey(tab: NavIconKey) {
-  return <WhelmNavIcon icon={tab} />;
-}
-
-function tabTitle(tab: AppTab) {
-  switch (tab) {
-    case "today":
-      return "Today";
-    case "calendar":
-      return "Schedule";
-    case "leaderboard":
-      return "Whelmboard";
-    case "mirror":
-      return "Streak Mirror";
-    case "notes":
-      return "Notes+";
-    case "streaks":
-      return "Streaks";
-    case "history":
-      return "History";
-    case "reports":
-      return "Reports";
-    case "settings":
-      return "Settings";
-  }
-}
-
-function mobileTabDescription(tab: AppTab) {
-  switch (tab) {
-    case "calendar":
-      return "Plan blocks and read the day clearly.";
-    case "leaderboard":
-      return "Check rank, prestige, and movement.";
-    case "reports":
-      return "Read patterns, timing, and performance.";
-    case "streaks":
-      return "Protect the run and track milestones.";
-    case "history":
-      return "Review the record without guesswork.";
-    case "mirror":
-      return "Private reset and accountability space.";
-    case "settings":
-      return "Tune system behavior and account state.";
-    default:
-      return "Open the next lane.";
-  }
-}
-
 function getPageShellBackgroundStyle(
   themeMode: ThemeMode,
   setting: AppBackgroundSetting,
@@ -1286,28 +1100,6 @@ function getPageShellBackgroundStyle(
     backgroundColor: themeMode === "light" ? "#f6f2eb" : "#0d1121",
   };
 }
-
-const DESKTOP_PRIMARY_TABS: Array<{ key: AppTab; label: string }> = [
-  { key: "calendar", label: "Schedule" },
-  { key: "today", label: "Today" },
-  { key: "notes", label: "Notes+" },
-  { key: "leaderboard", label: "Whelmboard" },
-];
-
-const MOBILE_PRIMARY_TABS: Array<{ key: AppTab; label: string }> = [
-  { key: "calendar", label: "Schedule" },
-  { key: "today", label: "Today" },
-  { key: "notes", label: "Notes+" },
-  { key: "leaderboard", label: "Whelmboard" },
-];
-
-const MOBILE_MORE_TABS: AppTab[] = [
-  "mirror",
-  "streaks",
-  "history",
-  "reports",
-  "settings",
-];
 
 const ONBOARDING_STEPS: OnboardingTourStep[] = [
   {
@@ -1407,8 +1199,6 @@ function onboardingStorageKey(uid: string) {
 }
 
 export default function HomePage() {
-  "use no memo";
-
   const router = useRouter();
   const liveTodayKey = dayKeyLocal(new Date());
 
@@ -2936,6 +2726,605 @@ export default function HomePage() {
     getProfileTierTheme,
   });
   const onboardingStep = ONBOARDING_STEPS[Math.min(onboardingStepIndex, ONBOARDING_STEPS.length - 1)];
+  const handleCalendarPrevMonth = useCallback(() => {
+    setCalendarCursor((current) => shiftMonth(current, -1));
+  }, [setCalendarCursor]);
+  const handleCalendarNextMonth = useCallback(() => {
+    setCalendarCursor((current) => shiftMonth(current, 1));
+  }, [setCalendarCursor]);
+  const handleCalendarJumpGo = useCallback(() => {
+    if (!calendarJumpDate) return;
+    selectCalendarDate(calendarJumpDate);
+  }, [calendarJumpDate, selectCalendarDate]);
+  const handleToggleMobileCalendarControls = useCallback(() => {
+    setMobileCalendarControlsOpen((open) => !open);
+  }, []);
+  const handleGoToStreaksTab = useCallback(() => {
+    setMobileMoreOpen(false);
+    setActiveTab("streaks");
+  }, [setActiveTab, setMobileMoreOpen]);
+  const handleOpenHistoryTab = useCallback(() => {
+    setActiveTab("history");
+  }, [setActiveTab]);
+  const scheduleContainerProps: {
+    refs: ScheduleShellRefs;
+    state: ScheduleShellState;
+    handlers: ScheduleShellHandlers;
+  } = {
+    refs: {
+      sectionRef: calendarSectionRef,
+      calendarMonthRef,
+      calendarPlannerRef,
+      calendarHeroRef,
+      calendarTimelineRef,
+      mobileDayTimelineScrollRef,
+    },
+    state: {
+      calendarView,
+      calendarMonthLabel,
+      calendarMonthInput,
+      calendarJumpDate,
+      selectedCalendarMonthKey,
+      mobileCalendarControlsOpen,
+      calendarAuxPanel,
+      isMobileViewport,
+      mobileStreakJumpStyle,
+      streak,
+      isPro,
+      dynamicMonthCalendar,
+      calendarEntriesByDate,
+      selectedMonthTone,
+      calendarHoverEntryId,
+      calendarPinnedEntryId,
+      activeCalendarPreview,
+      selectedDateKey,
+      isSelectedDateToday,
+      selectedDateSummary,
+      selectedDateFocusedMinutes,
+      selectedDatePlans,
+      selectedDateEntries,
+      selectedDateDayTone,
+      selectedDateCanAddBlocks,
+      dayPortalComposerOpen,
+      bandanaColor: visibleBandanaColor,
+      currentTimeMarker,
+      dayViewTimeline,
+      mobileDayTimelineHeight,
+      activatedCalendarEntryId,
+      activeOverlapPickerItem,
+      activeDayViewPreviewItem,
+      planTitle,
+      planNoteExpanded,
+      planNote,
+      planTone,
+      planConflictWarning,
+      planTime,
+      planDuration,
+      planStatus,
+      editingPlannedBlockId,
+      plannerSectionsOpen,
+      selectedDatePlanGroups,
+      selectedDateAgendaStateSummary,
+      mobileAgendaEntriesOpen,
+      mobileBlockSheetOpen,
+      draggedPlanId,
+      plannedBlockById,
+      focusMetricsCalendar: focusMetrics.calendar,
+      historicalStreaksByDay,
+      calendarCompanionPulse: companionState.pulses.calendar,
+    },
+    handlers: {
+      onPrevMonth: handleCalendarPrevMonth,
+      onNextMonth: handleCalendarNextMonth,
+      onSetCalendarView: setCalendarView,
+      onSetCalendarCursor: setCalendarCursor,
+      onSetCalendarJumpDate: setCalendarJumpDate,
+      onCalendarJumpGo: handleCalendarJumpGo,
+      onToggleMobileCalendarControls: handleToggleMobileCalendarControls,
+      onSetCalendarAuxPanel: setCalendarAuxPanel,
+      onGoToStreaks: handleGoToStreaksTab,
+      onApplyMonthTone: applyMonthTone,
+      onSelectCalendarDate: selectCalendarDate,
+      onSetCalendarHoverEntryId: setCalendarHoverEntryId,
+      onSetCalendarPinnedEntryId: setCalendarPinnedEntryId,
+      onOpenPlannedBlockDetail: openPlannedBlockDetail,
+      onApplyDayTone: applyDayTone,
+      onOpenCalendarBlockComposer: openCalendarBlockComposer,
+      onCloseBlockComposer: closeBlockComposer,
+      onScrollCalendarTimelineToNow: scrollCalendarTimelineToNow,
+      onShowCalendarHoverPreview: showCalendarHoverPreview,
+      onScheduleCalendarHoverPreviewClear: scheduleCalendarHoverPreviewClear,
+      onClearCalendarHoverPreviewDelay: clearCalendarHoverPreviewDelay,
+      onSetOverlapPickerEntryId: setOverlapPickerEntryId,
+      onOpenNote: openSpecificNote,
+      onSetActiveTabHistory: handleOpenHistoryTab,
+      onCompletePlannedBlock: completePlannedBlock,
+      onSetPlanTitle: setPlanTitle,
+      onSetPlanNoteExpanded: setPlanNoteExpanded,
+      onSetPlanNote: setPlanNote,
+      onSetPlanTone: setPlanTone,
+      onSetPlanConflictWarning: setPlanConflictWarning,
+      onSetPlanTime: setPlanTime,
+      onSetPlanDuration: setPlanDuration,
+      onAddPlannedBlock: addPlannedBlock,
+      onUpdatePlannedBlockTime: updatePlannedBlockTime,
+      onDeletePlannedBlock: deletePlannedBlock,
+      onReorderPlannedBlocks: reorderPlannedBlocks,
+      onSetDraggedPlanId: setDraggedPlanId,
+      onSetPlannerSectionsOpen: setPlannerSectionsOpen,
+      onSetMobileAgendaEntriesOpen: setMobileAgendaEntriesOpen,
+      onUpgrade: openUpgradeFlow,
+    },
+  };
+  const todayContainerProps = useMemo<{
+    refs: TodayShellRefs;
+    state: TodayShellState;
+    handlers: TodayShellHandlers;
+    getTabTitle: (tab: AppTab) => string;
+  }>(
+    () => ({
+      refs: {
+        todaySectionRef,
+        todayTimerRef,
+        todaySummaryRef,
+      },
+      state: {
+        isMobileViewport,
+        isPro,
+        resolvedTheme,
+        todaySessionNoteCount,
+        focusMetrics: {
+          disciplineScore: focusMetrics.disciplineScore,
+          todayMinutes: focusMetrics.todayMinutes,
+          todaySessions: focusMetrics.todaySessions,
+          weekMinutes: focusMetrics.weekMinutes,
+        },
+        streak,
+        mobileTodayOverviewOpen,
+        nextPlannedBlock,
+        dueReminderNotes,
+        lastSession,
+        lastSessionHoursAgo,
+        latestNote,
+        orderedNotes,
+        todayActivePlannedBlocksCount: todayActivePlannedBlocks.length,
+        senseiGuidance: {
+          tone: senseiGuidance.tone,
+          ritual: senseiGuidance.ritual,
+          voiceMode: senseiGuidance.voiceMode,
+          actionLabel: senseiGuidance.actionLabel,
+          actionTab: senseiGuidance.actionTab,
+        },
+        todayHeroCopy: {
+          eyebrow: todayHeroCopy.eyebrow,
+          title: todayHeroCopy.title,
+          body: todayHeroCopy.body,
+          signatureLine: todayHeroCopy.signatureLine,
+        },
+        companionStageLabel: companionState.stage,
+        nextSenseiMilestone,
+        senseiReaction,
+        bandanaColor: visibleBandanaColor,
+        reportCopyStatus,
+        userEmail: user?.email ?? "",
+        senseiActionTab: senseiGuidance.actionTab as AppTab,
+      },
+      handlers: {
+        onOpenSessionNotes: handleOpenHistoryTab,
+        onSessionStart: handleSessionStarted,
+        onSessionAbandon: handleSessionAbandoned,
+        onSessionComplete: (note, minutesSpent, sessionContext) =>
+          void completeSession(note, minutesSpent, sessionContext),
+        onToggleMobileTodayOverview: () => setMobileTodayOverviewOpen((open) => !open),
+        onTodayPrimaryAction: handleTodayPrimaryAction,
+        onOpenNote: openSpecificNote,
+        onCreateWorkspaceNote: () => void createWorkspaceNote(),
+        onCopyWeeklyReport: () => void copyWeeklyReport(),
+        onUpgrade: openUpgradeFlow,
+      },
+      getTabTitle: tabTitle,
+    }),
+    [
+      companionState.stage,
+      completeSession,
+      copyWeeklyReport,
+      createWorkspaceNote,
+      dueReminderNotes,
+      focusMetrics.disciplineScore,
+      focusMetrics.todayMinutes,
+      focusMetrics.todaySessions,
+      focusMetrics.weekMinutes,
+      handleOpenHistoryTab,
+      handleSessionAbandoned,
+      handleSessionStarted,
+      handleTodayPrimaryAction,
+      isMobileViewport,
+      isPro,
+      lastSession,
+      lastSessionHoursAgo,
+      latestNote,
+      mobileTodayOverviewOpen,
+      nextPlannedBlock,
+      nextSenseiMilestone,
+      openSpecificNote,
+      openUpgradeFlow,
+      orderedNotes,
+      reportCopyStatus,
+      resolvedTheme,
+      senseiGuidance.actionLabel,
+      senseiGuidance.actionTab,
+      senseiGuidance.ritual,
+      senseiGuidance.tone,
+      senseiGuidance.voiceMode,
+      senseiReaction,
+      streak,
+      tabTitle,
+      todayActivePlannedBlocks.length,
+      todayHeroCopy.body,
+      todayHeroCopy.eyebrow,
+      todayHeroCopy.signatureLine,
+      todayHeroCopy.title,
+      todaySectionRef,
+      todaySessionNoteCount,
+      todaySummaryRef,
+      todayTimerRef,
+      user?.email,
+      visibleBandanaColor,
+    ],
+  );
+  const notesContainerProps = useMemo<{
+    refs: NotesShellRefs;
+    state: NotesShellState;
+    handlers: NotesShellHandlers;
+  }>(
+    () => ({
+      refs: {
+        sectionRef: notesSectionRef,
+        noteAttachmentInputRef,
+        notesStartRef,
+        notesRecentRef,
+        notesEditorRef,
+        editorRef,
+        noteBodyShellRef,
+      },
+      state: {
+        notesSurface,
+        uid: user?.uid ?? "",
+        isMobileViewport,
+        notes,
+        selectedNoteId,
+        selectedNote,
+        filteredNotes,
+        recentNotes,
+        selectedNoteWordCount,
+        hasLockedNotesHistory,
+        resolvedTheme,
+        selectedNoteSurfaceColor,
+        selectedNotePageColor,
+        xpTierTheme,
+        streakBandanaTier,
+        bandanaColor: visibleBandanaColor,
+        notesSearch,
+        notesCategoryFilter,
+        mobileNotesRecentOpen,
+        mobileNotesEditorOpen,
+        mobileNotesToolsOpen,
+        colorPickerOpen,
+        shellColorPickerOpen,
+        textColorPickerOpen,
+        highlightPickerOpen,
+        editorBandanaCaret,
+        notesSyncStatus,
+        notesSyncMessage,
+        noteAttachmentBusy,
+        noteAttachmentStatus,
+        pendingNoteAttachments,
+        isPro,
+        proPanelNotesOpen: proPanelsOpen.notes,
+      },
+      handlers: {
+        onSetNotesSurface: setNotesSurface,
+        onCardsXPEarned: handleCardsXPEarned,
+        onSetNotesSearch: setNotesSearch,
+        onSetNotesCategoryFilter: setNotesCategoryFilter,
+        onSetMobileNotesRecentOpen: setMobileNotesRecentOpen,
+        onSetMobileNotesEditorOpen: setMobileNotesEditorOpen,
+        onSetMobileNotesToolsOpen: setMobileNotesToolsOpen,
+        onSetColorPickerOpen: setColorPickerOpen,
+        onSetShellColorPickerOpen: setShellColorPickerOpen,
+        onSetTextColorPickerOpen: setTextColorPickerOpen,
+        onSetHighlightPickerOpen: setHighlightPickerOpen,
+        onSetEditorBandanaCaret: setEditorBandanaCaret,
+        onNoteAttachmentInput: handleNoteAttachmentInput,
+        onOpenAttachmentPicker: openNoteAttachmentPicker,
+        onOpenNoteAttachment: openNoteAttachment,
+        onRemoveNoteAttachment: (attachment) => void removeNoteAttachment(attachment),
+        onConvertNoteToBlock: convertNoteToPlannedBlock,
+        onDeleteNote: (noteId) => void deleteNote(noteId),
+        onCreateNote: () => void createWorkspaceNote(),
+        onTogglePinned: (noteId) => void togglePinned(noteId),
+        onUpdateSelectedNote: (patch) => void updateSelectedNote(patch),
+        onFlushPendingTitleSync: () => void flushPendingTitleSync(),
+        onCaptureEditorDraft: captureEditorDraft,
+        onSaveEditorSelection: saveEditorSelection,
+        onApplyEditorCommand: applyEditorCommand,
+        onCheckEditorSelection: checkEditorSelection,
+        onUpdateEditorBandanaCaret: updateEditorBandanaCaret,
+        onFlushNoteDraft: flushSelectedNoteDraft,
+        onMobileCreateNote: () => void handleMobileCreateNote(),
+        onOpenMobileEditor: openMobileNoteEditor,
+        onOpenCurrentMobileNote: handleOpenCurrentMobileNote,
+        onRetrySync: () => void handleRetrySync(),
+        onApplyHighlightColor: applyHighlightColor,
+        onScrollToSection: scrollToSection,
+        onSetSelectedNoteId: setSelectedNoteId,
+        onToggleProNotesPanel: () =>
+          setProPanelsOpen((current) => ({ ...current, notes: !current.notes })),
+        onStartProPreview: () => void handleStartProPreview(),
+        onOpenUpgradeFlow: openUpgradeFlow,
+      },
+    }),
+    [
+      applyEditorCommand,
+      applyHighlightColor,
+      captureEditorDraft,
+      checkEditorSelection,
+      colorPickerOpen,
+      createWorkspaceNote,
+      deleteNote,
+      editorBandanaCaret,
+      editorRef,
+      filteredNotes,
+      flushPendingTitleSync,
+      flushSelectedNoteDraft,
+      handleCardsXPEarned,
+      handleMobileCreateNote,
+      handleNoteAttachmentInput,
+      handleOpenCurrentMobileNote,
+      handleRetrySync,
+      handleStartProPreview,
+      hasLockedNotesHistory,
+      highlightPickerOpen,
+      isMobileViewport,
+      isPro,
+      mobileNotesEditorOpen,
+      mobileNotesRecentOpen,
+      mobileNotesToolsOpen,
+      noteAttachmentBusy,
+      noteAttachmentInputRef,
+      noteAttachmentStatus,
+      noteBodyShellRef,
+      notes,
+      notesCategoryFilter,
+      notesEditorRef,
+      notesRecentRef,
+      notesSearch,
+      notesSectionRef,
+      notesStartRef,
+      notesSurface,
+      notesSyncMessage,
+      notesSyncStatus,
+      openMobileNoteEditor,
+      openNoteAttachment,
+      openNoteAttachmentPicker,
+      openUpgradeFlow,
+      pendingNoteAttachments,
+      proPanelsOpen.notes,
+      recentNotes,
+      removeNoteAttachment,
+      resolvedTheme,
+      saveEditorSelection,
+      scrollToSection,
+      selectedNote,
+      selectedNoteId,
+      selectedNotePageColor,
+      selectedNoteSurfaceColor,
+      selectedNoteWordCount,
+      setColorPickerOpen,
+      setEditorBandanaCaret,
+      setHighlightPickerOpen,
+      setMobileNotesEditorOpen,
+      setMobileNotesRecentOpen,
+      setMobileNotesToolsOpen,
+      setNotesCategoryFilter,
+      setNotesSearch,
+      setNotesSurface,
+      setProPanelsOpen,
+      setSelectedNoteId,
+      setShellColorPickerOpen,
+      setTextColorPickerOpen,
+      shellColorPickerOpen,
+      streakBandanaTier,
+      textColorPickerOpen,
+      togglePinned,
+      updateEditorBandanaCaret,
+      updateSelectedNote,
+      user?.uid,
+      visibleBandanaColor,
+      xpTierTheme,
+    ],
+  );
+  const settingsTabProps = useMemo(
+    () => ({
+      companionPulse: companionState.pulses.settings,
+      bandanaColor: visibleBandanaColor,
+      sectionRef: settingsSectionRef,
+      primaryRef: settingsPrimaryRef,
+      streakBandanaTier,
+      isPro,
+      photoUrl: currentUserPhotoUrl,
+      displayName: user?.displayName,
+      email: user?.email,
+      profileTierTheme,
+      nextBandanaMilestone,
+      proSource,
+      streak,
+      companionStyle,
+      themeMode,
+      sectionsOpen: settingsSectionsOpen,
+      onToggleSection: (key: keyof typeof settingsSectionsOpen) =>
+        setSettingsSectionsOpen((current) => {
+          const nextValue = !current[key];
+          return {
+            identity: false,
+            internalTools: false,
+            protocol: false,
+            appearance: false,
+            background: false,
+            archive: false,
+            notifications: false,
+            sync: false,
+            screenTime: false,
+            danger: false,
+            legal: false,
+            [key]: nextValue,
+          };
+        }),
+      onFeedbackOpen: () => {
+        setFeedbackOpen(true);
+        setFeedbackStatus("");
+      },
+      onReplayTutorial: () => {
+        setMobileMoreOpen(false);
+        setProfileOpen(false);
+        setFeedbackOpen(false);
+        setOnboardingStepIndex(0);
+        setOnboardingOpen(true);
+      },
+      onStartProPreview: () => void handleStartProPreview(),
+      onManageSubscription: () => void handleManageSubscription(),
+      onRestorePurchases: () => void handleRestorePurchases(),
+      subscriptionBusy,
+      subscriptionStatus,
+      onSignOut: () => void handleSignOut(),
+      onApplyCompanionStyle: applyCompanionStyle,
+      onApplyThemeMode: applyThemeMode,
+      appBackgroundSetting,
+      backgroundSkin,
+      backgroundUploadInputRef,
+      onBackgroundUpload: handleBackgroundUpload,
+      onApplyBackgroundSetting: applyBackgroundSetting,
+      onUpdateBackgroundSkin: updateBackgroundSkin,
+      proPanelBackgroundOpen: proPanelsOpen.background,
+      onToggleProBackgroundPanel: () =>
+        setProPanelsOpen((current) => ({ ...current, background: !current.background })),
+      archiveExportBusy,
+      archiveExportStatus,
+      onExportArchive: handleExportArchive,
+      notesExportBusy,
+      notesExportStatus,
+      onExportNotes: handleExportNotes,
+      archiveImportBusy,
+      archiveImportInputRef,
+      onImportArchive: handleImportArchive,
+      pendingArchiveImport: pendingArchiveImport
+        ? {
+            fileName: pendingArchiveImport.fileName,
+            version: pendingArchiveImport.archive.version,
+            tier: pendingArchiveImport.archive.account.tier,
+            exportedAtISO: pendingArchiveImport.archive.exportedAtISO,
+            notes: pendingArchiveImport.archive.summary.notes,
+            plannedBlocks: pendingArchiveImport.archive.summary.plannedBlocks,
+            sessions: pendingArchiveImport.archive.summary.sessions,
+            cards: pendingArchiveImport.archive.summary.cards,
+            mirrorEntries: pendingArchiveImport.archive.summary.mirrorEntries,
+            sickDaySaves: pendingArchiveImport.archive.summary.sickDaySaves,
+          }
+        : null,
+      onConfirmArchiveImport: () => void handleConfirmArchiveImport(),
+      onCancelArchiveImport: () => {
+        setPendingArchiveImport(null);
+        setArchiveExportStatus("Archive import cancelled.");
+      },
+      notesSyncStatus,
+      notesSyncMessage,
+      onRetrySync: () => void handleRetrySync(),
+      notificationSettings,
+      notificationPermissionState,
+      notificationDeliveryMode,
+      notificationBusy,
+      notificationStatus,
+      scheduledNotificationCount,
+      onApplyNotificationSettings: applyNotificationSettings,
+      onRequestNotificationPermission: () => void requestNotificationPermission(),
+      onResyncNotifications: () => void resyncNotifications(),
+      screenTimeSupported,
+      screenTimeStatus,
+      screenTimeReason,
+      screenTimeBusy,
+      onRequestScreenTimeAuth: () => void handleRequestScreenTimeAuth(),
+      onOpenScreenTimeSettings: () => void handleOpenScreenTimeSettings(),
+      deletingAccount,
+      onDeleteAccount: () => void handleDeleteAccount(),
+      accountDangerStatus,
+      onPreviewStreakMirror: openStreakSaveQuestionnairePreview,
+      onPreviewDailyCommitment: openDailyPlanningPreview,
+      onPreviewStreakAlert: openSickDaySavePromptPreview,
+    }),
+    [
+      accountDangerStatus,
+      appBackgroundSetting,
+      applyBackgroundSetting,
+      applyCompanionStyle,
+      applyNotificationSettings,
+      applyThemeMode,
+      archiveExportBusy,
+      archiveExportStatus,
+      archiveImportBusy,
+      archiveImportInputRef,
+      backgroundSkin,
+      backgroundUploadInputRef,
+      companionState.pulses.settings,
+      currentUserPhotoUrl,
+      deletingAccount,
+      handleDeleteAccount,
+      handleExportArchive,
+      handleExportNotes,
+      handleImportArchive,
+      handleManageSubscription,
+      handleRestorePurchases,
+      handleRetrySync,
+      handleSignOut,
+      handleStartProPreview,
+      isPro,
+      nextBandanaMilestone,
+      notesExportBusy,
+      notesExportStatus,
+      notesSyncMessage,
+      notesSyncStatus,
+      notificationBusy,
+      notificationDeliveryMode,
+      notificationPermissionState,
+      notificationSettings,
+      notificationStatus,
+      pendingArchiveImport,
+      openDailyPlanningPreview,
+      openSickDaySavePromptPreview,
+      openStreakSaveQuestionnairePreview,
+      proPanelsOpen.background,
+      proSource,
+      profileTierTheme,
+      requestNotificationPermission,
+      resyncNotifications,
+      scheduledNotificationCount,
+      screenTimeBusy,
+      screenTimeReason,
+      screenTimeStatus,
+      screenTimeSupported,
+      settingsPrimaryRef,
+      settingsSectionRef,
+      settingsSectionsOpen,
+      streak,
+      streakBandanaTier,
+      subscriptionBusy,
+      subscriptionStatus,
+      themeMode,
+      updateBackgroundSkin,
+      user?.displayName,
+      user?.email,
+      visibleBandanaColor,
+    ],
+  );
 
   const markOnboardingSeen = useCallback(() => {
     if (!user) return;
@@ -2968,6 +3357,361 @@ export default function HomePage() {
     }
     setOnboardingStepIndex((current) => current + 1);
   }, [closeOnboarding, onboardingStepIndex]);
+
+  const overlayHostProps = useMemo(
+    () => ({
+      notificationsBlocked,
+      sessionReward,
+      onDismissSessionReward: () => setSessionReward(null),
+      getStreakTierColorTheme,
+      currentTierColor: visibleBandanaColor,
+      isPro,
+      photoUrl: currentUserPhotoUrl,
+      xpPops,
+      onDoneXPPop: removeXPPop,
+      whelToasts,
+      onDismissToast: dismissToast,
+      profileSheetProps: {
+        open: profileOpen,
+        onClose: () => setProfileOpen(false),
+        tierColor: visibleBandanaColor,
+        isPro,
+        photoUrl: currentUserPhotoUrl,
+        profileDisplayName,
+        profileTierTheme,
+        streakBandanaTier,
+        nextPlannedBlock,
+        normalizeTimeLabel,
+        displayStreak,
+        longestStreak,
+        lifetimeFocusMinutes,
+        sessionsCount: sessions.length,
+        nextBandanaMilestone,
+        onOpenStreaks: () => {
+          setProfileOpen(false);
+          setActiveTab("streaks");
+        },
+        onOpenMoreTabs: () => {
+          setProfileOpen(false);
+          setMobileMoreOpen(true);
+        },
+      },
+      mobileMoreSheetProps: {
+        open: mobileMoreOpen,
+        onClose: () => setMobileMoreOpen(false),
+        tabs: MOBILE_MORE_TABS,
+        onSelectTab: (tab: string) => handleTabSelect(tab as AppTab),
+        renderIcon: (tab: string) => renderAppNavIcon(tab as AppTab),
+        getTitle: (tab: string) => tabTitle(tab as AppTab),
+      },
+      blockDetailModalProps: {
+        open: Boolean(selectedPlanDetail),
+        selectedPlanDetail,
+        onClose: closePlannedBlockDetail,
+        normalizeTimeLabel,
+        attachmentIndicatorLabel,
+        tonePicker: selectedPlanDetail ? (
+          <CalendarTonePicker
+            label="Block tone"
+            selectedTone={visiblePlanTone(selectedPlanDetail.tone)}
+            onSelectTone={(tone) => updatePlannedBlockTone(selectedPlanDetail.id, tone)}
+            isPro={isPro}
+            onUpgrade={openUpgradeFlow}
+          />
+        ) : null,
+        onEdit: () => {
+          if (!selectedPlanDetail || selectedPlanDetail.status !== "active") return;
+          openPrefilledBlockComposer({
+            id: selectedPlanDetail.id,
+            dateKey: selectedPlanDetail.dateKey,
+            title: selectedPlanDetail.title,
+            note: selectedPlanDetail.note,
+            timeOfDay: selectedPlanDetail.timeOfDay,
+            durationMinutes: selectedPlanDetail.durationMinutes,
+            tone: visiblePlanTone(selectedPlanDetail.tone),
+            attachmentCount: selectedPlanDetail.attachmentCount,
+          });
+          closePlannedBlockDetail();
+        },
+        onDuplicate: () => {
+          if (!selectedPlanDetail || selectedPlanDetail.status !== "active") return;
+          openPrefilledBlockComposer({
+            dateKey: selectedPlanDetail.dateKey,
+            title: selectedPlanDetail.title,
+            note: selectedPlanDetail.note,
+            timeOfDay: shiftBlockTime(selectedPlanDetail.timeOfDay, selectedPlanDetail.durationMinutes),
+            durationMinutes: selectedPlanDetail.durationMinutes,
+            tone: visiblePlanTone(selectedPlanDetail.tone),
+            attachmentCount: selectedPlanDetail.attachmentCount,
+          });
+          closePlannedBlockDetail();
+        },
+        onComplete: () => {
+          if (!selectedPlanDetail) return;
+          void completePlannedBlock(selectedPlanDetail);
+        },
+        onOpenDayView: () => {
+          if (!selectedPlanDetail) return;
+          setSelectedCalendarDate(selectedPlanDetail.dateKey);
+          setCalendarView("day");
+          setActiveTab("calendar");
+          closePlannedBlockDetail();
+        },
+        onRemove: () => {
+          if (!selectedPlanDetail || selectedPlanDetail.status !== "active") return;
+          deletePlannedBlock(selectedPlanDetail.id);
+          closePlannedBlockDetail();
+        },
+      },
+      dailyPlanningModalProps: {
+        open: dailyPlanningOpen,
+        previewOpen: dailyPlanningPreviewOpen,
+        dailyRitualDrafts,
+        dailyRitualExpandedId,
+        onSetDailyRitualExpandedId: setDailyRitualExpandedId,
+        onUpdateDailyRitualDraft: updateDailyRitualDraft,
+        isPro,
+        onUpgrade: openUpgradeFlow,
+        dailyPlanningStatus,
+        onClose: () => (dailyPlanningPreviewOpen ? closeDailyPlanningPreview() : setDailyPlanningOpen(false)),
+        onSubmit: submitDailyRitual,
+        headerIcon: (
+          <DailyRitualWaveIcon
+            className={styles.dailyRitualCornerIconImage}
+            tierColor={visibleBandanaColor}
+          />
+        ),
+        submitDecoration: (
+          <DailyRitualSubmitBandana
+            className={styles.dailyRitualSubmitBandana}
+            streakDays={hasEarnedToday ? displayStreak : displayStreak + 1}
+          />
+        ),
+      },
+      themePromptModalProps: {
+        open: themePromptOpen,
+        themeMode,
+        onClose: () => setThemePromptOpen(false),
+        onApplyThemeMode: applyThemeMode,
+      },
+      streakOverlayClusterProps: {
+        notificationsBlocked,
+        streakSaveQuestionnaireOpen,
+        sickDaySaveEligible,
+        streakSaveQuestionnairePreview,
+        closeStreakSaveQuestionnaire,
+        monthlyStreakSaveCount,
+        streakSaveMonthlyLimit,
+        streakMirrorSaying,
+        questions: STREAK_SAVE_ACCOUNTABILITY_QUESTIONS,
+        streakSaveAnswers,
+        onSetStreakSaveAnswers: setStreakSaveAnswers,
+        minWords: STREAK_MIRROR_MIN_WORDS,
+        tags: STREAK_MIRROR_TAGS,
+        streakMirrorTag,
+        onSetStreakMirrorTag: setStreakMirrorTag,
+        streakSaveStatus,
+        onClaimSickDaySave: () =>
+          claimSickDaySave({
+            sickDaySaveEligible,
+            monthlySaveLimitReached,
+            yesterdayKey,
+            sessions,
+            protectedStreakDateKeys,
+            onTrackStreakChange: (previousStreak, nextStreak, source, changedDateKey) =>
+              trackStreakChange(previousStreak, nextStreak, source, null, changedDateKey),
+            onAfterClaim: () => setActiveTab("mirror"),
+          }),
+        onDismissSickDaySavePrompt: dismissSickDaySavePrompt,
+        sickDaySavePromptOpen,
+        rawYesterdayMissed,
+        yesterdaySave,
+        sickDaySavePromptPreview,
+        monthlySaveLimitReached,
+        onOpenSickDaySaveReview: openSickDaySaveReview,
+        noteUndoItem,
+        deletedPlanUndo,
+        onUndoDeleteNote: () => void undoDeleteNote(),
+        onUndoDeletePlan: undoDeletePlannedBlock,
+        streakCelebration,
+        onDismissStreakCelebration: () => setStreakCelebration(null),
+        getStreakTierColorTheme,
+        streakNudge,
+        onDismissStreakNudge: () => setStreakNudge(null),
+        onStreakNudgeAction: handleStreakNudgeAction,
+        currentTierColor: visibleBandanaColor,
+        isPro,
+        photoUrl: currentUserPhotoUrl,
+        nextBandanaMilestone,
+      },
+      paywallModalProps: {
+        open: paywallOpen,
+        userId: user?.uid ?? "",
+        isPro,
+        subscriptionStatus,
+        onClose: () => setPaywallOpen(false),
+        onRestorePurchases: () => void handleRestorePurchases(),
+      },
+      kpiDetailModalProps: {
+        openKey: kpiDetailOpen,
+        content: kpiDetailContent,
+        onClose: () => setKpiDetailOpen(null),
+      },
+      feedbackModalProps: {
+        open: feedbackOpen,
+        feedbackSubmitting,
+        feedbackStatus,
+        feedbackCategory,
+        feedbackMessage,
+        userEmail: user?.email ?? null,
+        onClose: () => setFeedbackOpen(false),
+        onSetFeedbackStatus: setFeedbackStatus,
+        onSetFeedbackCategory: (value: string) => setFeedbackCategory(value as FeedbackCategory),
+        onSetFeedbackMessage: setFeedbackMessage,
+        onSubmit: submitFeedback,
+      },
+      onboardingTourProps: {
+        open: onboardingOpen,
+        step: onboardingStep,
+        stepIndex: onboardingStepIndex,
+        totalSteps: ONBOARDING_STEPS.length,
+        onNext: handleOnboardingNext,
+        onSkip: () => closeOnboarding(true),
+      },
+      quickCardModalProps: {
+        selectionPopup,
+        quickCardForm,
+        onSetQuickCardForm: setQuickCardForm,
+        onSetSelectionPopup: setSelectionPopup,
+        onSave: () => void handleQuickCardSave(),
+      },
+      mascot,
+      onDismissMascot: dismissMascot,
+      leaderboardProfileModalProps: {
+        selected: selectedLbProfile,
+        onClose: () => setSelectedLbProfile(null),
+        alreadyFriendUids,
+        sentRequestUids,
+        incomingRequestUids,
+        onSendFriendRequest: handleSendFriendRequest,
+      },
+    }),
+    [
+      alreadyFriendUids,
+      applyThemeMode,
+      attachmentIndicatorLabel,
+      closeDailyPlanningPreview,
+      closeOnboarding,
+      closePlannedBlockDetail,
+      closeStreakSaveQuestionnaire,
+      currentUserPhotoUrl,
+      dailyPlanningOpen,
+      dailyPlanningPreviewOpen,
+      dailyPlanningStatus,
+      dailyRitualDrafts,
+      dailyRitualExpandedId,
+      deletedPlanUndo,
+      dismissMascot,
+      dismissSickDaySavePrompt,
+      dismissToast,
+      displayStreak,
+      feedbackCategory,
+      feedbackMessage,
+      feedbackOpen,
+      feedbackStatus,
+      feedbackSubmitting,
+      getStreakTierColorTheme,
+      handleSendFriendRequest,
+      handleOnboardingNext,
+      handleQuickCardSave,
+      handleRestorePurchases,
+      handleTabSelect,
+      handleStreakNudgeAction,
+      hasEarnedToday,
+      incomingRequestUids,
+      isPro,
+      kpiDetailContent,
+      kpiDetailOpen,
+      lifetimeFocusMinutes,
+      longestStreak,
+      mascot,
+      mobileMoreOpen,
+      monthlySaveLimitReached,
+      monthlyStreakSaveCount,
+      nextBandanaMilestone,
+      nextPlannedBlock,
+      noteUndoItem,
+      notificationsBlocked,
+      onboardingOpen,
+      onboardingStep,
+      onboardingStepIndex,
+      openDailyPlanningPreview,
+      openPrefilledBlockComposer,
+      openSickDaySaveReview,
+      openUpgradeFlow,
+      paywallOpen,
+      profileDisplayName,
+      profileOpen,
+      profileTierTheme,
+      protectedStreakDateKeys,
+      quickCardForm,
+      rawYesterdayMissed,
+      removeXPPop,
+      selectedLbProfile,
+      selectedPlanDetail,
+      sessionReward,
+      sessions,
+      setDailyPlanningOpen,
+      setDailyRitualExpandedId,
+      setFeedbackCategory,
+      setFeedbackMessage,
+      setFeedbackOpen,
+      setFeedbackStatus,
+      setKpiDetailOpen,
+      setMobileMoreOpen,
+      setOnboardingOpen,
+      setOnboardingStepIndex,
+      setProfileOpen,
+      setSelectedCalendarDate,
+      setSelectedLbProfile,
+      setSelectionPopup,
+      setQuickCardForm,
+      setSessionReward,
+      setStreakCelebration,
+      setStreakMirrorTag,
+      setStreakNudge,
+      setStreakSaveAnswers,
+      setThemePromptOpen,
+      sickDaySaveEligible,
+      sickDaySavePromptOpen,
+      sickDaySavePromptPreview,
+      streakBandanaTier,
+      streakCelebration,
+      streakMirrorSaying,
+      streakMirrorTag,
+      streakNudge,
+      streakSaveMonthlyLimit,
+      streakSaveQuestionnaireOpen,
+      streakSaveQuestionnairePreview,
+      streakSaveStatus,
+      submitDailyRitual,
+      subscriptionStatus,
+      themeMode,
+      trackStreakChange,
+      undoDeleteNote,
+      undoDeletePlannedBlock,
+      updateDailyRitualDraft,
+      updatePlannedBlockTone,
+      user?.email,
+      user?.uid,
+      visibleBandanaColor,
+      whelToasts,
+      xpPops,
+      yesterdayKey,
+      yesterdaySave,
+      sentRequestUids,
+    ],
+  );
 
   useEffect(() => {
     if (!authChecked || !user || showIntroSplash || onboardingAutostartedRef.current) return;
@@ -3120,642 +3864,208 @@ export default function HomePage() {
 
   return (
     <>
-      <main
-        className={`${styles.pageShell} ${
-          resolvedTheme === "light" ? styles.themeLight : styles.themeDark
-        } ${backgroundSkinActive ? styles.pageShellGlass : ""}`}
-        style={pageShellStyle}
+      <HomeShellFrame
+        resolvedTheme={resolvedTheme}
+        backgroundSkinActive={backgroundSkinActive}
+        pageShellStyle={pageShellStyle}
+        activeTab={activeTab}
+        mobileMoreActive={mobileMoreActive}
+        mobileMoreOpen={mobileMoreOpen}
+        onSelectTab={handleTabSelect}
+        subtitle={`${WHELM_BRAND_THESIS} Plan the line, protect the streak, and keep the day under command.`}
+        xpDockStyle={xpDockStyle}
+        currentLevel={lifetimeXpSummary.currentLevel}
+        progressToNextLevel={lifetimeXpSummary.progressToNextLevel}
+        todayXp={lifetimeXpSummary.todayXp}
+        dailyCap={lifetimeXpSummary.dailyCap}
+        formattedLifetimeXp={formattedLifetimeXp}
+        formattedXpToNextLevel={formattedXpToNextLevel}
+        tierColor={visibleBandanaColor}
+        isPro={isPro}
+        photoUrl={currentUserPhotoUrl}
+        isMobileViewport={isMobileViewport}
+        profileDisplayName={profileDisplayName}
+        onProfileOpen={() => setProfileOpen(true)}
+        onMoreOpen={() => setMobileMoreOpen(true)}
       >
-      <div className={styles.pageFrame}>
-        <header className={styles.header}>
-          <div>
-            <p className={styles.kicker}>WHELM</p>
-            <h1 className={styles.title}>Enter Whelm Flow.</h1>
-            <p className={styles.subtitle}>
-              {WHELM_BRAND_THESIS} Plan the line, protect the streak, and keep the day under command.
-            </p>
-          </div>
-          <div className={styles.headerActions}>
-            <span className={styles.headerTag}>Whelm Flow</span>
-            <span className={styles.headerTag}>No drift</span>
-            <span className={styles.headerTag}>Daily command</span>
-          </div>
-        </header>
-
-        <nav className={styles.tabRail}>
-          {DESKTOP_PRIMARY_TABS.map((tab) => (
-            <button
-              key={tab.key}
-              type="button"
-              data-tour={
-                tab.key === "calendar"
-                  ? "nav-schedule"
-                  : tab.key === "today"
-                    ? "nav-today"
-                    : tab.key === "notes"
-                      ? "nav-notes"
-                      : tab.key === "leaderboard"
-                        ? "nav-whelmboard"
-                        : undefined
-              }
-              className={`${styles.tabButton} ${activeTab === tab.key ? styles.tabButtonActive : ""}`}
-              onClick={() => handleTabSelect(tab.key)}
-            >
-              <span className={styles.tabIcon}>{iconForTab(tab.key)}</span>
-              <span>{tab.label}</span>
-            </button>
-          ))}
-          <button
-            type="button"
-            data-tour="nav-more"
-            className={`${styles.tabButton} ${mobileMoreActive || mobileMoreOpen ? styles.tabButtonActive : ""}`}
-            onClick={() => handleTabSelect("more")}
-          >
-            <span className={styles.tabIcon}>{iconForNavKey("more")}</span>
-            <span>More</span>
-          </button>
-        </nav>
-
-        <section className={styles.screen}>
-          <TopAppBar
-            activeTab={activeTab}
-            xpDockStyle={xpDockStyle}
-            currentLevel={lifetimeXpSummary.currentLevel}
-            progressToNextLevel={lifetimeXpSummary.progressToNextLevel}
-            todayXp={lifetimeXpSummary.todayXp}
-            dailyCap={lifetimeXpSummary.dailyCap}
-            formattedLifetimeXp={formattedLifetimeXp}
-            formattedXpToNextLevel={formattedXpToNextLevel}
-            tierColor={visibleBandanaColor}
-            isPro={isPro}
-            photoUrl={currentUserPhotoUrl}
-            isMobileViewport={isMobileViewport}
-            profileDisplayName={profileDisplayName}
-            onProfileOpen={() => setProfileOpen(true)}
-            onMoreOpen={() => setMobileMoreOpen(true)}
-          />
-
-          {activeTab === "today" && (
-            <TodayTab
-              todaySectionRef={todaySectionRef}
-              todayTimerRef={todayTimerRef}
-              todaySummaryRef={todaySummaryRef}
-              isMobileViewport={isMobileViewport}
-              isPro={isPro}
-              resolvedTheme={resolvedTheme}
-              todaySessionNoteCount={todaySessionNoteCount}
-              focusMetrics={{
-                disciplineScore: focusMetrics.disciplineScore,
-                todayMinutes: focusMetrics.todayMinutes,
-                todaySessions: focusMetrics.todaySessions,
-                weekMinutes: focusMetrics.weekMinutes,
-              }}
-              streak={streak}
-              mobileTodayOverviewOpen={mobileTodayOverviewOpen}
-              nextPlannedBlock={nextPlannedBlock}
-              dueReminderNotes={dueReminderNotes}
-              lastSession={lastSession}
-              lastSessionHoursAgo={lastSessionHoursAgo}
-              latestNote={latestNote}
-              orderedNotes={orderedNotes}
-              todayActivePlannedBlocksCount={todayActivePlannedBlocks.length}
-              senseiGuidance={{
-                tone: senseiGuidance.tone,
-                ritual: senseiGuidance.ritual,
-                voiceMode: senseiGuidance.voiceMode,
-                actionLabel: senseiGuidance.actionLabel,
-                actionTab: senseiGuidance.actionTab,
-              }}
-              todayHeroCopy={{
-                eyebrow: todayHeroCopy.eyebrow,
-                title: todayHeroCopy.title,
-                body: todayHeroCopy.body,
-                signatureLine: todayHeroCopy.signatureLine,
-              }}
-              companionStageLabel={companionState.stage}
-              nextSenseiMilestone={nextSenseiMilestone}
-              senseiReaction={senseiReaction}
-              bandanaColor={visibleBandanaColor}
-              reportCopyStatus={reportCopyStatus}
-              onOpenSessionNotes={() => setActiveTab("history")}
-              onSessionStart={handleSessionStarted}
-              onSessionAbandon={handleSessionAbandoned}
-              onSessionComplete={(note, minutesSpent, sessionContext) =>
-                void completeSession(note, minutesSpent, sessionContext)
-              }
-              onToggleMobileTodayOverview={() => setMobileTodayOverviewOpen((open) => !open)}
-              onTodayPrimaryAction={handleTodayPrimaryAction}
-              onOpenNote={openSpecificNote}
-              onCreateWorkspaceNote={() => void createWorkspaceNote()}
-              onCopyWeeklyReport={() => void copyWeeklyReport()}
-              onUpgrade={openUpgradeFlow}
-              senseiActionTabTitle={tabTitle(senseiGuidance.actionTab as AppTab)}
-              userEmail={user.email ?? ""}
-            />
-          )}
-
-          {activeTab === "calendar" && (
-            <ScheduleTab
-              sectionRef={calendarSectionRef}
-              calendarMonthRef={calendarMonthRef}
-              calendarPlannerRef={calendarPlannerRef}
-              calendarHeroRef={calendarHeroRef}
-              calendarTimelineRef={calendarTimelineRef}
-              mobileDayTimelineScrollRef={mobileDayTimelineScrollRef}
-              calendarView={calendarView}
-              calendarMonthLabel={calendarMonthLabel}
-              calendarMonthInput={calendarMonthInput}
-              calendarJumpDate={calendarJumpDate}
-              selectedCalendarMonthKey={selectedCalendarMonthKey}
-              mobileCalendarControlsOpen={mobileCalendarControlsOpen}
-              calendarAuxPanel={calendarAuxPanel}
-              isMobileViewport={isMobileViewport}
-              mobileStreakJumpStyle={mobileStreakJumpStyle}
-              streak={streak}
-              isPro={isPro}
-              dynamicMonthCalendar={dynamicMonthCalendar}
-              calendarEntriesByDate={calendarEntriesByDate}
-              selectedMonthTone={selectedMonthTone}
-              calendarHoverEntryId={calendarHoverEntryId}
-              calendarPinnedEntryId={calendarPinnedEntryId}
-              activeCalendarPreview={activeCalendarPreview}
-              selectedDateKey={selectedDateKey}
-              isSelectedDateToday={isSelectedDateToday}
-              selectedDateSummary={selectedDateSummary}
-              selectedDateFocusedMinutes={selectedDateFocusedMinutes}
-              selectedDatePlans={selectedDatePlans}
-              selectedDateEntries={selectedDateEntries}
-              selectedDateDayTone={selectedDateDayTone}
-              selectedDateCanAddBlocks={selectedDateCanAddBlocks}
-              dayPortalComposerOpen={dayPortalComposerOpen}
-              bandanaColor={visibleBandanaColor}
-              currentTimeMarker={currentTimeMarker}
-              dayViewTimeline={dayViewTimeline}
-              mobileDayTimelineHeight={mobileDayTimelineHeight}
-              activatedCalendarEntryId={activatedCalendarEntryId}
-              activeOverlapPickerItem={activeOverlapPickerItem}
-              activeDayViewPreviewItem={activeDayViewPreviewItem}
-              planTitle={planTitle}
-              planNoteExpanded={planNoteExpanded}
-              planNote={planNote}
-              planTone={planTone}
-              planConflictWarning={planConflictWarning}
-              planTime={planTime}
-              planDuration={planDuration}
-              planStatus={planStatus}
-              editingPlannedBlockId={editingPlannedBlockId}
-              plannerSectionsOpen={plannerSectionsOpen}
-              selectedDatePlanGroups={selectedDatePlanGroups}
-              selectedDateAgendaStateSummary={selectedDateAgendaStateSummary}
-              mobileAgendaEntriesOpen={mobileAgendaEntriesOpen}
-              mobileBlockSheetOpen={mobileBlockSheetOpen}
-              draggedPlanId={draggedPlanId}
-              plannedBlockById={plannedBlockById}
-              focusMetricsCalendar={focusMetrics.calendar}
-              historicalStreaksByDay={historicalStreaksByDay}
-              calendarCompanionPulse={companionState.pulses.calendar}
-              onPrevMonth={() => setCalendarCursor((current) => shiftMonth(current, -1))}
-              onNextMonth={() => setCalendarCursor((current) => shiftMonth(current, 1))}
-              onSetCalendarView={setCalendarView}
-              onSetCalendarCursor={setCalendarCursor}
-              onSetCalendarJumpDate={setCalendarJumpDate}
-              onCalendarJumpGo={() => {
-                if (!calendarJumpDate) return;
-                selectCalendarDate(calendarJumpDate);
-              }}
-              onToggleMobileCalendarControls={() => setMobileCalendarControlsOpen((open) => !open)}
-              onSetCalendarAuxPanel={setCalendarAuxPanel}
-              onGoToStreaks={() => {
-                setMobileMoreOpen(false);
-                setActiveTab("streaks");
-              }}
-              onApplyMonthTone={applyMonthTone}
-              onSelectCalendarDate={selectCalendarDate}
-              onSetCalendarHoverEntryId={setCalendarHoverEntryId}
-              onSetCalendarPinnedEntryId={setCalendarPinnedEntryId}
-              onOpenPlannedBlockDetail={openPlannedBlockDetail}
-              onApplyDayTone={applyDayTone}
-              onOpenCalendarBlockComposer={openCalendarBlockComposer}
-              onCloseBlockComposer={closeBlockComposer}
-              onScrollCalendarTimelineToNow={scrollCalendarTimelineToNow}
-              onShowCalendarHoverPreview={showCalendarHoverPreview}
-              onScheduleCalendarHoverPreviewClear={scheduleCalendarHoverPreviewClear}
-              onClearCalendarHoverPreviewDelay={clearCalendarHoverPreviewDelay}
-              onSetOverlapPickerEntryId={setOverlapPickerEntryId}
-              onOpenNote={openSpecificNote}
-              onSetActiveTabHistory={() => setActiveTab("history")}
-              onCompletePlannedBlock={completePlannedBlock}
-              onSetPlanTitle={setPlanTitle}
-              onSetPlanNoteExpanded={setPlanNoteExpanded}
-              onSetPlanNote={setPlanNote}
-              onSetPlanTone={setPlanTone}
-              onSetPlanConflictWarning={setPlanConflictWarning}
-              onSetPlanTime={setPlanTime}
-              onSetPlanDuration={setPlanDuration}
-              onAddPlannedBlock={addPlannedBlock}
-              onUpdatePlannedBlockTime={updatePlannedBlockTime}
-              onDeletePlannedBlock={deletePlannedBlock}
-              onReorderPlannedBlocks={reorderPlannedBlocks}
-              onSetDraggedPlanId={setDraggedPlanId}
-              onSetPlannerSectionsOpen={setPlannerSectionsOpen}
-              onSetMobileAgendaEntriesOpen={setMobileAgendaEntriesOpen}
-              onUpgrade={openUpgradeFlow}
-            />
-          )}
-
-          {activeTab === "leaderboard" && (
-            <WhelmboardTab
-              sectionRef={leaderboardSectionRef}
-              primaryRef={leaderboardPrimaryRef}
-              leaderboardMetricTab={leaderboardMetricTab}
-              onSetMetricTab={setLeaderboardMetricTab}
-              leaderboardCurrentUserRank={leaderboardCurrentUserRank}
-              leaderboardCurrentUserMovement={leaderboardCurrentUserMovement}
-              leaderboardSource={leaderboardSource}
-              leaderboardTotalEntries={leaderboardTotalEntries}
-              leaderboardRows={leaderboardRows}
-              leaderboardAroundRows={leaderboardAroundRows}
-              leaderboardBandanaHolders={leaderboardBandanaHolders}
-              leaderboardError={leaderboardError}
-              leaderboardLoading={leaderboardLoading}
-              leaderboardHasEntries={leaderboardHasEntries}
-              leaderboardHasMore={leaderboardHasMore}
-              leaderboardIsLive={leaderboardIsLive}
-              seenChallengerIds={seenChallengerIds}
-              onSelectProfile={setSelectedLbProfile}
-              onLoadMore={() => void handleLeaderboardLoadMore()}
-              friends={friends}
-              incomingRequests={friendIncomingRequests}
-              outgoingRequests={friendOutgoingRequests}
-              searchResults={friendSearchResults}
-              searchQuery={friendSearchQuery}
-              searchLoading={friendSearchLoading}
-              friendsLoading={friendsLoading}
-              friendsError={friendsError}
-              sentRequestUids={sentRequestUids}
-              alreadyFriendUids={alreadyFriendUids}
-              incomingRequestUids={incomingRequestUids}
-              onFriendSearch={handleFriendSearch}
-              onSendFriendRequest={handleSendFriendRequest}
-              onAcceptFriendRequest={handleAcceptFriendRequest}
-              onDeclineFriendRequest={handleDeclineFriendRequest}
-              onRemoveFriend={handleRemoveFriend}
-              onNudgeFriend={handleNudgeFriend}
-              canNudgeFriend={canNudgeFriend}
-              nudgeAvailableInMinutes={nudgeAvailableInMinutes}
-            />
-          )}
-
-          {activeTab === "mirror" && (
-            <MirrorTab
-              sectionRef={mirrorSectionRef}
-              entriesAnchorRef={mirrorEntriesAnchorRef}
-              mirrorSectionsOpen={mirrorSectionsOpen}
-              onToggleMirrorSection={(key) =>
-                setMirrorSectionsOpen((current) => ({ ...current, [key]: !current[key] }))
-              }
-              streakMirrorSaying={streakMirrorSaying}
-              mirrorPrivacyOpen={mirrorPrivacyOpen}
-              onToggleMirrorPrivacy={() => setMirrorPrivacyOpen((current) => !current)}
-              monthlyStreakSaveCount={monthlyStreakSaveCount}
-              streakSaveMonthlyLimit={streakSaveMonthlyLimit}
-              streakSaveSlotsLeft={streakSaveSlotsLeft}
-              streakMirrorEntries={streakMirrorEntries}
-              streakMirrorVisibleEntries={streakMirrorVisibleEntries}
-              selectedStreakMirrorEntry={selectedStreakMirrorEntry}
-              isPro={isPro}
-              onSelectMirrorEntry={(id) => {
-                setSelectedStreakMirrorId(id);
-                setMirrorSectionsOpen((current) => ({
-                  ...current,
-                  entries: true,
-                  detail: true,
-                }));
-              }}
-              proPanelMirrorOpen={proPanelsOpen.mirror}
-              onToggleProMirrorPanel={() =>
-                setProPanelsOpen((current) => ({ ...current, mirror: !current.mirror }))
-              }
-              onStartProPreview={() => void handleStartProPreview()}
-            />
-          )}
-
-          {activeTab === "notes" && (
-            <NotesTab
-              sectionRef={notesSectionRef}
-              notesSurface={notesSurface}
-              onSetNotesSurface={setNotesSurface}
-              uid={user?.uid ?? ""}
-              onCardsXPEarned={handleCardsXPEarned}
-              isMobileViewport={isMobileViewport}
-              notes={notes}
-              selectedNoteId={selectedNoteId}
-              selectedNote={selectedNote}
-              filteredNotes={filteredNotes}
-              recentNotes={recentNotes}
-              selectedNoteWordCount={selectedNoteWordCount}
-              hasLockedNotesHistory={hasLockedNotesHistory}
-              resolvedTheme={resolvedTheme}
-              selectedNoteSurfaceColor={selectedNoteSurfaceColor}
-              selectedNotePageColor={selectedNotePageColor}
-              xpTierTheme={xpTierTheme}
-              streakBandanaTier={streakBandanaTier}
-              bandanaColor={visibleBandanaColor}
-              notesSearch={notesSearch}
-              onSetNotesSearch={setNotesSearch}
-              notesCategoryFilter={notesCategoryFilter}
-              onSetNotesCategoryFilter={setNotesCategoryFilter}
-              mobileNotesRecentOpen={mobileNotesRecentOpen}
-              onSetMobileNotesRecentOpen={setMobileNotesRecentOpen}
-              mobileNotesEditorOpen={mobileNotesEditorOpen}
-              onSetMobileNotesEditorOpen={setMobileNotesEditorOpen}
-              mobileNotesToolsOpen={mobileNotesToolsOpen}
-              onSetMobileNotesToolsOpen={setMobileNotesToolsOpen}
-              colorPickerOpen={colorPickerOpen}
-              onSetColorPickerOpen={setColorPickerOpen}
-              shellColorPickerOpen={shellColorPickerOpen}
-              onSetShellColorPickerOpen={setShellColorPickerOpen}
-              textColorPickerOpen={textColorPickerOpen}
-              onSetTextColorPickerOpen={setTextColorPickerOpen}
-              highlightPickerOpen={highlightPickerOpen}
-              onSetHighlightPickerOpen={setHighlightPickerOpen}
-              editorBandanaCaret={editorBandanaCaret}
-              onSetEditorBandanaCaret={setEditorBandanaCaret}
-              notesSyncStatus={notesSyncStatus}
-              notesSyncMessage={notesSyncMessage}
-              noteAttachmentBusy={noteAttachmentBusy}
-              noteAttachmentStatus={noteAttachmentStatus}
-              pendingNoteAttachments={pendingNoteAttachments}
-              noteAttachmentInputRef={noteAttachmentInputRef}
-              notesStartRef={notesStartRef}
-              notesRecentRef={notesRecentRef}
-              notesEditorRef={notesEditorRef}
-              editorRef={editorRef}
-              noteBodyShellRef={noteBodyShellRef}
-              onNoteAttachmentInput={handleNoteAttachmentInput}
-              onOpenAttachmentPicker={openNoteAttachmentPicker}
-              onOpenNoteAttachment={openNoteAttachment}
-              onRemoveNoteAttachment={(attachment) => void removeNoteAttachment(attachment)}
-              onConvertNoteToBlock={convertNoteToPlannedBlock}
-              onDeleteNote={(noteId) => void deleteNote(noteId)}
-              onCreateNote={() => void createWorkspaceNote()}
-              onTogglePinned={(noteId) => void togglePinned(noteId)}
-              onUpdateSelectedNote={(patch) => void updateSelectedNote(patch)}
-              onFlushPendingTitleSync={() => void flushPendingTitleSync()}
-              onCaptureEditorDraft={captureEditorDraft}
-              onSaveEditorSelection={saveEditorSelection}
-              onApplyEditorCommand={applyEditorCommand}
-              onCheckEditorSelection={checkEditorSelection}
-              onUpdateEditorBandanaCaret={updateEditorBandanaCaret}
-              onFlushNoteDraft={flushSelectedNoteDraft}
-              onMobileCreateNote={() => void handleMobileCreateNote()}
-              onOpenMobileEditor={openMobileNoteEditor}
-              onOpenCurrentMobileNote={handleOpenCurrentMobileNote}
-              onRetrySync={() => void handleRetrySync()}
-              onApplyHighlightColor={applyHighlightColor}
-              onScrollToSection={scrollToSection}
-              onSetSelectedNoteId={setSelectedNoteId}
-              isPro={isPro}
-              proPanelNotesOpen={proPanelsOpen.notes}
-              onToggleProNotesPanel={() => setProPanelsOpen((current) => ({ ...current, notes: !current.notes }))}
-              onStartProPreview={() => void handleStartProPreview()}
-              onOpenUpgradeFlow={openUpgradeFlow}
-            />
-          )}
-
-          {activeTab === "history" && (
-            <HistoryTab
-              companionPulse={companionState.pulses.history}
-              bandanaColor={visibleBandanaColor}
-              sectionRef={historySectionRef}
-              primaryRef={historyPrimaryRef}
-              historySearch={historySearch}
-              onSetHistorySearch={setHistorySearch}
-              historyWindow={historyWindow}
-              onSetHistoryWindow={setHistoryWindow}
-              plannedBlockHistory={plannedBlockHistory}
-              historySectionsOpen={historySectionsOpen}
-              onToggleHistorySection={toggleHistorySection}
-              isPro={isPro}
-              hasLockedBlockHistory={hasLockedBlockHistory}
-              proPanelCalendarOpen={proPanelsOpen.calendar}
-              onToggleProCalendarPanel={() =>
-                setProPanelsOpen((current) => ({ ...current, calendar: !current.calendar }))
-              }
-              onStartProPreview={() => void handleStartProPreview()}
-              sessionHistoryGroups={isPro ? sessionHistoryGroups : freeSessionHistoryGroups}
-              historyGroupsOpen={historyGroupsOpen}
-              onToggleHistoryGroup={toggleHistoryGroup}
-              hasLockedHistoryDays={hasLockedHistoryDays}
-              proPanelHistoryOpen={proPanelsOpen.history}
-              onToggleProHistoryPanel={() =>
-                setProPanelsOpen((current) => ({ ...current, history: !current.history }))
-              }
-              normalizeTimeLabel={normalizeTimeLabel}
-              stripCompletedBlockPrefix={stripCompletedBlockPrefix}
-            />
-          )}
-
-          {activeTab === "reports" && (
-            <ReportsTab
-              sectionRef={reportsSectionRef}
-              primaryRef={reportsPrimaryRef}
-              companionPulse={companionState.pulses.reports}
-              bandanaColor={visibleBandanaColor}
-              isPro={isPro}
-              proPanelReportsOpen={proPanelsOpen.reports}
-              onToggleProReportsPanel={() =>
-                setProPanelsOpen((current) => ({ ...current, reports: !current.reports }))
-              }
-              onStartProPreview={() => void handleStartProPreview()}
-              focusMetrics={focusMetrics}
-              insightRange={insightRange}
-              onSetInsightRange={setInsightRange}
-              analyticsDateRange={analyticsDateRange}
-              analyticsError={analyticsError}
-              analyticsLoading={analyticsLoading}
-              analyticsWeeklySummary={analyticsWeeklySummary}
-              analyticsLeadInsight={analyticsLeadInsight}
-              analyticsBestWindow={analyticsBestHours?.bestWindow ?? null}
-              analyticsLeadSubject={analyticsLeadSubject}
-              analyticsLeadNotification={analyticsLeadNotification}
-              reportsSectionsOpen={reportsSectionsOpen}
-              onToggleReportsSection={(key) =>
-                setReportsSectionsOpen((current) => {
-                  const nextValue = !current[key];
-                  return {
-                    score: false,
-                    insights: false,
-                    timing: false,
-                    subjects: false,
-                    notifications: false,
-                    [key]: nextValue,
-                  };
-                })
-              }
-              analyticsScoreHistory={analyticsScoreHistory}
-              analyticsScorePath={analyticsScorePath}
-              analyticsInsights={analyticsInsights}
-              analyticsTopHours={analyticsTopHours}
-              analyticsTopSubjects={analyticsTopSubjects}
-              analyticsTopSubjectMinutes={analyticsTopSubjectMinutes}
-              analyticsNotificationPlan={analyticsNotificationPlan}
-            />
-          )}
-
-          {activeTab === "streaks" && (
-            <StreaksTab
-              sectionRef={streaksSectionRef}
-              primaryRef={streaksPrimaryRef}
-              streakRulesOpen={streakRulesOpen}
-              onToggleStreakRules={() => setStreakRulesOpen((current) => !current)}
-              streakRuleSummaryLine={streakRuleSummaryLine}
-              streakProgressBlocksLabel={streakProgressBlocksLabel}
-              streakProgressMinutesLabel={streakProgressMinutesLabel}
-              streakProgressWordsLabel={streakProgressWordsLabel}
-              streakProtectedToday={streakProtectedToday}
-              streakStatusLine={streakStatusLine}
-              rawYesterdayMissed={rawYesterdayMissed}
-              yesterdaySave={yesterdaySave}
-              sickDaySaveEligible={sickDaySaveEligible}
-              monthlySaveLimitReached={monthlySaveLimitReached}
-              yesterdayKey={yesterdayKey}
-              monthlyStreakSaveCount={monthlyStreakSaveCount}
-              streakSaveMonthlyLimit={streakSaveMonthlyLimit}
-              onOpenStreakSaveQuestionnaire={openStreakSaveQuestionnaire}
-              onDeclineSickDaySave={() => declineSickDaySave(rawYesterdayMissed, yesterdayKey)}
-              onGoToMirror={() => setActiveTab("mirror")}
-              onGoToToday={() => setActiveTab("today")}
-              streakMonthLabel={streakMonthLabel}
-              streakMonthCalendar={streakMonthCalendar}
-              onPrevMonth={() => setStreakCalendarCursor((current) => shiftMonth(current, -1))}
-              onNextMonth={() => setStreakCalendarCursor((current) => shiftMonth(current, 1))}
-              sessionMinutesByDay={sessionMinutesByDay}
-              completedBlocksByDay={completedBlocksByDay}
-              noteWordsByDay={noteWordsByDay}
-              streakQualifiedDateKeys={streakQualifiedDateKeys}
-              onGoToTodayFromCalendar={() => setActiveTab("today")}
-            />
-          )}
-
-          {activeTab === "settings" && (
-            <SettingsTab
-              companionPulse={companionState.pulses.settings}
-              bandanaColor={visibleBandanaColor}
-              sectionRef={settingsSectionRef}
-              primaryRef={settingsPrimaryRef}
-              streakBandanaTier={streakBandanaTier}
-              isPro={isPro}
-              photoUrl={currentUserPhotoUrl}
-              displayName={user.displayName}
-              email={user.email}
-              profileTierTheme={profileTierTheme}
-              nextBandanaMilestone={nextBandanaMilestone}
-              proSource={proSource}
-              streak={streak}
-              companionStyle={companionStyle}
-              themeMode={themeMode}
-              sectionsOpen={settingsSectionsOpen}
-              onToggleSection={(key) =>
-                setSettingsSectionsOpen((current) => {
-                  const nextValue = !current[key];
-                  return {
-                    identity: false,
-                    internalTools: false,
-                    protocol: false,
-                    appearance: false,
-                    background: false,
-                    archive: false,
-                    notifications: false,
-                    sync: false,
-                    screenTime: false,
-                    danger: false,
-                    legal: false,
-                    [key]: nextValue,
-                  };
-                })
-              }
-              onFeedbackOpen={() => {
-                setFeedbackOpen(true);
-                setFeedbackStatus("");
-              }}
-              onReplayTutorial={startOnboarding}
-              onStartProPreview={() => void handleStartProPreview()}
-              onManageSubscription={() => void handleManageSubscription()}
-              onRestorePurchases={() => void handleRestorePurchases()}
-              subscriptionBusy={subscriptionBusy}
-              subscriptionStatus={subscriptionStatus}
-              onSignOut={() => void handleSignOut()}
-              onApplyCompanionStyle={applyCompanionStyle}
-              onApplyThemeMode={applyThemeMode}
-              appBackgroundSetting={appBackgroundSetting}
-              backgroundSkin={backgroundSkin}
-              backgroundUploadInputRef={backgroundUploadInputRef}
-              onBackgroundUpload={handleBackgroundUpload}
-              onApplyBackgroundSetting={applyBackgroundSetting}
-              onUpdateBackgroundSkin={updateBackgroundSkin}
-              proPanelBackgroundOpen={proPanelsOpen.background}
-              onToggleProBackgroundPanel={() =>
-                setProPanelsOpen((current) => ({ ...current, background: !current.background }))
-              }
-              archiveExportBusy={archiveExportBusy}
-              archiveExportStatus={archiveExportStatus}
-              onExportArchive={() => void handleExportArchive()}
-              notesExportBusy={notesExportBusy}
-              notesExportStatus={notesExportStatus}
-              onExportNotes={() => void handleExportNotes()}
-              archiveImportBusy={archiveImportBusy}
-              archiveImportInputRef={archiveImportInputRef}
-              onImportArchive={handleImportArchive}
-              pendingArchiveImport={
-                pendingArchiveImport
-                  ? {
-                      fileName: pendingArchiveImport.fileName,
-                      version: pendingArchiveImport.archive.version,
-                      tier: pendingArchiveImport.archive.account.tier,
-                      exportedAtISO: pendingArchiveImport.archive.exportedAtISO,
-                      notes: pendingArchiveImport.archive.summary.notes,
-                      plannedBlocks: pendingArchiveImport.archive.summary.plannedBlocks,
-                      sessions: pendingArchiveImport.archive.summary.sessions,
-                      cards: pendingArchiveImport.archive.summary.cards,
-                      mirrorEntries: pendingArchiveImport.archive.summary.mirrorEntries,
-                      sickDaySaves: pendingArchiveImport.archive.summary.sickDaySaves,
-                    }
-                  : null
-              }
-              onConfirmArchiveImport={() => void handleConfirmArchiveImport()}
-              onCancelArchiveImport={() => {
-                setPendingArchiveImport(null);
-                setArchiveExportStatus("Archive import cancelled.");
-              }}
-              notesSyncStatus={notesSyncStatus}
-              notesSyncMessage={notesSyncMessage}
-              onRetrySync={() => void handleRetrySync()}
-              notificationSettings={notificationSettings}
-              notificationPermissionState={notificationPermissionState}
-              notificationDeliveryMode={notificationDeliveryMode}
-              notificationBusy={notificationBusy}
-              notificationStatus={notificationStatus}
-              scheduledNotificationCount={scheduledNotificationCount}
-              onApplyNotificationSettings={applyNotificationSettings}
-              onRequestNotificationPermission={() => void requestNotificationPermission()}
-              onResyncNotifications={() => void resyncNotifications()}
-              screenTimeSupported={screenTimeSupported}
-              screenTimeStatus={screenTimeStatus}
-              screenTimeReason={screenTimeReason}
-              screenTimeBusy={screenTimeBusy}
-              onRequestScreenTimeAuth={() => void handleRequestScreenTimeAuth()}
-              onOpenScreenTimeSettings={() => void handleOpenScreenTimeSettings()}
-              deletingAccount={deletingAccount}
-              onDeleteAccount={() => void handleDeleteAccount()}
-              accountDangerStatus={accountDangerStatus}
-              onPreviewStreakMirror={openStreakSaveQuestionnairePreview}
-              onPreviewDailyCommitment={openDailyPlanningPreview}
-              onPreviewStreakAlert={openSickDaySavePromptPreview}
-            />
-          )}
-        </section>
-      </div>
+        <HomeActiveTabContent
+          activeTab={activeTab}
+          todayContainerProps={todayContainerProps}
+          scheduleContainerProps={scheduleContainerProps}
+          notesContainerProps={notesContainerProps}
+          leaderboardTabProps={{
+            sectionRef: leaderboardSectionRef,
+            primaryRef: leaderboardPrimaryRef,
+            leaderboardMetricTab,
+            onSetMetricTab: setLeaderboardMetricTab,
+            leaderboardCurrentUserRank,
+            leaderboardCurrentUserMovement,
+            leaderboardSource,
+            leaderboardTotalEntries,
+            leaderboardRows,
+            leaderboardAroundRows,
+            leaderboardBandanaHolders,
+            leaderboardError,
+            leaderboardLoading,
+            leaderboardHasEntries,
+            leaderboardHasMore,
+            leaderboardIsLive,
+            seenChallengerIds,
+            onSelectProfile: setSelectedLbProfile,
+            onLoadMore: () => void handleLeaderboardLoadMore(),
+            friends,
+            incomingRequests: friendIncomingRequests,
+            outgoingRequests: friendOutgoingRequests,
+            searchResults: friendSearchResults,
+            searchQuery: friendSearchQuery,
+            searchLoading: friendSearchLoading,
+            friendsLoading,
+            friendsError,
+            sentRequestUids,
+            alreadyFriendUids,
+            incomingRequestUids,
+            onFriendSearch: handleFriendSearch,
+            onSendFriendRequest: handleSendFriendRequest,
+            onAcceptFriendRequest: handleAcceptFriendRequest,
+            onDeclineFriendRequest: handleDeclineFriendRequest,
+            onRemoveFriend: handleRemoveFriend,
+            onNudgeFriend: handleNudgeFriend,
+            canNudgeFriend,
+            nudgeAvailableInMinutes,
+          }}
+          mirrorTabProps={{
+            sectionRef: mirrorSectionRef,
+            entriesAnchorRef: mirrorEntriesAnchorRef,
+            mirrorSectionsOpen,
+            onToggleMirrorSection: (key) =>
+              setMirrorSectionsOpen((current) => ({ ...current, [key]: !current[key] })),
+            streakMirrorSaying,
+            mirrorPrivacyOpen,
+            onToggleMirrorPrivacy: () => setMirrorPrivacyOpen((current) => !current),
+            monthlyStreakSaveCount,
+            streakSaveMonthlyLimit,
+            streakSaveSlotsLeft,
+            streakMirrorEntries,
+            streakMirrorVisibleEntries,
+            selectedStreakMirrorEntry,
+            isPro,
+            onSelectMirrorEntry: (id) => {
+              setSelectedStreakMirrorId(id);
+              setMirrorSectionsOpen((current) => ({
+                ...current,
+                entries: true,
+                detail: true,
+              }));
+            },
+            proPanelMirrorOpen: proPanelsOpen.mirror,
+            onToggleProMirrorPanel: () =>
+              setProPanelsOpen((current) => ({ ...current, mirror: !current.mirror })),
+            onStartProPreview: () => void handleStartProPreview(),
+          }}
+          historyTabProps={{
+            companionPulse: companionState.pulses.history,
+            bandanaColor: visibleBandanaColor,
+            sectionRef: historySectionRef,
+            primaryRef: historyPrimaryRef,
+            historySearch,
+            onSetHistorySearch: setHistorySearch,
+            historyWindow,
+            onSetHistoryWindow: setHistoryWindow,
+            plannedBlockHistory,
+            historySectionsOpen,
+            onToggleHistorySection: toggleHistorySection,
+            isPro,
+            hasLockedBlockHistory,
+            proPanelCalendarOpen: proPanelsOpen.calendar,
+            onToggleProCalendarPanel: () =>
+              setProPanelsOpen((current) => ({ ...current, calendar: !current.calendar })),
+            onStartProPreview: () => void handleStartProPreview(),
+            sessionHistoryGroups: isPro ? sessionHistoryGroups : freeSessionHistoryGroups,
+            historyGroupsOpen,
+            onToggleHistoryGroup: toggleHistoryGroup,
+            hasLockedHistoryDays,
+            proPanelHistoryOpen: proPanelsOpen.history,
+            onToggleProHistoryPanel: () =>
+              setProPanelsOpen((current) => ({ ...current, history: !current.history })),
+            normalizeTimeLabel,
+            stripCompletedBlockPrefix,
+          }}
+          reportsTabProps={{
+            sectionRef: reportsSectionRef,
+            primaryRef: reportsPrimaryRef,
+            companionPulse: companionState.pulses.reports,
+            bandanaColor: visibleBandanaColor,
+            isPro,
+            proPanelReportsOpen: proPanelsOpen.reports,
+            onToggleProReportsPanel: () =>
+              setProPanelsOpen((current) => ({ ...current, reports: !current.reports })),
+            onStartProPreview: () => void handleStartProPreview(),
+            focusMetrics,
+            insightRange,
+            onSetInsightRange: setInsightRange,
+            analyticsDateRange,
+            analyticsError,
+            analyticsLoading,
+            analyticsWeeklySummary,
+            analyticsLeadInsight,
+            analyticsBestWindow: analyticsBestHours?.bestWindow ?? null,
+            analyticsLeadSubject,
+            analyticsLeadNotification,
+            reportsSectionsOpen,
+            onToggleReportsSection: (key) =>
+              setReportsSectionsOpen((current) => {
+                const nextValue = !current[key];
+                return {
+                  score: false,
+                  insights: false,
+                  timing: false,
+                  subjects: false,
+                  notifications: false,
+                  [key]: nextValue,
+                };
+              }),
+            analyticsScoreHistory,
+            analyticsScorePath,
+            analyticsInsights,
+            analyticsTopHours,
+            analyticsTopSubjects,
+            analyticsTopSubjectMinutes,
+            analyticsNotificationPlan,
+          }}
+          streaksTabProps={{
+            sectionRef: streaksSectionRef,
+            primaryRef: streaksPrimaryRef,
+            streakRulesOpen,
+            onToggleStreakRules: () => setStreakRulesOpen((current) => !current),
+            streakRuleSummaryLine,
+            streakProgressBlocksLabel,
+            streakProgressMinutesLabel,
+            streakProgressWordsLabel,
+            streakProtectedToday,
+            streakStatusLine,
+            rawYesterdayMissed,
+            yesterdaySave,
+            sickDaySaveEligible,
+            monthlySaveLimitReached,
+            yesterdayKey,
+            monthlyStreakSaveCount,
+            streakSaveMonthlyLimit,
+            onOpenStreakSaveQuestionnaire: openStreakSaveQuestionnaire,
+            onDeclineSickDaySave: () => declineSickDaySave(rawYesterdayMissed, yesterdayKey),
+            onGoToMirror: () => setActiveTab("mirror"),
+            onGoToToday: () => setActiveTab("today"),
+            streakMonthLabel,
+            streakMonthCalendar,
+            onPrevMonth: () => setStreakCalendarCursor((current) => shiftMonth(current, -1)),
+            onNextMonth: () => setStreakCalendarCursor((current) => shiftMonth(current, 1)),
+            sessionMinutesByDay,
+            completedBlocksByDay,
+            noteWordsByDay,
+            streakQualifiedDateKeys,
+            onGoToTodayFromCalendar: () => setActiveTab("today"),
+          }}
+          settingsTabProps={settingsTabProps}
+        />
 
       <BottomNav
         activeTab={activeTab}
@@ -3772,279 +4082,8 @@ export default function HomePage() {
         onMoreOpen={() => setMobileMoreOpen(true)}
       />
 
-      <AnimatePresence>
-        {!notificationsBlocked && sessionReward ? (
-          <SessionRewardToast
-            reward={sessionReward}
-            onDismiss={() => setSessionReward(null)}
-            getStreakTierColorTheme={getStreakTierColorTheme}
-            currentTierColor={visibleBandanaColor}
-            isPro={isPro}
-            photoUrl={currentUserPhotoUrl}
-          />
-        ) : null}
-      </AnimatePresence>
-
-      <XPPopAnimation
-        pops={xpPops}
-        onDone={removeXPPop}
-        currentTierColor={visibleBandanaColor}
-        isPro={isPro}
-        photoUrl={currentUserPhotoUrl}
-      />
-      <WhelToastContainer
-        toasts={whelToasts}
-        onDismiss={dismissToast}
-        currentTierColor={visibleBandanaColor}
-        isPro={isPro}
-        photoUrl={currentUserPhotoUrl}
-      />
-
-      <ProfileSheet
-        open={profileOpen}
-        onClose={() => setProfileOpen(false)}
-        tierColor={visibleBandanaColor}
-        isPro={isPro}
-        photoUrl={currentUserPhotoUrl}
-        profileDisplayName={profileDisplayName}
-        profileTierTheme={profileTierTheme}
-        streakBandanaTier={streakBandanaTier}
-        nextPlannedBlock={nextPlannedBlock}
-        normalizeTimeLabel={normalizeTimeLabel}
-        displayStreak={displayStreak}
-        longestStreak={longestStreak}
-        lifetimeFocusMinutes={lifetimeFocusMinutes}
-        sessionsCount={sessions.length}
-        nextBandanaMilestone={nextBandanaMilestone}
-        onOpenStreaks={() => {
-          setProfileOpen(false);
-          setActiveTab("streaks");
-        }}
-        onOpenMoreTabs={() => {
-          setProfileOpen(false);
-          setMobileMoreOpen(true);
-        }}
-      />
-
-      <MobileMoreSheet
-        open={mobileMoreOpen}
-        onClose={() => setMobileMoreOpen(false)}
-        tabs={MOBILE_MORE_TABS}
-        onSelectTab={(tab) => handleTabSelect(tab as AppTab)}
-        renderIcon={(tab) => iconForTab(tab as AppTab)}
-        getTitle={(tab) => tabTitle(tab as AppTab)}
-      />
-
-      <BlockDetailModal
-        open={Boolean(selectedPlanDetail)}
-        selectedPlanDetail={selectedPlanDetail}
-        onClose={closePlannedBlockDetail}
-        normalizeTimeLabel={normalizeTimeLabel}
-        attachmentIndicatorLabel={attachmentIndicatorLabel}
-        tonePicker={
-          selectedPlanDetail ? (
-            <CalendarTonePicker
-              label="Block tone"
-              selectedTone={visiblePlanTone(selectedPlanDetail.tone)}
-              onSelectTone={(tone) => updatePlannedBlockTone(selectedPlanDetail.id, tone)}
-              isPro={isPro}
-              onUpgrade={openUpgradeFlow}
-            />
-          ) : null
-        }
-        onEdit={() => {
-          if (!selectedPlanDetail || selectedPlanDetail.status !== "active") return;
-          openPrefilledBlockComposer({
-            id: selectedPlanDetail.id,
-            dateKey: selectedPlanDetail.dateKey,
-            title: selectedPlanDetail.title,
-            note: selectedPlanDetail.note,
-            timeOfDay: selectedPlanDetail.timeOfDay,
-            durationMinutes: selectedPlanDetail.durationMinutes,
-            tone: visiblePlanTone(selectedPlanDetail.tone),
-            attachmentCount: selectedPlanDetail.attachmentCount,
-          });
-          closePlannedBlockDetail();
-        }}
-        onDuplicate={() => {
-          if (!selectedPlanDetail || selectedPlanDetail.status !== "active") return;
-          openPrefilledBlockComposer({
-            dateKey: selectedPlanDetail.dateKey,
-            title: selectedPlanDetail.title,
-            note: selectedPlanDetail.note,
-            timeOfDay: shiftBlockTime(selectedPlanDetail.timeOfDay, selectedPlanDetail.durationMinutes),
-            durationMinutes: selectedPlanDetail.durationMinutes,
-            tone: visiblePlanTone(selectedPlanDetail.tone),
-            attachmentCount: selectedPlanDetail.attachmentCount,
-          });
-          closePlannedBlockDetail();
-        }}
-        onComplete={() => {
-          if (!selectedPlanDetail) return;
-          void completePlannedBlock(selectedPlanDetail);
-        }}
-        onOpenDayView={() => {
-          if (!selectedPlanDetail) return;
-          setSelectedCalendarDate(selectedPlanDetail.dateKey);
-          setCalendarView("day");
-          setActiveTab("calendar");
-          closePlannedBlockDetail();
-        }}
-        onRemove={() => {
-          if (!selectedPlanDetail || selectedPlanDetail.status !== "active") return;
-          deletePlannedBlock(selectedPlanDetail.id);
-          closePlannedBlockDetail();
-        }}
-      />
-      <DailyPlanningModal
-        open={dailyPlanningOpen}
-        previewOpen={dailyPlanningPreviewOpen}
-        dailyRitualDrafts={dailyRitualDrafts}
-        dailyRitualExpandedId={dailyRitualExpandedId}
-        onSetDailyRitualExpandedId={setDailyRitualExpandedId}
-        onUpdateDailyRitualDraft={updateDailyRitualDraft}
-        isPro={isPro}
-        onUpgrade={openUpgradeFlow}
-        dailyPlanningStatus={dailyPlanningStatus}
-        onClose={() => (dailyPlanningPreviewOpen ? closeDailyPlanningPreview() : setDailyPlanningOpen(false))}
-        onSubmit={submitDailyRitual}
-        headerIcon={
-          <DailyRitualWaveIcon
-            className={styles.dailyRitualCornerIconImage}
-            tierColor={visibleBandanaColor}
-          />
-        }
-        submitDecoration={
-          <DailyRitualSubmitBandana
-            className={styles.dailyRitualSubmitBandana}
-            streakDays={hasEarnedToday ? displayStreak : displayStreak + 1}
-          />
-        }
-      />
-
-      <ThemePromptModal
-        open={themePromptOpen}
-        themeMode={themeMode}
-        onClose={() => setThemePromptOpen(false)}
-        onApplyThemeMode={applyThemeMode}
-      />
-
-      <StreakOverlayCluster
-        notificationsBlocked={notificationsBlocked}
-        streakSaveQuestionnaireOpen={streakSaveQuestionnaireOpen}
-        sickDaySaveEligible={sickDaySaveEligible}
-        streakSaveQuestionnairePreview={streakSaveQuestionnairePreview}
-        closeStreakSaveQuestionnaire={closeStreakSaveQuestionnaire}
-        monthlyStreakSaveCount={monthlyStreakSaveCount}
-        streakSaveMonthlyLimit={streakSaveMonthlyLimit}
-        streakMirrorSaying={streakMirrorSaying}
-        questions={STREAK_SAVE_ACCOUNTABILITY_QUESTIONS}
-        streakSaveAnswers={streakSaveAnswers}
-        onSetStreakSaveAnswers={setStreakSaveAnswers}
-        minWords={STREAK_MIRROR_MIN_WORDS}
-        tags={STREAK_MIRROR_TAGS}
-        streakMirrorTag={streakMirrorTag}
-        onSetStreakMirrorTag={setStreakMirrorTag}
-        streakSaveStatus={streakSaveStatus}
-        onClaimSickDaySave={() =>
-          claimSickDaySave({
-            sickDaySaveEligible,
-            monthlySaveLimitReached,
-            yesterdayKey,
-            sessions,
-            protectedStreakDateKeys,
-            onTrackStreakChange: (previousStreak, nextStreak, source, changedDateKey) =>
-              trackStreakChange(previousStreak, nextStreak, source, null, changedDateKey),
-            onAfterClaim: () => setActiveTab("mirror"),
-          })
-        }
-        onDismissSickDaySavePrompt={dismissSickDaySavePrompt}
-        sickDaySavePromptOpen={sickDaySavePromptOpen}
-        rawYesterdayMissed={rawYesterdayMissed}
-        yesterdaySave={yesterdaySave}
-        sickDaySavePromptPreview={sickDaySavePromptPreview}
-        monthlySaveLimitReached={monthlySaveLimitReached}
-        onOpenSickDaySaveReview={openSickDaySaveReview}
-        noteUndoItem={noteUndoItem}
-        deletedPlanUndo={deletedPlanUndo}
-        onUndoDeleteNote={() => void undoDeleteNote()}
-        onUndoDeletePlan={undoDeletePlannedBlock}
-        streakCelebration={streakCelebration}
-        onDismissStreakCelebration={() => setStreakCelebration(null)}
-        getStreakTierColorTheme={getStreakTierColorTheme}
-        streakNudge={streakNudge}
-        onDismissStreakNudge={() => setStreakNudge(null)}
-        onStreakNudgeAction={handleStreakNudgeAction}
-        currentTierColor={visibleBandanaColor}
-        isPro={isPro}
-        photoUrl={currentUserPhotoUrl}
-        nextBandanaMilestone={nextBandanaMilestone}
-      />
-
-      <PaywallModal
-        open={paywallOpen}
-        userId={user.uid}
-        isPro={isPro}
-        subscriptionStatus={subscriptionStatus}
-        onClose={() => setPaywallOpen(false)}
-        onRestorePurchases={() => void handleRestorePurchases()}
-      />
-
-      <KpiDetailModal
-        openKey={kpiDetailOpen}
-        content={kpiDetailContent}
-        onClose={() => setKpiDetailOpen(null)}
-      />
-
-      <FeedbackModal
-        open={feedbackOpen}
-        feedbackSubmitting={feedbackSubmitting}
-        feedbackStatus={feedbackStatus}
-        feedbackCategory={feedbackCategory}
-        feedbackMessage={feedbackMessage}
-        userEmail={user.email}
-        onClose={() => setFeedbackOpen(false)}
-        onSetFeedbackStatus={setFeedbackStatus}
-        onSetFeedbackCategory={(value) => setFeedbackCategory(value as FeedbackCategory)}
-        onSetFeedbackMessage={setFeedbackMessage}
-        onSubmit={submitFeedback}
-      />
-      </main>
-
-      <OnboardingTour
-        open={onboardingOpen}
-        step={onboardingStep}
-        stepIndex={onboardingStepIndex}
-        totalSteps={ONBOARDING_STEPS.length}
-        onNext={handleOnboardingNext}
-        onSkip={() => closeOnboarding(true)}
-      />
-
-      <QuickCardModal
-        selectionPopup={selectionPopup}
-        quickCardForm={quickCardForm}
-        onSetQuickCardForm={setQuickCardForm}
-        onSetSelectionPopup={setSelectionPopup}
-        onSave={() => void handleQuickCardSave()}
-      />
-
-      {!onboardingOpen && mascot.visible ? (
-        <WhelMascot
-          pose={mascot.pose}
-          bandanaColor={visibleBandanaColor}
-          message={mascot.message}
-          onDismiss={dismissMascot}
-        />
-      ) : null}
-
-      <LeaderboardProfileModal
-        selected={selectedLbProfile}
-        onClose={() => setSelectedLbProfile(null)}
-        alreadyFriendUids={alreadyFriendUids}
-        sentRequestUids={sentRequestUids}
-        incomingRequestUids={incomingRequestUids}
-        onSendFriendRequest={handleSendFriendRequest}
-      />
+      </HomeShellFrame>
+      <HomeOverlayHost {...overlayHostProps} />
     </>
   );
 }

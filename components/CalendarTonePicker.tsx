@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { memo, useMemo, useState } from "react";
 
 import styles from "@/app/page.module.css";
 import { CALENDAR_TONES, getCalendarToneStyle, type CalendarTone } from "@/lib/calendar-tones";
 import { STANDARD_CALENDAR_TONES, WHELM_PRO_NAME, WHELM_STANDARD_NAME } from "@/lib/whelm-plans";
 
-export default function CalendarTonePicker({
+const CalendarTonePicker = memo(function CalendarTonePicker({
   label,
   selectedTone,
   onSelectTone,
@@ -19,13 +19,14 @@ export default function CalendarTonePicker({
   isPro: boolean;
   onUpgrade: () => void;
 }) {
-  "use no memo";
-
   const [open, setOpen] = useState(false);
   const selectedToneStyle = getCalendarToneStyle(selectedTone);
-  const visibleTones = isPro
-    ? CALENDAR_TONES
-    : CALENDAR_TONES.filter((tone) => STANDARD_CALENDAR_TONES.includes(tone.value));
+  const visibleTones = useMemo(
+    () => (isPro
+      ? CALENDAR_TONES
+      : CALENDAR_TONES.filter((tone) => STANDARD_CALENDAR_TONES.includes(tone.value))),
+    [isPro],
+  );
 
   return (
     <div className={`${styles.calendarTonePanel} ${open ? styles.calendarTonePanelOpen : ""}`}>
@@ -110,4 +111,6 @@ export default function CalendarTonePicker({
       )}
     </div>
   );
-}
+});
+
+export default CalendarTonePicker;
