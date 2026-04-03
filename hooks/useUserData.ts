@@ -16,6 +16,7 @@ import { trackAppOpened } from "@/lib/analytics-tracker";
 import { dayKeyLocal } from "@/lib/date-utils";
 import { logClientRuntime } from "@/lib/client-runtime";
 import {
+  buildSessionMinutesByDayForStreakLedger,
   buildStreakLedger,
   inferCompletedBlocksByDayFromSessions,
   mergeCompletedBlocksByDay,
@@ -228,12 +229,7 @@ export function useUserData({
   // ── Streak computation ─────────────────────────────────────────────────────
 
   const sessionMinutesByDay = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const session of sessions) {
-      const key = dayKeyLocal(session.completedAtISO);
-      map.set(key, (map.get(key) ?? 0) + session.minutes);
-    }
-    return map;
+    return buildSessionMinutesByDayForStreakLedger(sessions);
   }, [sessions]);
 
   const inferredCompletedBlocksByDay = useMemo(

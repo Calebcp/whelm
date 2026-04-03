@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  buildSessionMinutesByDayForStreakLedger,
   buildStreakLedger,
   collectTrackedDayKeys,
   inferCompletedBlocksByDayFromSessions,
@@ -54,6 +55,26 @@ test("inferCompletedBlocksByDayFromSessions anchors planned completions to their
   ]);
 
   assert.equal(inferred.get("2026-03-25"), 1);
+});
+
+test("buildSessionMinutesByDayForStreakLedger keeps planned completion minutes on the scheduled day without changing normal session bucketing", () => {
+  const minutesByDay = buildSessionMinutesByDayForStreakLedger([
+    {
+      uid: "u1",
+      completedAtISO: "2026-03-25T01:00:00.000Z",
+      minutes: 30,
+      note: "Planned block completed: Morning block",
+    },
+    {
+      uid: "u1",
+      completedAtISO: "2026-03-25T18:00:00.000Z",
+      minutes: 20,
+      note: "General focus work",
+    },
+  ]);
+
+  assert.equal(minutesByDay.get("2026-03-25"), 30);
+  assert.equal(minutesByDay.get("2026-03-26"), 20);
 });
 
 test("buildStreakLedger marks qualifying protected and v2 combo days", () => {

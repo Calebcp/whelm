@@ -20,12 +20,29 @@ function dayKeyUtc(iso: string) {
   return `${year}-${month}-${day}`;
 }
 
+function isPlannedBlockCompletionSession(session: SessionDoc) {
+  const note = session.note?.trim() ?? "";
+  return note.toLowerCase().startsWith("planned block completed:");
+}
+
+export function buildSessionMinutesByDayForStreakLedger(sessions: SessionDoc[]) {
+  const map = new Map<string, number>();
+
+  for (const session of sessions) {
+    const dateKey = isPlannedBlockCompletionSession(session)
+      ? dayKeyUtc(session.completedAtISO)
+      : dayKeyLocal(session.completedAtISO);
+    map.set(dateKey, (map.get(dateKey) ?? 0) + session.minutes);
+  }
+
+  return map;
+}
+
 export function inferCompletedBlocksByDayFromSessions(sessions: SessionDoc[]) {
   const map = new Map<string, number>();
 
   for (const session of sessions) {
-    const note = session.note?.trim() ?? "";
-    if (!note.toLowerCase().startsWith("planned block completed:")) continue;
+    if (!isPlannedBlockCompletionSession(session)) continue;
     // Planned-block completion sessions encode the chosen calendar day into the
     // ISO timestamp. Recover them by UTC date so the inferred block stays on
     // the original planned day across devices and timezones.
