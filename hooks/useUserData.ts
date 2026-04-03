@@ -15,6 +15,7 @@ import { useMascot } from "@/hooks/useMascot";
 import { trackAppOpened } from "@/lib/analytics-tracker";
 import { dayKeyLocal } from "@/lib/date-utils";
 import { logClientRuntime } from "@/lib/client-runtime";
+import { collectTrackedDayKeys } from "@/lib/tracked-day-keys";
 import {
   buildDayXpSummaryForDate,
   getLifetimeXpSummary,
@@ -250,12 +251,12 @@ export function useUserData({
   const streakQualifiedDateKeys = useMemo(() => {
     const todayKey = dayKeyLocal(new Date());
     const qualifyingDays = new Set(protectedStreakDateKeys);
-    const candidateDays = new Set<string>([
-      ...sessionMinutesByDay.keys(),
-      ...completedBlocksByDay.keys(),
-      ...noteWordsByDay.keys(),
-      ...protectedStreakDateKeys,
-    ]);
+    const candidateDays = collectTrackedDayKeys({
+      sessionMinutesByDay,
+      completedBlocksByDay: effectiveCompletedBlocksByDay,
+      noteWordsByDay,
+      protectedStreakDateKeys,
+    });
 
     for (const dateKey of candidateDays) {
       const minutes = sessionMinutesByDay.get(dateKey) ?? 0;
@@ -298,21 +299,13 @@ export function useUserData({
   // ── XP computation ─────────────────────────────────────────────────────────
 
   const xpByDay = useMemo(() => {
-    const allDayKeys = new Set<string>();
+    const allDayKeys = collectTrackedDayKeys({
+      sessionMinutesByDay,
+      completedBlocksByDay: effectiveCompletedBlocksByDay,
+      noteWordsByDay,
+      protectedStreakDateKeys,
+    });
     const todayKey = dayKeyLocal(new Date());
-
-    for (const key of sessionMinutesByDay.keys()) {
-      if (key <= todayKey) allDayKeys.add(key);
-    }
-    for (const key of noteWordsByDay.keys()) {
-      if (key <= todayKey) allDayKeys.add(key);
-    }
-    for (const key of completedBlocksByDay.keys()) {
-      if (key <= todayKey) allDayKeys.add(key);
-    }
-    for (const key of protectedStreakDateKeys) {
-      if (key <= todayKey) allDayKeys.add(key);
-    }
 
     return [...allDayKeys]
       .sort()
