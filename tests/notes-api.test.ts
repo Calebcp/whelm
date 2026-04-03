@@ -232,6 +232,16 @@ test("notes GET merges legacy-only notes with subcollection notes", async () => 
       });
     }
 
+    if (/\/userNotes\/user-notes\/notes\/subcollection-note\/revisions\?key=demo-key$/.test(url)) {
+      assert.equal(init?.method, "GET");
+      return createJsonResponse({ json: { documents: [] } });
+    }
+
+    if (/\/userNotes\/user-notes\/notes\/legacy-note\/revisions\?key=demo-key$/.test(url)) {
+      assert.equal(init?.method, "GET");
+      return createJsonResponse({ json: { documents: [] } });
+    }
+
     if (/\/userNotes\/user-notes\?key=demo-key$/.test(url)) {
       assert.equal(init?.method, "GET");
       return createJsonResponse({
@@ -324,6 +334,11 @@ test("notes GET keeps older non-empty body when newer subcollection body is blan
       });
     }
 
+    if (/\/userNotes\/user-notes\/notes\/shared-note\/revisions\?key=demo-key$/.test(url)) {
+      assert.equal(init?.method, "GET");
+      return createJsonResponse({ json: { documents: [] } });
+    }
+
     if (/\/userNotes\/user-notes\?key=demo-key$/.test(url)) {
       assert.equal(init?.method, "GET");
       return createJsonResponse({
@@ -371,6 +386,97 @@ test("notes GET keeps older non-empty body when newer subcollection body is blan
     assert.equal(response.status, 200);
     assert.equal(payload.notes.length, 1);
     assert.equal(payload.notes[0]?.body, "<p>Real legacy words</p>");
+  } finally {
+    restoreFetch();
+  }
+});
+
+test("notes GET returns note revision history for cross-device streak evidence", async () => {
+  process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID = "demo-project";
+  process.env.NEXT_PUBLIC_FIREBASE_API_KEY = "demo-key";
+  process.env.FIREBASE_DATABASE_ID = "(default)";
+
+  const { GET: loadNotesRoute } = await import("@/app/api/notes/route");
+
+  const restoreFetch = installFetchMock(async (input, init) => {
+    const url =
+      typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+
+    if (/\/userNotes\/user-notes\/notes\?key=demo-key$/.test(url)) {
+      assert.equal(init?.method, "GET");
+      return createJsonResponse({
+        json: {
+          documents: [
+            {
+              fields: {
+                id: { stringValue: "shared-note" },
+                title: { stringValue: "Shared note" },
+                body: { stringValue: "<p>Current body</p>" },
+                attachments: { arrayValue: {} },
+                color: { stringValue: "#e7e5e4" },
+                shellColor: { stringValue: "#fff7d6" },
+                surfaceStyle: { stringValue: "solid" },
+                isPinned: { booleanValue: false },
+                fontFamily: { stringValue: "Avenir Next" },
+                fontSizePx: { integerValue: "16" },
+                category: { stringValue: "personal" },
+                reminderAtISO: { stringValue: "" },
+                updatedAtISO: { stringValue: "2026-04-02T01:00:00.000Z" },
+                createdAtISO: { stringValue: "2026-03-29T01:00:00.000Z" },
+              },
+            },
+          ],
+        },
+      });
+    }
+
+    if (/\/userNotes\/user-notes\/notes\/shared-note\/revisions\?key=demo-key$/.test(url)) {
+      assert.equal(init?.method, "GET");
+      return createJsonResponse({
+        json: {
+          documents: [
+            {
+              fields: {
+                id: { stringValue: "rev-1" },
+                noteId: { stringValue: "shared-note" },
+                title: { stringValue: "Shared note" },
+                body: { stringValue: "<p>Older writing sprint</p>" },
+                capturedAtISO: { stringValue: "2026-03-30T02:00:00.000Z" },
+                sourceUpdatedAtISO: { stringValue: "2026-03-30T01:00:00.000Z" },
+                reason: { stringValue: "body-update" },
+              },
+            },
+          ],
+        },
+      });
+    }
+
+    if (/\/userNotes\/user-notes\?key=demo-key$/.test(url)) {
+      assert.equal(init?.method, "GET");
+      return createJsonResponse({ json: { fields: {} } });
+    }
+
+    throw new Error(`Unexpected fetch: ${url}`);
+  });
+
+  try {
+    const request = new NextRequest("http://localhost/api/notes?uid=user-notes", {
+      method: "GET",
+      headers: {
+        authorization: "Bearer token-notes",
+      },
+    });
+
+    const response = await loadNotesRoute(request);
+    const payload = (await response.json()) as {
+      notes: Array<{ id: string }>;
+      revisionsByNoteId: Record<string, Array<{ id: string; noteId: string }>>;
+    };
+
+    assert.equal(response.status, 200);
+    assert.equal(payload.notes.length, 1);
+    assert.equal(payload.revisionsByNoteId["shared-note"]?.[0]?.id, "rev-1");
+    assert.equal(payload.revisionsByNoteId["shared-note"]?.[0]?.noteId, "shared-note");
   } finally {
     restoreFetch();
   }

@@ -104,6 +104,28 @@ function noteRevisionStorageKey(uid: string, noteId: string) {
   return `${noteRevisionStoragePrefix}${uid}:${noteId}`;
 }
 
+function normalizeNoteRevisions(revisions: NoteRevision[]) {
+  return revisions
+    .filter(
+      (revision): revision is NoteRevision =>
+        Boolean(
+          revision &&
+            typeof revision.id === "string" &&
+            typeof revision.noteId === "string" &&
+            typeof revision.title === "string" &&
+            typeof revision.body === "string" &&
+            typeof revision.capturedAtISO === "string" &&
+            typeof revision.sourceUpdatedAtISO === "string" &&
+            (revision.reason === "body-update" || revision.reason === "delete"),
+        ),
+    )
+    .sort((a, b) => {
+      if (a.capturedAtISO !== b.capturedAtISO) return a.capturedAtISO < b.capturedAtISO ? 1 : -1;
+      return a.sourceUpdatedAtISO < b.sourceUpdatedAtISO ? 1 : -1;
+    })
+    .slice(0, NOTE_REVISION_HISTORY_LIMIT);
+}
+
 function sortNotes(notes: WorkspaceNote[]) {
   return [...notes].sort((a, b) => {
     if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
@@ -296,19 +318,7 @@ export function readLocalNoteRevisions(uid: string, noteId: string) {
     if (!raw) return [] as NoteRevision[];
     const parsed = JSON.parse(raw) as NoteRevision[];
     if (!Array.isArray(parsed)) return [] as NoteRevision[];
-    return parsed.filter(
-      (revision): revision is NoteRevision =>
-        Boolean(
-          revision &&
-            typeof revision.id === "string" &&
-            typeof revision.noteId === "string" &&
-            typeof revision.title === "string" &&
-            typeof revision.body === "string" &&
-            typeof revision.capturedAtISO === "string" &&
-            typeof revision.sourceUpdatedAtISO === "string" &&
-            (revision.reason === "body-update" || revision.reason === "delete"),
-        ),
-    );
+    return normalizeNoteRevisions(parsed);
   } catch {
     return [] as NoteRevision[];
   }
@@ -316,7 +326,7 @@ export function readLocalNoteRevisions(uid: string, noteId: string) {
 
 function writeLocalNoteRevisions(uid: string, noteId: string, revisions: NoteRevision[]) {
   try {
-    const normalized = revisions.slice(0, NOTE_REVISION_HISTORY_LIMIT);
+    const normalized = normalizeNoteRevisions(revisions);
     if (normalized.length === 0) {
       window.localStorage.removeItem(noteRevisionStorageKey(uid, noteId));
       return;
@@ -324,6 +334,28 @@ function writeLocalNoteRevisions(uid: string, noteId: string, revisions: NoteRev
     window.localStorage.setItem(noteRevisionStorageKey(uid, noteId), JSON.stringify(normalized));
   } catch {
     // Ignore localStorage failures; cloud revision write still has a chance.
+  }
+}
+
+function mergeNoteRevisions(primary: NoteRevision[], secondary: NoteRevision[]) {
+  const merged = new Map<string, NoteRevision>();
+  for (const revision of normalizeNoteRevisions(secondary)) {
+    merged.set(revision.id, revision);
+  }
+  for (const revision of normalizeNoteRevisions(primary)) {
+    merged.set(revision.id, revision);
+  }
+  return normalizeNoteRevisions([...merged.values()]);
+}
+
+export function mergeLocalNoteRevisions(
+  uid: string,
+  revisionsByNoteId: Record<string, NoteRevision[]>,
+) {
+  for (const [noteId, incomingRevisions] of Object.entries(revisionsByNoteId)) {
+    const localRevisions = readLocalNoteRevisions(uid, noteId);
+    const merged = mergeNoteRevisions(incomingRevisions, localRevisions);
+    writeLocalNoteRevisions(uid, noteId, merged);
   }
 }
 
@@ -449,8 +481,17 @@ async function loadNotesFromApi(user: User) {
     resolveApiUrl(`/api/notes?uid=${encodeURIComponent(user.uid)}`),
     { method: "GET" },
   );
-  const body = (await response.json()) as { notes?: WorkspaceNote[] };
-  return Array.isArray(body.notes) ? normalizeNotes(body.notes) : [];
+  const body = (await response.json()) as {
+    notes?: WorkspaceNote[];
+    revisionsByNoteId?: Record<string, NoteRevision[]>;
+  };
+  return {
+    notes: Array.isArray(body.notes) ? normalizeNotes(body.notes) : [],
+    revisionsByNoteId:
+      body.revisionsByNoteId && typeof body.revisionsByNoteId === "object"
+        ? body.revisionsByNoteId
+        : {},
+  };
 }
 
 async function saveNotesToApi(user: User, notes: WorkspaceNote[], timeoutMs = 8000) {
@@ -717,6 +758,23 @@ export async function loadNotes(user: User): Promise<NotesSyncResult> {
     );
     const mergedNotes = filterNotesAgainstPendingDeletes(user.uid, mergeNotesPreferNewest(localNotes, cloudNotes));
     writeLocalNotes(user.uid, mergedNotes);
+    const cloudRevisionsByNoteId = Object.fromEntries(
+      await Promise.all(
+        mergedNotes.map(async (note) => {
+          try {
+            const revisionsSnap = await withTimeout(
+              getDocs(collection(db, "userNotes", user.uid, "notes", note.id, "revisions")),
+              NOTE_FIRESTORE_READ_TIMEOUT_MS,
+              `Firestore note revisions timed out for ${note.id}.`,
+            );
+            return [note.id, normalizeNoteRevisions(revisionsSnap.docs.map((doc) => doc.data() as NoteRevision))] as const;
+          } catch {
+            return [note.id, []] as const;
+          }
+        }),
+      ),
+    );
+    mergeLocalNoteRevisions(user.uid, cloudRevisionsByNoteId);
 
     // Push any local-only or newer-local notes up to Firestore.
     if (!notesMatch(mergedNotes, subcollectionNotes)) {
@@ -742,12 +800,13 @@ export async function loadNotes(user: User): Promise<NotesSyncResult> {
     };
   } catch (error: unknown) {
     try {
-      const apiNotes = await loadNotesFromApi(user);
+      const apiResult = await loadNotesFromApi(user);
       const mergedNotes = filterNotesAgainstPendingDeletes(
         user.uid,
-        mergeNotesPreferNewest(localNotes, apiNotes),
+        mergeNotesPreferNewest(localNotes, apiResult.notes),
       );
       writeLocalNotes(user.uid, mergedNotes);
+      mergeLocalNoteRevisions(user.uid, apiResult.revisionsByNoteId);
       return {
         notes: mergedNotes,
         synced: true,

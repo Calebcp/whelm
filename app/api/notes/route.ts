@@ -39,6 +39,16 @@ type NotesPayload = {
   notes: WorkspaceNote[];
 };
 
+type NoteRevision = {
+  id: string;
+  noteId: string;
+  title: string;
+  body: string;
+  capturedAtISO: string;
+  sourceUpdatedAtISO: string;
+  reason: "body-update" | "delete";
+};
+
 // ── Firestore REST types ──────────────────────────────────────────────────────
 
 type FirestoreStringValue = { stringValue: string };
@@ -245,6 +255,27 @@ function noteFromDocument(doc: FirestoreNoteDocument): WorkspaceNote | null {
     updatedAtISO: str(f.updatedAtISO),
     createdAtISO: str(f.createdAtISO),
     attachments: attachmentsFromFieldValue(f.attachments),
+  };
+}
+
+function noteRevisionFromDocument(doc: FirestoreNoteDocument): NoteRevision | null {
+  const f = doc.fields;
+  if (!f) return null;
+  const id = str(f.id);
+  const noteId = str(f.noteId);
+  if (!id || !noteId) return null;
+
+  const reason = str(f.reason);
+  if (reason !== "body-update" && reason !== "delete") return null;
+
+  return {
+    id,
+    noteId,
+    title: str(f.title),
+    body: str(f.body),
+    capturedAtISO: str(f.capturedAtISO),
+    sourceUpdatedAtISO: str(f.sourceUpdatedAtISO),
+    reason,
   };
 }
 
@@ -462,6 +493,57 @@ async function listNoteDocuments(
     .filter((n): n is WorkspaceNote => n !== null);
 
   return mergeNotesPreferNewest(legacyNotes, subcollectionNotes);
+}
+
+async function listNoteRevisionsByNoteId(
+  request: NextRequest,
+  uid: string,
+  noteIds: string[],
+): Promise<Record<string, NoteRevision[]>> {
+  if (noteIds.length === 0) return {};
+
+  const adminDb = getAdminDb();
+  if (adminDb) {
+    const entries = await Promise.all(
+      noteIds.map(async (noteId) => {
+        const snap = await adminDb.collection("userNotes").doc(uid).collection("notes").doc(noteId).collection("revisions").get();
+        const revisions = snap.docs
+          .map((doc) => {
+            const data = doc.data() as Partial<NoteRevision>;
+            return { ...data, id: data.id || doc.id, noteId: data.noteId || noteId } as NoteRevision;
+          })
+          .filter((revision) => revision.reason === "body-update" || revision.reason === "delete");
+        return [noteId, revisions] as const;
+      }),
+    );
+    return Object.fromEntries(entries);
+  }
+
+  const authHeader = getAuthHeader(request);
+  if (!authHeader) throw new Error("Missing Firebase auth token.");
+
+  const { apiKey } = requireConfig();
+  const baseUrl = firestoreDocumentsBaseUrl();
+  const entries = await Promise.all(
+    noteIds.map(async (noteId) => {
+      const response = await fetch(
+        `${baseUrl}/userNotes/${encodeURIComponent(uid)}/notes/${encodeURIComponent(noteId)}/revisions?key=${apiKey}`,
+        {
+          method: "GET",
+          headers: { Authorization: authHeader, "Content-Type": "application/json" },
+          cache: "no-store",
+        },
+      );
+
+      if (!response.ok) return [noteId, []] as const;
+      const body = (await response.json()) as FirestoreListResponse;
+      const revisions = (body.documents ?? [])
+        .map(noteRevisionFromDocument)
+        .filter((revision): revision is NoteRevision => revision !== null);
+      return [noteId, revisions] as const;
+    }),
+  );
+  return Object.fromEntries(entries);
 }
 
 /** Write a single note document to `userNotes/{uid}/notes/{noteId}`. */
@@ -754,7 +836,12 @@ export async function GET(request: NextRequest) {
 
     const authorizedUid = await resolveAuthorizedUid(request, uid);
     const notes = await listNoteDocuments(request, authorizedUid);
-    return NextResponse.json({ notes });
+    const revisionsByNoteId = await listNoteRevisionsByNoteId(
+      request,
+      authorizedUid,
+      notes.map((note) => note.id),
+    );
+    return NextResponse.json({ notes, revisionsByNoteId });
   } catch (error: unknown) {
     return jsonError(error instanceof Error ? error.message : "Failed to load notes.");
   }
