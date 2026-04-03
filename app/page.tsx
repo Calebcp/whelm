@@ -82,13 +82,17 @@ import {
   type StreakBandanaTier,
 } from "@/lib/streak-bandanas";
 import { buildPerformanceNotificationPlan } from "@/lib/performance-notifications";
+import {
+  buildStreakProfilePresentation,
+  buildStreakTodayPresentation,
+} from "@/lib/streak-presentation";
 import { subscribeToUserData } from "@/lib/firestore-sync";
 import { logClientRuntime } from "@/lib/client-runtime";
 import type { AppTab } from "@/lib/app-tabs";
 import { monthKeyLocal } from "@/lib/date-utils";
 import { buildWhelmArchive, parseWhelmArchive, saveWhelmArchive } from "@/lib/whelm-archive";
 import { exportReadableNotesZip } from "@/lib/whelm-notes-export";
-import { getWhelmStreakSaveMonthlyLimit, WHELM_PRO_NAME } from "@/lib/whelm-plans";
+import { WHELM_PRO_NAME } from "@/lib/whelm-plans";
 import { mergeBlocksPreferNewest, savePlannedBlocks } from "@/lib/planned-blocks-store";
 import { saveReflectionState } from "@/lib/reflection-store";
 import {
@@ -147,7 +151,7 @@ import {
 } from "@/hooks/useTodayShellViewModel";
 import { useSessions } from "@/hooks/useSessions";
 import { useShellLifecycle } from "@/hooks/useShellLifecycle";
-import { useStreak } from "@/hooks/useStreak";
+import { useShellStreakState } from "@/hooks/useShellStreakState";
 import { useTabNavigation } from "@/hooks/useTabNavigation";
 import { useUserData } from "@/hooks/useUserData";
 import { useWhelmNotifications } from "@/hooks/useWhelmNotifications";
@@ -1601,6 +1605,7 @@ export default function HomePage() {
     noteWordsByDay,
     protectedStreakDateKeys,
     plannedBlocksHydrated,
+    notesHydrated: notesSyncStatus !== "syncing",
     onSignIn,
     onSignOut,
   });
@@ -1953,6 +1958,7 @@ export default function HomePage() {
     xpDockStyle,
     mobileStreakJumpStyle,
     monthlyStreakSaveCount,
+    streakSaveMonthlyLimit,
     streakSaveSlotsLeft,
     rawYesterdayMissed,
     yesterdaySave,
@@ -1972,7 +1978,8 @@ export default function HomePage() {
     streakRuleSummaryLine,
     streakMonthLabel,
     streakMonthCalendar,
-  } = useStreak({
+    visibleBandanaColor,
+  } = useShellStreakState({
     isPro,
     streak,
     streakQualifiedDateKeys,
@@ -1982,11 +1989,8 @@ export default function HomePage() {
     sickDaySaves,
     sickDaySaveDismissals,
     lifetimeXpSummary,
+    bandanaColor,
   });
-
-  const visibleBandanaColor = (streakBandanaTier?.color ?? bandanaColor) as typeof bandanaColor;
-
-  const streakSaveMonthlyLimit = getWhelmStreakSaveMonthlyLimit(isPro);
 
   useEffect(() => {
     if (!pendingXpPop) return;
@@ -2726,6 +2730,40 @@ export default function HomePage() {
     getProfileTierTheme,
   });
   const onboardingStep = ONBOARDING_STEPS[Math.min(onboardingStepIndex, ONBOARDING_STEPS.length - 1)];
+  const streakProfilePresentation = useMemo(
+    () =>
+      buildStreakProfilePresentation({
+        profileTitle: profileTierTheme.title,
+        streakBandanaLabel: streakBandanaTier?.label,
+        displayStreak,
+        longestStreak,
+        nextBandanaMilestone,
+      }),
+    [
+      displayStreak,
+      longestStreak,
+      nextBandanaMilestone,
+      profileTierTheme.title,
+      streakBandanaTier?.label,
+    ],
+  );
+  const streakTodayPresentation = useMemo(
+    () =>
+      buildStreakTodayPresentation({
+        streakProtectedToday,
+        streakStatusLine,
+        streakProgressBlocksLabel,
+        streakProgressMinutesLabel,
+        streakProgressWordsLabel,
+      }),
+    [
+      streakProgressBlocksLabel,
+      streakProgressMinutesLabel,
+      streakProgressWordsLabel,
+      streakProtectedToday,
+      streakStatusLine,
+    ],
+  );
   const handleCalendarPrevMonth = useCallback(() => {
     setCalendarCursor((current) => shiftMonth(current, -1));
   }, [setCalendarCursor]);
@@ -3378,15 +3416,15 @@ export default function HomePage() {
         isPro,
         photoUrl: currentUserPhotoUrl,
         profileDisplayName,
-        profileTierTheme,
-        streakBandanaTier,
+        identityLine: streakProfilePresentation.identityLine,
         nextPlannedBlock,
         normalizeTimeLabel,
-        displayStreak,
-        longestStreak,
+        currentStreakLabel: streakProfilePresentation.currentStreakLabel,
+        longestStreakLabel: streakProfilePresentation.longestStreakLabel,
         lifetimeFocusMinutes,
         sessionsCount: sessions.length,
-        nextBandanaMilestone,
+        nextAscentTitle: streakProfilePresentation.nextAscentTitle,
+        nextAscentBody: streakProfilePresentation.nextAscentBody,
         onOpenStreaks: () => {
           setProfileOpen(false);
           setActiveTab("streaks");
@@ -3614,7 +3652,6 @@ export default function HomePage() {
       dismissMascot,
       dismissSickDaySavePrompt,
       dismissToast,
-      displayStreak,
       feedbackCategory,
       feedbackMessage,
       feedbackOpen,
@@ -3633,12 +3670,10 @@ export default function HomePage() {
       kpiDetailContent,
       kpiDetailOpen,
       lifetimeFocusMinutes,
-      longestStreak,
       mascot,
       mobileMoreOpen,
       monthlySaveLimitReached,
       monthlyStreakSaveCount,
-      nextBandanaMilestone,
       nextPlannedBlock,
       noteUndoItem,
       notificationsBlocked,
@@ -3652,7 +3687,6 @@ export default function HomePage() {
       paywallOpen,
       profileDisplayName,
       profileOpen,
-      profileTierTheme,
       protectedStreakDateKeys,
       quickCardForm,
       rawYesterdayMissed,
@@ -3685,7 +3719,6 @@ export default function HomePage() {
       sickDaySaveEligible,
       sickDaySavePromptOpen,
       sickDaySavePromptPreview,
-      streakBandanaTier,
       streakCelebration,
       streakMirrorSaying,
       streakMirrorTag,
@@ -3694,6 +3727,11 @@ export default function HomePage() {
       streakSaveQuestionnaireOpen,
       streakSaveQuestionnairePreview,
       streakSaveStatus,
+      streakProfilePresentation.currentStreakLabel,
+      streakProfilePresentation.identityLine,
+      streakProfilePresentation.longestStreakLabel,
+      streakProfilePresentation.nextAscentBody,
+      streakProfilePresentation.nextAscentTitle,
       submitDailyRitual,
       subscriptionStatus,
       themeMode,
@@ -4038,11 +4076,12 @@ export default function HomePage() {
             streakRulesOpen,
             onToggleStreakRules: () => setStreakRulesOpen((current) => !current),
             streakRuleSummaryLine,
-            streakProgressBlocksLabel,
-            streakProgressMinutesLabel,
-            streakProgressWordsLabel,
-            streakProtectedToday,
-            streakStatusLine,
+            todayProtectionTitle: streakTodayPresentation.protectionTitle,
+            todayProtectionBody: streakTodayPresentation.protectionBody,
+            todayProtectionStatusLabel: streakTodayPresentation.protectionStatusLabel,
+            rulesBlocksLabel: streakTodayPresentation.rulesBlocksLabel,
+            rulesMinutesLabel: streakTodayPresentation.rulesMinutesLabel,
+            rulesWordsLabel: streakTodayPresentation.rulesWordsLabel,
             rawYesterdayMissed,
             yesterdaySave,
             sickDaySaveEligible,

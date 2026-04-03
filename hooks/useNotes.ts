@@ -17,11 +17,13 @@ import {
   saveNotePatchToFirestore,
   saveNoteToFirestore,
   saveNotesLocally,
+  readLocalNoteRevisions,
   type NoteAttachment,
   type WorkspaceNote,
 } from "@/lib/notes-store";
 import { createCard, loadCards, saveCards } from "@/lib/cards-store";
 import { dayKeyLocal, addDaysLocal, countWords } from "@/lib/date-utils";
+import { buildNoteWordsByDayFromHistory } from "@/lib/note-word-history";
 import { resolveStandardNoteColor, WHELM_STANDARD_HISTORY_DAYS } from "@/lib/whelm-plans";
 import { XP_WRITING_ENTRY_THRESHOLD } from "@/lib/xp-engine";
 
@@ -452,13 +454,15 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
   }, [visibleNotes]);
 
   const noteWordsByDay = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const note of draftAwareNotes) {
-      const dateKey = dayKeyLocal(note.updatedAtISO);
-      map.set(dateKey, (map.get(dateKey) ?? 0) + countWords(note.body));
+    if (!currentUid) {
+      return buildNoteWordsByDayFromHistory({ notes: draftAwareNotes });
     }
-    return map;
-  }, [draftAwareNotes]);
+
+    return buildNoteWordsByDayFromHistory({
+      notes: draftAwareNotes,
+      getRevisions: (noteId) => readLocalNoteRevisions(currentUid, noteId),
+    });
+  }, [currentUid, draftAwareNotes]);
 
   const syncEditorDraftFromNote = useCallback((note: WorkspaceNote | null, uid: string | null) => {
     if (!note) {

@@ -19,14 +19,6 @@ type PlannedBlockLike = {
   durationMinutes: number;
 };
 
-type NextBandanaMilestone = {
-  tier: {
-    label: string;
-    minDays: number;
-  };
-  remainingDays: number;
-} | null;
-
 export default function ProfileSheet({
   open,
   onClose,
@@ -34,15 +26,15 @@ export default function ProfileSheet({
   isPro,
   photoUrl,
   profileDisplayName,
-  profileTierTheme,
-  streakBandanaTier,
+  identityLine,
   nextPlannedBlock,
   normalizeTimeLabel,
-  displayStreak,
-  longestStreak,
+  currentStreakLabel,
+  longestStreakLabel,
   lifetimeFocusMinutes,
   sessionsCount,
-  nextBandanaMilestone,
+  nextAscentTitle,
+  nextAscentBody,
   onOpenStreaks,
   onOpenMoreTabs,
 }: {
@@ -52,15 +44,15 @@ export default function ProfileSheet({
   isPro: boolean;
   photoUrl: string | null | undefined;
   profileDisplayName: string;
-  profileTierTheme: ProfileTierTheme;
-  streakBandanaTier: StreakBandanaTier | null;
+  identityLine: string;
   nextPlannedBlock: PlannedBlockLike | null;
   normalizeTimeLabel: (raw: string) => string;
-  displayStreak: number;
-  longestStreak: number;
+  currentStreakLabel: string;
+  longestStreakLabel: string;
   lifetimeFocusMinutes: number;
   sessionsCount: number;
-  nextBandanaMilestone: NextBandanaMilestone;
+  nextAscentTitle: string;
+  nextAscentBody: string;
   onOpenStreaks: () => void;
   onOpenMoreTabs: () => void;
 }) {
@@ -81,9 +73,7 @@ export default function ProfileSheet({
           <div className={styles.profileHeroCopy}>
             <p className={styles.sectionLabel}>Whelm Identity</p>
             <h3 className={styles.profileHeroTitle}>{profileDisplayName}</h3>
-            <p className={styles.accountMeta}>
-              {profileTierTheme.title} · {streakBandanaTier?.label ?? "No bandana yet"}
-            </p>
+            <p className={styles.accountMeta}>{identityLine}</p>
           </div>
         </article>
 
@@ -100,11 +90,11 @@ export default function ProfileSheet({
         <div className={styles.profileStatsGrid}>
           <article className={styles.profileStatCard}>
             <span>Current streak</span>
-            <strong>{displayStreak}d</strong>
+            <strong>{currentStreakLabel}</strong>
           </article>
           <article className={styles.profileStatCard}>
             <span>Longest streak</span>
-            <strong>{longestStreak}d</strong>
+            <strong>{longestStreakLabel}</strong>
           </article>
           <article className={styles.profileStatCard}>
             <span>Lifetime focus</span>
@@ -118,18 +108,8 @@ export default function ProfileSheet({
 
         <article className={styles.profileProgressCard}>
           <p className={styles.sectionLabel}>Next ascent</p>
-          <h3 className={styles.cardTitle}>
-            {nextBandanaMilestone
-              ? `${nextBandanaMilestone.tier.label} at ${nextBandanaMilestone.tier.minDays} days`
-              : "White Bandana reached"}
-          </h3>
-          <p className={styles.accountMeta}>
-            {nextBandanaMilestone
-              ? `${nextBandanaMilestone.remainingDays} more day${
-                  nextBandanaMilestone.remainingDays === 1 ? "" : "s"
-                } to level up the profile.`
-              : "Top tier achieved. Keep the run alive."}
-          </p>
+          <h3 className={styles.cardTitle}>{nextAscentTitle}</h3>
+          <p className={styles.accountMeta}>{nextAscentBody}</p>
         </article>
 
         <div className={styles.noteFooterActions}>

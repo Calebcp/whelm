@@ -290,7 +290,7 @@ function writePendingDeletedNoteIds(uid: string, noteIds: string[]) {
   }
 }
 
-function readLocalNoteRevisions(uid: string, noteId: string) {
+export function readLocalNoteRevisions(uid: string, noteId: string) {
   try {
     const raw = window.localStorage.getItem(noteRevisionStorageKey(uid, noteId));
     if (!raw) return [] as NoteRevision[];

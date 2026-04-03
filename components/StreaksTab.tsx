@@ -31,11 +31,12 @@ export type StreaksTabProps = {
   streakRulesOpen: boolean;
   onToggleStreakRules: () => void;
   streakRuleSummaryLine: string;
-  streakProgressBlocksLabel: string;
-  streakProgressMinutesLabel: string;
-  streakProgressWordsLabel: string;
-  streakProtectedToday: boolean;
-  streakStatusLine: string;
+  todayProtectionTitle: string;
+  todayProtectionBody: string;
+  todayProtectionStatusLabel: string;
+  rulesBlocksLabel: string;
+  rulesMinutesLabel: string;
+  rulesWordsLabel: string;
   rawYesterdayMissed: boolean;
   yesterdaySave: SickDaySave | null;
   sickDaySaveEligible: boolean;
@@ -64,11 +65,12 @@ export default function StreaksTab({
   streakRulesOpen,
   onToggleStreakRules,
   streakRuleSummaryLine,
-  streakProgressBlocksLabel,
-  streakProgressMinutesLabel,
-  streakProgressWordsLabel,
-  streakProtectedToday,
-  streakStatusLine,
+  todayProtectionTitle,
+  todayProtectionBody,
+  todayProtectionStatusLabel,
+  rulesBlocksLabel,
+  rulesMinutesLabel,
+  rulesWordsLabel,
   rawYesterdayMissed,
   yesterdaySave,
   sickDaySaveEligible,
@@ -217,12 +219,8 @@ export default function StreaksTab({
         </div>
         <div className={styles.streakCalendarFooter}>
           <div className={styles.streakCalendarFooterCopy}>
-            <strong>{streakProtectedToday ? "Today secured" : "Today still open"}</strong>
-            <span>
-              {streakProtectedToday
-                ? streakStatusLine
-                : `${streakProgressBlocksLabel} + (${streakProgressMinutesLabel} or ${streakProgressWordsLabel})`}
-            </span>
+            <strong>{todayProtectionTitle}</strong>
+            <span>{todayProtectionBody}</span>
           </div>
           <button
             type="button"
@@ -245,10 +243,12 @@ export default function StreaksTab({
             <p className={styles.streakBadge}>Whelm Run</p>
             <div
               className={`${styles.streakHeroStatusPill} ${
-                streakProtectedToday ? styles.streakHeroStatusPillSafe : styles.streakHeroStatusPillOpen
+                todayProtectionStatusLabel === "Protected"
+                  ? styles.streakHeroStatusPillSafe
+                  : styles.streakHeroStatusPillOpen
               }`}
             >
-              {streakProtectedToday ? "Protected" : "Open"}
+              {todayProtectionStatusLabel}
             </div>
           </div>
           <div className={styles.streakHeroHeadlineRow}>
@@ -359,27 +359,27 @@ export default function StreaksTab({
             <p className={styles.accountMeta}>{streakRuleSummaryLine}</p>
             <div className={styles.streakRulesList}>
               <div className={styles.streakRuleChip}>
-                <strong>{streakProgressBlocksLabel}</strong>
+                <strong>{rulesBlocksLabel}</strong>
                 <span>Completed block</span>
               </div>
               <div className={styles.streakRulesEffortGroup}>
                 <div className={styles.streakRuleChip}>
-                  <strong>{streakProgressMinutesLabel}</strong>
+                  <strong>{rulesMinutesLabel}</strong>
                   <span>Focus option</span>
                 </div>
                 <div className={styles.streakRuleOrBubble}>OR</div>
                 <div className={styles.streakRuleChip}>
-                  <strong>{streakProgressWordsLabel}</strong>
+                  <strong>{rulesWordsLabel}</strong>
                   <span>Writing option</span>
                 </div>
               </div>
             </div>
             <p
               className={`${styles.streakRuleStatus} ${
-                streakProtectedToday ? styles.streakRuleStatusProtected : ""
+                todayProtectionStatusLabel === "Protected" ? styles.streakRuleStatusProtected : ""
               }`}
             >
-              {streakStatusLine}
+              {todayProtectionBody}
             </p>
           </motion.div>
         )}

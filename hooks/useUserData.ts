@@ -15,11 +15,15 @@ import { useMascot } from "@/hooks/useMascot";
 import { trackAppOpened } from "@/lib/analytics-tracker";
 import { dayKeyLocal } from "@/lib/date-utils";
 import { logClientRuntime } from "@/lib/client-runtime";
-import { collectTrackedDayKeys } from "@/lib/tracked-day-keys";
+import {
+  buildStreakLedger,
+  inferCompletedBlocksByDayFromSessions,
+  mergeCompletedBlocksByDay,
+} from "@/lib/streak-ledger";
+import { resolveHydratedStreak } from "@/lib/streak-hydration";
 import {
   buildDayXpSummaryForDate,
   getLifetimeXpSummary,
-  STREAK_RULE_V2_START_DATE,
   type DayXpSummary,
   type LifetimeXpSummary,
   type SessionRewardState,
@@ -41,6 +45,8 @@ type UseUserDataOptions = {
   protectedStreakDateKeys: string[];
   /** From usePlannedBlocks — true once the initial blocks snapshot has been received */
   plannedBlocksHydrated: boolean;
+  /** From useNotes — whether note evidence has finished its initial sync path */
+  notesHydrated: boolean;
   /** Called by the auth listener when a user signs in, so page.tsx can seed/load notes */
   onSignIn?: (uid: string) => void;
   /** Called by the auth listener when a user signs out, so page.tsx can clear its own state */
@@ -54,6 +60,7 @@ export function useUserData({
   noteWordsByDay,
   protectedStreakDateKeys,
   plannedBlocksHydrated,
+  notesHydrated,
   onSignIn,
   onSignOut,
 }: UseUserDataOptions) {
@@ -229,51 +236,36 @@ export function useUserData({
     return map;
   }, [sessions]);
 
-  const inferredCompletedBlocksByDay = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const session of sessions) {
-      const note = session.note?.trim() ?? "";
-      if (!note.toLowerCase().startsWith("planned block completed:")) continue;
-      const key = dayKeyLocal(session.completedAtISO);
-      map.set(key, (map.get(key) ?? 0) + 1);
-    }
-    return map;
-  }, [sessions]);
+  const inferredCompletedBlocksByDay = useMemo(
+    () => inferCompletedBlocksByDayFromSessions(sessions),
+    [sessions],
+  );
 
-  const effectiveCompletedBlocksByDay = useMemo(() => {
-    const merged = new Map(completedBlocksByDay);
-    for (const [dateKey, count] of inferredCompletedBlocksByDay.entries()) {
-      merged.set(dateKey, Math.max(merged.get(dateKey) ?? 0, count));
-    }
-    return merged;
-  }, [completedBlocksByDay, inferredCompletedBlocksByDay]);
+  const effectiveCompletedBlocksByDay = useMemo(
+    () =>
+      mergeCompletedBlocksByDay({
+        completedBlocksByDay,
+        inferredCompletedBlocksByDay,
+      }),
+    [completedBlocksByDay, inferredCompletedBlocksByDay],
+  );
 
-  const streakQualifiedDateKeys = useMemo(() => {
-    const todayKey = dayKeyLocal(new Date());
-    const qualifyingDays = new Set(protectedStreakDateKeys);
-    const candidateDays = collectTrackedDayKeys({
-      sessionMinutesByDay,
-      completedBlocksByDay: effectiveCompletedBlocksByDay,
-      noteWordsByDay,
-      protectedStreakDateKeys,
-    });
+  const streakLedger = useMemo(
+    () =>
+      buildStreakLedger({
+        sessionMinutesByDay,
+        completedBlocksByDay: effectiveCompletedBlocksByDay,
+        noteWordsByDay,
+        protectedStreakDateKeys,
+        todayKey: dayKeyLocal(new Date()),
+      }),
+    [effectiveCompletedBlocksByDay, noteWordsByDay, protectedStreakDateKeys, sessionMinutesByDay],
+  );
 
-    for (const dateKey of candidateDays) {
-      const minutes = sessionMinutesByDay.get(dateKey) ?? 0;
-      if (dateKey < STREAK_RULE_V2_START_DATE) {
-        if (minutes > 0) qualifyingDays.add(dateKey);
-        continue;
-      }
-
-      const completedBlocks = effectiveCompletedBlocksByDay.get(dateKey) ?? 0;
-      const noteWords = noteWordsByDay.get(dateKey) ?? 0;
-      if (dateKey <= todayKey && completedBlocks >= 1 && (minutes >= 30 || noteWords >= 33)) {
-        qualifyingDays.add(dateKey);
-      }
-    }
-
-    return [...qualifyingDays].sort();
-  }, [effectiveCompletedBlocksByDay, noteWordsByDay, protectedStreakDateKeys, sessionMinutesByDay]);
+  const streakQualifiedDateKeys = useMemo(
+    () => streakLedger.filter((day) => day.qualifies).map((day) => day.dateKey),
+    [streakLedger],
+  );
 
   // Defensive: preserve the last non-zero streak so a partial data load
   // (sessions resolved before plannedBlocks) never briefly flashes streak to 0.
@@ -281,17 +273,24 @@ export function useUserData({
   // Defensive: preserve the last non-zero XP summary so XP display never flashes
   // to 0 before sessions have loaded from Firestore.
   const lastGoodLifetimeXpRef = useRef<LifetimeXpSummary | null>(null);
-  const streak = useMemo(() => {
-    const computed = computeStreak([], streakQualifiedDateKeys);
-    if (computed > 0) {
-      lastGoodStreakRef.current = computed;
-      return computed;
-    }
-    if (!plannedBlocksHydrated && lastGoodStreakRef.current > 0) {
-      return lastGoodStreakRef.current;
-    }
-    return computed;
-  }, [streakQualifiedDateKeys, plannedBlocksHydrated]);
+  const hydratedStreak = useMemo(
+    () =>
+      resolveHydratedStreak({
+      computedStreak: computeStreak([], streakQualifiedDateKeys),
+      lastGoodStreak: lastGoodStreakRef.current,
+      sessionsSynced,
+      plannedBlocksHydrated,
+      notesHydrated,
+    }),
+    [notesHydrated, plannedBlocksHydrated, sessionsSynced, streakQualifiedDateKeys],
+  );
+
+  useEffect(() => {
+    lastGoodStreakRef.current = hydratedStreak.nextLastGoodStreak;
+  }, [hydratedStreak.nextLastGoodStreak]);
+
+  const streak = hydratedStreak.streak;
+  const streakIsProvisional = hydratedStreak.isProvisional;
 
   const bandanaColor = bandanaColorFromStreak(streak);
   const { mascot, show: showMascot, dismiss: dismissMascot } = useMascot(bandanaColor);
@@ -299,19 +298,13 @@ export function useUserData({
   // ── XP computation ─────────────────────────────────────────────────────────
 
   const xpByDay = useMemo(() => {
-    const allDayKeys = collectTrackedDayKeys({
-      sessionMinutesByDay,
-      completedBlocksByDay: effectiveCompletedBlocksByDay,
-      noteWordsByDay,
-      protectedStreakDateKeys,
-    });
     const todayKey = dayKeyLocal(new Date());
 
-    return [...allDayKeys]
-      .sort()
-      .map<DayXpSummary>((dateKey) =>
+    return streakLedger
+      .filter((day) => day.dateKey <= todayKey)
+      .map<DayXpSummary>((day) =>
         buildDayXpSummaryForDate({
-          dateKey,
+          dateKey: day.dateKey,
           sessionMinutesByDay,
           completedBlocksByDay: effectiveCompletedBlocksByDay,
           noteWordsByDay,
@@ -321,9 +314,9 @@ export function useUserData({
   }, [
     effectiveCompletedBlocksByDay,
     noteWordsByDay,
-    streakQualifiedDateKeys,
     sessionMinutesByDay,
-    protectedStreakDateKeys,
+    streakLedger,
+    streakQualifiedDateKeys,
   ]);
 
   const weeklyXp = useMemo(() => {
@@ -382,6 +375,7 @@ export function useUserData({
     sessionMinutesByDay,
     streakQualifiedDateKeys,
     streak,
+    streakIsProvisional,
     bandanaColor,
     mascot,
     showMascot,
