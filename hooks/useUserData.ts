@@ -303,15 +303,29 @@ export function useUserData({
     lastGoodStreakRef.current = hydratedStreak.nextLastGoodStreak;
   }, [hydratedStreak.nextLastGoodStreak]);
 
+  const shouldPreferPersistedSnapshot = useMemo(() => {
+    if (!hydratedStreak.isProvisional || !persistedStreakSnapshot) return false;
+    if (sessionsRef.current.length > 0 || sessions.length > 0) return false;
+    if (persistedStreakSnapshot.streak > hydratedStreak.streak) return true;
+    if (persistedStreakSnapshot.qualifiedDateKeys.length > streakQualifiedDateKeys.length) return true;
+    return false;
+  }, [
+    hydratedStreak.isProvisional,
+    hydratedStreak.streak,
+    persistedStreakSnapshot,
+    sessions.length,
+    streakQualifiedDateKeys.length,
+  ]);
+
   const effectiveStreakQualifiedDateKeys = useMemo(
     () =>
-      hydratedStreak.isProvisional && persistedStreakSnapshot
+      shouldPreferPersistedSnapshot && persistedStreakSnapshot
         ? persistedStreakSnapshot.qualifiedDateKeys
         : streakQualifiedDateKeys,
-    [hydratedStreak.isProvisional, persistedStreakSnapshot, streakQualifiedDateKeys],
+    [persistedStreakSnapshot, shouldPreferPersistedSnapshot, streakQualifiedDateKeys],
   );
 
-  const streak = hydratedStreak.isProvisional && persistedStreakSnapshot
+  const streak = shouldPreferPersistedSnapshot && persistedStreakSnapshot
     ? persistedStreakSnapshot.streak
     : hydratedStreak.streak;
   const streakIsProvisional = hydratedStreak.isProvisional;
@@ -365,18 +379,19 @@ export function useUserData({
       lastGoodLifetimeXpRef.current = summary;
       return summary;
     }
-    if (persistedStreakSnapshot?.lifetimeXpSummary && !sessionsSyncedRef.current) {
+    if (shouldPreferPersistedSnapshot && persistedStreakSnapshot?.lifetimeXpSummary && !sessionsSyncedRef.current) {
       return persistedStreakSnapshot.lifetimeXpSummary;
     }
     if (!sessionsSyncedRef.current && lastGoodLifetimeXpRef.current) {
       return lastGoodLifetimeXpRef.current;
     }
     return summary;
-  }, [persistedStreakSnapshot, xpByDay, sessionsSyncedRef]);
+  }, [persistedStreakSnapshot, shouldPreferPersistedSnapshot, xpByDay, sessionsSyncedRef]);
 
   useEffect(() => {
     if (!user || streakIsProvisional) return;
     const snapshot: LocalStreakSnapshot = {
+      version: 3,
       streak,
       qualifiedDateKeys: streakQualifiedDateKeys,
       dailyRecords: streakLedger,

@@ -233,6 +233,7 @@ type HomeShellFrameProps = {
   formattedLifetimeXp: string;
   formattedXpToNextLevel: string;
   tierColor: string | null | undefined;
+  identityReady: boolean;
   isPro: boolean;
   photoUrl: string | null | undefined;
   isMobileViewport: boolean;
@@ -259,6 +260,7 @@ export default function HomeShellFrame({
   formattedLifetimeXp,
   formattedXpToNextLevel,
   tierColor,
+  identityReady,
   isPro,
   photoUrl,
   isMobileViewport,
@@ -333,6 +335,7 @@ export default function HomeShellFrame({
             formattedLifetimeXp={formattedLifetimeXp}
             formattedXpToNextLevel={formattedXpToNextLevel}
             tierColor={tierColor}
+            identityReady={identityReady}
             isPro={isPro}
             photoUrl={photoUrl}
             isMobileViewport={isMobileViewport}

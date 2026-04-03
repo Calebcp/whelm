@@ -31,10 +31,13 @@ function sickDaySaveDismissalsStorageKey(uid: string) {
 }
 
 function streakSnapshotStorageKey(uid: string) {
-  return `whelm:streak-snapshot:${uid}`;
+  return `whelm:streak-snapshot:v3:${uid}`;
 }
 
+const LOCAL_STREAK_SNAPSHOT_VERSION = 3;
+
 export type LocalStreakSnapshot = {
+  version: number;
   streak: number;
   qualifiedDateKeys: string[];
   dailyRecords: StreakLedgerEntry[];
@@ -66,6 +69,7 @@ export function loadLocalStreakSnapshot(uid: string): LocalStreakSnapshot | null
     const raw = window.localStorage.getItem(streakSnapshotStorageKey(uid));
     const parsed = raw ? (JSON.parse(raw) as LocalStreakSnapshot) : null;
     if (!parsed) return null;
+    if (parsed.version !== LOCAL_STREAK_SNAPSHOT_VERSION) return null;
     if (!Array.isArray(parsed.qualifiedDateKeys) || !Array.isArray(parsed.dailyRecords)) return null;
     if (!parsed.lifetimeXpSummary || typeof parsed.lifetimeXpSummary.totalXp !== "number") return null;
     if (typeof parsed.streak !== "number") return null;
@@ -77,7 +81,13 @@ export function loadLocalStreakSnapshot(uid: string): LocalStreakSnapshot | null
 
 export function saveLocalStreakSnapshot(uid: string, snapshot: LocalStreakSnapshot) {
   try {
-    window.localStorage.setItem(streakSnapshotStorageKey(uid), JSON.stringify(snapshot));
+    window.localStorage.setItem(
+      streakSnapshotStorageKey(uid),
+      JSON.stringify({
+        ...snapshot,
+        version: LOCAL_STREAK_SNAPSHOT_VERSION,
+      }),
+    );
   } catch {
     // Ignore storage failures in private / constrained webviews.
   }

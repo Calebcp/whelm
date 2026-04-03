@@ -188,6 +188,14 @@ function matchesBandanaBucket(streak: number, color: string) {
   return getStreakBandanaTier(streak)?.color === color;
 }
 
+function isAbortLikeError(error: unknown) {
+  if (error instanceof DOMException && error.name === "AbortError") {
+    return true;
+  }
+
+  return error instanceof Error && error.name === "AbortError";
+}
+
 export function useLeaderboard({
   activeTab,
   user,
@@ -538,6 +546,7 @@ export function useLeaderboard({
 
   const handleLeaderboardLoadMore = useCallback(async () => {
     if (!user || !leaderboardHasMore || !leaderboardCursor) return;
+    const controller = new AbortController();
     setLeaderboardLoading(true);
     setLeaderboardError("");
 
@@ -554,6 +563,7 @@ export function useLeaderboard({
         headers: {
           Authorization: `Bearer ${token}`,
         },
+        signal: controller.signal,
       });
       const body = (await response.json()) as LeaderboardPageResponse | { error?: string };
       if (!response.ok) {
@@ -576,6 +586,9 @@ export function useLeaderboard({
         snapshotDate: payload.snapshotDate,
       }).catch(() => undefined);
     } catch (error: unknown) {
+      if (controller.signal.aborted || isAbortLikeError(error)) {
+        return;
+      }
       setLeaderboardError(
         error instanceof Error ? error.message : "Failed to load more leaderboard entries.",
       );
@@ -691,6 +704,7 @@ export function useLeaderboard({
     if (!currentUser) return;
     if (!sessionsSynced) return;
     const authedUser = currentUser;
+    const controller = new AbortController();
 
     let cancelled = false;
     let timeoutId: number | null = null;
@@ -711,6 +725,7 @@ export function useLeaderboard({
           headers: {
             Authorization: `Bearer ${token}`,
           },
+          signal: controller.signal,
         });
 
         const body = (await response.json()) as LeaderboardPageResponse | { error?: string };
@@ -747,7 +762,7 @@ export function useLeaderboard({
           }).catch(() => undefined);
         }
       } catch (error: unknown) {
-        if (cancelled) return;
+        if (cancelled || controller.signal.aborted || isAbortLikeError(error)) return;
         setLeaderboardPageItems([]);
         setLeaderboardAroundMeItems([]);
         setLeaderboardCursor(null);
@@ -769,6 +784,7 @@ export function useLeaderboard({
     }, 120);
     return () => {
       cancelled = true;
+      controller.abort();
       if (timeoutId !== null) {
         window.clearTimeout(timeoutId);
       }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { User } from "firebase/auth";
 
 import { countWords } from "@/lib/date-utils";
@@ -56,6 +56,7 @@ export function useReflection({
   >(null);
   const [streakSaveAnswers, setStreakSaveAnswers] = useState<Record<string, string>>({});
   const [streakSaveStatus, setStreakSaveStatus] = useState("");
+  const reflectionSignatureRef = useRef<string | null>(null);
 
   const protectedStreakDateKeys = useMemo(
     () => sickDaySaves.map((save) => save.dateKey),
@@ -72,10 +73,25 @@ export function useReflection({
   const streakMirrorSaying = sayings[landingWisdomMinute % sayings.length] ?? "";
 
   const applyReflectionState = useCallback((state: ReflectionState) => {
-    setStreakMirrorEntries(state.mirrorEntries);
+    const signature = JSON.stringify({
+      mirrorEntries: state.mirrorEntries,
+      sickDaySaves: state.sickDaySaves,
+      sickDaySaveDismissals: state.sickDaySaveDismissals,
+    });
+    if (reflectionSignatureRef.current === signature) return;
+    reflectionSignatureRef.current = signature;
+    setStreakMirrorEntries((current) =>
+      JSON.stringify(current) === JSON.stringify(state.mirrorEntries) ? current : state.mirrorEntries,
+    );
     setSelectedStreakMirrorId((current) => current ?? state.mirrorEntries[0]?.id ?? null);
-    setSickDaySaves(state.sickDaySaves);
-    setSickDaySaveDismissals(state.sickDaySaveDismissals);
+    setSickDaySaves((current) =>
+      JSON.stringify(current) === JSON.stringify(state.sickDaySaves) ? current : state.sickDaySaves,
+    );
+    setSickDaySaveDismissals((current) =>
+      JSON.stringify(current) === JSON.stringify(state.sickDaySaveDismissals)
+        ? current
+        : state.sickDaySaveDismissals,
+    );
   }, []);
 
   useEffect(() => {

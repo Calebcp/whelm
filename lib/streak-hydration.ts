@@ -11,15 +11,16 @@ export function resolveHydratedStreak({
   plannedBlocksHydrated: boolean;
   notesHydrated: boolean;
 }) {
+  const evidenceHydrating = !sessionsSynced || !plannedBlocksHydrated || !notesHydrated;
+
   if (computedStreak > 0) {
     return {
       streak: computedStreak,
       nextLastGoodStreak: computedStreak,
-      isProvisional: false,
+      isProvisional: evidenceHydrating,
     };
   }
 
-  const evidenceHydrating = !sessionsSynced || !plannedBlocksHydrated || !notesHydrated;
   if (evidenceHydrating && lastGoodStreak > 0) {
     return {
       streak: lastGoodStreak,

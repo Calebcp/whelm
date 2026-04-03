@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { firestoreCleanupDatabaseIds, resolveFirestoreDatabaseId } from "@/lib/firestore-database";
+import { canonicalSessionIdentity, sessionDocumentId } from "@/lib/session-identity";
 
 const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
 const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
@@ -114,6 +115,14 @@ function decodeSession(document: FirestoreDocument): SessionDoc | null {
     note: note || undefined,
     noteSavedAtISO: noteSavedAtISO || undefined,
   };
+}
+
+function dedupeSessions(sessions: SessionDoc[]) {
+  const byKey = new Map<string, SessionDoc>();
+  for (const session of sessions) {
+    byKey.set(canonicalSessionIdentity(session), session);
+  }
+  return [...byKey.values()].sort((a, b) => (a.completedAtISO < b.completedAtISO ? 1 : -1));
 }
 
 async function firestoreRequest(
@@ -262,10 +271,11 @@ export async function GET(request: NextRequest) {
     if (response instanceof NextResponse) return response;
 
     const rows = (await response.json()) as RunQueryResponse[];
-    const sessions = rows
+    const sessions = dedupeSessions(
+      rows
       .map((row) => (row.document ? decodeSession(row.document) : null))
       .filter((session): session is SessionDoc => Boolean(session))
-      .sort((a, b) => (a.completedAtISO < b.completedAtISO ? 1 : -1));
+    );
 
     return NextResponse.json({ sessions });
   } catch (error: unknown) {
@@ -285,9 +295,9 @@ export async function POST(request: NextRequest) {
     const { apiKey } = requireConfig();
     const response = await firestoreRequest(
       request,
-      `${baseUrl}/sessions?key=${apiKey}`,
+      `${baseUrl}/sessions/${encodeURIComponent(sessionDocumentId(session))}?key=${apiKey}`,
       {
-        method: "POST",
+        method: "PATCH",
         body: JSON.stringify(encodeSession(session)),
       },
     );

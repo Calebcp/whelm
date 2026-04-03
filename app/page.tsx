@@ -3925,6 +3925,7 @@ export default function HomePage() {
         formattedLifetimeXp={formattedLifetimeXp}
         formattedXpToNextLevel={formattedXpToNextLevel}
         tierColor={shellTierColor}
+        identityReady={shellStreakRecord.summary.isReady}
         isPro={isPro}
         photoUrl={currentUserPhotoUrl}
         isMobileViewport={isMobileViewport}

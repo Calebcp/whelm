@@ -378,6 +378,12 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
   } | null>(null);
   const noteDraftMirrorTimeoutRef = useRef<number | null>(null);
   const notesRef = useRef<WorkspaceNote[]>([]);
+  const notesSyncStatusRef = useRef<"synced" | "local-only" | "syncing">(
+    initialLocalNotes.length > 0 ? "local-only" : "syncing",
+  );
+  const notesSyncMessageRef = useRef(
+    initialLocalNotes.length > 0 ? "Opening your local notes first while cloud sync catches up." : "",
+  );
   const selectedNoteIdRef = useRef<string | null>(null);
   const notesSectionRef = useRef<HTMLElement | null>(null);
   const notesStartRef = useRef<HTMLElement | null>(null);
@@ -499,6 +505,20 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     selectedNoteIdRef.current = selectedNoteId;
   }, [selectedNoteId]);
 
+  const setNotesSyncUi = useCallback(
+    (status: "synced" | "local-only" | "syncing", message: string) => {
+      if (notesSyncStatusRef.current !== status) {
+        notesSyncStatusRef.current = status;
+        setNotesSyncStatus(status);
+      }
+      if (notesSyncMessageRef.current !== message) {
+        notesSyncMessageRef.current = message;
+        setNotesSyncMessage(message);
+      }
+    },
+    [],
+  );
+
   // ── Clear selectedNoteId if note is no longer visible ──────────────────────
   useEffect(() => {
     if (selectedNoteId && !visibleNotes.some((note) => note.id === selectedNoteId)) {
@@ -616,9 +636,8 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
       result.notes.find((note) => note.id === nextSelectedNoteId) ?? null,
       uid,
     );
-    setNotesSyncStatus(result.synced ? "synced" : "local-only");
-    setNotesSyncMessage(result.message ?? "");
-  }, [syncEditorDraftFromNote]);
+    setNotesSyncUi(result.synced ? "synced" : "local-only", result.message ?? "");
+  }, [setNotesSyncUi, syncEditorDraftFromNote]);
 
   const handleUserSignedIn = useCallback((uid: string) => {
     try {
@@ -626,16 +645,13 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
       if (local.length > 0) {
         setNotes(local);
         setSelectedNoteId((current) => current ?? local[0]?.id ?? null);
-        setNotesSyncStatus("local-only");
-        setNotesSyncMessage("Opening your local notes first while cloud sync catches up.");
+        setNotesSyncUi("local-only", "Opening your local notes first while cloud sync catches up.");
       } else {
-        setNotesSyncStatus("syncing");
-        setNotesSyncMessage("Loading your notes from your account...");
+        setNotesSyncUi("syncing", "Loading your notes from your account...");
       }
     } catch {
       // keep going; Firestore refresh below is the source of truth
-      setNotesSyncStatus("syncing");
-      setNotesSyncMessage("Loading your notes from your account...");
+      setNotesSyncUi("syncing", "Loading your notes from your account...");
     }
 
     // One-time migration: move any notes from the legacy notesJson blob into
@@ -651,20 +667,19 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
       });
       // keep locally seeded notes visible if refresh fails
     });
-  }, [refreshNotes]);
+  }, [refreshNotes, setNotesSyncUi]);
 
   const handleUserSignedOut = useCallback(() => {
     setNotes([]);
     setSelectedNoteId(null);
-    setNotesSyncStatus("syncing");
-    setNotesSyncMessage("");
+    setNotesSyncUi("syncing", "");
     setEditorBodyDraft("");
     setPendingNoteAttachments([]);
     setNoteAttachmentStatus("");
     setNoteUndoItem(null);
     setSelectionPopup(null);
     setQuickCardForm(null);
-  }, []);
+  }, [setNotesSyncUi]);
 
   const applyNotesSnapshot = useCallback((remoteNotes: WorkspaceNote[]) => {
     const currentUser = auth.currentUser;
@@ -683,17 +698,25 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
       ? mergedNotes.some((note) => note.id === selectedCandidateId)
       : false;
     const remoteWasStale = !notesMatch(mergedNotes, remoteNotes);
-
-    notesRef.current = mergedNotes;
-    setNotes(mergedNotes);
+    const mergedMatchesCurrent = notesMatch(mergedNotes, inMemoryNotes);
     const nextSelectedNoteId = selectedStillExists ? selectedCandidateId : (mergedNotes[0]?.id ?? null);
-    setSelectedNoteId(nextSelectedNoteId);
-    syncEditorDraftFromNote(
-      mergedNotes.find((note) => note.id === nextSelectedNoteId) ?? null,
-      uid ?? null,
-    );
-    setNotesSyncStatus(remoteWasStale ? "syncing" : "synced");
-    setNotesSyncMessage(
+    const selectedChanged = nextSelectedNoteId !== selectedNoteIdRef.current;
+
+    if (!mergedMatchesCurrent) {
+      notesRef.current = mergedNotes;
+      setNotes(mergedNotes);
+    }
+    if (selectedChanged) {
+      setSelectedNoteId(nextSelectedNoteId);
+    }
+    if (!mergedMatchesCurrent || selectedChanged) {
+      syncEditorDraftFromNote(
+        mergedNotes.find((note) => note.id === nextSelectedNoteId) ?? null,
+        uid ?? null,
+      );
+    }
+    setNotesSyncUi(
+      remoteWasStale ? "syncing" : "synced",
       remoteWasStale ? "Recovered newer local notes and syncing them to your account." : "",
     );
 
@@ -711,8 +734,8 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     syncInFlightRef.current = true;
     void retryNotesSync(currentUser, mergedNotes)
       .then((result) => {
-        setNotesSyncStatus(result.synced ? "synced" : "local-only");
-        setNotesSyncMessage(
+        setNotesSyncUi(
+          result.synced ? "synced" : "local-only",
           result.synced
             ? ""
             : (result.message ?? "Saved locally. Cloud sync is currently pending."),
@@ -721,7 +744,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
       .finally(() => {
         syncInFlightRef.current = false;
       });
-  }, [syncEditorDraftFromNote]);
+  }, [setNotesSyncUi, syncEditorDraftFromNote]);
 
   const clearPendingXpPop = useCallback(() => {
     setPendingXpPop(null);
@@ -738,11 +761,9 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     setSelectedNoteId(nextNote.id);
     saveNotesLocally(currentUser.uid, nextNotes);
     onNavigateToNotes?.();
-    setNotesSyncStatus("syncing");
-    setNotesSyncMessage("");
+    setNotesSyncUi("syncing", "");
     const result = await saveNoteToFirestore(currentUser.uid, nextNote);
-    setNotesSyncStatus(result.synced ? "synced" : "local-only");
-    setNotesSyncMessage(result.message ?? "");
+    setNotesSyncUi(result.synced ? "synced" : "local-only", result.message ?? "");
     return nextNote.id;
   }
 

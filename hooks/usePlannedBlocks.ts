@@ -165,6 +165,10 @@ function blocksMatch(a: PlannedBlock[], b: PlannedBlock[]) {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
+function dailyRitualDraftsMatch(a: DailyRitualBlockDraft[], b: DailyRitualBlockDraft[]) {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
 function createDailyRitualDrafts(existing: PlannedBlock[]): DailyRitualBlockDraft[] {
   const seeded: DailyRitualBlockDraft[] = existing.slice(0, 3).map((item, index) => ({
     id: `existing-${item.id}-${index}`,
@@ -327,16 +331,20 @@ export function usePlannedBlocks({
 
   useEffect(() => {
     if (!auth.currentUser) {
-      setDailyPlanningPromptSeenToday(null);
+      setDailyPlanningPromptSeenToday((current) => (current === null ? current : null));
       return;
     }
-    setDailyPlanningPromptSeenToday(readDailyPlanningPromptSeen(auth.currentUser.uid, liveTodayKey));
+    const nextSeen = readDailyPlanningPromptSeen(auth.currentUser.uid, liveTodayKey);
+    setDailyPlanningPromptSeenToday((current) => (current === nextSeen ? current : nextSeen));
   }, [liveTodayKey]);
 
   useEffect(() => {
     if (!auth.currentUser || !plannedBlocksHydrated || dailyPlanningPromptSeenToday === null) return;
-    setDailyRitualDrafts((current) => syncDailyRitualDrafts(claimedBlocksToday, current));
-    setDailyPlanningStatus("");
+    setDailyRitualDrafts((current) => {
+      const next = syncDailyRitualDrafts(claimedBlocksToday, current);
+      return dailyRitualDraftsMatch(current, next) ? current : next;
+    });
+    setDailyPlanningStatus((current) => (current === "" ? current : ""));
     if (claimedBlocksToday.length < 3 && !dailyPlanningPromptSeenToday) {
       markDailyPlanningPromptSeen(auth.currentUser.uid, liveTodayKey);
       setDailyPlanningPromptSeenToday(true);
@@ -396,10 +404,13 @@ export function usePlannedBlocks({
     }
     const mergedBlocks = mergeBlocksPreferNewest(newestLocalBlocks, filteredRemoteBlocks) as PlannedBlock[];
     const remoteWasStale = !blocksMatch(mergedBlocks, filteredRemoteBlocks);
+    const mergedMatchesCurrent = blocksMatch(mergedBlocks, plannedBlocksRef.current);
 
-    plannedBlocksRef.current = mergedBlocks;
-    setPlannedBlocks(mergedBlocks);
-    setPlannedBlocksHydrated(true);
+    if (!mergedMatchesCurrent) {
+      plannedBlocksRef.current = mergedBlocks;
+      setPlannedBlocks(mergedBlocks);
+    }
+    setPlannedBlocksHydrated((current) => (current ? current : true));
 
     if (!uid) return;
     savePlannedBlocksLocally(uid, mergedBlocks);
@@ -416,7 +427,7 @@ export function usePlannedBlocks({
     plannedBlocksRef.current = [];
     pendingDeletedPlanIdsRef.current.clear();
     setPlannedBlocks([]);
-    setPlannedBlocksHydrated(false);
+    setPlannedBlocksHydrated((current) => (current ? false : current));
     setDailyPlanningOpen(false);
     setDailyPlanningStatus("");
     setDailyPlanningPromptSeenToday(null);
@@ -468,7 +479,7 @@ export function usePlannedBlocks({
     }
     plannedBlocksRef.current = result.blocks as PlannedBlock[];
     setPlannedBlocks(result.blocks as PlannedBlock[]);
-    setPlannedBlocksHydrated(true);
+    setPlannedBlocksHydrated((current) => (current ? current : true));
   }, []);
 
   const handleUserSignedIn = useCallback((uid: string) => {
@@ -478,7 +489,7 @@ export function usePlannedBlocks({
       if (localBlocks.length > 0) {
         plannedBlocksRef.current = localBlocks;
         setPlannedBlocks(localBlocks);
-        setPlannedBlocksHydrated(true);
+        setPlannedBlocksHydrated((current) => (current ? current : true));
       }
     } catch {
       // Keep going; cloud refresh below is authoritative.

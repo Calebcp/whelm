@@ -6,6 +6,21 @@ import { useRive } from "@rive-app/react-canvas";
 import styles from "@/app/page.module.css";
 import { getStreakBandanaTier } from "@/lib/streak-bandanas";
 
+const StreakBandanaAsset = memo(function StreakBandanaAsset({
+  src,
+  className,
+}: {
+  src: string;
+  className: string;
+}) {
+  const { RiveComponent } = useRive({
+    src,
+    autoplay: true,
+  });
+
+  return <RiveComponent className={className} />;
+});
+
 const StreakBandana = memo(function StreakBandana({
   streakDays,
   className,
@@ -14,10 +29,7 @@ const StreakBandana = memo(function StreakBandana({
   className?: string;
 }) {
   const tier = getStreakBandanaTier(streakDays);
-  const { RiveComponent } = useRive({
-    src: tier ? `/streak/${tier.assetFile}` : "/streak/moveband.riv",
-    autoplay: true,
-  });
+  const src = tier ? `/streak/${tier.assetFile}` : "/streak/moveband.riv";
 
   return (
     <div
@@ -25,7 +37,7 @@ const StreakBandana = memo(function StreakBandana({
       aria-hidden="true"
       title={tier?.label}
     >
-      <RiveComponent className={styles.streakBandanaRive} />
+      <StreakBandanaAsset key={src} src={src} className={styles.streakBandanaRive} />
     </div>
   );
 });

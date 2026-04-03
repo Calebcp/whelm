@@ -29,13 +29,27 @@ test("resolveHydratedStreak drops stale streak fallback once all evidence is hyd
   assert.equal(result.isProvisional, false);
 });
 
-test("resolveHydratedStreak promotes fresh non-zero streaks immediately", () => {
+test("resolveHydratedStreak keeps non-zero streaks provisional until evidence settles", () => {
   const result = resolveHydratedStreak({
     computedStreak: 7,
     lastGoodStreak: 3,
     sessionsSynced: false,
     plannedBlocksHydrated: false,
     notesHydrated: false,
+  });
+
+  assert.equal(result.streak, 7);
+  assert.equal(result.nextLastGoodStreak, 7);
+  assert.equal(result.isProvisional, true);
+});
+
+test("resolveHydratedStreak finalizes non-zero streaks once all evidence is hydrated", () => {
+  const result = resolveHydratedStreak({
+    computedStreak: 7,
+    lastGoodStreak: 3,
+    sessionsSynced: true,
+    plannedBlocksHydrated: true,
+    notesHydrated: true,
   });
 
   assert.equal(result.streak, 7);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { getDownloadURL, ref as storageRef, uploadBytes } from "firebase/storage";
 import { doc, setDoc } from "firebase/firestore";
 import type { User } from "firebase/auth";
@@ -52,6 +52,7 @@ export function usePreferences({
   });
   const [proState, setProState] = useState<PreferencesProState>({ isPro: true, source: "preview" });
   const [preferencesHydrated, setPreferencesHydrated] = useState(false);
+  const preferencesSignatureRef = useRef<string | null>(null);
 
   const resolvedTheme: "dark" | "light" =
     themeMode === "system" ? (systemIsDark ? "dark" : "light") : themeMode;
@@ -75,6 +76,14 @@ export function usePreferences({
   }, [resolvedTheme]);
 
   const applyPreferencesSnapshot = useCallback((prefs: PreferencesState) => {
+    const signature = JSON.stringify(prefs);
+    if (preferencesSignatureRef.current === signature) {
+      if (user) {
+        writeLocalPreferences(user.uid, prefs);
+      }
+      return;
+    }
+    preferencesSignatureRef.current = signature;
     setCompanionStyle(prefs.companionStyle);
     setThemeMode(prefs.themeMode);
     setThemePromptOpen(false);

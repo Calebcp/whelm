@@ -26,6 +26,7 @@ test("local streak snapshot round-trips canonical streak data", () => {
   });
 
   saveLocalStreakSnapshot("user-1", {
+    version: 3,
     streak: 11,
     qualifiedDateKeys: ["2026-03-29", "2026-03-30"],
     dailyRecords: [

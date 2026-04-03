@@ -1,6 +1,7 @@
 import type { User } from "firebase/auth";
 
 import { resolveApiUrl } from "@/lib/api-base";
+import { canonicalSessionIdentity } from "@/lib/session-identity";
 import type { SessionDoc } from "@/lib/streak";
 
 const storagePrefix = "whelm:sessions:";
@@ -10,14 +11,7 @@ function storageKey(uid: string) {
 }
 
 export function sessionKey(session: SessionDoc) {
-  return [
-    session.uid,
-    session.completedAtISO,
-    session.minutes,
-    session.category ?? "misc",
-    session.note ?? "",
-    session.noteSavedAtISO ?? "",
-  ].join("|");
+  return canonicalSessionIdentity(session);
 }
 
 function sortSessions(sessions: SessionDoc[]) {
