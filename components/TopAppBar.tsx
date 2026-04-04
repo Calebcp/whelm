@@ -213,14 +213,16 @@ export default function TopAppBar({
             <strong>{profileDisplayName}</strong>
           </span>
         </button>
-        <button
-          type="button"
-          data-tour="nav-more"
-          className={styles.topAppBarAction}
-          onClick={onMoreOpen}
-        >
-          More
-        </button>
+        {!isMobileViewport ? (
+          <button
+            type="button"
+            data-tour="nav-more"
+            className={styles.topAppBarAction}
+            onClick={onMoreOpen}
+          >
+            More
+          </button>
+        ) : null}
       </div>
     </div>
   );
