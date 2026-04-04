@@ -69,21 +69,6 @@ function normalizeTimeLabel(raw: string) {
   return parsed.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
-function nextEnabledAlarmLabel(
-  alarms: TodayTimeHub["state"]["alarms"],
-) {
-  const next = alarms.find((item) => item.enabled) ?? null;
-  if (!next) {
-    return {
-      label: "No alarms",
-      meta: "Add one for a real time anchor.",
-    };
-  }
-  return {
-    label: normalizeTimeLabel(next.timeOfDay),
-    meta: `${next.label || "Alarm"} · ${next.mode === "hard" ? "Hard" : "Soft"}`,
-  };
-}
 
 function formatSenseiLabel(value: string) {
   return value
@@ -207,8 +192,8 @@ export default function TodayTab({
   orderedNotes,
   todayActivePlannedBlocksCount,
   attachableAlarmBlocks,
-  activeAlarmCommitmentLabel,
-  activeAlarmCommitmentMeta,
+  activeAlarmCommitmentLabel: _activeAlarmCommitmentLabel,
+  activeAlarmCommitmentMeta: _activeAlarmCommitmentMeta,
   activeTodayAlarmInstance,
   latestMissedTodayAlarmInstance,
   senseiGuidance,
@@ -236,14 +221,6 @@ export default function TodayTab({
   userEmail,
   timeHub,
 }: TodayTabProps) {
-  const nextBlockLabel = nextPlannedBlock?.title ?? "Create block";
-  const nextBlockMeta = nextPlannedBlock
-    ? `${normalizeTimeLabel(nextPlannedBlock.timeOfDay)} · ${nextPlannedBlock.durationMinutes}m`
-    : "Compose a block here, then let Schedule reflect it.";
-  const nextAlarm = nextEnabledAlarmLabel(timeHub.state.alarms);
-  const alarmLabel = activeAlarmCommitmentLabel || nextAlarm.label;
-  const alarmMeta = activeAlarmCommitmentMeta || nextAlarm.meta;
-  const alarmAction = activeAlarmCommitmentLabel ? "Resolve" : "Open";
 
   return (
     <>
@@ -300,12 +277,6 @@ export default function TodayTab({
       <div ref={todayTimerRef}>
         <TimeHubGrid
           bandanaColor={bandanaColor}
-          timerLabel={`${timeHub.state.timerDraft.minutes} min`}
-          nextBlockLabel={nextBlockLabel}
-          nextBlockMeta={nextBlockMeta}
-          alarmLabel={alarmLabel}
-          alarmMeta={alarmMeta}
-          alarmAction={alarmAction}
           onOpenTimer={() => timeHub.actions.openTool("timer")}
           onOpenBlock={() => timeHub.actions.openTool("block")}
           onOpenAlarm={() => timeHub.actions.openTool("alarm")}

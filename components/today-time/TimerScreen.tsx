@@ -42,55 +42,39 @@ export default function TimerScreen({
   return (
     <div className={`${styles.timeToolFullscreen} ${styles.timerScreenShell}`}>
       <div className={styles.timeToolFullscreenHeader}>
-        <div>
-          <p className={styles.sectionLabel}>Timer</p>
-          <h2 className={styles.feedbackTitle}>Focus timer</h2>
-          <p className={styles.accountMeta}>Choose a duration, then drop into the full timer surface.</p>
-        </div>
+        <p className={styles.sectionLabel}>Timer</p>
         <button type="button" className={styles.feedbackClose} onClick={onClose}>
           Close
         </button>
       </div>
 
-      <div className={styles.timerScreenGrid}>
-        <section className={styles.timeToolPanel}>
-          <div className={styles.timeToolPanelHeader}>
-            <div>
-              <p className={styles.sectionLabel}>Presets</p>
-              <h3 className={styles.timeToolPanelTitle}>Quick durations</h3>
-            </div>
-          </div>
-          <div className={styles.timeToolToolbar}>
-            {[15, 25, 30, 45, 60].map((minutes) => (
-              <button
-                key={minutes}
-                type="button"
-                className={`${styles.timeToolChip} ${draft.minutes === minutes ? styles.timeToolChipActive : ""}`}
-                onClick={() => onChange({ minutes })}
-              >
-                {minutes}m
-              </button>
-            ))}
-          </div>
-        </section>
+      <Timer
+        minutes={draft.minutes}
+        title={draft.label}
+        actionLabel="Save Session"
+        theme={TIMER_THEME}
+        appearance={appearance}
+        autoStartToken={autoStartToken}
+        isPro={isPro}
+        sessionNoteCount={sessionNoteCount}
+        onOpenSessionNotes={onOpenSessionNotes}
+        streakMinimumMinutes={30}
+        onSessionStart={onSessionStart}
+        onSessionAbandon={onSessionAbandon}
+        onComplete={onComplete}
+      />
 
-        <section className={styles.timeToolPanel}>
-          <Timer
-            minutes={draft.minutes}
-            title={draft.label}
-            actionLabel="Save Session"
-            theme={TIMER_THEME}
-            appearance={appearance}
-            autoStartToken={autoStartToken}
-            isPro={isPro}
-            sessionNoteCount={sessionNoteCount}
-            onOpenSessionNotes={onOpenSessionNotes}
-            streakMinimumMinutes={30}
-            onSessionStart={onSessionStart}
-            onSessionAbandon={onSessionAbandon}
-            onComplete={onComplete}
-          />
-        </section>
+      <div className={styles.timerPresetStrip}>
+        {[15, 25, 30, 45, 60].map((minutes) => (
+          <button
+            key={minutes}
+            type="button"
+            className={`${styles.timeToolChip} ${draft.minutes === minutes ? styles.timeToolChipActive : ""}`}
+            onClick={() => onChange({ minutes })}
+          >
+            {minutes}m
+          </button>
+        ))}
       </div>
     </div>
   );

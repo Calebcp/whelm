@@ -27,37 +27,23 @@ const BLOCK_PREVIEW = "/time-hub/block/block-preview.jpg";
 
 type TimeHubGridProps = {
   bandanaColor: WhelBandanaColor;
-  timerLabel: string;
-  nextBlockLabel: string;
-  nextBlockMeta: string;
-  alarmLabel: string;
-  alarmMeta: string;
-  alarmAction?: string;
   onOpenTimer: () => void;
   onOpenBlock: () => void;
   onOpenAlarm: () => void;
 };
 
 type ToolCardProps = {
-  eyebrow: string;
-  title: string;
-  meta: string;
-  action: string;
+  label: string;
   imageSrc: string;
   imageAlt: string;
   imageClassName?: string;
   onClick: () => void;
 };
 
-function ToolCard({ eyebrow, title, meta, action, imageSrc, imageAlt, imageClassName, onClick }: ToolCardProps) {
+function ToolCard({ label, imageSrc, imageAlt, imageClassName, onClick }: ToolCardProps) {
   return (
     <button type="button" className={styles.timeToolCard} onClick={onClick}>
-      <div className={styles.timeToolCardCopy}>
-        <span className={styles.timeToolEyebrow}>{eyebrow}</span>
-        <strong className={styles.timeToolTitle}>{title}</strong>
-        <span className={styles.timeToolMeta}>{meta}</span>
-        <span className={styles.timeToolAction}>{action}</span>
-      </div>
+      <strong className={styles.timeToolName}>{label}</strong>
       <div className={styles.timeToolPreviewWrap} aria-hidden="true">
         <img
           src={imageSrc}
@@ -72,50 +58,28 @@ function ToolCard({ eyebrow, title, meta, action, imageSrc, imageAlt, imageClass
 
 export default function TimeHubGrid({
   bandanaColor,
-  timerLabel,
-  nextBlockLabel,
-  nextBlockMeta,
-  alarmLabel,
-  alarmMeta,
-  alarmAction = "Open",
   onOpenTimer,
   onOpenBlock,
   onOpenAlarm,
 }: TimeHubGridProps) {
   return (
     <section className={styles.timeHubSection}>
-      <div className={styles.timeHubHeader}>
-        <div>
-          <p className={styles.sectionLabel}>Today</p>
-          <h2 className={styles.cardTitle}>Time hub</h2>
-        </div>
-        <p className={styles.accountMeta}>Clock tools live here. Schedule only reflects the saved blocks.</p>
-      </div>
       <div className={styles.timeHubGrid}>
         <ToolCard
-          eyebrow="Timer"
-          title={timerLabel}
-          meta="Open full-screen timer"
-          action="Open"
+          label="Timer"
           imageSrc={TIMER_PREVIEW_BY_COLOR[bandanaColor]}
           imageAlt=""
           onClick={onOpenTimer}
         />
         <ToolCard
-          eyebrow="Block"
-          title={nextBlockLabel}
-          meta={nextBlockMeta}
-          action="Compose"
+          label="Block"
           imageSrc={BLOCK_PREVIEW}
           imageAlt=""
           imageClassName={styles.timeToolPreviewBlock}
           onClick={onOpenBlock}
         />
         <ToolCard
-          eyebrow="Alarm"
-          title={alarmLabel}
-          meta={alarmMeta}
-          action={alarmAction}
+          label="Alarm"
           imageSrc={ALARM_PREVIEW_BY_COLOR[bandanaColor]}
           imageAlt=""
           imageClassName={styles.timeToolPreviewAlarm}

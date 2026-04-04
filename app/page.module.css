@@ -8104,6 +8104,50 @@ body[data-theme="light"] {
   max-height: 104px;
 }
 
+/* Simplified outer card label */
+.timeToolName {
+  font-size: clamp(1.5rem, 4.5vw, 2rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+/* Timer: flat preset chip strip (no panel border) */
+.timerPresetStrip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* Block: flat form container */
+.blockForm {
+  display: grid;
+  gap: 14px;
+}
+
+/* Block: compact scheduling row */
+.blockWhenRow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+/* Alarm: vertical stack (form first on mobile, desktop uses order) */
+.alarmScreenStack {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 0.85fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.alarmFormPanel {
+  order: 2;
+}
+
+.alarmListPanel {
+  order: 1;
+}
+
 .timeToolFullscreenShell {
   position: fixed;
   inset: 0;
@@ -8527,6 +8571,23 @@ body[data-theme="light"] {
   .timerScreenGrid,
   .blockScreenGrid,
   .alarmScreenGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .alarmScreenStack {
+    grid-template-columns: 1fr;
+  }
+
+  /* Form first on mobile */
+  .alarmFormPanel {
+    order: 1;
+  }
+
+  .alarmListPanel {
+    order: 2;
+  }
+
+  .blockWhenRow {
     grid-template-columns: 1fr;
   }
 

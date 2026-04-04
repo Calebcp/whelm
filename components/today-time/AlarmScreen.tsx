@@ -52,25 +52,102 @@ export default function AlarmScreen({
   return (
     <div className={`${styles.timeToolFullscreen} ${styles.alarmScreenShell}`}>
       <div className={styles.timeToolFullscreenHeader}>
-        <div>
-          <p className={styles.sectionLabel}>Alarm</p>
-          <h2 className={styles.feedbackTitle}>Whelm alarms</h2>
-          <p className={styles.accountMeta}>Simple rows, fast toggles, full-screen edit flow.</p>
-        </div>
+        <p className={styles.sectionLabel}>Alarm</p>
         <button type="button" className={styles.feedbackClose} onClick={onClose}>
           Close
         </button>
       </div>
 
-      <div className={styles.alarmScreenGrid}>
-        <section className={`${styles.timeToolPanel} ${styles.alarmPanel}`}>
+      <div className={styles.alarmScreenStack}>
+        {/* Form first on mobile; swapped to right column on desktop via CSS order */}
+        <section className={`${styles.timeToolPanel} ${styles.alarmPanel} ${styles.alarmFormPanel}`}>
           <div className={styles.alarmPanelHeader}>
             <div>
-              <p className={styles.sectionLabel}>Saved alarms</p>
-              <h3 className={styles.alarmPanelTitle}>Next time anchors</h3>
+              <p className={styles.sectionLabel}>{draft.id ? "Edit alarm" : "New alarm"}</p>
             </div>
+          </div>
+
+          <div className={styles.timeToolForm}>
+            <label className={styles.planLabel}>
+              Time
+              <input
+                type="time"
+                value={draft.timeOfDay}
+                onChange={(event) => onChange({ timeOfDay: event.target.value })}
+                className={styles.planControl}
+              />
+            </label>
+            <input
+              value={draft.label}
+              onChange={(event) => onChange({ label: event.target.value })}
+              placeholder="Label"
+              className={styles.planInput}
+            />
+            <div className={styles.alarmModeRow}>
+              <button
+                type="button"
+                className={`${styles.alarmModeChip} ${draft.mode === "soft" ? styles.alarmModeChipActive : ""}`}
+                onClick={() => onChange({ mode: "soft" })}
+              >
+                <strong>Soft</strong>
+                <span>Gentle reminder</span>
+              </button>
+              <button
+                type="button"
+                className={`${styles.alarmModeChip} ${draft.mode === "hard" ? styles.alarmModeChipActive : ""}`}
+                onClick={() => onChange({ mode: "hard" })}
+              >
+                <strong>Hard</strong>
+                <span>Commitment signal</span>
+              </button>
+            </div>
+            {attachableBlocks.length > 0 && (
+              <div className={styles.alarmAttachSection}>
+                <p className={styles.sectionLabel}>Attach to block</p>
+                <div className={styles.alarmAttachList}>
+                  {attachableBlocks.slice(0, 4).map((block) => {
+                    const attached = draft.linkedBlockId === block.id;
+                    return (
+                      <button
+                        key={block.id}
+                        type="button"
+                        className={`${styles.alarmAttachChip} ${attached ? styles.alarmAttachChipActive : ""}`}
+                        onClick={() =>
+                          onChange({
+                            linkedBlockId: block.id,
+                            linkedBlockTitle: block.title,
+                            linkedDateKey: block.dateKey,
+                            linkedBlockDurationMinutes: block.durationMinutes,
+                            timeOfDay: block.timeOfDay,
+                            label: draft.label.trim() ? draft.label : block.title,
+                          })
+                        }
+                      >
+                        <strong>{block.title}</strong>
+                        <span>{normalizeTimeLabel(block.timeOfDay)}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            <div className={styles.timeToolFooter}>
+              <button type="button" className={styles.secondaryPlanButton} onClick={onStartNew}>
+                Reset
+              </button>
+              <button type="button" className={`${styles.planAddButton} ${styles.blockActionButton}`} onClick={onSave}>
+                {draft.id ? "Save alarm" : "Add alarm"}
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {/* Saved alarms — second on mobile, left column on desktop */}
+        <section className={`${styles.timeToolPanel} ${styles.alarmPanel} ${styles.alarmListPanel}`}>
+          <div className={styles.alarmPanelHeader}>
+            <p className={styles.sectionLabel}>Saved alarms</p>
             <button type="button" className={styles.secondaryPlanButton} onClick={onStartNew}>
-              New alarm
+              New
             </button>
           </div>
 
@@ -110,7 +187,7 @@ export default function AlarmScreen({
 
           <div className={styles.alarmList}>
             {alarms.length === 0 ? (
-              <p className={styles.emptyText}>No alarms yet. Add one from Today.</p>
+              <p className={styles.emptyText}>No alarms yet.</p>
             ) : (
               alarms.map((alarm) => (
                 <article key={alarm.id} className={styles.alarmRow}>
@@ -136,98 +213,6 @@ export default function AlarmScreen({
                 </article>
               ))
             )}
-          </div>
-        </section>
-
-        <section className={`${styles.timeToolPanel} ${styles.alarmPanel}`}>
-          <div className={styles.alarmPanelHeader}>
-            <div>
-              <p className={styles.sectionLabel}>{draft.id ? "Edit alarm" : "New alarm"}</p>
-              <h3 className={styles.alarmPanelTitle}>
-                {draft.id ? "Adjust this alarm" : "Create a new alarm"}
-              </h3>
-            </div>
-          </div>
-
-          <div className={styles.timeToolForm}>
-            <label className={styles.planLabel}>
-              Time
-              <input
-                type="time"
-                value={draft.timeOfDay}
-                onChange={(event) => onChange({ timeOfDay: event.target.value })}
-                className={styles.planControl}
-              />
-            </label>
-            <input
-              value={draft.label}
-              onChange={(event) => onChange({ label: event.target.value })}
-              placeholder="Label"
-              className={styles.planInput}
-            />
-            <div className={styles.alarmModeRow}>
-              <button
-                type="button"
-                className={`${styles.alarmModeChip} ${draft.mode === "soft" ? styles.alarmModeChipActive : ""}`}
-                onClick={() => onChange({ mode: "soft" })}
-              >
-                <strong>Soft</strong>
-                <span>Gentle reminder</span>
-              </button>
-              <button
-                type="button"
-                className={`${styles.alarmModeChip} ${draft.mode === "hard" ? styles.alarmModeChipActive : ""}`}
-                onClick={() => onChange({ mode: "hard" })}
-              >
-                <strong>Hard</strong>
-                <span>Commitment signal</span>
-              </button>
-            </div>
-            <div className={styles.alarmAttachSection}>
-              <div>
-                <p className={styles.sectionLabel}>Attach to block</p>
-                <p className={styles.accountMeta}>
-                  Pick an upcoming block to copy its time and carry its context into the alarm.
-                </p>
-              </div>
-              <div className={styles.alarmAttachList}>
-                {attachableBlocks.length === 0 ? (
-                  <p className={styles.emptyText}>No upcoming blocks to attach yet.</p>
-                ) : (
-                  attachableBlocks.slice(0, 4).map((block) => {
-                    const attached = draft.linkedBlockId === block.id;
-                    return (
-                      <button
-                        key={block.id}
-                        type="button"
-                        className={`${styles.alarmAttachChip} ${attached ? styles.alarmAttachChipActive : ""}`}
-                        onClick={() =>
-                          onChange({
-                            linkedBlockId: block.id,
-                            linkedBlockTitle: block.title,
-                            linkedDateKey: block.dateKey,
-                            linkedBlockDurationMinutes: block.durationMinutes,
-                            timeOfDay: block.timeOfDay,
-                            label: draft.label.trim() ? draft.label : block.title,
-                          })
-                        }
-                      >
-                        <strong>{block.title}</strong>
-                        <span>{normalizeTimeLabel(block.timeOfDay)}</span>
-                      </button>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-            <div className={styles.timeToolFooter}>
-              <button type="button" className={styles.secondaryPlanButton} onClick={onStartNew}>
-                Reset
-              </button>
-              <button type="button" className={`${styles.planAddButton} ${styles.blockActionButton}`} onClick={onSave}>
-                {draft.id ? "Save alarm" : "Add alarm"}
-              </button>
-            </div>
           </div>
         </section>
       </div>
