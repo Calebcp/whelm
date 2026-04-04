@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import styles from "@/app/page.module.css";
 
 export type AppTab =
@@ -192,55 +194,62 @@ export default function BottomNav({
   onTabSelect,
   onMoreOpen,
 }: BottomNavProps) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
+  const fab = !suppressMoreFab ? (
+    <button
+      type="button"
+      data-tour="nav-more"
+      className={`${styles.mobileMoreFab} ${mobileMoreActive || mobileMoreOpen ? styles.mobileMoreFabActive : ""}`}
+      onClick={onMoreOpen}
+    >
+      <span className={styles.mobileMoreFabIcon}>
+        <WhelmNavIcon icon="more" />
+      </span>
+      <span>More</span>
+    </button>
+  ) : null;
+
   return (
-    <nav className={styles.bottomTabs}>
-      {MOBILE_PRIMARY_TABS.map((tab) => (
-        <button
-          key={tab.key}
-          type="button"
-          data-tour={
-            tab.key === "calendar"
-              ? "nav-schedule"
-              : tab.key === "today"
-                ? "nav-today"
-                : tab.key === "notes"
-                  ? "nav-notes"
-                  : tab.key === "leaderboard"
-                    ? "nav-whelmboard"
-                    : undefined
-          }
-          className={`${styles.bottomTabButton} ${
-            tab.key === "leaderboard" ? styles.bottomTabButtonLeaderboard : ""
-          } ${activeTab === tab.key ? styles.bottomTabButtonActive : ""}`}
-          onClick={() => onTabSelect(tab.key)}
-        >
-          <span
-            className={`${styles.bottomTabIcon} ${
-              tab.key === "leaderboard" ? styles.bottomTabIconLeaderboard : ""
-            }`}
+    <>
+      <nav className={styles.bottomTabs}>
+        {MOBILE_PRIMARY_TABS.map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            data-tour={
+              tab.key === "calendar"
+                ? "nav-schedule"
+                : tab.key === "today"
+                  ? "nav-today"
+                  : tab.key === "notes"
+                    ? "nav-notes"
+                    : tab.key === "leaderboard"
+                      ? "nav-whelmboard"
+                      : undefined
+            }
+            className={`${styles.bottomTabButton} ${
+              tab.key === "leaderboard" ? styles.bottomTabButtonLeaderboard : ""
+            } ${activeTab === tab.key ? styles.bottomTabButtonActive : ""}`}
+            onClick={() => onTabSelect(tab.key)}
           >
-            <WhelmNavIcon icon={tab.key} />
-          </span>
-          <span
-            className={tab.key === "leaderboard" ? styles.bottomTabLabelLeaderboard : undefined}
-          >
-            {tab.label}
-          </span>
-        </button>
-      ))}
-      {!suppressMoreFab ? (
-        <button
-          type="button"
-          data-tour="nav-more"
-          className={`${styles.mobileMoreFab} ${mobileMoreActive || mobileMoreOpen ? styles.mobileMoreFabActive : ""}`}
-          onClick={onMoreOpen}
-        >
-          <span className={styles.mobileMoreFabIcon}>
-            <WhelmNavIcon icon="more" />
-          </span>
-          <span>More</span>
-        </button>
-      ) : null}
-    </nav>
+            <span
+              className={`${styles.bottomTabIcon} ${
+                tab.key === "leaderboard" ? styles.bottomTabIconLeaderboard : ""
+              }`}
+            >
+              <WhelmNavIcon icon={tab.key} />
+            </span>
+            <span
+              className={tab.key === "leaderboard" ? styles.bottomTabLabelLeaderboard : undefined}
+            >
+              {tab.label}
+            </span>
+          </button>
+        ))}
+      </nav>
+      {mounted ? createPortal(fab, document.body) : null}
+    </>
   );
 }

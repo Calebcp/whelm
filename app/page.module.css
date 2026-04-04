@@ -4985,7 +4985,6 @@ body[data-theme="light"] {
   right: 10px;
   bottom: 10px;
   z-index: 24;
-  overflow: visible;
   border: 1px solid var(--wh-nav-border);
   border-radius: 24px;
   background: var(--wh-nav-bg);
@@ -4998,9 +4997,9 @@ body[data-theme="light"] {
 }
 
 .mobileMoreFab {
-  position: absolute;
-  right: 0;
-  bottom: calc(100% + 8px);
+  position: fixed;
+  right: 12px;
+  bottom: 104px;
   z-index: 25;
   border: 1px solid rgba(123, 138, 184, 0.22);
   border-radius: 999px;
@@ -9350,8 +9349,8 @@ body[data-theme="light"] {
   }
 
   .mobileMoreFab {
-    right: 0;
-    bottom: calc(100% + 6px);
+    right: 12px;
+    bottom: 146px;
     padding: 8px 10px;
     gap: 6px;
     font-size: 0.68rem;
