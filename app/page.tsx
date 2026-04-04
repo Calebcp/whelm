@@ -4303,13 +4303,7 @@ export default function HomePage() {
         activeTab={activeTab}
         mobileMoreActive={mobileMoreActive}
         mobileMoreOpen={mobileMoreOpen}
-        suppressMoreFab={Boolean(
-          sessionReward ||
-          streakCelebration ||
-          streakNudge ||
-          sickDaySavePromptOpen ||
-          streakSaveQuestionnaireOpen,
-        )}
+        suppressMoreFab={false}
         onTabSelect={handleMobileTabSelect}
         onMoreOpen={() => setMobileMoreOpen(true)}
       />
