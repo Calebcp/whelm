@@ -1,6 +1,8 @@
 "use client";
 
-import { memo, useMemo, type ChangeEvent, type Ref, type RefObject } from "react";
+import * as Slider from "@radix-ui/react-slider";
+import * as Switch from "@radix-ui/react-switch";
+import { memo, useId, useMemo, type ChangeEvent, type Ref, type RefObject } from "react";
 
 import sharedStyles from "@/app/page.module.css";
 import AnimatedTabSection from "@/components/AnimatedTabSection";
@@ -119,21 +121,73 @@ function SettingsToggleRow({
   disabled?: boolean;
   onClick: () => void;
 }) {
+  const switchId = useId();
+
   return (
-    <button
-      type="button"
+    <label
+      htmlFor={switchId}
       className={`${styles.settingsToggleRow} ${active ? styles.settingsToggleRowActive : ""}`}
-      onClick={onClick}
-      disabled={disabled}
+      data-disabled={disabled ? "true" : undefined}
     >
       <div className={styles.settingsIndexCopy}>
         <strong>{title}</strong>
         {summary ? <span>{summary}</span> : null}
       </div>
-      <span className={`${styles.settingsToggle} ${active ? styles.settingsToggleOn : ""}`}>
-        <span />
-      </span>
-    </button>
+      <Switch.Root
+        id={switchId}
+        checked={active}
+        disabled={disabled}
+        className={styles.settingsToggle}
+        onCheckedChange={onClick}
+        aria-label={title}
+      >
+        <Switch.Thumb className={styles.settingsToggleThumb} />
+      </Switch.Root>
+    </label>
+  );
+}
+
+function SettingsSliderRow({
+  title,
+  valueLabel,
+  value,
+  min,
+  max,
+  step = 1,
+  onValueChange,
+}: {
+  title: string;
+  valueLabel: string;
+  value: number;
+  min: number;
+  max: number;
+  step?: number;
+  onValueChange: (value: number) => void;
+}) {
+  return (
+    <label className={styles.backgroundSkinControl}>
+      <span>{title}</span>
+      <strong>{valueLabel}</strong>
+      <Slider.Root
+        className={styles.settingsSlider}
+        min={min}
+        max={max}
+        step={step}
+        value={[value]}
+        onValueChange={(next) => {
+          const first = next[0];
+          if (typeof first === "number") {
+            onValueChange(first);
+          }
+        }}
+        aria-label={title}
+      >
+        <Slider.Track className={styles.settingsSliderTrack}>
+          <Slider.Range className={styles.settingsSliderRange} />
+        </Slider.Track>
+        <Slider.Thumb className={styles.settingsSliderThumb} />
+      </Slider.Root>
+    </label>
   );
 }
 
@@ -1156,33 +1210,30 @@ export default function SettingsTab({
                           ))}
                         </div>
                       ) : null}
-                      <label className={styles.backgroundSkinControl}>
-                        <span>Background prominence</span>
-                        <strong>{Math.round((1 - backgroundSkin.dim) * 100)}%</strong>
-                        <input
-                          type="range" min="2" max="96" step="1"
-                          value={Math.round(backgroundSkin.dim * 100)}
-                          onChange={(e) => onUpdateBackgroundSkin({ ...backgroundSkin, dim: Number(e.target.value) / 100 })}
-                        />
-                      </label>
-                      <label className={styles.backgroundSkinControl}>
-                        <span>App surface opacity</span>
-                        <strong>{Math.round(backgroundSkin.surfaceOpacity * 100)}%</strong>
-                        <input
-                          type="range" min="8" max="98" step="1"
-                          value={Math.round(backgroundSkin.surfaceOpacity * 100)}
-                          onChange={(e) => onUpdateBackgroundSkin({ ...backgroundSkin, surfaceOpacity: Number(e.target.value) / 100 })}
-                        />
-                      </label>
-                      <label className={styles.backgroundSkinControl}>
-                        <span>Glass blur</span>
-                        <strong>{backgroundSkin.blur}px</strong>
-                        <input
-                          type="range" min="0" max="40" step="1"
-                          value={backgroundSkin.blur}
-                          onChange={(e) => onUpdateBackgroundSkin({ ...backgroundSkin, blur: Number(e.target.value) })}
-                        />
-                      </label>
+                      <SettingsSliderRow
+                        title="Background prominence"
+                        valueLabel={`${Math.round((1 - backgroundSkin.dim) * 100)}%`}
+                        value={Math.round(backgroundSkin.dim * 100)}
+                        min={2}
+                        max={96}
+                        onValueChange={(next) => onUpdateBackgroundSkin({ ...backgroundSkin, dim: next / 100 })}
+                      />
+                      <SettingsSliderRow
+                        title="App surface opacity"
+                        valueLabel={`${Math.round(backgroundSkin.surfaceOpacity * 100)}%`}
+                        value={Math.round(backgroundSkin.surfaceOpacity * 100)}
+                        min={8}
+                        max={98}
+                        onValueChange={(next) => onUpdateBackgroundSkin({ ...backgroundSkin, surfaceOpacity: next / 100 })}
+                      />
+                      <SettingsSliderRow
+                        title="Glass blur"
+                        valueLabel={`${backgroundSkin.blur}px`}
+                        value={backgroundSkin.blur}
+                        min={0}
+                        max={40}
+                        onValueChange={(next) => onUpdateBackgroundSkin({ ...backgroundSkin, blur: next })}
+                      />
                     </div>
                   ) : null}
                 </div>

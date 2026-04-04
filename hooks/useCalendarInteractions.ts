@@ -32,15 +32,6 @@ type UseCalendarInteractionsOptions<
   setPendingCalendarEntryFocusId: Dispatch<SetStateAction<string | null>>;
   setActivatedCalendarEntryId: Dispatch<SetStateAction<string | null>>;
   setCalendarJumpDate: Dispatch<SetStateAction<string>>;
-  setPlanConflictWarning: Dispatch<SetStateAction<{
-    conflictIds: string[];
-    message: string;
-  } | null>>;
-  planDuration: number;
-  planTime: string;
-  planTitle: string;
-  planNote: string;
-  openCalendarBlockComposer: () => void;
   persistDayTones: (uid: string, tones: Record<string, CalendarTone>) => void;
   persistMonthTones: (uid: string, tones: Record<string, CalendarTone>) => void;
 };
@@ -72,12 +63,6 @@ export function useCalendarInteractions<
   setPendingCalendarEntryFocusId,
   setActivatedCalendarEntryId,
   setCalendarJumpDate,
-  setPlanConflictWarning,
-  planDuration,
-  planTime,
-  planTitle,
-  planNote,
-  openCalendarBlockComposer,
   persistDayTones,
   persistMonthTones,
 }: UseCalendarInteractionsOptions<TCalendarEntry, TDayViewItem>) {
@@ -140,14 +125,13 @@ export function useCalendarInteractions<
   }, [calendarPinnedEntryId, clearCalendarHoverPreviewDelay, isMobileViewport, setCalendarHoverEntryId]);
 
   const jumpToCalendarSection = useCallback((sectionId: string) => {
-    if (sectionId === "calendar-planner" && calendarView === "day") {
-      openCalendarBlockComposer();
+    if (sectionId === "calendar-planner") {
       sectionId = "calendar-day-chamber";
     }
     const target = document.getElementById(sectionId);
     if (!target) return;
     target.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [calendarView, openCalendarBlockComposer]);
+  }, []);
 
   const openPlannedBlockDetail = useCallback((blockId: string) => {
     setSelectedPlanDetailId(blockId);
@@ -193,10 +177,6 @@ export function useCalendarInteractions<
   useEffect(() => {
     setCalendarJumpDate(selectedDateKey);
   }, [selectedDateKey, setCalendarJumpDate]);
-
-  useEffect(() => {
-    setPlanConflictWarning(null);
-  }, [planDuration, planNote, planTime, planTitle, selectedDateKey, setPlanConflictWarning]);
 
   useEffect(() => {
     if (calendarPinnedEntryId && !calendarEntryById.has(calendarPinnedEntryId)) {

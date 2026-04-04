@@ -91,7 +91,7 @@
   color: #9aa8c7;
 }
 
-.card[data-appearance="dark"] .modeTabActive {
+.card[data-appearance="dark"] .modeTab[data-state="active"] {
   background: linear-gradient(180deg, rgba(50, 60, 103, 0.96), rgba(38, 47, 81, 0.94));
   color: #f2f6ff;
   box-shadow: 0 8px 18px rgba(3, 6, 18, 0.18);
@@ -188,10 +188,17 @@
   font-size: 0.8rem;
 }
 
-.modeTabActive {
+.modeTab[data-state="active"] {
   background: linear-gradient(180deg, #ffffff, rgba(239, 246, 255, 0.96));
   color: var(--timer-accent-strong);
   box-shadow: 0 8px 18px rgba(16, 32, 51, 0.08);
+}
+
+.modeTab:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px rgba(13, 18, 33, 0.86),
+    0 0 0 4px color-mix(in srgb, var(--timer-accent) 36%, transparent);
 }
 
 .settingsMenuButton {
@@ -271,9 +278,6 @@
 }
 
 .faceSettingsMenu {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
   width: min(236px, calc(100vw - 56px));
   border-radius: 20px;
   border: 1px solid rgba(210, 225, 255, 0.14);
@@ -374,9 +378,6 @@
 }
 
 .faceDockMenu {
-  position: absolute;
-  right: 0;
-  bottom: calc(100% + 8px);
   width: min(180px, 48vw);
   border: 1px solid rgba(15, 23, 42, 0.1);
   border-radius: 16px;

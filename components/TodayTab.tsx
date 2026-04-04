@@ -3,26 +3,21 @@
 import { type Ref } from "react";
 
 import styles from "@/app/page.module.css";
-import Timer, { type TimerSessionContext } from "@/components/Timer";
+import AlarmScreen from "@/components/today-time/AlarmScreen";
+import BlockComposerScreen from "@/components/today-time/BlockComposerScreen";
+import TimeHubGrid from "@/components/today-time/TimeHubGrid";
+import TimerScreen from "@/components/today-time/TimerScreen";
+import { type TimerSessionContext } from "@/components/Timer";
 import SenseiFigure, { type SenseiVariant } from "@/components/SenseiFigure";
 import WhelmRitualScene from "@/components/WhelmRitualScene";
+import type { TodayTimeHub } from "@/hooks/useTodayTimeHub";
+import type { TodayAlarmInstance } from "@/lib/today-alarm-instances";
 import { type WhelBandanaColor } from "@/lib/whelm-mascot";
 import type { WorkspaceNote } from "@/lib/notes-store";
 import type { SessionDoc } from "@/lib/streak";
 import { WHELM_PRO_NAME, WHELM_STANDARD_NAME } from "@/lib/whelm-plans";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-
-const FOCUS_TIMER = {
-  title: "Multipurpose focus timer",
-  actionLabel: "Save Session",
-  theme: {
-    accent: "#145da0",
-    accentSoft: "#e7f1fc",
-    accentStrong: "#0d3b66",
-    ring: "rgba(108, 92, 231, 0.16)",
-  },
-};
 
 const WHELM_PRO_POSITIONING =
   "Whelm Pro unlocks unlimited history, full customization, and the deeper Whelm command layer.";
@@ -31,6 +26,7 @@ const WHELM_PRO_POSITIONING =
 
 type PlannedBlock = {
   id: string;
+  dateKey: string;
   title: string;
   timeOfDay: string;
   durationMinutes: number;
@@ -71,6 +67,22 @@ function normalizeTimeLabel(raw: string) {
   const parsed = new Date(`2000-01-01T${raw}:00`);
   if (Number.isNaN(parsed.getTime())) return raw;
   return parsed.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+}
+
+function nextEnabledAlarmLabel(
+  alarms: TodayTimeHub["state"]["alarms"],
+) {
+  const next = alarms.find((item) => item.enabled) ?? null;
+  if (!next) {
+    return {
+      label: "No alarms",
+      meta: "Add one for a real time anchor.",
+    };
+  }
+  return {
+    label: normalizeTimeLabel(next.timeOfDay),
+    meta: `${next.label || "Alarm"} · ${next.mode === "hard" ? "Hard" : "Soft"}`,
+  };
 }
 
 function formatSenseiLabel(value: string) {
@@ -120,6 +132,7 @@ export type TodayTabProps = {
   isMobileViewport: boolean;
   isPro: boolean;
   resolvedTheme: "dark" | "light";
+  liveTodayKey: string;
   // Timer
   todaySessionNoteCount: number;
   // Summary/metrics
@@ -133,6 +146,11 @@ export type TodayTabProps = {
   latestNote: WorkspaceNote | null;
   orderedNotes: WorkspaceNote[];
   todayActivePlannedBlocksCount: number;
+  attachableAlarmBlocks: PlannedBlock[];
+  activeAlarmCommitmentLabel?: string | null;
+  activeAlarmCommitmentMeta?: string | null;
+  activeTodayAlarmInstance?: TodayAlarmInstance | null;
+  latestMissedTodayAlarmInstance?: TodayAlarmInstance | null;
   // Sensei / companion
   senseiGuidance: SenseiGuidance;
   todayHeroCopy: TodayHeroCopy;
@@ -154,8 +172,20 @@ export type TodayTabProps = {
   onCreateWorkspaceNote: () => void;
   onCopyWeeklyReport: () => void;
   onUpgrade: () => void;
+  onSnoozeActiveAlarm: () => void;
+  onClearMissedAlarm: () => void;
+  onSavePlannedBlock: (input: {
+    id?: string;
+    dateKey: string;
+    title: string;
+    note?: string;
+    timeOfDay: string;
+    durationMinutes: number;
+  }) => boolean;
+  onOpenScheduleDay: (dateKey: string) => void;
   // Computed label
   senseiActionTabTitle: string;
+  timeHub: TodayTimeHub;
 };
 
 export default function TodayTab({
@@ -176,6 +206,11 @@ export default function TodayTab({
   latestNote,
   orderedNotes,
   todayActivePlannedBlocksCount,
+  attachableAlarmBlocks,
+  activeAlarmCommitmentLabel,
+  activeAlarmCommitmentMeta,
+  activeTodayAlarmInstance,
+  latestMissedTodayAlarmInstance,
   senseiGuidance,
   todayHeroCopy,
   companionStageLabel,
@@ -193,33 +228,90 @@ export default function TodayTab({
   onCreateWorkspaceNote,
   onCopyWeeklyReport,
   onUpgrade,
+  onSnoozeActiveAlarm,
+  onClearMissedAlarm,
+  onSavePlannedBlock: _onSavePlannedBlock,
+  onOpenScheduleDay: _onOpenScheduleDay,
   senseiActionTabTitle,
   userEmail,
+  timeHub,
 }: TodayTabProps) {
+  const nextBlockLabel = nextPlannedBlock?.title ?? "Create block";
+  const nextBlockMeta = nextPlannedBlock
+    ? `${normalizeTimeLabel(nextPlannedBlock.timeOfDay)} · ${nextPlannedBlock.durationMinutes}m`
+    : "Compose a block here, then let Schedule reflect it.";
+  const nextAlarm = nextEnabledAlarmLabel(timeHub.state.alarms);
+  const alarmLabel = activeAlarmCommitmentLabel || nextAlarm.label;
+  const alarmMeta = activeAlarmCommitmentMeta || nextAlarm.meta;
+  const alarmAction = activeAlarmCommitmentLabel ? "Resolve" : "Open";
+
   return (
     <>
-      {isMobileViewport && <section className={styles.mobileTodayStack} ref={todaySectionRef}>
-        <div className={styles.mobileTimerWrap} ref={todayTimerRef}>
-          <Timer
-            minutes={30}
-            title="Focus timer"
-            actionLabel={FOCUS_TIMER.actionLabel}
-            theme={FOCUS_TIMER.theme}
-            appearance={resolvedTheme}
-            isPro={isPro}
-            sessionNoteCount={todaySessionNoteCount}
-            onOpenSessionNotes={onOpenSessionNotes}
-            streakMinimumMinutes={30}
-            showHeaderCopy={false}
-            showStreakHint={false}
-            onSessionStart={onSessionStart}
-            onSessionAbandon={onSessionAbandon}
-            onComplete={(note, minutesSpent, sessionContext) =>
-              onSessionComplete(note, minutesSpent, sessionContext)
-            }
-          />
-        </div>
+      {timeHub.state.isFullscreen ? (
+        <section className={styles.timeToolFullscreenShell}>
+          {timeHub.state.activeTool === "timer" ? (
+            <TimerScreen
+              draft={timeHub.state.timerDraft}
+              autoStartToken={timeHub.state.timerAutoStartToken}
+              appearance={resolvedTheme}
+              isPro={isPro}
+              sessionNoteCount={todaySessionNoteCount}
+              onClose={timeHub.actions.closeTool}
+              onChange={timeHub.actions.setTimerDraft}
+              onOpenSessionNotes={onOpenSessionNotes}
+              onSessionStart={onSessionStart}
+              onSessionAbandon={onSessionAbandon}
+              onComplete={onSessionComplete}
+            />
+          ) : timeHub.state.activeTool === "block" ? (
+            <BlockComposerScreen
+              draft={timeHub.state.blockDraft}
+              onChange={timeHub.actions.setBlockDraft}
+              onClose={timeHub.actions.closeTool}
+              onSave={timeHub.actions.saveBlock}
+            />
+          ) : (
+            <AlarmScreen
+              alarms={timeHub.state.alarms}
+              draft={timeHub.state.alarmDraft}
+              attachableBlocks={attachableAlarmBlocks.map((item) => ({
+                id: item.id,
+                title: item.title,
+                dateKey: item.dateKey,
+                timeOfDay: item.timeOfDay,
+                durationMinutes: item.durationMinutes,
+              }))}
+              activeInstance={activeTodayAlarmInstance}
+              latestMissedInstance={latestMissedTodayAlarmInstance}
+              onClose={timeHub.actions.closeTool}
+              onStartNew={timeHub.actions.startNewAlarm}
+              onChange={timeHub.actions.setAlarmDraft}
+              onEdit={timeHub.actions.editAlarm}
+              onSave={timeHub.actions.saveAlarm}
+              onDelete={timeHub.actions.deleteAlarm}
+              onToggle={timeHub.actions.toggleAlarm}
+              onSnoozeActive={onSnoozeActiveAlarm}
+              onClearMissed={onClearMissedAlarm}
+            />
+          )}
+        </section>
+      ) : null}
 
+      <div ref={todayTimerRef}>
+        <TimeHubGrid
+          timerLabel={`${timeHub.state.timerDraft.minutes} min`}
+          nextBlockLabel={nextBlockLabel}
+          nextBlockMeta={nextBlockMeta}
+          alarmLabel={alarmLabel}
+          alarmMeta={alarmMeta}
+          alarmAction={alarmAction}
+          onOpenTimer={() => timeHub.actions.openTool("timer")}
+          onOpenBlock={() => timeHub.actions.openTool("block")}
+          onOpenAlarm={() => timeHub.actions.openTool("alarm")}
+        />
+      </div>
+
+      {isMobileViewport && <section className={styles.mobileTodayStack} ref={todaySectionRef}>
         <article className={styles.mobileSummaryCard} ref={todaySummaryRef}>
           <button
             type="button"
@@ -313,7 +405,7 @@ export default function TodayTab({
             <small>
               {nextPlannedBlock
                 ? `${normalizeTimeLabel(nextPlannedBlock.timeOfDay)} · ${nextPlannedBlock.durationMinutes}m`
-                : "Use Schedule to place the next move before drift opens up."}
+                : "Use the Today time hub to place the next move."}
             </small>
           </article>
           <article className={styles.todayCommandTile}>
@@ -431,23 +523,6 @@ export default function TodayTab({
         </article>
 
         <div className={styles.leftColumn}>
-          <Timer
-            minutes={30}
-            title={FOCUS_TIMER.title}
-            actionLabel={FOCUS_TIMER.actionLabel}
-            theme={FOCUS_TIMER.theme}
-            appearance={resolvedTheme}
-            isPro={isPro}
-            sessionNoteCount={todaySessionNoteCount}
-            onOpenSessionNotes={onOpenSessionNotes}
-            streakMinimumMinutes={30}
-            onSessionStart={onSessionStart}
-            onSessionAbandon={onSessionAbandon}
-            onComplete={(note, minutesSpent, sessionContext) =>
-              onSessionComplete(note, minutesSpent, sessionContext)
-            }
-          />
-
           <article className={styles.card}>
             <div className={styles.cardHeader}>
               <div>

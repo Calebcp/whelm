@@ -3,6 +3,7 @@
 import { memo } from "react";
 
 import TodayTab from "@/components/TodayTab";
+import { useTodayTimeHub, type TodayTimeHubRequest } from "@/hooks/useTodayTimeHub";
 import {
   type TodayShellHandlers,
   type TodayShellRefs,
@@ -16,6 +17,8 @@ type HomeTodayContainerProps = {
   state: TodayShellState;
   handlers: TodayShellHandlers;
   getTabTitle: (tab: AppTab) => string;
+  timeHubRequest: TodayTimeHubRequest | null;
+  onConsumeTimeHubRequest: (id: string) => void;
 };
 
 const HomeTodayContainer = memo(function HomeTodayContainer({
@@ -23,6 +26,8 @@ const HomeTodayContainer = memo(function HomeTodayContainer({
   state,
   handlers,
   getTabTitle,
+  timeHubRequest,
+  onConsumeTimeHubRequest,
 }: HomeTodayContainerProps) {
   const todayTabProps = useTodayShellViewModel({
     refs,
@@ -31,7 +36,16 @@ const HomeTodayContainer = memo(function HomeTodayContainer({
     getTabTitle,
   });
 
-  return <TodayTab {...todayTabProps} />;
+  const timeHub = useTodayTimeHub({
+    liveTodayKey: state.liveTodayKey,
+    savePlannedBlock: handlers.onSavePlannedBlock,
+    onOpenScheduleDay: handlers.onOpenScheduleDay,
+    attachableBlocks: state.attachableAlarmBlocks,
+    externalRequest: timeHubRequest,
+    onConsumeExternalRequest: onConsumeTimeHubRequest,
+  });
+
+  return <TodayTab {...todayTabProps} timeHub={timeHub} />;
 });
 
 export default HomeTodayContainer;

@@ -21,13 +21,8 @@ type UseModalFlowsOptions = {
   setMobileNotesRecentOpen: (value: boolean) => void;
   setActiveTab: (value: AppTab) => void;
   setCalendarView: (value: "month" | "day") => void;
-  setMobileBlockSheetOpen: (value: boolean) => void;
-  setPlanStatus: (value: string) => void;
   setSelectedCalendarDate: (value: string) => void;
-  setDayPortalComposerOpen: (value: boolean) => void;
-  setPlanAttachmentCount: (value: number) => void;
   showToast: (message: string, tone?: "success" | "warning" | "error" | "info") => void;
-  setPlanConflictWarning: (value: { conflictIds: string[]; message: string } | null) => void;
   setDailyPlanningStatus: (value: string) => void;
   setDailyPlanningPreviewOpen: (value: boolean) => void;
   setDailyPlanningOpen: (value: boolean) => void;
@@ -61,13 +56,8 @@ export function useModalFlows({
   setMobileNotesRecentOpen,
   setActiveTab,
   setCalendarView,
-  setMobileBlockSheetOpen,
-  setPlanStatus,
   setSelectedCalendarDate,
-  setDayPortalComposerOpen,
-  setPlanAttachmentCount,
   showToast,
-  setPlanConflictWarning,
   setDailyPlanningStatus,
   setDailyPlanningPreviewOpen,
   setDailyPlanningOpen,
@@ -109,32 +99,16 @@ export function useModalFlows({
   const handleMobilePlannerOpen = useCallback(() => {
     setActiveTab("calendar");
     setCalendarView("day");
-    setMobileBlockSheetOpen(true);
-    setPlanStatus("");
-  }, [setActiveTab, setCalendarView, setMobileBlockSheetOpen, setPlanStatus]);
+  }, [setActiveTab, setCalendarView]);
 
   const openTimeBlockFlow = useCallback((dateKey: string) => {
     const nextDateKey = normalizePlannableDateKey(dateKey);
     setSelectedCalendarDate(nextDateKey);
-    setActiveTab("calendar");
-    setCalendarView("day");
-    setMobileBlockSheetOpen(true);
-    setDayPortalComposerOpen(true);
-    setPlanAttachmentCount(0);
+    setActiveTab("today");
     if (nextDateKey !== dateKey) {
       showToast("Past dates stay read-only. Add the block to today or a future day.", "warning");
     }
-    setPlanConflictWarning(null);
-  }, [
-    setActiveTab,
-    setCalendarView,
-    setDayPortalComposerOpen,
-    setMobileBlockSheetOpen,
-    setPlanAttachmentCount,
-    setPlanConflictWarning,
-    setSelectedCalendarDate,
-    showToast,
-  ]);
+  }, [setActiveTab, setSelectedCalendarDate, showToast]);
 
   const openSickDaySaveReview = useCallback(() => {
     dismissSickDaySavePrompt();

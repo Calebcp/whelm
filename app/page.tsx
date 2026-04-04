@@ -97,6 +97,27 @@ import { WHELM_PRO_NAME } from "@/lib/whelm-plans";
 import { mergeBlocksPreferNewest, savePlannedBlocks } from "@/lib/planned-blocks-store";
 import { saveReflectionState } from "@/lib/reflection-store";
 import {
+  clearStoredTodayLaunchRequest,
+  readStoredTodayLaunchRequest,
+  TODAY_LAUNCH_REQUEST_EVENT,
+  type TodayLaunchRequest,
+} from "@/lib/today-launch";
+import {
+  clearTodayAlarmInstance,
+  completeTodayAlarmInstance,
+  getActiveTodayAlarmInstance,
+  getLatestMissedTodayAlarmInstance,
+  markTodayAlarmInstanceEffectApplied,
+  readStoredTodayAlarmInstances,
+  resolveTodayAlarmMode,
+  snoozeTodayAlarmInstance,
+  startTodayAlarmInstanceFromLaunch,
+  sweepMissedTodayAlarmInstances,
+  TODAY_ALARM_INSTANCES_EVENT,
+  type TodayAlarmInstance,
+} from "@/lib/today-alarm-instances";
+import { readStoredTodayAlarms } from "@/lib/today-alarms";
+import {
   buildDayXpSummaryForDate,
   doesDateQualifyForStreak,
   formatXpMultiplier,
@@ -126,6 +147,7 @@ import { useLeaderboard } from "@/hooks/useLeaderboard";
 import { useFriends } from "@/hooks/useFriends";
 import { usePageShellViewModel } from "@/hooks/usePageShellViewModel";
 import { usePlannedBlocks } from "@/hooks/usePlannedBlocks";
+import type { TodayTimeHubRequest } from "@/hooks/useTodayTimeHub";
 import { useAccountSettings } from "@/hooks/useAccountSettings";
 import { useCalendarAgenda } from "@/hooks/useCalendarAgenda";
 import { usePreferences } from "@/hooks/usePreferences";
@@ -1208,6 +1230,8 @@ export default function HomePage() {
   const liveTodayKey = dayKeyLocal(new Date());
 
   const [mobileTodayOverviewOpen, setMobileTodayOverviewOpen] = useState(false);
+  const [todayTimeHubRequest, setTodayTimeHubRequest] = useState<TodayTimeHubRequest | null>(null);
+  const [todayAlarmInstances, setTodayAlarmInstances] = useState<TodayAlarmInstance[]>([]);
   const [senseiReaction, setSenseiReaction] = useState("");
   const [landingWisdomMinute, setLandingWisdomMinute] = useState(() => Math.floor(Date.now() / 60000));
   const [trendRange, setTrendRange] = useState<TrendRange>(7);
@@ -1347,25 +1371,6 @@ export default function HomePage() {
     setCalendarPinnedEntryId,
     calendarAuxPanel,
     setCalendarAuxPanel,
-    planTitle,
-    setPlanTitle,
-    planNote,
-    setPlanNote,
-    planAttachmentCount,
-    setPlanAttachmentCount,
-    planNoteExpanded,
-    setPlanNoteExpanded,
-    planTone,
-    setPlanTone,
-    planDuration,
-    setPlanDuration,
-    planTime,
-    setPlanTime,
-    planStatus,
-    setPlanStatus,
-    editingPlannedBlockId,
-    planConflictWarning,
-    setPlanConflictWarning,
     calendarJumpDate,
     setCalendarJumpDate,
     draggedPlanId,
@@ -1376,8 +1381,6 @@ export default function HomePage() {
     setActivatedCalendarEntryId,
     overlapPickerEntryId,
     setOverlapPickerEntryId,
-    dayPortalComposerOpen,
-    setDayPortalComposerOpen,
     selectedPlanDetailId,
     setSelectedPlanDetailId,
     plannerSectionsOpen,
@@ -1385,8 +1388,6 @@ export default function HomePage() {
     deletedPlanUndo,
     dailyPlanningPreviewOpen,
     setDailyPlanningPreviewOpen,
-    mobileBlockSheetOpen,
-    setMobileBlockSheetOpen,
     selectedDateKey,
     selectedDateCanAddBlocks,
     selectedDatePlans,
@@ -1396,11 +1397,8 @@ export default function HomePage() {
     persistPlannedBlocks,
     selectCalendarDate,
     jumpToToday,
-    openCalendarBlockComposer,
-    closeBlockComposer,
-    openPrefilledBlockComposer,
+    savePlannedBlock,
     closeDailyPlanningPreview,
-    addPlannedBlock,
     deletePlannedBlock,
     undoDeletePlannedBlock,
     updatePlannedBlockTime,
@@ -2110,6 +2108,74 @@ export default function HomePage() {
     showToast,
   });
 
+  const handleTodayLaunchRequest = useCallback((request: TodayLaunchRequest | null) => {
+    if (!request) return;
+
+    startTodayAlarmInstanceFromLaunch(request);
+    setActiveTab("today");
+    setTodayTimeHubRequest({
+      id: request.id,
+      tool: request.tool,
+      alarmId: request.alarmId,
+      autoStart: request.autoStart,
+      timerDraft:
+        request.tool === "timer"
+          ? {
+              minutes: request.linkedBlockDurationMinutes ?? 25,
+              label: request.linkedBlockTitle || request.alarmLabel || "Focus timer",
+            }
+          : undefined,
+    });
+    clearStoredTodayLaunchRequest();
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const consumeLaunchRequest = () => {
+      handleTodayLaunchRequest(readStoredTodayLaunchRequest());
+    };
+
+    consumeLaunchRequest();
+    window.addEventListener(TODAY_LAUNCH_REQUEST_EVENT, consumeLaunchRequest);
+    window.addEventListener("storage", consumeLaunchRequest);
+    return () => {
+      window.removeEventListener(TODAY_LAUNCH_REQUEST_EVENT, consumeLaunchRequest);
+      window.removeEventListener("storage", consumeLaunchRequest);
+    };
+  }, [handleTodayLaunchRequest]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const syncAlarmInstances = () => {
+      setTodayAlarmInstances(readStoredTodayAlarmInstances());
+    };
+
+    syncAlarmInstances();
+    window.addEventListener(TODAY_ALARM_INSTANCES_EVENT, syncAlarmInstances);
+    window.addEventListener("storage", syncAlarmInstances);
+    return () => {
+      window.removeEventListener(TODAY_ALARM_INSTANCES_EVENT, syncAlarmInstances);
+      window.removeEventListener("storage", syncAlarmInstances);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const refreshAlarmAdherence = () => {
+      const alarms = readStoredTodayAlarms();
+      resolveTodayAlarmMode(readStoredTodayAlarmInstances(), alarms);
+      sweepMissedTodayAlarmInstances(alarms, new Date());
+      setTodayAlarmInstances(readStoredTodayAlarmInstances());
+    };
+
+    refreshAlarmAdherence();
+    const intervalId = window.setInterval(refreshAlarmAdherence, 60000);
+    return () => window.clearInterval(intervalId);
+  }, []);
+
   useEffect(() => {
     const media = window.matchMedia("(max-width: 760px)");
     const updateViewport = () => setIsMobileViewport(media.matches);
@@ -2128,7 +2194,6 @@ export default function HomePage() {
       setMobileNotesRecentOpen(false);
       setMobileNotesEditorOpen(false);
       setMobileNotesToolsOpen(null);
-      setMobileBlockSheetOpen(false);
       return;
     }
 
@@ -2318,13 +2383,17 @@ export default function HomePage() {
         ).padStart(2, "0")}`
       : "09:00";
 
-    openPrefilledBlockComposer({
-      dateKey,
-      title: note.title || "Untitled note task",
-      note: summarizePlainText(note.body, 280),
-      timeOfDay,
-      durationMinutes: 25,
-      attachmentCount: note.attachments.length,
+    setActiveTab("today");
+    setTodayTimeHubRequest({
+      id: typeof crypto !== "undefined" ? crypto.randomUUID() : `note-block-${Date.now()}`,
+      tool: "block",
+      draft: {
+        dateKey,
+        title: note.title || "Untitled note task",
+        note: summarizePlainText(note.body, 280),
+        timeOfDay,
+        durationMinutes: 25,
+      },
     });
   }
 
@@ -2487,13 +2556,8 @@ export default function HomePage() {
     setMobileNotesRecentOpen,
     setActiveTab,
     setCalendarView,
-    setMobileBlockSheetOpen,
-    setPlanStatus,
     setSelectedCalendarDate,
-    setDayPortalComposerOpen,
-    setPlanAttachmentCount,
     showToast,
-    setPlanConflictWarning,
     setDailyPlanningStatus,
     setDailyPlanningPreviewOpen,
     setDailyPlanningOpen,
@@ -2543,12 +2607,6 @@ export default function HomePage() {
     setPendingCalendarEntryFocusId,
     setActivatedCalendarEntryId,
     setCalendarJumpDate,
-    setPlanConflictWarning,
-    planDuration,
-    planTime,
-    planTitle,
-    planNote,
-    openCalendarBlockComposer,
     persistDayTones: saveDayTones,
     persistMonthTones: saveMonthTones,
   });
@@ -2790,6 +2848,17 @@ export default function HomePage() {
   const handleOpenHistoryTab = useCallback(() => {
     setActiveTab("history");
   }, [setActiveTab]);
+  const handleCompletePlannedBlockWithAlarm = useCallback(async (item: (typeof plannedBlocks)[number]) => {
+    const linkedInstance = todayAlarmInstances.find(
+      (instance) =>
+        instance.status !== "completed" &&
+        instance.linkedBlockId === item.id,
+    );
+    if (linkedInstance) {
+      completeTodayAlarmInstance(linkedInstance.id);
+    }
+    await completePlannedBlock(item);
+  }, [completePlannedBlock, plannedBlocks, todayAlarmInstances]);
   const scheduleContainerProps: {
     refs: ScheduleShellRefs;
     state: ScheduleShellState;
@@ -2829,7 +2898,6 @@ export default function HomePage() {
       selectedDateEntries,
       selectedDateDayTone,
       selectedDateCanAddBlocks,
-      dayPortalComposerOpen,
       bandanaColor: visibleBandanaColor,
       currentTimeMarker,
       dayViewTimeline,
@@ -2837,20 +2905,10 @@ export default function HomePage() {
       activatedCalendarEntryId,
       activeOverlapPickerItem,
       activeDayViewPreviewItem,
-      planTitle,
-      planNoteExpanded,
-      planNote,
-      planTone,
-      planConflictWarning,
-      planTime,
-      planDuration,
-      planStatus,
-      editingPlannedBlockId,
       plannerSectionsOpen,
       selectedDatePlanGroups,
       selectedDateAgendaStateSummary,
       mobileAgendaEntriesOpen,
-      mobileBlockSheetOpen,
       draggedPlanId,
       plannedBlockById,
       focusMetricsCalendar: focusMetrics.calendar,
@@ -2873,8 +2931,6 @@ export default function HomePage() {
       onSetCalendarPinnedEntryId: setCalendarPinnedEntryId,
       onOpenPlannedBlockDetail: openPlannedBlockDetail,
       onApplyDayTone: applyDayTone,
-      onOpenCalendarBlockComposer: openCalendarBlockComposer,
-      onCloseBlockComposer: closeBlockComposer,
       onScrollCalendarTimelineToNow: scrollCalendarTimelineToNow,
       onShowCalendarHoverPreview: showCalendarHoverPreview,
       onScheduleCalendarHoverPreviewClear: scheduleCalendarHoverPreviewClear,
@@ -2882,15 +2938,7 @@ export default function HomePage() {
       onSetOverlapPickerEntryId: setOverlapPickerEntryId,
       onOpenNote: openSpecificNote,
       onSetActiveTabHistory: handleOpenHistoryTab,
-      onCompletePlannedBlock: completePlannedBlock,
-      onSetPlanTitle: setPlanTitle,
-      onSetPlanNoteExpanded: setPlanNoteExpanded,
-      onSetPlanNote: setPlanNote,
-      onSetPlanTone: setPlanTone,
-      onSetPlanConflictWarning: setPlanConflictWarning,
-      onSetPlanTime: setPlanTime,
-      onSetPlanDuration: setPlanDuration,
-      onAddPlannedBlock: addPlannedBlock,
+      onCompletePlannedBlock: handleCompletePlannedBlockWithAlarm,
       onUpdatePlannedBlockTime: updatePlannedBlockTime,
       onDeletePlannedBlock: deletePlannedBlock,
       onReorderPlannedBlocks: reorderPlannedBlocks,
@@ -2900,11 +2948,105 @@ export default function HomePage() {
       onUpgrade: openUpgradeFlow,
     },
   };
+
+  const attachableAlarmBlocks = useMemo(
+    () =>
+      plannedBlocks
+        .filter((item) => item.status === "active" && item.dateKey >= liveTodayKey)
+        .sort((a, b) => a.dateKey.localeCompare(b.dateKey) || a.timeOfDay.localeCompare(b.timeOfDay))
+        .slice(0, 6)
+        .map((item) => ({
+          id: item.id,
+          dateKey: item.dateKey,
+          title: item.title,
+          timeOfDay: item.timeOfDay,
+          durationMinutes: item.durationMinutes,
+          status: item.status,
+        })),
+    [liveTodayKey, plannedBlocks],
+  );
+
+  const activeTodayAlarmInstance = useMemo(
+    () => getActiveTodayAlarmInstance(todayAlarmInstances),
+    [todayAlarmInstances],
+  );
+  const latestMissedTodayAlarmInstance = useMemo(
+    () => getLatestMissedTodayAlarmInstance(todayAlarmInstances),
+    [todayAlarmInstances],
+  );
+  const activeAlarmCommitmentLabel = activeTodayAlarmInstance
+    ? activeTodayAlarmInstance.linkedBlockTitle || activeTodayAlarmInstance.alarmLabel
+    : latestMissedTodayAlarmInstance
+      ? `${latestMissedTodayAlarmInstance.alarmMode === "hard" ? "Missed hard" : "Missed"} alarm`
+      : null;
+  const activeAlarmCommitmentMeta = activeTodayAlarmInstance
+    ? activeTodayAlarmInstance.alarmMode === "hard"
+      ? "Hard commitment live now."
+      : "Soft commitment live now."
+    : latestMissedTodayAlarmInstance
+      ? latestMissedTodayAlarmInstance.linkedBlockTitle
+        ? `${latestMissedTodayAlarmInstance.linkedBlockTitle} was missed.`
+        : "This time commitment was missed."
+      : null;
+  const handleSnoozeActiveAlarm = useCallback(() => {
+    if (!activeTodayAlarmInstance) return;
+    snoozeTodayAlarmInstance(activeTodayAlarmInstance.id);
+    showToast("Alarm snoozed for 10 minutes.", "info");
+  }, [activeTodayAlarmInstance, showToast]);
+  const handleClearMissedAlarm = useCallback(() => {
+    if (!latestMissedTodayAlarmInstance) return;
+    clearTodayAlarmInstance(latestMissedTodayAlarmInstance.id);
+    showToast("Missed alarm cleared.", "info");
+  }, [latestMissedTodayAlarmInstance, showToast]);
+
+  useEffect(() => {
+    const unresolvedEffects = todayAlarmInstances.filter(
+      (instance) =>
+        !instance.effectAppliedAtISO &&
+        (instance.status === "completed" || instance.status === "missed"),
+    );
+    if (unresolvedEffects.length === 0) return;
+
+    unresolvedEffects.forEach((instance) => {
+      if (instance.status === "completed") {
+        if (instance.outcome === "on_time") {
+          triggerXPPop(5);
+          showToast("Alarm honored on time. +5 adherence XP.", "success");
+        } else if (instance.outcome === "late") {
+          triggerXPPop(2);
+          showToast("Alarm completed late. +2 adherence XP.", "info");
+        } else if (instance.outcome === "snoozed") {
+          triggerXPPop(1);
+          showToast("Alarm completed after snooze. +1 adherence XP.", "info");
+        }
+      } else if (instance.outcome === "missed") {
+        if (instance.alarmMode === "hard") {
+          setStreakNudge({
+            id: `alarm-miss-${instance.id}`,
+            title: "Hard alarm missed",
+            body: instance.linkedBlockTitle
+              ? `${instance.linkedBlockTitle} slipped. Recover in Today before drift compounds.`
+              : "A hard time commitment was missed. Recover in Today before drift compounds.",
+            actionLabel: "Go to Today",
+            actionTab: "today",
+          });
+          showToast("Hard alarm missed.", "warning");
+        } else {
+          showToast("Soft alarm missed.", "info");
+        }
+      }
+
+      markTodayAlarmInstanceEffectApplied(instance.id);
+    });
+  }, [setStreakNudge, showToast, todayAlarmInstances, triggerXPPop]);
+
   const todayContainerProps = useMemo<{
     refs: TodayShellRefs;
     state: TodayShellState;
     handlers: TodayShellHandlers;
     getTabTitle: (tab: AppTab) => string;
+    timeHubRequest: TodayTimeHubRequest | null;
+    onConsumeTimeHubRequest: (id: string) => void;
   }>(
     () => ({
       refs: {
@@ -2916,6 +3058,7 @@ export default function HomePage() {
         isMobileViewport,
         isPro,
         resolvedTheme,
+        liveTodayKey,
         todaySessionNoteCount,
         focusMetrics: {
           disciplineScore: focusMetrics.disciplineScore,
@@ -2932,6 +3075,11 @@ export default function HomePage() {
         latestNote,
         orderedNotes,
         todayActivePlannedBlocksCount: todayActivePlannedBlocks.length,
+        attachableAlarmBlocks,
+        activeAlarmCommitmentLabel,
+        activeAlarmCommitmentMeta,
+        activeTodayAlarmInstance,
+        latestMissedTodayAlarmInstance,
         senseiGuidance: {
           tone: senseiGuidance.tone,
           ritual: senseiGuidance.ritual,
@@ -2957,21 +3105,38 @@ export default function HomePage() {
         onOpenSessionNotes: handleOpenHistoryTab,
         onSessionStart: handleSessionStarted,
         onSessionAbandon: handleSessionAbandoned,
-        onSessionComplete: (note, minutesSpent, sessionContext) =>
-          void completeSession(note, minutesSpent, sessionContext),
+        onSessionComplete: (note, minutesSpent, sessionContext) => {
+          if (activeTodayAlarmInstance) {
+            completeTodayAlarmInstance(activeTodayAlarmInstance.id);
+          }
+          return void completeSession(note, minutesSpent, sessionContext);
+        },
         onToggleMobileTodayOverview: () => setMobileTodayOverviewOpen((open) => !open),
         onTodayPrimaryAction: handleTodayPrimaryAction,
         onOpenNote: openSpecificNote,
         onCreateWorkspaceNote: () => void createWorkspaceNote(),
         onCopyWeeklyReport: () => void copyWeeklyReport(),
         onUpgrade: openUpgradeFlow,
+        onSnoozeActiveAlarm: handleSnoozeActiveAlarm,
+        onClearMissedAlarm: handleClearMissedAlarm,
+        onSavePlannedBlock: savePlannedBlock,
+        onOpenScheduleDay: (dateKey) => {
+          selectCalendarDate(dateKey);
+          setActiveTab("calendar");
+          setCalendarView("day");
+        },
       },
       getTabTitle: tabTitle,
+      timeHubRequest: todayTimeHubRequest,
+      onConsumeTimeHubRequest: (id) => {
+        setTodayTimeHubRequest((current) => (current?.id === id ? null : current));
+      },
     }),
     [
       companionState.stage,
       completeSession,
       copyWeeklyReport,
+      savePlannedBlock,
       createWorkspaceNote,
       dueReminderNotes,
       focusMetrics.disciplineScore,
@@ -2988,6 +3153,7 @@ export default function HomePage() {
       lastSessionHoursAgo,
       latestNote,
       mobileTodayOverviewOpen,
+      liveTodayKey,
       nextPlannedBlock,
       nextSenseiMilestone,
       openSpecificNote,
@@ -2995,6 +3161,9 @@ export default function HomePage() {
       orderedNotes,
       reportCopyStatus,
       resolvedTheme,
+      selectCalendarDate,
+      setActiveTab,
+      setCalendarView,
       senseiGuidance.actionLabel,
       senseiGuidance.actionTab,
       senseiGuidance.ritual,
@@ -3004,6 +3173,13 @@ export default function HomePage() {
       displayStreak,
       tabTitle,
       todayActivePlannedBlocks.length,
+      attachableAlarmBlocks,
+      activeAlarmCommitmentLabel,
+      activeAlarmCommitmentMeta,
+      activeTodayAlarmInstance,
+      handleClearMissedAlarm,
+      handleSnoozeActiveAlarm,
+      latestMissedTodayAlarmInstance,
       todayHeroCopy.body,
       todayHeroCopy.eyebrow,
       todayHeroCopy.signatureLine,
@@ -3012,8 +3188,10 @@ export default function HomePage() {
       todaySessionNoteCount,
       todaySummaryRef,
       todayTimerRef,
+      todayTimeHubRequest,
       user?.email,
       visibleBandanaColor,
+      setTodayTimeHubRequest,
     ],
   );
   const notesContainerProps = useMemo<{
@@ -3469,34 +3647,40 @@ export default function HomePage() {
         ) : null,
         onEdit: () => {
           if (!selectedPlanDetail || selectedPlanDetail.status !== "active") return;
-          openPrefilledBlockComposer({
-            id: selectedPlanDetail.id,
-            dateKey: selectedPlanDetail.dateKey,
-            title: selectedPlanDetail.title,
-            note: selectedPlanDetail.note,
-            timeOfDay: selectedPlanDetail.timeOfDay,
-            durationMinutes: selectedPlanDetail.durationMinutes,
-            tone: visiblePlanTone(selectedPlanDetail.tone),
-            attachmentCount: selectedPlanDetail.attachmentCount,
+          setActiveTab("today");
+          setTodayTimeHubRequest({
+            id: typeof crypto !== "undefined" ? crypto.randomUUID() : `edit-block-${selectedPlanDetail.id}`,
+            tool: "block",
+            draft: {
+              editingBlockId: selectedPlanDetail.id,
+              dateKey: selectedPlanDetail.dateKey,
+              title: selectedPlanDetail.title,
+              note: selectedPlanDetail.note,
+              timeOfDay: selectedPlanDetail.timeOfDay,
+              durationMinutes: selectedPlanDetail.durationMinutes,
+            },
           });
           closePlannedBlockDetail();
         },
         onDuplicate: () => {
           if (!selectedPlanDetail || selectedPlanDetail.status !== "active") return;
-          openPrefilledBlockComposer({
-            dateKey: selectedPlanDetail.dateKey,
-            title: selectedPlanDetail.title,
-            note: selectedPlanDetail.note,
-            timeOfDay: shiftBlockTime(selectedPlanDetail.timeOfDay, selectedPlanDetail.durationMinutes),
-            durationMinutes: selectedPlanDetail.durationMinutes,
-            tone: visiblePlanTone(selectedPlanDetail.tone),
-            attachmentCount: selectedPlanDetail.attachmentCount,
+          setActiveTab("today");
+          setTodayTimeHubRequest({
+            id: typeof crypto !== "undefined" ? crypto.randomUUID() : `duplicate-block-${selectedPlanDetail.id}`,
+            tool: "block",
+            draft: {
+              dateKey: selectedPlanDetail.dateKey,
+              title: selectedPlanDetail.title,
+              note: selectedPlanDetail.note,
+              timeOfDay: shiftBlockTime(selectedPlanDetail.timeOfDay, selectedPlanDetail.durationMinutes),
+              durationMinutes: selectedPlanDetail.durationMinutes,
+            },
           });
           closePlannedBlockDetail();
         },
         onComplete: () => {
           if (!selectedPlanDetail) return;
-          void completePlannedBlock(selectedPlanDetail);
+          void handleCompletePlannedBlockWithAlarm(selectedPlanDetail);
         },
         onOpenDayView: () => {
           if (!selectedPlanDetail) return;
@@ -3695,7 +3879,6 @@ export default function HomePage() {
       onboardingStep,
       onboardingStepIndex,
       openDailyPlanningPreview,
-      openPrefilledBlockComposer,
       openSickDaySaveReview,
       openUpgradeFlow,
       paywallOpen,
@@ -3806,7 +3989,6 @@ export default function HomePage() {
         setCalendarView("day");
         setSelectedCalendarDate(todayKey);
         setMobileMoreOpen(false);
-        closeBlockComposer();
         break;
       case "timer":
       case "xp":
@@ -3858,7 +4040,6 @@ export default function HomePage() {
 
     return () => window.clearTimeout(timer);
   }, [
-    closeBlockComposer,
     onboardingOpen,
     onboardingStep,
     setActiveTab,

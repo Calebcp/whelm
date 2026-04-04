@@ -31,8 +31,6 @@ export type ScheduleShellState = Omit<
   | "onSetCalendarPinnedEntryId"
   | "onOpenPlannedBlockDetail"
   | "onApplyDayTone"
-  | "onOpenCalendarBlockComposer"
-  | "onCloseBlockComposer"
   | "onScrollCalendarTimelineToNow"
   | "onShowCalendarHoverPreview"
   | "onScheduleCalendarHoverPreviewClear"
@@ -41,14 +39,6 @@ export type ScheduleShellState = Omit<
   | "onOpenNote"
   | "onSetActiveTabHistory"
   | "onCompletePlannedBlock"
-  | "onSetPlanTitle"
-  | "onSetPlanNoteExpanded"
-  | "onSetPlanNote"
-  | "onSetPlanTone"
-  | "onSetPlanConflictWarning"
-  | "onSetPlanTime"
-  | "onSetPlanDuration"
-  | "onAddPlannedBlock"
   | "onUpdatePlannedBlockTime"
   | "onDeletePlannedBlock"
   | "onReorderPlannedBlocks"
@@ -75,8 +65,6 @@ export type ScheduleShellHandlers = Pick<
   | "onSetCalendarPinnedEntryId"
   | "onOpenPlannedBlockDetail"
   | "onApplyDayTone"
-  | "onOpenCalendarBlockComposer"
-  | "onCloseBlockComposer"
   | "onScrollCalendarTimelineToNow"
   | "onShowCalendarHoverPreview"
   | "onScheduleCalendarHoverPreviewClear"
@@ -85,14 +73,6 @@ export type ScheduleShellHandlers = Pick<
   | "onOpenNote"
   | "onSetActiveTabHistory"
   | "onCompletePlannedBlock"
-  | "onSetPlanTitle"
-  | "onSetPlanNoteExpanded"
-  | "onSetPlanNote"
-  | "onSetPlanTone"
-  | "onSetPlanConflictWarning"
-  | "onSetPlanTime"
-  | "onSetPlanDuration"
-  | "onAddPlannedBlock"
   | "onUpdatePlannedBlockTime"
   | "onDeletePlannedBlock"
   | "onReorderPlannedBlocks"
@@ -145,7 +125,6 @@ export function useScheduleShellViewModel({
       selectedDateEntries: state.selectedDateEntries,
       selectedDateDayTone: state.selectedDateDayTone,
       selectedDateCanAddBlocks: state.selectedDateCanAddBlocks,
-      dayPortalComposerOpen: state.dayPortalComposerOpen,
       bandanaColor: state.bandanaColor,
       currentTimeMarker: state.currentTimeMarker,
       dayViewTimeline: state.dayViewTimeline,
@@ -155,20 +134,10 @@ export function useScheduleShellViewModel({
       activeDayViewPreviewItem: state.activeDayViewPreviewItem,
     },
     planner: {
-      planTitle: state.planTitle,
-      planNoteExpanded: state.planNoteExpanded,
-      planNote: state.planNote,
-      planTone: state.planTone,
-      planConflictWarning: state.planConflictWarning,
-      planTime: state.planTime,
-      planDuration: state.planDuration,
-      planStatus: state.planStatus,
-      editingPlannedBlockId: state.editingPlannedBlockId,
       plannerSectionsOpen: state.plannerSectionsOpen,
       selectedDatePlanGroups: state.selectedDatePlanGroups,
       selectedDateAgendaStateSummary: state.selectedDateAgendaStateSummary,
       mobileAgendaEntriesOpen: state.mobileAgendaEntriesOpen,
-      mobileBlockSheetOpen: state.mobileBlockSheetOpen,
       draggedPlanId: state.draggedPlanId,
       plannedBlockById: state.plannedBlockById,
     },

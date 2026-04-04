@@ -5,6 +5,8 @@ import { useMemo } from "react";
 import type { TodayTabProps } from "@/components/TodayTab";
 import type { AppTab } from "@/lib/app-tabs";
 
+type TodayTabShellProps = Omit<TodayTabProps, "timeHub">;
+
 export type TodayShellRefs = Pick<
   TodayTabProps,
   | "todaySectionRef"
@@ -25,7 +27,12 @@ export type TodayShellState = Omit<
   | "onCreateWorkspaceNote"
   | "onCopyWeeklyReport"
   | "onUpgrade"
+  | "onSnoozeActiveAlarm"
+  | "onClearMissedAlarm"
+  | "onSavePlannedBlock"
+  | "onOpenScheduleDay"
   | "senseiActionTabTitle"
+  | "timeHub"
 > & {
   senseiActionTab: AppTab;
 };
@@ -42,6 +49,10 @@ export type TodayShellHandlers = Pick<
   | "onCreateWorkspaceNote"
   | "onCopyWeeklyReport"
   | "onUpgrade"
+  | "onSnoozeActiveAlarm"
+  | "onClearMissedAlarm"
+  | "onSavePlannedBlock"
+  | "onOpenScheduleDay"
 >;
 
 type UseTodayShellViewModelOptions = {
@@ -57,7 +68,7 @@ export function useTodayShellViewModel({
   handlers,
   getTabTitle,
 }: UseTodayShellViewModelOptions) {
-  return useMemo<TodayTabProps>(
+  return useMemo<TodayTabShellProps>(
     () => ({
       ...refs,
       ...state,
@@ -71,6 +82,7 @@ export function useTodayShellViewModel({
       state.isMobileViewport,
       state.isPro,
       state.resolvedTheme,
+      state.liveTodayKey,
       state.todaySessionNoteCount,
       state.focusMetrics,
       state.streak,
@@ -82,6 +94,11 @@ export function useTodayShellViewModel({
       state.latestNote,
       state.orderedNotes,
       state.todayActivePlannedBlocksCount,
+      state.attachableAlarmBlocks,
+      state.activeAlarmCommitmentLabel,
+      state.activeAlarmCommitmentMeta,
+      state.activeTodayAlarmInstance,
+      state.latestMissedTodayAlarmInstance,
       state.senseiGuidance,
       state.todayHeroCopy,
       state.companionStageLabel,
@@ -101,6 +118,10 @@ export function useTodayShellViewModel({
       handlers.onCreateWorkspaceNote,
       handlers.onCopyWeeklyReport,
       handlers.onUpgrade,
+      handlers.onSnoozeActiveAlarm,
+      handlers.onClearMissedAlarm,
+      handlers.onSavePlannedBlock,
+      handlers.onOpenScheduleDay,
       getTabTitle,
     ],
   );

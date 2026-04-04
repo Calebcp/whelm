@@ -1568,7 +1568,7 @@ body[data-theme="light"] {
   color: #9ba8c8;
 }
 
-.calendarAuxTabActive {
+.calendarAuxTab[data-state="active"] {
   background: rgba(52, 62, 105, 0.96);
   color: #f4f7ff;
   box-shadow: 0 4px 12px rgba(3, 6, 18, 0.18);
@@ -2227,6 +2227,11 @@ body[data-theme="light"] {
 .calendarTonePanel {
   display: grid;
   gap: 10px;
+}
+
+.calendarTonePopoverContent {
+  z-index: 50;
+  width: min(320px, calc(100vw - 32px));
 }
 
 .calendarTonePanelOpen {
@@ -3919,7 +3924,7 @@ body[data-theme="light"] {
   padding: 6px 10px;
 }
 
-.rangeTabActive {
+.rangeTab[data-state="active"] {
   background: #ffffff;
   color: #102033;
   box-shadow: 0 4px 12px rgba(16, 32, 51, 0.08);
@@ -8004,6 +8009,330 @@ body[data-theme="light"] {
   opacity: 0.6;
 }
 
+.timeHubSection {
+  display: grid;
+  gap: 14px;
+}
+
+.timeHubHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 12px;
+}
+
+.timeHubGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.timeToolCard {
+  border: 1px solid var(--wh-panel-border);
+  background: var(--wh-panel-bg);
+  border-radius: 22px;
+  padding: 18px;
+  display: grid;
+  gap: 8px;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+
+.timeToolEyebrow {
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  opacity: 0.7;
+}
+
+.timeToolTitle {
+  font-size: clamp(1.4rem, 3vw, 2.4rem);
+  line-height: 0.95;
+}
+
+.timeToolMeta {
+  color: var(--wh-text-muted);
+  font-size: 0.92rem;
+}
+
+.timeToolAction {
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.timeToolFullscreenShell {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(7, 10, 16, 0.72);
+  backdrop-filter: blur(10px);
+  padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+  overflow: auto;
+}
+
+.timeToolFullscreen {
+  min-height: calc(100svh - max(32px, env(safe-area-inset-top)) - max(32px, env(safe-area-inset-bottom)));
+  width: min(100%, 1100px);
+  margin: 0 auto;
+  border-radius: 28px;
+  border: 1px solid var(--wh-panel-border);
+  background: var(--wh-panel-bg);
+  padding: 20px;
+  display: grid;
+  gap: 18px;
+}
+
+.timeToolFullscreenHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.timeToolToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.timeToolChip {
+  border: 1px solid var(--wh-panel-border);
+  background: transparent;
+  border-radius: 999px;
+  padding: 10px 14px;
+  color: inherit;
+  cursor: pointer;
+}
+
+.timeToolChipActive {
+  background: rgba(69, 212, 255, 0.14);
+  border-color: rgba(69, 212, 255, 0.5);
+}
+
+.timeToolForm {
+  display: grid;
+  gap: 14px;
+}
+
+.timeToolPanel {
+  border: 1px solid var(--wh-panel-border);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 18px;
+  display: grid;
+  gap: 16px;
+}
+
+.timeToolPanelHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 12px;
+}
+
+.timeToolPanelTitle {
+  font-size: 1.05rem;
+  line-height: 1.1;
+}
+
+.timeToolFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.alarmList {
+  display: grid;
+  gap: 10px;
+}
+
+.alarmScreenShell {
+  align-content: start;
+}
+
+.timerScreenShell,
+.blockScreenShell {
+  align-content: start;
+}
+
+.timerScreenGrid {
+  display: grid;
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.blockScreenGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.alarmScreenGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.alarmPanel {
+  display: grid;
+  gap: 16px;
+}
+
+.alarmPanelHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 12px;
+}
+
+.alarmPanelTitle {
+  font-size: 1.05rem;
+  line-height: 1.1;
+}
+
+.alarmRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid var(--wh-panel-border);
+  border-radius: 22px;
+  padding: 16px 18px;
+  background: var(--wh-panel-bg);
+}
+
+.alarmRowMain {
+  display: grid;
+  gap: 4px;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: inherit;
+  padding: 0;
+  cursor: pointer;
+  flex: 1 1 auto;
+}
+
+.alarmTime {
+  font-size: clamp(2rem, 4vw, 3.25rem);
+  line-height: 0.9;
+  font-weight: 300;
+}
+
+.alarmLabel {
+  color: var(--wh-text-muted);
+  font-size: 0.95rem;
+}
+
+.alarmRowActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.alarmAttachSection {
+  display: grid;
+  gap: 12px;
+}
+
+.alarmModeRow {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.alarmModeChip {
+  border: 1px solid var(--wh-panel-border);
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 18px;
+  padding: 12px 14px;
+  display: grid;
+  gap: 4px;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+
+.alarmModeChipActive {
+  border-color: rgba(69, 212, 255, 0.5);
+  background: rgba(69, 212, 255, 0.12);
+}
+
+.alarmModeChip strong {
+  font-size: 0.95rem;
+}
+
+.alarmModeChip span {
+  color: var(--wh-text-muted);
+  font-size: 0.84rem;
+}
+
+.alarmAttachList {
+  display: grid;
+  gap: 10px;
+}
+
+.alarmAttachChip {
+  border: 1px solid var(--wh-panel-border);
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 18px;
+  padding: 12px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+
+.alarmAttachChipActive {
+  border-color: rgba(69, 212, 255, 0.5);
+  background: rgba(69, 212, 255, 0.12);
+}
+
+.alarmAttachChip strong {
+  font-size: 0.95rem;
+}
+
+.alarmAttachChip span {
+  color: var(--wh-text-muted);
+  font-size: 0.84rem;
+}
+
+.alarmToggle {
+  width: 58px;
+  height: 34px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(120, 128, 148, 0.35);
+  padding: 3px;
+  position: relative;
+  cursor: pointer;
+  transition: background 160ms ease;
+}
+
+.alarmToggleOn {
+  background: #31d158;
+}
+
+.alarmToggleThumb {
+  display: block;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 160ms ease;
+}
+
+.alarmToggleOn .alarmToggleThumb {
+  transform: translateX(24px);
+}
+
 @keyframes dailyRitualFloat {
   0%,
   100% {
@@ -8134,6 +8463,46 @@ body[data-theme="light"] {
 }
 
 @media (max-width: 760px) {
+  .timeHubGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .timeHubHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .timerScreenGrid,
+  .blockScreenGrid,
+  .alarmScreenGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .timeToolPanel,
+  .alarmPanel {
+    padding: 16px;
+  }
+
+  .timeToolPanelHeader,
+  .alarmPanelHeader {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .alarmRow {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .alarmModeRow {
+    grid-template-columns: 1fr;
+  }
+
+  .alarmRowActions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
   .reportsGridDetailOpen > .companionPulse,
   .reportsGridDetailOpen > .analyticsHeroCard {
     display: none;

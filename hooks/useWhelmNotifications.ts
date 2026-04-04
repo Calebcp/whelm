@@ -7,6 +7,15 @@ import { LocalNotifications } from "@capacitor/local-notifications";
 
 import type { PerformanceNotificationPlan } from "@/lib/performance-notifications";
 import type { PreferencesNotificationSettings } from "@/lib/preferences-store";
+import {
+  readStoredTodayAlarms,
+  TODAY_ALARMS_CHANGED_EVENT,
+  type TodayAlarm,
+} from "@/lib/today-alarms";
+import {
+  buildTodayLaunchRequestFromAlarmId,
+  writeStoredTodayLaunchRequest,
+} from "@/lib/today-launch";
 
 type NotificationPermissionState = "unsupported" | "default" | "granted" | "denied";
 type NotificationDeliveryMode = "native" | "web" | "unsupported";
@@ -22,6 +31,7 @@ type ScheduledNotificationPayload = {
   title: string;
   body: string;
   at: Date;
+  launchAlarmId?: string;
 };
 
 type UseWhelmNotificationsOptions = {
@@ -159,6 +169,45 @@ function buildReminderPayloads(notes: NoteReminderLike[], now: Date) {
     .slice(0, MAX_NOTE_REMINDERS);
 }
 
+function buildAlarmPayloads(alarms: TodayAlarm[], now: Date) {
+  return alarms
+    .filter((alarm) => alarm.enabled)
+    .map((alarm) => {
+      const [hourRaw, minuteRaw] = alarm.timeOfDay.split(":");
+      const hour = Number(hourRaw);
+      const minute = Number(minuteRaw);
+      const at = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate(),
+        Number.isFinite(hour) ? hour : 7,
+        Number.isFinite(minute) ? minute : 0,
+        0,
+        0,
+      );
+      if (at.getTime() <= now.getTime()) {
+        at.setDate(at.getDate() + 1);
+      }
+      return {
+        id: hashNotificationId(`alarm:${alarm.id}:${at.toISOString()}`),
+        title:
+          alarm.mode === "hard"
+            ? alarm.label.trim() || alarm.linkedBlockTitle?.trim() || "Whelm expects you."
+            : alarm.label.trim() || alarm.linkedBlockTitle?.trim() || "Whelm alarm",
+        body: alarm.linkedBlockTitle?.trim()
+          ? alarm.mode === "hard"
+            ? `${alarm.linkedBlockTitle.trim()} starts now.`
+            : `${alarm.linkedBlockTitle.trim()} is ready.`
+          : alarm.mode === "hard"
+            ? "This time commitment is live."
+            : "Time commitment ready.",
+        at,
+        launchAlarmId: alarm.id,
+      } satisfies ScheduledNotificationPayload;
+    })
+    .sort((a, b) => a.at.getTime() - b.at.getTime());
+}
+
 async function getNativePermissionState(): Promise<NotificationPermissionState> {
   try {
     const permissions = await LocalNotifications.checkPermissions();
@@ -208,9 +257,11 @@ export function useWhelmNotifications({
   const [permissionState, setPermissionState] = useState<NotificationPermissionState>("default");
   const [notificationStatus, setNotificationStatus] = useState("");
   const [notificationBusy, setNotificationBusy] = useState(false);
+  const [todayAlarms, setTodayAlarms] = useState<TodayAlarm[]>(() => readStoredTodayAlarms());
   const webTimeoutsRef = useRef<number[]>([]);
   const previousUidRef = useRef<string | null>(null);
   const notificationStatusRef = useRef("");
+  const nativeAlarmListenerAttachedRef = useRef(false);
 
   useEffect(() => {
     notificationStatusRef.current = notificationStatus;
@@ -233,6 +284,10 @@ export function useWhelmNotifications({
       payloads.push(...buildReminderPayloads(notes, now));
     }
 
+    if (normalizedSettings.enabled) {
+      payloads.push(...buildAlarmPayloads(todayAlarms, now));
+    }
+
     payloads.sort((a, b) => a.at.getTime() - b.at.getTime());
 
     return {
@@ -252,6 +307,7 @@ export function useWhelmNotifications({
     normalizedSettings.noteReminders,
     normalizedSettings.performanceNudges,
     notes,
+    todayAlarms,
   ]);
 
   const clearScheduledNotifications = useCallback(async () => {
@@ -370,6 +426,7 @@ export function useWhelmNotifications({
           title: payload.title,
           body: payload.body,
           schedule: { at: payload.at, allowWhileIdle: true },
+          extra: payload.launchAlarmId ? { launchAlarmId: payload.launchAlarmId } : undefined,
         })),
       });
     } else if (deliveryMode === "web" && typeof window !== "undefined") {
@@ -379,10 +436,20 @@ export function useWhelmNotifications({
         .map((payload) =>
           window.setTimeout(() => {
             if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
-            void new Notification(payload.title, {
+            const notification = new Notification(payload.title, {
               body: payload.body,
               tag: `whelm-${payload.id}`,
             });
+            if (payload.launchAlarmId) {
+              notification.onclick = () => {
+                window.focus();
+                const request = buildTodayLaunchRequestFromAlarmId(payload.launchAlarmId ?? "");
+                if (request) {
+                  writeStoredTodayLaunchRequest(request);
+                }
+                notification.close();
+              };
+            }
           }, Math.max(0, payload.at.getTime() - now)),
         );
     }
@@ -426,8 +493,42 @@ export function useWhelmNotifications({
   }, [refreshPermissionState]);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    const syncTodayAlarms = () => {
+      setTodayAlarms(readStoredTodayAlarms());
+    };
+    syncTodayAlarms();
+    window.addEventListener(TODAY_ALARMS_CHANGED_EVENT, syncTodayAlarms);
+    window.addEventListener("storage", syncTodayAlarms);
+    return () => {
+      window.removeEventListener(TODAY_ALARMS_CHANGED_EVENT, syncTodayAlarms);
+      window.removeEventListener("storage", syncTodayAlarms);
+    };
+  }, []);
+
+  useEffect(() => {
     void scheduleNotifications();
   }, [scheduleNotifications]);
+
+  useEffect(() => {
+    if (deliveryMode !== "native" || nativeAlarmListenerAttachedRef.current) return;
+    nativeAlarmListenerAttachedRef.current = true;
+
+    const attach = async () => {
+      await LocalNotifications.addListener("localNotificationActionPerformed", (event) => {
+        const launchAlarmId =
+          typeof event.notification.extra?.launchAlarmId === "string"
+            ? event.notification.extra.launchAlarmId
+            : null;
+        if (!launchAlarmId) return;
+        const request = buildTodayLaunchRequestFromAlarmId(launchAlarmId);
+        if (!request) return;
+        writeStoredTodayLaunchRequest(request);
+      });
+    };
+
+    void attach();
+  }, [deliveryMode]);
 
   useEffect(() => {
     const previousUid = previousUidRef.current;

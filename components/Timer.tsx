@@ -1,5 +1,7 @@
 "use client";
 
+import * as Popover from "@radix-ui/react-popover";
+import * as Tabs from "@radix-ui/react-tabs";
 import type { CSSProperties } from "react";
 import { memo, useEffect, useRef, useState } from "react";
 import styles from "./Timer.module.css";
@@ -143,14 +145,14 @@ const TimerFacePanel = memo(function TimerFacePanel({
   showNotebookMenu,
   canResume,
   onSetMode,
-  onToggleTimerSettings,
+  onSetTimerSettingsOpen,
   onSetConfiguredMinutes,
   onSetFocusIdentity,
   onStartSession,
   onPauseSession,
   onHandleComplete,
   onReset,
-  onOpenNotebookMenu,
+  onSetNotebookMenuOpen,
   onOpenNotebook,
   onOpenSessionNotes,
 }: {
@@ -172,14 +174,14 @@ const TimerFacePanel = memo(function TimerFacePanel({
   showNotebookMenu: boolean;
   canResume: boolean;
   onSetMode: (mode: "countdown" | "stopwatch") => void;
-  onToggleTimerSettings: () => void;
+  onSetTimerSettingsOpen: (open: boolean) => void;
   onSetConfiguredMinutes: (minutes: number) => void;
   onSetFocusIdentity: (identity: FocusIdentity) => void;
   onStartSession: () => void;
   onPauseSession: () => void;
   onHandleComplete: () => void;
   onReset: () => void;
-  onOpenNotebookMenu: () => void;
+  onSetNotebookMenuOpen: (open: boolean) => void;
   onOpenNotebook: () => void;
   onOpenSessionNotes?: () => void;
 }) {
@@ -188,84 +190,83 @@ const TimerFacePanel = memo(function TimerFacePanel({
   return (
     <>
       <div className={styles.modeRow}>
-        <div className={styles.modeTabs}>
-          <button
-            type="button"
-            onClick={() => onSetMode("countdown")}
-            className={`${styles.modeTab} ${mode === "countdown" ? styles.modeTabActive : ""}`}
-          >
-            Countdown
-          </button>
-          <button
-            type="button"
-            onClick={() => onSetMode("stopwatch")}
-            className={`${styles.modeTab} ${mode === "stopwatch" ? styles.modeTabActive : ""}`}
-          >
-            Stopwatch
-          </button>
-        </div>
+        <Tabs.Root value={mode} onValueChange={(value) => onSetMode(value as "countdown" | "stopwatch")}>
+          <Tabs.List className={styles.modeTabs} aria-label="Timer mode">
+            <Tabs.Trigger value="countdown" className={styles.modeTab}>
+              Countdown
+            </Tabs.Trigger>
+            <Tabs.Trigger value="stopwatch" className={styles.modeTab}>
+              Stopwatch
+            </Tabs.Trigger>
+          </Tabs.List>
+        </Tabs.Root>
       </div>
 
       <div className={styles.timerFace} data-focus-mode={focusIdentity}>
         <div className={styles.faceSettingsWrap}>
-          <button
-            type="button"
-            className={styles.faceSettingsButton}
-            onClick={onToggleTimerSettings}
-            disabled={running || submitting}
-            aria-label="Open timer settings"
-            aria-expanded={showTimerSettings}
-          >
-            <span />
-            <span />
-            <span />
-          </button>
+          <Popover.Root open={showTimerSettings} onOpenChange={onSetTimerSettingsOpen}>
+            <Popover.Trigger asChild>
+              <button
+                type="button"
+                className={styles.faceSettingsButton}
+                disabled={running || submitting}
+                aria-label="Open timer settings"
+                aria-expanded={showTimerSettings}
+              >
+                <span />
+                <span />
+                <span />
+              </button>
+            </Popover.Trigger>
+            <Popover.Portal>
+              <Popover.Content className={styles.faceSettingsMenu} sideOffset={8} align="end">
+                {mode === "countdown" && (
+                  <label className={styles.faceMinutesPicker}>
+                    <span>Minutes</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={480}
+                      value={configuredMinutes}
+                      onChange={(event) => {
+                        const next = Number(event.target.value);
+                        if (Number.isFinite(next)) {
+                          onSetConfiguredMinutes(Math.min(480, Math.max(1, next)));
+                        }
+                      }}
+                      disabled={running}
+                    />
+                  </label>
+                )}
 
-          {showTimerSettings && (
-            <div className={styles.faceSettingsMenu}>
-              {mode === "countdown" && (
-                <label className={styles.faceMinutesPicker}>
-                  <span>Minutes</span>
-                  <input
-                    type="number"
-                    min={1}
-                    max={480}
-                    value={configuredMinutes}
-                    onChange={(event) => {
-                      const next = Number(event.target.value);
-                      if (Number.isFinite(next)) {
-                        onSetConfiguredMinutes(Math.min(480, Math.max(1, next)));
-                      }
-                    }}
-                    disabled={running}
-                  />
-                </label>
-              )}
-
-              <div className={styles.faceIdentityGroup}>
-                <p className={styles.faceSettingsLabel}>Focus Mode</p>
-                <div className={styles.faceIdentityOptions}>
-                  {(
-                    Object.entries(FOCUS_IDENTITIES) as Array<
-                      [FocusIdentity, (typeof FOCUS_IDENTITIES)[FocusIdentity]]
-                    >
-                  ).map(([identityKey, identity]) => (
-                    <button
-                      key={identityKey}
-                      type="button"
-                      className={`${styles.settingsMenuButton} ${
-                        focusIdentity === identityKey ? styles.settingsMenuButtonActive : ""
-                      }`}
-                      onClick={() => onSetFocusIdentity(identityKey)}
-                    >
-                      <span>{identity.label}</span>
-                      {identity.descriptor ? <span>{identity.descriptor}</span> : null}
-                    </button>
-                  ))}
+                <div className={styles.faceIdentityGroup}>
+                  <p className={styles.faceSettingsLabel}>Focus Mode</p>
+                  <div className={styles.faceIdentityOptions}>
+                    {(
+                      Object.entries(FOCUS_IDENTITIES) as Array<
+                        [FocusIdentity, (typeof FOCUS_IDENTITIES)[FocusIdentity]]
+                      >
+                    ).map(([identityKey, identity]) => (
+                      <button
+                        key={identityKey}
+                        type="button"
+                        className={`${styles.settingsMenuButton} ${
+                          focusIdentity === identityKey ? styles.settingsMenuButtonActive : ""
+                        }`}
+                        onClick={() => {
+                          onSetFocusIdentity(identityKey);
+                          onSetTimerSettingsOpen(false);
+                        }}
+                      >
+                        <span>{identity.label}</span>
+                        {identity.descriptor ? <span>{identity.descriptor}</span> : null}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            </div>
-          )}
+              </Popover.Content>
+            </Popover.Portal>
+          </Popover.Root>
         </div>
         <div className={styles.faceAura} aria-hidden="true" />
         <div className={styles.faceGrid} aria-hidden="true">
@@ -323,26 +324,40 @@ const TimerFacePanel = memo(function TimerFacePanel({
             Reset
           </button>
 
-          <div className={styles.faceDockNoteWrap}>
-            <button onClick={onOpenNotebookMenu} className={styles.faceDockButton} disabled={submitting}>
-              Session note
-              {sessionNoteCount > 0 && <span className={styles.faceDockBadge}>{sessionNoteCount}</span>}
-            </button>
-            {showNotebookMenu && (
-              <div className={styles.faceDockMenu}>
-                <button type="button" className={styles.faceDockMenuButton} onClick={onOpenNotebook}>
-                  New note
+          <Popover.Root open={showNotebookMenu} onOpenChange={onSetNotebookMenuOpen}>
+            <div className={styles.faceDockNoteWrap}>
+              <Popover.Trigger asChild>
+                <button type="button" className={styles.faceDockButton} disabled={submitting}>
+                  Session note
+                  {sessionNoteCount > 0 && <span className={styles.faceDockBadge}>{sessionNoteCount}</span>}
                 </button>
-                <button
-                  type="button"
-                  className={styles.faceDockMenuButton}
-                  onClick={onOpenSessionNotes}
-                >
-                  See notes
-                </button>
-              </div>
-            )}
-          </div>
+              </Popover.Trigger>
+              <Popover.Portal>
+                <Popover.Content className={styles.faceDockMenu} sideOffset={8} align="end">
+                  <button
+                    type="button"
+                    className={styles.faceDockMenuButton}
+                    onClick={() => {
+                      onOpenNotebook();
+                      onSetNotebookMenuOpen(false);
+                    }}
+                  >
+                    New note
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.faceDockMenuButton}
+                    onClick={() => {
+                      onOpenSessionNotes?.();
+                      onSetNotebookMenuOpen(false);
+                    }}
+                  >
+                    See notes
+                  </button>
+                </Popover.Content>
+              </Popover.Portal>
+            </div>
+          </Popover.Root>
         </div>
       </div>
     </>
@@ -417,6 +432,7 @@ export default function Timer({
   isPro = false,
   showHeaderCopy = true,
   showStreakHint = true,
+  autoStartToken,
 }: {
   minutes?: number;
   title: string;
@@ -442,6 +458,7 @@ export default function Timer({
   isPro?: boolean;
   showHeaderCopy?: boolean;
   showStreakHint?: boolean;
+  autoStartToken?: string | null;
 }) {
   const [mode, setMode] = useState<"countdown" | "stopwatch">("countdown");
   const [configuredMinutes, setConfiguredMinutes] = useState(minutes);
@@ -472,6 +489,7 @@ export default function Timer({
   const noteRef = useRef(note);
   const shouldPersistOnUnmountRef = useRef(true);
   const isRestoringPersistedTimerRef = useRef(false);
+  const lastAutoStartTokenRef = useRef<string | null>(null);
 
   runningRef.current = running;
   modeRef.current = mode;
@@ -584,6 +602,10 @@ export default function Timer({
   }, []);
 
   useEffect(() => {
+    setConfiguredMinutes(minutes);
+  }, [minutes]);
+
+  useEffect(() => {
     if (isRestoringPersistedTimerRef.current) {
       isRestoringPersistedTimerRef.current = false;
       return;
@@ -596,6 +618,13 @@ export default function Timer({
     setRunning(false);
     setDone(false);
   }, [configuredMinutes, mode]);
+
+  useEffect(() => {
+    if (!autoStartToken || autoStartToken === lastAutoStartTokenRef.current) return;
+    lastAutoStartTokenRef.current = autoStartToken;
+    if (runningRef.current) return;
+    startSession();
+  }, [autoStartToken]);
 
   useEffect(() => {
     if (!running) {
@@ -766,11 +795,6 @@ export default function Timer({
     setShowNotebook(true);
   }
 
-  function openNotebookMenu() {
-    setRunning(false);
-    setShowNotebookMenu((current) => !current);
-  }
-
   function pauseSession() {
     clearPersistedTimer();
     setRunning(false);
@@ -877,7 +901,7 @@ export default function Timer({
         showNotebookMenu={showNotebookMenu}
         canResume={Boolean(sessionContextRef.current)}
         onSetMode={setMode}
-        onToggleTimerSettings={() => setShowTimerSettings((current) => !current)}
+        onSetTimerSettingsOpen={setShowTimerSettings}
         onSetConfiguredMinutes={setConfiguredMinutes}
         onSetFocusIdentity={(identity) => {
           setFocusIdentity(identity);
@@ -889,7 +913,10 @@ export default function Timer({
           void handleComplete();
         }}
         onReset={reset}
-        onOpenNotebookMenu={openNotebookMenu}
+        onSetNotebookMenuOpen={(open) => {
+          setRunning(false);
+          setShowNotebookMenu(open);
+        }}
         onOpenNotebook={openNotebook}
         onOpenSessionNotes={() => {
           setShowNotebookMenu(false);

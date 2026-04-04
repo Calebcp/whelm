@@ -1,5 +1,6 @@
 "use client";
 
+import * as Tabs from "@radix-ui/react-tabs";
 import { useMemo, type Ref } from "react";
 import { motion } from "motion/react";
 
@@ -326,29 +327,13 @@ export default function ReportsTab({
             </div>
 
             <div className={styles.analyticsToolbar}>
-              <div className={styles.rangeTabs}>
-                <button
-                  type="button"
-                  className={`${styles.rangeTab} ${insightRange === 7 ? styles.rangeTabActive : ""}`}
-                  onClick={() => onSetInsightRange(7)}
-                >
-                  7d
-                </button>
-                <button
-                  type="button"
-                  className={`${styles.rangeTab} ${insightRange === 30 ? styles.rangeTabActive : ""}`}
-                  onClick={() => onSetInsightRange(30)}
-                >
-                  30d
-                </button>
-                <button
-                  type="button"
-                  className={`${styles.rangeTab} ${insightRange === 90 ? styles.rangeTabActive : ""}`}
-                  onClick={() => onSetInsightRange(90)}
-                >
-                  90d
-                </button>
-              </div>
+              <Tabs.Root value={String(insightRange)} onValueChange={(value) => onSetInsightRange(Number(value) as 7 | 30 | 90)}>
+                <Tabs.List className={styles.rangeTabs} aria-label="Report range">
+                  <Tabs.Trigger value="7" className={styles.rangeTab}>7d</Tabs.Trigger>
+                  <Tabs.Trigger value="30" className={styles.rangeTab}>30d</Tabs.Trigger>
+                  <Tabs.Trigger value="90" className={styles.rangeTab}>90d</Tabs.Trigger>
+                </Tabs.List>
+              </Tabs.Root>
               <p className={styles.accountMeta}>
                 Window: {analyticsDateRange.startDate} to {analyticsDateRange.endDate}
               </p>

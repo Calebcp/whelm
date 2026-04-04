@@ -47,7 +47,6 @@ type UseScheduleTabPropsOptions = {
     | "selectedDateEntries"
     | "selectedDateDayTone"
     | "selectedDateCanAddBlocks"
-    | "dayPortalComposerOpen"
     | "bandanaColor"
     | "currentTimeMarker"
     | "dayViewTimeline"
@@ -58,20 +57,10 @@ type UseScheduleTabPropsOptions = {
   >;
   planner: Pick<
     ScheduleTabProps,
-    | "planTitle"
-    | "planNoteExpanded"
-    | "planNote"
-    | "planTone"
-    | "planConflictWarning"
-    | "planTime"
-    | "planDuration"
-    | "planStatus"
-    | "editingPlannedBlockId"
     | "plannerSectionsOpen"
     | "selectedDatePlanGroups"
     | "selectedDateAgendaStateSummary"
     | "mobileAgendaEntriesOpen"
-    | "mobileBlockSheetOpen"
     | "draggedPlanId"
     | "plannedBlockById"
   >;
@@ -98,8 +87,6 @@ type UseScheduleTabPropsOptions = {
     | "onSetCalendarPinnedEntryId"
     | "onOpenPlannedBlockDetail"
     | "onApplyDayTone"
-    | "onOpenCalendarBlockComposer"
-    | "onCloseBlockComposer"
     | "onScrollCalendarTimelineToNow"
     | "onShowCalendarHoverPreview"
     | "onScheduleCalendarHoverPreviewClear"
@@ -108,14 +95,6 @@ type UseScheduleTabPropsOptions = {
     | "onOpenNote"
     | "onSetActiveTabHistory"
     | "onCompletePlannedBlock"
-    | "onSetPlanTitle"
-    | "onSetPlanNoteExpanded"
-    | "onSetPlanNote"
-    | "onSetPlanTone"
-    | "onSetPlanConflictWarning"
-    | "onSetPlanTime"
-    | "onSetPlanDuration"
-    | "onAddPlannedBlock"
     | "onUpdatePlannedBlockTime"
     | "onDeletePlannedBlock"
     | "onReorderPlannedBlocks"
@@ -177,7 +156,6 @@ export function useScheduleTabProps({
       day.selectedDateEntries,
       day.selectedDateDayTone,
       day.selectedDateCanAddBlocks,
-      day.dayPortalComposerOpen,
       day.bandanaColor,
       day.currentTimeMarker,
       day.dayViewTimeline,
@@ -185,20 +163,10 @@ export function useScheduleTabProps({
       day.activatedCalendarEntryId,
       day.activeOverlapPickerItem,
       day.activeDayViewPreviewItem,
-      planner.planTitle,
-      planner.planNoteExpanded,
-      planner.planNote,
-      planner.planTone,
-      planner.planConflictWarning,
-      planner.planTime,
-      planner.planDuration,
-      planner.planStatus,
-      planner.editingPlannedBlockId,
       planner.plannerSectionsOpen,
       planner.selectedDatePlanGroups,
       planner.selectedDateAgendaStateSummary,
       planner.mobileAgendaEntriesOpen,
-      planner.mobileBlockSheetOpen,
       planner.draggedPlanId,
       planner.plannedBlockById,
       streak.focusMetricsCalendar,
@@ -219,8 +187,6 @@ export function useScheduleTabProps({
       handlers.onSetCalendarPinnedEntryId,
       handlers.onOpenPlannedBlockDetail,
       handlers.onApplyDayTone,
-      handlers.onOpenCalendarBlockComposer,
-      handlers.onCloseBlockComposer,
       handlers.onScrollCalendarTimelineToNow,
       handlers.onShowCalendarHoverPreview,
       handlers.onScheduleCalendarHoverPreviewClear,
@@ -229,14 +195,6 @@ export function useScheduleTabProps({
       handlers.onOpenNote,
       handlers.onSetActiveTabHistory,
       handlers.onCompletePlannedBlock,
-      handlers.onSetPlanTitle,
-      handlers.onSetPlanNoteExpanded,
-      handlers.onSetPlanNote,
-      handlers.onSetPlanTone,
-      handlers.onSetPlanConflictWarning,
-      handlers.onSetPlanTime,
-      handlers.onSetPlanDuration,
-      handlers.onAddPlannedBlock,
       handlers.onUpdatePlannedBlockTime,
       handlers.onDeletePlannedBlock,
       handlers.onReorderPlannedBlocks,

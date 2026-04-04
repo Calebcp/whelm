@@ -4,6 +4,8 @@
 }
 
 .wbThemeShell {
+  position: relative;
+  overflow: hidden;
   padding: 20px;
   border-radius: 28px;
   background:
@@ -11,6 +13,30 @@
     radial-gradient(ellipse at bottom right, rgba(80, 160, 255, 0.14), transparent 48%),
     linear-gradient(160deg, #1a1a4e 0%, #2d1660 50%, #4a1a6e 100%);
   box-shadow: 0 24px 56px rgba(10, 5, 30, 0.42);
+}
+
+.wbThemeShell::before {
+  content: "";
+  position: absolute;
+  inset: -18% auto auto 14%;
+  width: 52%;
+  height: 42%;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(153, 102, 255, 0.26), rgba(153, 102, 255, 0));
+  filter: blur(28px);
+  pointer-events: none;
+}
+
+.wbThemeShell::after {
+  content: "";
+  position: absolute;
+  inset: auto 6% 8% auto;
+  width: 34%;
+  height: 26%;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(76, 185, 255, 0.16), rgba(76, 185, 255, 0));
+  filter: blur(30px);
+  pointer-events: none;
 }
 
 .wbHeader {
@@ -94,6 +120,8 @@
 }
 
 .wbInboxPanel {
+  z-index: 40;
+  width: min(420px, calc(100vw - 32px));
   display: grid;
   gap: 12px;
   padding: 16px;
@@ -232,6 +260,7 @@
 }
 
 .wbSurfaceTab {
+  position: relative;
   border: 0;
   border-radius: 12px;
   padding: 12px 10px 11px;
@@ -241,8 +270,17 @@
   font-size: clamp(0.82rem, 0.64rem + 0.28vw, 0.96rem);
   letter-spacing: 0.03em;
   cursor: pointer;
-  transition: color 120ms ease;
+  transition:
+    color 120ms ease,
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    background 180ms ease;
   min-height: 84px;
+}
+
+.wbSurfaceTab:hover {
+  color: rgba(235, 228, 255, 0.84);
+  transform: translateY(-1px);
 }
 
 .wbSurfaceTabInner {
@@ -294,7 +332,10 @@
 .wbSurfaceTabActive {
   background: linear-gradient(180deg, rgba(160, 120, 255, 0.86), rgba(100, 60, 220, 0.9));
   color: #fff;
-  box-shadow: 0 4px 14px rgba(120, 80, 255, 0.3);
+  box-shadow:
+    0 10px 26px rgba(120, 80, 255, 0.34),
+    0 0 0 1px rgba(220, 206, 255, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
 }
 
 .wbFriendRequestBadge {
@@ -349,16 +390,25 @@
 }
 
 .leaderboardToggle {
+  position: relative;
+  overflow: hidden;
   display: inline-grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 5px;
   padding: 5px;
   border: 1px solid rgba(180, 160, 255, 0.18);
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.06);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03)),
+    rgba(255, 255, 255, 0.04);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 10px 24px rgba(8, 4, 26, 0.18);
 }
 
 .leaderboardToggleButton {
+  position: relative;
+  overflow: hidden;
   border: 0;
   border-radius: 12px;
   padding: 10px 20px;
@@ -367,13 +417,46 @@
   font-weight: 800;
   letter-spacing: 0.05em;
   cursor: pointer;
-  transition: color 120ms ease;
+  transition:
+    color 120ms ease,
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    background 180ms ease;
 }
 
-.leaderboardToggleButtonActive {
-  background: linear-gradient(180deg, rgba(160, 120, 255, 0.88), rgba(100, 60, 220, 0.92));
+.leaderboardToggleLabel {
+  position: relative;
+  z-index: 1;
+}
+
+.leaderboardToggleActiveGlow {
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 50% -10%, rgba(255, 255, 255, 0.24), transparent 54%),
+    linear-gradient(180deg, rgba(177, 134, 255, 0.96), rgba(113, 68, 232, 0.98));
+  box-shadow:
+    0 10px 24px rgba(120, 80, 255, 0.38),
+    0 0 0 1px rgba(224, 212, 255, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.leaderboardToggleButton[data-state="active"] {
   color: #fff;
-  box-shadow: 0 6px 18px rgba(120, 80, 255, 0.34);
+  text-shadow: 0 0 14px rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px) scale(1.015);
+}
+
+.leaderboardToggleButton:hover {
+  color: rgba(243, 238, 255, 0.92);
+}
+
+.leaderboardToggleButton:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px rgba(19, 10, 49, 0.92),
+    0 0 0 4px rgba(180, 145, 255, 0.34);
 }
 
 .wbDesktopGrid {
@@ -385,6 +468,25 @@
 .wbBandanaPane {
   display: grid;
   gap: 8px;
+  position: relative;
+}
+
+.wbLeaderboardPane::before,
+.wbBandanaPane::before {
+  content: "";
+  position: absolute;
+  inset: -10px;
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(194, 163, 255, 0.08), rgba(97, 66, 196, 0.02));
+  opacity: 0.9;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.wbLeaderboardPane > *,
+.wbBandanaPane > * {
+  position: relative;
+  z-index: 1;
 }
 
 .wbPaneHeader {
@@ -449,6 +551,8 @@
 }
 
 .leaderboardRow {
+  position: relative;
+  overflow: hidden;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -459,23 +563,74 @@
   background: rgba(255, 255, 255, 0.05);
   border-left-width: 3px;
   border-left-color: transparent;
-  transition: background 140ms ease;
+  transition:
+    background 140ms ease,
+    transform 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.leaderboardRow::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease;
 }
 
 .leaderboardRow:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-1px);
+  border-color: rgba(204, 182, 255, 0.18);
+  box-shadow:
+    0 10px 22px rgba(16, 8, 44, 0.2),
+    0 0 0 1px rgba(214, 194, 255, 0.06);
 }
 
 .leaderboardRowGold {
   border-left-color: #ffd700;
+  background:
+    linear-gradient(90deg, rgba(255, 215, 0, 0.1), transparent 24%),
+    rgba(255, 255, 255, 0.05);
+  box-shadow:
+    0 0 0 1px rgba(255, 215, 0, 0.08),
+    0 12px 30px rgba(255, 196, 0, 0.08);
 }
 
 .leaderboardRowSilver {
   border-left-color: #c0c0c0;
+  background:
+    linear-gradient(90deg, rgba(224, 232, 244, 0.1), transparent 24%),
+    rgba(255, 255, 255, 0.05);
+  box-shadow:
+    0 0 0 1px rgba(224, 232, 244, 0.08),
+    0 12px 30px rgba(183, 196, 220, 0.08);
 }
 
 .leaderboardRowBronze {
   border-left-color: #cd7f32;
+  background:
+    linear-gradient(90deg, rgba(205, 127, 50, 0.1), transparent 24%),
+    rgba(255, 255, 255, 0.05);
+  box-shadow:
+    0 0 0 1px rgba(205, 127, 50, 0.08),
+    0 12px 30px rgba(160, 99, 40, 0.08);
+}
+
+.leaderboardRowGold::before {
+  opacity: 1;
+  background: radial-gradient(circle at 0% 50%, rgba(255, 223, 110, 0.14), transparent 34%);
+}
+
+.leaderboardRowSilver::before {
+  opacity: 1;
+  background: radial-gradient(circle at 0% 50%, rgba(226, 235, 255, 0.12), transparent 34%);
+}
+
+.leaderboardRowBronze::before {
+  opacity: 1;
+  background: radial-gradient(circle at 0% 50%, rgba(220, 154, 98, 0.12), transparent 34%);
 }
 
 .leaderboardRowCurrentUser {
@@ -484,16 +639,40 @@
   background: rgba(160, 100, 255, 0.1);
   box-shadow:
     0 0 0 1px rgba(180, 140, 255, 0.2),
-    0 0 18px rgba(140, 80, 255, 0.18);
+    0 0 18px rgba(140, 80, 255, 0.18),
+    0 0 34px rgba(140, 80, 255, 0.14);
 }
 
 .leaderboardRowRank {
   flex-shrink: 0;
   width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
   font-size: 0.78rem;
   font-weight: 900;
   color: rgba(220, 210, 255, 0.7);
   text-align: center;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.leaderboardRowGold .leaderboardRowRank {
+  background: linear-gradient(180deg, rgba(255, 228, 130, 0.98), rgba(255, 186, 52, 0.92));
+  color: #402100;
+  box-shadow: 0 8px 18px rgba(255, 196, 0, 0.22);
+}
+
+.leaderboardRowSilver .leaderboardRowRank {
+  background: linear-gradient(180deg, rgba(242, 246, 255, 0.98), rgba(190, 201, 223, 0.92));
+  color: #22314d;
+  box-shadow: 0 8px 18px rgba(180, 194, 220, 0.18);
+}
+
+.leaderboardRowBronze .leaderboardRowRank {
+  background: linear-gradient(180deg, rgba(236, 177, 128, 0.98), rgba(191, 111, 55, 0.92));
+  color: #3f1b00;
+  box-shadow: 0 8px 18px rgba(176, 102, 50, 0.18);
 }
 
 .leaderboardAvatarWrap {
@@ -592,6 +771,11 @@
   cursor: pointer;
 }
 
+.leaderboardRowClickable:hover .leaderboardRowUsername {
+  color: #ffffff;
+  text-shadow: 0 0 14px rgba(255, 255, 255, 0.14);
+}
+
 .leaderboardBandanaChip,
 .leaderboardYouBadge {
   border-radius: 999px;
@@ -624,6 +808,7 @@
   color: rgba(210, 195, 255, 0.8);
   font-size: 0.74rem;
   font-weight: 700;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .leaderboardMovementBadge,

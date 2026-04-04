@@ -1,5 +1,7 @@
 "use client";
 
+import * as Popover from "@radix-ui/react-popover";
+import * as Tabs from "@radix-ui/react-tabs";
 import { type CSSProperties, type ReactNode, type Ref, useState } from "react";
 import { motion } from "motion/react";
 
@@ -178,10 +180,31 @@ function LeaderboardRow({
         entry.isCurrentUser ? styles.leaderboardRowCurrentUser : ""
       } ${onClick ? styles.leaderboardRowClickable : ""}`}
       onClick={onClick}
+      layout
       initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
+      animate={
+        entry.isCurrentUser
+          ? {
+              opacity: 1,
+              y: 0,
+              scale: [1, 1.018, 1],
+              boxShadow: [
+                "0 0 0 rgba(140, 80, 255, 0)",
+                tab === "xp"
+                  ? "0 0 0 1px rgba(180, 140, 255, 0.26), 0 0 26px rgba(180, 120, 255, 0.24)"
+                  : "0 0 0 1px rgba(120, 210, 255, 0.24), 0 0 26px rgba(80, 185, 255, 0.22)",
+                "0 0 0 rgba(140, 80, 255, 0)",
+              ],
+            }
+          : { opacity: 1, y: 0 }
+      }
       transition={{
-        duration: 0.26,
+        layout: {
+          type: "spring",
+          stiffness: 380,
+          damping: 32,
+        },
+        duration: entry.isCurrentUser ? 0.52 : 0.26,
         delay: Math.min((rank - 1) * 0.035, 0.18),
         ease: [0.22, 1, 0.36, 1],
       }}
@@ -394,91 +417,99 @@ export default function WhelmboardTab({
         {surfaceTab === "friends" && (
           <>
             <div className={styles.wbHeaderCenter}>
-              <button
-                type="button"
-                className={styles.wbInboxButton}
-                onClick={() => setRequestInboxOpen((current) => !current)}
-                aria-expanded={requestInboxOpen}
-                aria-label="Open friend request inbox"
-              >
-                <img
-                  src="/whelmboard-icons/friend-inbox-envelope.png"
-                  alt=""
-                  aria-hidden="true"
-                  className={styles.wbInboxButtonIcon}
-                />
-                {incomingRequests.length > 0 ? (
-                  <span className={styles.wbInboxBadge}>{incomingRequests.length}</span>
-                ) : null}
-              </button>
+              <Popover.Root open={requestInboxOpen} onOpenChange={setRequestInboxOpen}>
+                <Popover.Trigger asChild>
+                  <button
+                    type="button"
+                    className={styles.wbInboxButton}
+                    aria-expanded={requestInboxOpen}
+                    aria-label="Open friend request inbox"
+                  >
+                    <img
+                      src="/whelmboard-icons/friend-inbox-envelope.png"
+                      alt=""
+                      aria-hidden="true"
+                      className={styles.wbInboxButtonIcon}
+                    />
+                    {incomingRequests.length > 0 ? (
+                      <span className={styles.wbInboxBadge}>{incomingRequests.length}</span>
+                    ) : null}
+                  </button>
+                </Popover.Trigger>
+                <Popover.Portal>
+                  <Popover.Content className={styles.wbInboxPanel} sideOffset={12} align="center">
+                    <div className={styles.wbInboxSection}>
+                      <div className={styles.wbPaneHeader}>
+                        <span className={sharedStyles.sectionLabel}>Requests</span>
+                        <span className={styles.leaderboardCountPill}>{incomingRequests.length}</span>
+                      </div>
+                      {incomingRequests.length === 0 ? (
+                        <div className={styles.wbInboxEmptyState}>
+                          <strong>No incoming requests</strong>
+                          <p className={sharedStyles.accountMeta}>When someone adds you, it will show up here.</p>
+                        </div>
+                      ) : (
+                        <div className={styles.wbInboxList}>
+                          {incomingRequests.map((req) => (
+                            <div key={req.fromUid} className={styles.wbInboxRow}>
+                              <span className={styles.wbInboxName}>{req.fromUsername}</span>
+                              <div className={styles.wbInboxActions}>
+                                <button
+                                  type="button"
+                                  className={styles.wbInboxAcceptButton}
+                                  onClick={() => {
+                                    onAcceptFriendRequest(req);
+                                    setRequestInboxOpen(false);
+                                  }}
+                                >
+                                  Accept
+                                </button>
+                                <button
+                                  type="button"
+                                  className={styles.wbInboxDeclineButton}
+                                  onClick={() => {
+                                    onDeclineFriendRequest(req);
+                                    setRequestInboxOpen(false);
+                                  }}
+                                >
+                                  Decline
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className={styles.wbInboxSection}>
+                      <div className={styles.wbPaneHeader}>
+                        <span className={sharedStyles.sectionLabel}>Sent</span>
+                        <span className={styles.leaderboardCountPill}>{outgoingRequests.length}</span>
+                      </div>
+                      {outgoingRequests.length === 0 ? (
+                        <div className={styles.wbInboxEmptyState}>
+                          <strong>No sent requests</strong>
+                          <p className={sharedStyles.accountMeta}>People you add will appear here until they accept.</p>
+                        </div>
+                      ) : (
+                        <div className={styles.wbInboxList}>
+                          {outgoingRequests.map((req) => (
+                            <div key={req.toUid} className={styles.wbInboxRowMuted}>
+                              <span className={styles.wbInboxName}>{req.toUsername}</span>
+                              <span className={styles.wbInboxPendingChip}>Pending</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </Popover.Content>
+                </Popover.Portal>
+              </Popover.Root>
             </div>
             <div className={styles.wbHeaderSpacer} aria-hidden="true" />
           </>
         )}
       </div>
-
-      {surfaceTab === "friends" && requestInboxOpen && (
-        <div className={styles.wbInboxPanel}>
-          <div className={styles.wbInboxSection}>
-            <div className={styles.wbPaneHeader}>
-              <span className={sharedStyles.sectionLabel}>Requests</span>
-              <span className={styles.leaderboardCountPill}>{incomingRequests.length}</span>
-            </div>
-            {incomingRequests.length === 0 ? (
-              <div className={styles.wbInboxEmptyState}>
-                <strong>No incoming requests</strong>
-                <p className={sharedStyles.accountMeta}>When someone adds you, it will show up here.</p>
-              </div>
-            ) : (
-              <div className={styles.wbInboxList}>
-                {incomingRequests.map((req) => (
-                  <div key={req.fromUid} className={styles.wbInboxRow}>
-                    <span className={styles.wbInboxName}>{req.fromUsername}</span>
-                    <div className={styles.wbInboxActions}>
-                      <button
-                        type="button"
-                        className={styles.wbInboxAcceptButton}
-                        onClick={() => onAcceptFriendRequest(req)}
-                      >
-                        Accept
-                      </button>
-                      <button
-                        type="button"
-                        className={styles.wbInboxDeclineButton}
-                        onClick={() => onDeclineFriendRequest(req)}
-                      >
-                        Decline
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className={styles.wbInboxSection}>
-            <div className={styles.wbPaneHeader}>
-              <span className={sharedStyles.sectionLabel}>Sent</span>
-              <span className={styles.leaderboardCountPill}>{outgoingRequests.length}</span>
-            </div>
-            {outgoingRequests.length === 0 ? (
-              <div className={styles.wbInboxEmptyState}>
-                <strong>No sent requests</strong>
-                <p className={sharedStyles.accountMeta}>People you add will appear here until they accept.</p>
-              </div>
-            ) : (
-              <div className={styles.wbInboxList}>
-                {outgoingRequests.map((req) => (
-                  <div key={req.toUid} className={styles.wbInboxRowMuted}>
-                    <span className={styles.wbInboxName}>{req.toUsername}</span>
-                    <span className={styles.wbInboxPendingChip}>Pending</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Surface tab nav: Global | Friends | Bandana Tiers */}
       <div
@@ -515,36 +546,30 @@ export default function WhelmboardTab({
       {surfaceTab === "global" && (
         <>
           {/* XP / Streak metric toggle */}
-          <div className={styles.leaderboardToggle} role="tablist" aria-label="Leaderboard metric">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={leaderboardMetricTab === "xp"}
-              className={`${styles.leaderboardToggleButton} ${
-                leaderboardMetricTab === "xp" ? styles.leaderboardToggleButtonActive : ""
-              }`}
-              onClick={() => {
-                if (leaderboardMetricTab === "xp") return;
-                onSetMetricTab("xp");
-              }}
-            >
-              XP
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={leaderboardMetricTab === "streak"}
-              className={`${styles.leaderboardToggleButton} ${
-                leaderboardMetricTab === "streak" ? styles.leaderboardToggleButtonActive : ""
-              }`}
-              onClick={() => {
-                if (leaderboardMetricTab === "streak") return;
-                onSetMetricTab("streak");
-              }}
-            >
-              Streak
-            </button>
-          </div>
+          <Tabs.Root value={leaderboardMetricTab} onValueChange={(value) => onSetMetricTab(value as "xp" | "streak")}>
+            <Tabs.List className={styles.leaderboardToggle} aria-label="Leaderboard metric">
+              <Tabs.Trigger value="xp" className={styles.leaderboardToggleButton}>
+                {leaderboardMetricTab === "xp" ? (
+                  <motion.span
+                    layoutId="whelmboardMetricTabGlow"
+                    className={styles.leaderboardToggleActiveGlow}
+                    transition={{ type: "spring", stiffness: 380, damping: 34 }}
+                  />
+                ) : null}
+                <span className={styles.leaderboardToggleLabel}>XP</span>
+              </Tabs.Trigger>
+              <Tabs.Trigger value="streak" className={styles.leaderboardToggleButton}>
+                {leaderboardMetricTab === "streak" ? (
+                  <motion.span
+                    layoutId="whelmboardMetricTabGlow"
+                    className={styles.leaderboardToggleActiveGlow}
+                    transition={{ type: "spring", stiffness: 380, damping: 34 }}
+                  />
+                ) : null}
+                <span className={styles.leaderboardToggleLabel}>Streak</span>
+              </Tabs.Trigger>
+            </Tabs.List>
+          </Tabs.Root>
 
           {/* Leaderboard list */}
           <div className={styles.wbLeaderboardPane}>

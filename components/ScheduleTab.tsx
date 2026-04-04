@@ -1,5 +1,6 @@
 "use client";
 
+import * as Tabs from "@radix-ui/react-tabs";
 import { memo, useMemo, type CSSProperties, type Ref, type RefObject } from "react";
 import { motion } from "motion/react";
 
@@ -16,9 +17,6 @@ import {
 import { type WhelBandanaColor } from "@/lib/whelm-mascot";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-
-const MIN_PLANNED_BLOCK_MINUTES = 15;
-const MAX_PLANNED_BLOCK_MINUTES = 240;
 
 function previewDuplicatesTitle(title: string, preview: string) {
   const normalize = (value: string) => value.replace(/\s+/g, " ").trim().toLowerCase();
@@ -262,7 +260,6 @@ export type ScheduleTabProps = {
   selectedDateEntries: CalendarEntry[];
   selectedDateDayTone: CalendarTone | null;
   selectedDateCanAddBlocks: boolean;
-  dayPortalComposerOpen: boolean;
   bandanaColor: WhelBandanaColor;
   currentTimeMarker: { topPct: number; label: string } | null;
   dayViewTimeline: DayViewTimeline;
@@ -270,22 +267,11 @@ export type ScheduleTabProps = {
   activatedCalendarEntryId: string | null;
   activeOverlapPickerItem: DayViewItem | null;
   activeDayViewPreviewItem: DayViewItem | null;
-  // Plan form
-  planTitle: string;
-  planNoteExpanded: boolean;
-  planNote: string;
-  planTone: CalendarTone | null;
-  planConflictWarning: { conflictIds: string[]; message: string } | null;
-  planTime: string;
-  planDuration: number;
-  planStatus: string;
-  editingPlannedBlockId: string | null;
   // Planner sections
   plannerSectionsOpen: PlannerSectionsOpen;
   selectedDatePlanGroups: SelectedDatePlanGroups;
   selectedDateAgendaStateSummary: SelectedDateAgendaStateSummary;
   mobileAgendaEntriesOpen: boolean;
-  mobileBlockSheetOpen: boolean;
   draggedPlanId: string | null;
   plannedBlockById: Map<string, PlannedBlock>;
   // Streak heatmap
@@ -311,8 +297,6 @@ export type ScheduleTabProps = {
   onOpenPlannedBlockDetail: (planId: string) => void;
   // Handlers — day view
   onApplyDayTone: (dateKey: string, tone: CalendarTone | null) => void;
-  onOpenCalendarBlockComposer: () => void;
-  onCloseBlockComposer: () => void;
   onScrollCalendarTimelineToNow: () => void;
   onShowCalendarHoverPreview: (id: string) => void;
   onScheduleCalendarHoverPreviewClear: (id: string) => void;
@@ -321,15 +305,6 @@ export type ScheduleTabProps = {
   onOpenNote: (id: string | null) => void;
   onSetActiveTabHistory: () => void;
   onCompletePlannedBlock: (plan: PlannedBlock) => Promise<void>;
-  // Handlers — plan form
-  onSetPlanTitle: (title: string) => void;
-  onSetPlanNoteExpanded: (expanded: boolean | ((current: boolean) => boolean)) => void;
-  onSetPlanNote: (note: string) => void;
-  onSetPlanTone: (tone: CalendarTone | null) => void;
-  onSetPlanConflictWarning: (warning: { conflictIds: string[]; message: string } | null) => void;
-  onSetPlanTime: (time: string) => void;
-  onSetPlanDuration: (duration: number) => void;
-  onAddPlannedBlock: () => boolean;
   onUpdatePlannedBlockTime: (id: string, time: string) => void;
   onDeletePlannedBlock: (id: string) => void;
   onReorderPlannedBlocks: (dragId: string, dropId: string) => void;
@@ -392,29 +367,11 @@ type DayPortalPanelProps = Pick<
   | "selectedDateEntries"
   | "selectedDateKey"
   | "isPro"
-  | "dayPortalComposerOpen"
-  | "planTitle"
-  | "planNoteExpanded"
-  | "planNote"
-  | "planTone"
-  | "planConflictWarning"
-  | "planTime"
-  | "planDuration"
   | "bandanaColor"
-  | "onOpenCalendarBlockComposer"
   | "onSetCalendarView"
   | "onToggleMobileCalendarControls"
   | "onApplyDayTone"
   | "onUpgrade"
-  | "onCloseBlockComposer"
-  | "onSetPlanTitle"
-  | "onSetPlanNoteExpanded"
-  | "onSetPlanNote"
-  | "onSetPlanTone"
-  | "onSetPlanConflictWarning"
-  | "onSetPlanTime"
-  | "onSetPlanDuration"
-  | "onAddPlannedBlock"
 >;
 
 type CalendarAuxPanelProps = Pick<
@@ -450,35 +407,6 @@ type CalendarAuxPanelProps = Pick<
   | "onReorderPlannedBlocks"
   | "onUpdatePlannedBlockTime"
   | "onDeletePlannedBlock"
->;
-
-type MobileBlockSheetProps = Pick<
-  ScheduleTabProps,
-  | "mobileBlockSheetOpen"
-  | "isMobileViewport"
-  | "selectedDateCanAddBlocks"
-  | "selectedDateKey"
-  | "planTitle"
-  | "planNoteExpanded"
-  | "planNote"
-  | "planTone"
-  | "isPro"
-  | "planConflictWarning"
-  | "planTime"
-  | "planDuration"
-  | "editingPlannedBlockId"
-  | "planStatus"
-  | "selectedDatePlanGroups"
-  | "onCloseBlockComposer"
-  | "onSetPlanTitle"
-  | "onSetPlanNoteExpanded"
-  | "onSetPlanNote"
-  | "onSetPlanTone"
-  | "onUpgrade"
-  | "onSetPlanConflictWarning"
-  | "onSetPlanTime"
-  | "onSetPlanDuration"
-  | "onAddPlannedBlock"
 >;
 
 const MonthGridPanel = memo(function MonthGridPanel({
@@ -605,36 +533,17 @@ const DayPortalPanel = memo(function DayPortalPanel({
   selectedDateDayTone,
   isSelectedDateToday,
   selectedDateSummary,
-  selectedDateCanAddBlocks,
   isMobileViewport,
   selectedDateFocusedMinutes,
   selectedDatePlanGroups,
   selectedDateEntries,
   selectedDateKey,
   isPro,
-  dayPortalComposerOpen,
-  planTitle,
-  planNoteExpanded,
-  planNote,
-  planTone,
-  planConflictWarning,
-  planTime,
-  planDuration,
   bandanaColor,
-  onOpenCalendarBlockComposer,
   onSetCalendarView,
   onToggleMobileCalendarControls,
   onApplyDayTone,
   onUpgrade,
-  onCloseBlockComposer,
-  onSetPlanTitle,
-  onSetPlanNoteExpanded,
-  onSetPlanNote,
-  onSetPlanTone,
-  onSetPlanConflictWarning,
-  onSetPlanTime,
-  onSetPlanDuration,
-  onAddPlannedBlock,
 }: DayPortalPanelProps) {
   return (
     <div id="calendar-day-chamber" className={styles.dayPortalCard}>
@@ -653,16 +562,6 @@ const DayPortalPanel = memo(function DayPortalPanel({
               <h3 className={styles.dayPortalTitle}>{selectedDateSummary.title}</h3>
             </div>
             <div className={styles.dayPortalActions}>
-              {selectedDateCanAddBlocks ? (
-                <button
-                  type="button"
-                  data-tour="schedule-add-block"
-                  className={`${styles.planAddButton} ${styles.dayPortalBlockButton}`}
-                  onClick={onOpenCalendarBlockComposer}
-                >
-                  + Block
-                </button>
-              ) : null}
               <button
                 type="button"
                 className={styles.secondaryPlanButton}
@@ -696,111 +595,6 @@ const DayPortalPanel = memo(function DayPortalPanel({
             isPro={isPro}
             onUpgrade={onUpgrade}
           />
-          {!isMobileViewport && selectedDateCanAddBlocks && dayPortalComposerOpen && (
-            <div id="calendar-planner" className={styles.dayPortalComposer}>
-              <div className={styles.dayPortalComposerHeader}>
-                <div>
-                  <p className={styles.sectionLabel}>Add Block</p>
-                  <p className={styles.accountMeta}>Place the next block without leaving the day view.</p>
-                </div>
-                <button
-                  type="button"
-                  className={styles.secondaryPlanButton}
-                  onClick={onCloseBlockComposer}
-                >
-                  Close
-                </button>
-              </div>
-              <input
-                value={planTitle}
-                onChange={(event) => onSetPlanTitle(event.target.value)}
-                placeholder="Task title (e.g. Deep work sprint)"
-                className={styles.planInput}
-                disabled={!selectedDateCanAddBlocks}
-              />
-              <div className={styles.planNoteRow}>
-                <button
-                  type="button"
-                  className={styles.planNoteToggle}
-                  onClick={() => onSetPlanNoteExpanded((current) => !current)}
-                >
-                  {planNoteExpanded || planNote ? "Hide note" : "+ Note"}
-                </button>
-              </div>
-              {planNoteExpanded && (
-                <textarea
-                  value={planNote}
-                  onChange={(event) => onSetPlanNote(event.target.value.slice(0, 280))}
-                  placeholder="Optional note, intention, or instruction for this block"
-                  className={styles.planNoteInput}
-                  disabled={!selectedDateCanAddBlocks}
-                />
-              )}
-              <CalendarTonePicker
-                label="Block tone"
-                selectedTone={planTone}
-                onSelectTone={onSetPlanTone}
-                isPro={isPro}
-                onUpgrade={onUpgrade}
-              />
-              {planConflictWarning && (
-                <div className={styles.planConflictBanner}>
-                  <p className={styles.planConflictText}>{planConflictWarning.message}</p>
-                  <div className={styles.planConflictActions}>
-                    <button
-                      type="button"
-                      className={styles.secondaryPlanButton}
-                      onClick={() => onSetPlanConflictWarning(null)}
-                    >
-                      Close
-                    </button>
-                  </div>
-                </div>
-              )}
-              <div className={styles.planFormRow}>
-                <label className={styles.planLabel}>
-                  Time
-                  <input
-                    type="time"
-                    value={planTime}
-                    onChange={(event) => onSetPlanTime(event.target.value)}
-                    className={styles.planControl}
-                    disabled={!selectedDateCanAddBlocks}
-                  />
-                </label>
-                <label className={styles.planLabel}>
-                  Minutes
-                  <input
-                    type="number"
-                    min={MIN_PLANNED_BLOCK_MINUTES}
-                    max={MAX_PLANNED_BLOCK_MINUTES}
-                    value={planDuration}
-                    onChange={(event) => {
-                      const next = Number(event.target.value);
-                      if (Number.isFinite(next)) {
-                        onSetPlanDuration(next);
-                      }
-                    }}
-                    className={styles.planControl}
-                    disabled={!selectedDateCanAddBlocks}
-                  />
-                </label>
-                <button
-                  type="button"
-                  className={`${styles.planAddButton} ${styles.blockActionButton}`}
-                  disabled={!selectedDateCanAddBlocks}
-                  onClick={() => {
-                    const added = onAddPlannedBlock();
-                    if (added) {
-                      onCloseBlockComposer();
-                    }
-                  }}
-                >
-                  Add Block
-                </button>
-              </div>
-            </div>
-          )}
         </div>
         {!isMobileViewport && (
           <SenseiAvatar
@@ -870,29 +664,13 @@ const CalendarAuxPanel = memo(function CalendarAuxPanel({
       style={calendarView === "day" ? getCalendarToneStyle(selectedDateDayTone) : undefined}
       ref={calendarPlannerRef}
     >
-      <div className={styles.calendarAuxTabs}>
-        <button
-          type="button"
-          className={`${styles.calendarAuxTab} ${calendarAuxPanel === "agenda" ? styles.calendarAuxTabActive : ""}`}
-          onClick={() => onSetCalendarAuxPanel("agenda")}
-        >
-          Agenda
-        </button>
-        <button
-          type="button"
-          className={`${styles.calendarAuxTab} ${calendarAuxPanel === "streak" ? styles.calendarAuxTabActive : ""}`}
-          onClick={() => onSetCalendarAuxPanel("streak")}
-        >
-          Streak
-        </button>
-        <button
-          type="button"
-          className={`${styles.calendarAuxTab} ${calendarAuxPanel === "guide" ? styles.calendarAuxTabActive : ""}`}
-          onClick={() => onSetCalendarAuxPanel("guide")}
-        >
-          Guide
-        </button>
-      </div>
+      <Tabs.Root value={calendarAuxPanel} onValueChange={(value) => onSetCalendarAuxPanel(value as "agenda" | "streak" | "guide")}>
+        <Tabs.List className={styles.calendarAuxTabs} aria-label="Calendar auxiliary panel">
+          <Tabs.Trigger value="agenda" className={styles.calendarAuxTab}>Agenda</Tabs.Trigger>
+          <Tabs.Trigger value="streak" className={styles.calendarAuxTab}>Streak</Tabs.Trigger>
+          <Tabs.Trigger value="guide" className={styles.calendarAuxTab}>Guide</Tabs.Trigger>
+        </Tabs.List>
+      </Tabs.Root>
 
       {calendarAuxPanel === "guide" && (
         <div ref={calendarHeroRef}>
@@ -1391,181 +1169,6 @@ const CalendarAuxPanel = memo(function CalendarAuxPanel({
   );
 });
 
-const MobileBlockSheet = memo(function MobileBlockSheet({
-  mobileBlockSheetOpen,
-  isMobileViewport,
-  selectedDateCanAddBlocks,
-  selectedDateKey,
-  planTitle,
-  planNoteExpanded,
-  planNote,
-  planTone,
-  isPro,
-  planConflictWarning,
-  planTime,
-  planDuration,
-  editingPlannedBlockId,
-  planStatus,
-  selectedDatePlanGroups,
-  onCloseBlockComposer,
-  onSetPlanTitle,
-  onSetPlanNoteExpanded,
-  onSetPlanNote,
-  onSetPlanTone,
-  onUpgrade,
-  onSetPlanConflictWarning,
-  onSetPlanTime,
-  onSetPlanDuration,
-  onAddPlannedBlock,
-}: MobileBlockSheetProps) {
-  if (!isMobileViewport || !mobileBlockSheetOpen || !selectedDateCanAddBlocks) {
-    return null;
-  }
-
-  return (
-    <div className={styles.feedbackOverlay} onClick={onCloseBlockComposer}>
-      <div className={styles.mobileBlockModal} onClick={(event) => event.stopPropagation()}>
-        <div className={styles.feedbackHeader}>
-          <div>
-            <p className={styles.sectionLabel}>Time Block</p>
-            <h2 className={styles.feedbackTitle}>
-              Block out{" "}
-              {new Date(`${selectedDateKey}T00:00:00`).toLocaleDateString(undefined, {
-                weekday: "short",
-                month: "short",
-                day: "numeric",
-              })}
-            </h2>
-          </div>
-          <button type="button" className={styles.feedbackClose} onClick={onCloseBlockComposer}>
-            Close
-          </button>
-        </div>
-        <p className={styles.paywallCopy}>
-          Time blocks are central in Whelm. Add one fast, then return to the calendar.
-        </p>
-        <div className={styles.planForm}>
-          <input
-            value={planTitle}
-            onChange={(event) => onSetPlanTitle(event.target.value)}
-            placeholder="Task title"
-            className={styles.planInput}
-            disabled={!selectedDateCanAddBlocks}
-          />
-          <div className={styles.planNoteRow}>
-            <button
-              type="button"
-              className={styles.planNoteToggle}
-              onClick={() => onSetPlanNoteExpanded((current) => !current)}
-            >
-              {planNoteExpanded || planNote ? "Hide note" : "+ Note"}
-            </button>
-          </div>
-          {planNoteExpanded && (
-            <textarea
-              value={planNote}
-              onChange={(event) => onSetPlanNote(event.target.value.slice(0, 280))}
-              placeholder="Optional note, intention, or instruction for this block"
-              className={styles.planNoteInput}
-              disabled={!selectedDateCanAddBlocks}
-            />
-          )}
-          <CalendarTonePicker
-            label="Block tone"
-            selectedTone={planTone}
-            onSelectTone={onSetPlanTone}
-            isPro={isPro}
-            onUpgrade={onUpgrade}
-          />
-          {planConflictWarning && (
-            <div className={styles.planConflictBanner}>
-              <p className={styles.planConflictText}>{planConflictWarning.message}</p>
-              <div className={styles.planConflictActions}>
-                <button
-                  type="button"
-                  className={styles.secondaryPlanButton}
-                  onClick={() => onSetPlanConflictWarning(null)}
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          )}
-          <div className={styles.planFormRow}>
-            <label className={styles.planLabel}>
-              Time
-              <input
-                type="time"
-                value={planTime}
-                onChange={(event) => onSetPlanTime(event.target.value)}
-                className={styles.planControl}
-                disabled={!selectedDateCanAddBlocks}
-              />
-            </label>
-            <label className={styles.planLabel}>
-              Minutes
-              <input
-                type="number"
-                min={MIN_PLANNED_BLOCK_MINUTES}
-                max={MAX_PLANNED_BLOCK_MINUTES}
-                value={planDuration}
-                onChange={(event) => {
-                  const next = Number(event.target.value);
-                  if (Number.isFinite(next)) {
-                    onSetPlanDuration(next);
-                  }
-                }}
-                className={styles.planControl}
-                disabled={!selectedDateCanAddBlocks}
-              />
-            </label>
-            <button
-              type="button"
-              className={`${styles.planAddButton} ${styles.blockActionButton}`}
-              disabled={!selectedDateCanAddBlocks}
-              onClick={() => {
-                const added = onAddPlannedBlock();
-                if (added) {
-                  onCloseBlockComposer();
-                }
-              }}
-            >
-              {editingPlannedBlockId ? "Save changes" : "Add block"}
-            </button>
-          </div>
-          {planStatus && <p className={styles.accountMeta}>{planStatus}</p>}
-        </div>
-        <div className={styles.mobileBlockList}>
-          {selectedDatePlanGroups.visible.slice(0, 4).map((item) => (
-            <div
-              key={item.id}
-              className={`${styles.mobileBlockItem} ${
-                item.status === "completed" ? styles.mobileBlockItemCompleted : ""
-              }`}
-            >
-              <strong>
-                {item.title}
-                {item.attachmentCount ? (
-                  <span className={styles.attachmentIndicatorChip}>
-                    {attachmentIndicatorLabel(item.attachmentCount)}
-                  </span>
-                ) : null}
-              </strong>
-              <span>
-                {item.timeOfDay} • {item.durationMinutes}m
-                {item.status === "completed" ? " • completed" : ""}
-              </span>
-            </div>
-          ))}
-          {selectedDatePlanGroups.visible.length === 0 && (
-            <p className={styles.emptyText}>No blocks yet for this day.</p>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-});
-
 const DayTimelinePanel = memo(function DayTimelinePanel({
   calendarTimelineRef,
   mobileDayTimelineScrollRef,
@@ -1959,7 +1562,6 @@ function ScheduleTab({
   selectedDateEntries,
   selectedDateDayTone,
   selectedDateCanAddBlocks,
-  dayPortalComposerOpen,
   bandanaColor,
   currentTimeMarker,
   dayViewTimeline,
@@ -1967,20 +1569,10 @@ function ScheduleTab({
   activatedCalendarEntryId,
   activeOverlapPickerItem,
   activeDayViewPreviewItem,
-  planTitle,
-  planNoteExpanded,
-  planNote,
-  planTone,
-  planConflictWarning,
-  planTime,
-  planDuration,
-  planStatus,
-  editingPlannedBlockId,
   plannerSectionsOpen,
   selectedDatePlanGroups,
   selectedDateAgendaStateSummary,
   mobileAgendaEntriesOpen,
-  mobileBlockSheetOpen,
   draggedPlanId,
   plannedBlockById,
   focusMetricsCalendar,
@@ -2001,8 +1593,6 @@ function ScheduleTab({
   onSetCalendarPinnedEntryId,
   onOpenPlannedBlockDetail,
   onApplyDayTone,
-  onOpenCalendarBlockComposer,
-  onCloseBlockComposer,
   onScrollCalendarTimelineToNow,
   onShowCalendarHoverPreview,
   onScheduleCalendarHoverPreviewClear,
@@ -2011,14 +1601,6 @@ function ScheduleTab({
   onOpenNote,
   onSetActiveTabHistory,
   onCompletePlannedBlock,
-  onSetPlanTitle,
-  onSetPlanNoteExpanded,
-  onSetPlanNote,
-  onSetPlanTone,
-  onSetPlanConflictWarning,
-  onSetPlanTime,
-  onSetPlanDuration,
-  onAddPlannedBlock,
   onUpdatePlannedBlockTime,
   onDeletePlannedBlock,
   onReorderPlannedBlocks,
@@ -2221,29 +1803,11 @@ function ScheduleTab({
               selectedDateEntries={selectedDateEntries}
               selectedDateKey={selectedDateKey}
               isPro={isPro}
-              dayPortalComposerOpen={dayPortalComposerOpen}
-              planTitle={planTitle}
-              planNoteExpanded={planNoteExpanded}
-              planNote={planNote}
-              planTone={planTone}
-              planConflictWarning={planConflictWarning}
-              planTime={planTime}
-              planDuration={planDuration}
               bandanaColor={bandanaColor}
-              onOpenCalendarBlockComposer={onOpenCalendarBlockComposer}
               onSetCalendarView={onSetCalendarView}
               onToggleMobileCalendarControls={onToggleMobileCalendarControls}
               onApplyDayTone={onApplyDayTone}
               onUpgrade={onUpgrade}
-              onCloseBlockComposer={onCloseBlockComposer}
-              onSetPlanTitle={onSetPlanTitle}
-              onSetPlanNoteExpanded={onSetPlanNoteExpanded}
-              onSetPlanNote={onSetPlanNote}
-              onSetPlanTone={onSetPlanTone}
-              onSetPlanConflictWarning={onSetPlanConflictWarning}
-              onSetPlanTime={onSetPlanTime}
-              onSetPlanDuration={onSetPlanDuration}
-              onAddPlannedBlock={onAddPlannedBlock}
             />
             <DayTimelinePanel
               calendarTimelineRef={calendarTimelineRef}
@@ -2383,34 +1947,6 @@ function ScheduleTab({
           onDeletePlannedBlock={onDeletePlannedBlock}
         />
       )}
-
-      <MobileBlockSheet
-        mobileBlockSheetOpen={mobileBlockSheetOpen}
-        isMobileViewport={isMobileViewport}
-        selectedDateCanAddBlocks={selectedDateCanAddBlocks}
-        selectedDateKey={selectedDateKey}
-        planTitle={planTitle}
-        planNoteExpanded={planNoteExpanded}
-        planNote={planNote}
-        planTone={planTone}
-        isPro={isPro}
-        planConflictWarning={planConflictWarning}
-        planTime={planTime}
-        planDuration={planDuration}
-        editingPlannedBlockId={editingPlannedBlockId}
-        planStatus={planStatus}
-        selectedDatePlanGroups={selectedDatePlanGroups}
-        onCloseBlockComposer={onCloseBlockComposer}
-        onSetPlanTitle={onSetPlanTitle}
-        onSetPlanNoteExpanded={onSetPlanNoteExpanded}
-        onSetPlanNote={onSetPlanNote}
-        onSetPlanTone={onSetPlanTone}
-        onUpgrade={onUpgrade}
-        onSetPlanConflictWarning={onSetPlanConflictWarning}
-        onSetPlanTime={onSetPlanTime}
-        onSetPlanDuration={onSetPlanDuration}
-        onAddPlannedBlock={onAddPlannedBlock}
-      />
     </AnimatedTabSection>
   );
 }
