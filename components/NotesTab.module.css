@@ -839,6 +839,17 @@
   font-weight: 600;
 }
 
+.noteToolButton:disabled {
+  cursor: default;
+  opacity: 0.72;
+}
+
+.noteToolButtonActive {
+  border-color: rgba(59, 94, 197, 0.18);
+  background: rgba(233, 240, 255, 0.96);
+  color: #1e3a8a;
+}
+
 .noteToolSelect {
   border: 1px solid rgba(15, 23, 42, 0.16);
   border-radius: 9px;
@@ -849,6 +860,12 @@
 
 .noteInlinePalette {
   position: relative;
+}
+
+.noteToolbarHint {
+  color: #667891;
+  font-size: 0.9rem;
+  line-height: 1.5;
 }
 
 .noteInlinePalettePopover {
@@ -894,10 +911,14 @@
 }
 
 .noteBodyInput {
+  display: block;
   width: 100%;
   padding: 24px 24px 18px;
   overflow: auto;
   min-height: calc(45vh - 78px);
+  border: 0;
+  background: transparent;
+  resize: none;
   font: inherit;
   color: #102033;
   -webkit-text-fill-color: currentColor;

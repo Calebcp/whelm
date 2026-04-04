@@ -114,15 +114,20 @@ export default function OnboardingTour({
     if (!open) return;
 
     const updateViewport = () => {
+      const visualViewport = window.visualViewport;
       setViewportSize({
-        width: window.innerWidth,
-        height: window.innerHeight,
+        width: Math.round(visualViewport?.width ?? window.innerWidth),
+        height: Math.round(visualViewport?.height ?? window.innerHeight),
       });
     };
 
     updateViewport();
     window.addEventListener("resize", updateViewport);
-    return () => window.removeEventListener("resize", updateViewport);
+    window.visualViewport?.addEventListener("resize", updateViewport);
+    return () => {
+      window.removeEventListener("resize", updateViewport);
+      window.visualViewport?.removeEventListener("resize", updateViewport);
+    };
   }, [open]);
 
   useEffect(() => {
@@ -214,27 +219,39 @@ export default function OnboardingTour({
     const cardWidth = Math.min(420, viewportWidth - (isMobile ? 24 : 32));
 
     if (isMobile) {
+      const sideInset = 12;
       const safeTop = 18;
       const safeBottom = 16;
-      const topCandidate = safeTop;
-      const bottomCandidate = Math.max(safeTop, viewportHeight - safeBottom - cardHeight);
       const contextTop = contextRect?.top ?? spotlightRect.top;
       const contextBottom = contextRect ? contextRect.top + contextRect.height : spotlightRect.top + spotlightRect.height;
       const spaceAbove = contextTop - safeTop;
       const spaceBelow = viewportHeight - safeBottom - contextBottom;
+      const availableHeight = Math.max(0, viewportHeight - safeTop - safeBottom);
+      const effectiveCardHeight = Math.min(cardHeight, availableHeight);
 
-      let top = bottomCandidate;
+      let top = Math.max(safeTop, viewportHeight - safeBottom - effectiveCardHeight);
       if (spaceAbove >= cardHeight + 8 && spaceAbove >= spaceBelow) {
-        top = topCandidate;
+        top = safeTop;
       } else if (spaceBelow >= cardHeight + 8) {
-        top = bottomCandidate;
+        top = Math.max(safeTop, viewportHeight - safeBottom - effectiveCardHeight);
       } else if (spaceAbove > spaceBelow) {
-        top = topCandidate;
+        top = safeTop;
+      } else {
+        top = Math.min(
+          Math.max(safeTop, contextBottom + 8),
+          Math.max(safeTop, viewportHeight - safeBottom - effectiveCardHeight),
+        );
       }
+
+      top = Math.min(
+        Math.max(safeTop, top),
+        Math.max(safeTop, viewportHeight - safeBottom - effectiveCardHeight),
+      );
 
       return {
         top,
-        left: 12,
+        left: sideInset,
+        right: sideInset,
         transform: "none",
       };
     }

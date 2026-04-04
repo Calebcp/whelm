@@ -51,7 +51,9 @@
 .tourCard {
   position: fixed;
   width: min(420px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
   max-height: calc(100vh - 32px);
+  box-sizing: border-box;
   border-radius: 30px;
   padding: 18px 18px 16px;
   background:
@@ -83,6 +85,7 @@
 
 .tourCopy {
   min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .tourEyebrow {
@@ -97,6 +100,7 @@
   margin: 0;
   font-size: 1.08rem;
   line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
 .tourBody {
@@ -104,6 +108,7 @@
   color: rgba(232, 240, 255, 0.82);
   line-height: 1.45;
   font-size: 0.95rem;
+  overflow-wrap: anywhere;
 }
 
 .tourProgress {
@@ -117,6 +122,7 @@
 .tourActions {
   display: flex;
   gap: 10px;
+  flex-wrap: wrap;
   justify-content: flex-end;
   margin-top: 16px;
 }
@@ -188,6 +194,7 @@
 
   .tourCard {
     width: calc(100vw - 24px);
+    max-width: calc(100vw - 24px);
     max-height: min(34vh, 270px);
     border-radius: 24px;
     padding: 14px;
@@ -220,10 +227,12 @@
 
   .tourActions {
     margin-top: 12px;
+    justify-content: stretch;
   }
 
   .tourSecondary,
   .tourPrimary {
+    flex: 1 1 140px;
     padding: 10px 14px;
   }
 }

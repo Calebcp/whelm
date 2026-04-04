@@ -299,6 +299,7 @@ export default function TodayTab({
 
       <div ref={todayTimerRef}>
         <TimeHubGrid
+          bandanaColor={bandanaColor}
           timerLabel={`${timeHub.state.timerDraft.minutes} min`}
           nextBlockLabel={nextBlockLabel}
           nextBlockMeta={nextBlockMeta}

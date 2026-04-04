@@ -1512,6 +1512,7 @@ export default function HomePage() {
     removeNoteAttachment,
   } = useNotes({
     isPro,
+    isMobileViewport,
     onNavigateToNotes: () => setActiveTab("notes"),
   });
 

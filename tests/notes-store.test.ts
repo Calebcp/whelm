@@ -64,6 +64,32 @@ test("mergeNotesPreferNewest keeps older non-empty body when newer body is effec
   assert.equal(merged.updatedAtISO, "2026-03-30T00:00:00.000Z");
 });
 
+test("mergeNotesPreferNewest keeps an intentionally blank newer title", async () => {
+  process.env.NEXT_PUBLIC_FIREBASE_API_KEY = "demo-key";
+  process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN = "demo.firebaseapp.com";
+  process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID = "demo-project";
+  process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET = "demo.appspot.com";
+  process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID = "1234567890";
+  process.env.NEXT_PUBLIC_FIREBASE_APP_ID = "1:1234567890:web:abcdef";
+  process.env.FIREBASE_DATABASE_ID = "(default)";
+
+  const { mergeNotesPreferNewest } = await import("@/lib/notes-store");
+  const older = makeNote({
+    title: "Original title",
+    updatedAtISO: "2026-03-29T23:00:00.000Z",
+  });
+  const newerBlankTitle = makeNote({
+    title: "",
+    updatedAtISO: "2026-03-30T00:00:00.000Z",
+  });
+
+  const [merged] = mergeNotesPreferNewest([older], [newerBlankTitle]);
+
+  assert.ok(merged);
+  assert.equal(merged.title, "");
+  assert.equal(merged.updatedAtISO, "2026-03-30T00:00:00.000Z");
+});
+
 test("mergeNotesPreferNewest keeps legacy-only notes alongside subcollection notes", async () => {
   process.env.NEXT_PUBLIC_FIREBASE_API_KEY = "demo-key";
   process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN = "demo.firebaseapp.com";

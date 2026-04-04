@@ -228,7 +228,6 @@ function mergeAttachments(first: WorkspaceNote["attachments"], second: Workspace
 function pickPreferredTitle(newer: WorkspaceNote, older: WorkspaceNote) {
   const newerTitle = newer.title.trim();
   const olderTitle = older.title.trim();
-  if (!newerTitle && olderTitle) return older.title;
   if (newerTitle === "Untitled note" && olderTitle && olderTitle !== "Untitled note") {
     return older.title;
   }
@@ -431,6 +430,17 @@ function timeoutError(message: string) {
   const error = new Error(message);
   error.name = "TimeoutError";
   return error;
+}
+
+function isAbortLikeError(error: unknown) {
+  return (
+    (error instanceof DOMException && error.name === "AbortError") ||
+    (error instanceof Error && (error.name === "AbortError" || error.message === "Fetch is aborted"))
+  );
+}
+
+function isExpectedNotesSyncError(error: unknown) {
+  return isAbortLikeError(error) || (error instanceof Error && error.name === "TimeoutError");
 }
 
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string) {
@@ -649,7 +659,14 @@ export async function saveNotePatchToFirestore(
     });
     return { notes: [], synced: true };
   } catch (err) {
-    console.error("[whelm] saveNotePatchToFirestore: FAILED for userNotes/" + uid + "/notes/" + noteId, err);
+    if (isExpectedNotesSyncError(err)) {
+      console.warn("[whelm] saveNotePatchToFirestore: delayed for userNotes/" + uid + "/notes/" + noteId, {
+        fields: Object.keys(normalizedPatch),
+        reason: err instanceof Error ? err.name : "Unknown",
+      });
+    } else {
+      console.error("[whelm] saveNotePatchToFirestore: FAILED for userNotes/" + uid + "/notes/" + noteId, err);
+    }
     const currentUser = auth.currentUser;
     const currentLocalNotes = currentUser?.uid === uid ? readLocalNotes(uid) : [];
     const fallbackNote = currentLocalNotes.find((note) => note.id === noteId);
@@ -661,7 +678,14 @@ export async function saveNotePatchToFirestore(
         });
         return { notes: [], synced: true };
       } catch (apiErr) {
-        console.error("[whelm] saveNotePatchToFirestore: API FALLBACK failed for userNotes/" + uid + "/notes/" + noteId, apiErr);
+        if (isExpectedNotesSyncError(apiErr)) {
+          console.warn("[whelm] saveNotePatchToFirestore: API fallback delayed for userNotes/" + uid + "/notes/" + noteId, {
+            fields: Object.keys(normalizedPatch),
+            reason: apiErr instanceof Error ? apiErr.name : "Unknown",
+          });
+        } else {
+          console.error("[whelm] saveNotePatchToFirestore: API FALLBACK failed for userNotes/" + uid + "/notes/" + noteId, apiErr);
+        }
       }
     }
     return { notes: [], synced: false, message: "Saved locally. Cloud sync is currently pending." };

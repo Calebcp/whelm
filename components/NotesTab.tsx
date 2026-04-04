@@ -6,6 +6,8 @@ import {
   type Ref,
   type RefObject,
   memo,
+  useEffect,
+  useState,
 } from "react";
 import { motion } from "motion/react";
 
@@ -115,6 +117,19 @@ const NOTE_ATTACHMENT_ACCEPT = [
   ".numbers",
   ".key",
 ].join(",");
+
+const NOTE_SELECTION_KEYS = new Set([
+  "ArrowLeft",
+  "ArrowRight",
+  "ArrowUp",
+  "ArrowDown",
+  "Home",
+  "End",
+  "PageUp",
+  "PageDown",
+]);
+
+const NOTE_PRIMARY_TOOLBAR_ITEMS = ["Type"] as const;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -460,7 +475,7 @@ export type NotesTabProps = {
   notesStartRef: Ref<HTMLElement>;
   notesRecentRef: RefObject<HTMLElement | null>;
   notesEditorRef: Ref<HTMLElement>;
-  editorRef: RefObject<HTMLDivElement | null>;
+  editorRef: RefObject<HTMLTextAreaElement | null>;
   noteBodyShellRef: RefObject<HTMLDivElement | null>;
   // Handlers
   onNoteAttachmentInput: (event: ChangeEvent<HTMLInputElement>) => void;
@@ -538,7 +553,7 @@ type MobileNotesPanelProps = {
   notesStartRef: Ref<HTMLElement>;
   notesRecentRef: RefObject<HTMLElement | null>;
   notesEditorRef: Ref<HTMLElement>;
-  editorRef: RefObject<HTMLDivElement | null>;
+  editorRef: RefObject<HTMLTextAreaElement | null>;
   noteBodyShellRef: RefObject<HTMLDivElement | null>;
   onOpenAttachmentPicker: () => void;
   onOpenNoteAttachment: (attachment: NoteAttachment) => void;
@@ -686,7 +701,7 @@ const MobileNoteEditorCard = memo(function MobileNoteEditorCard({
   selectedNoteSurfaceColor,
   selectedNotePageColor,
   xpTierTheme,
-  streakBandanaTier,
+  streakBandanaTier: _streakBandanaTier,
   mobileNotesToolsOpen,
   onSetMobileNotesToolsOpen,
   colorPickerOpen,
@@ -697,7 +712,7 @@ const MobileNoteEditorCard = memo(function MobileNoteEditorCard({
   onSetTextColorPickerOpen,
   highlightPickerOpen,
   onSetHighlightPickerOpen,
-  editorBandanaCaret,
+  editorBandanaCaret: _editorBandanaCaret,
   onSetEditorBandanaCaret,
   mobileNotesEditorOpen: _mobileNotesEditorOpen,
   onSetMobileNotesEditorOpen,
@@ -720,7 +735,7 @@ const MobileNoteEditorCard = memo(function MobileNoteEditorCard({
   onSaveEditorSelection,
   onApplyEditorCommand,
   onCheckEditorSelection,
-  onUpdateEditorBandanaCaret,
+  onUpdateEditorBandanaCaret: _onUpdateEditorBandanaCaret,
   onFlushNoteDraft,
   onRetrySync,
   onApplyHighlightColor,
@@ -874,84 +889,27 @@ const MobileNoteEditorCard = memo(function MobileNoteEditorCard({
       </div>
 
       <div className={styles.mobileNotesControls}>
-        <button
-          type="button"
-          className={`${sharedStyles.mobileControlToggle} ${
-            mobileNotesToolsOpen === "format" ? sharedStyles.mobileControlToggleActive : ""
-          }`}
-          onClick={() => onSetMobileNotesToolsOpen((current) => (current === "format" ? null : "format"))}
-        >
-          Format
-        </button>
-        <button
-          type="button"
-          className={`${sharedStyles.mobileControlToggle} ${
-            mobileNotesToolsOpen === "type" ? sharedStyles.mobileControlToggleActive : ""
-          }`}
-          disabled={!isPro}
-          onClick={() => onSetMobileNotesToolsOpen((current) => (current === "type" ? null : "type"))}
-        >
-          Type
-        </button>
-        <button
-          type="button"
-          className={`${sharedStyles.mobileControlToggle} ${
-            mobileNotesToolsOpen === "color" ? sharedStyles.mobileControlToggleActive : ""
-          }`}
-          disabled={!isPro}
-          onClick={() => onSetMobileNotesToolsOpen((current) => (current === "color" ? null : "color"))}
-        >
-          Color
-        </button>
+        {NOTE_PRIMARY_TOOLBAR_ITEMS.map((item) => (
+          <button
+            key={item}
+            type="button"
+            className={`${sharedStyles.mobileControlToggle} ${
+              mobileNotesToolsOpen === "type" ? sharedStyles.mobileControlToggleActive : ""
+            }`}
+            disabled={!isPro}
+            onClick={() => onSetMobileNotesToolsOpen((current) => (current === "type" ? null : "type"))}
+          >
+            {item}
+          </button>
+        ))}
       </div>
 
-      {mobileNotesToolsOpen === "format" && (
-        <div className={sharedStyles.mobileToolPanel}>
-          {[
-            ["Bold", "bold"],
-            ["Italic", "italic"],
-            ["Underline", "underline"],
-            ["Bullet", "insertUnorderedList"],
-          ].map(([label, command]) => (
-            <button
-              key={command}
-              type="button"
-              className={styles.noteToolButton}
-              onMouseDown={(event) => {
-                event.preventDefault();
-                onSaveEditorSelection();
-              }}
-              onClick={() => onApplyEditorCommand(command)}
-            >
-              {label}
-            </button>
-          ))}
-          {[
-            ["H1", "H1"],
-            ["H2", "H2"],
-          ].map(([label, block]) => (
-            <button
-              key={block}
-              type="button"
-              className={styles.noteToolButton}
-              onMouseDown={(event) => {
-                event.preventDefault();
-                onSaveEditorSelection();
-              }}
-              onClick={() => onApplyEditorCommand("formatBlock", block)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {mobileNotesToolsOpen === "type" && (
+      {mobileNotesToolsOpen === "type" ? (
         <div className={sharedStyles.mobileToolPanel}>
           <select
             className={styles.noteToolSelect}
             value={selectedNote.fontFamily}
-            onMouseDown={() => onSaveEditorSelection()}
+            onPointerDown={() => onSaveEditorSelection()}
             onChange={(event) => {
               const nextFont = event.target.value;
               onApplyEditorCommand("fontName", nextFont);
@@ -967,7 +925,7 @@ const MobileNoteEditorCard = memo(function MobileNoteEditorCard({
           <select
             className={styles.noteToolSelect}
             value={String(selectedNote.fontSizePx)}
-            onMouseDown={() => onSaveEditorSelection()}
+            onPointerDown={() => onSaveEditorSelection()}
             onChange={(event) => {
               const nextSize = Number(event.target.value);
               const option = NOTE_FONT_SIZES.find((item) => item.value === nextSize);
@@ -982,80 +940,8 @@ const MobileNoteEditorCard = memo(function MobileNoteEditorCard({
             ))}
           </select>
         </div>
-      )}
+      ) : null}
 
-      {mobileNotesToolsOpen === "color" && (
-        <div className={sharedStyles.mobileToolPanel}>
-          <button
-            type="button"
-            className={styles.noteToolButton}
-            onMouseDown={(event) => {
-              event.preventDefault();
-              onSaveEditorSelection();
-            }}
-            onClick={() => {
-              onSetTextColorPickerOpen((open) => !open);
-              onSetHighlightPickerOpen(false);
-            }}
-          >
-            Text color
-          </button>
-          <button
-            type="button"
-            className={styles.noteToolButton}
-            onMouseDown={(event) => {
-              event.preventDefault();
-              onSaveEditorSelection();
-            }}
-            onClick={() => {
-              onSetHighlightPickerOpen((open) => !open);
-              onSetTextColorPickerOpen(false);
-            }}
-          >
-            Highlight
-          </button>
-          {textColorPickerOpen && (
-            <div className={styles.noteInlinePalettePopover}>
-              {NOTE_TEXT_COLORS.map((color) => (
-                <button
-                  type="button"
-                  key={color.value}
-                  className={styles.noteInlineSwatch}
-                  style={{ backgroundColor: color.value }}
-                  onMouseDown={(event) => {
-                    event.preventDefault();
-                    onSaveEditorSelection();
-                  }}
-                  onClick={() => {
-                    onApplyEditorCommand("foreColor", color.value);
-                    onSetTextColorPickerOpen(false);
-                  }}
-                />
-              ))}
-            </div>
-          )}
-          {highlightPickerOpen && (
-            <div className={styles.noteInlinePalettePopover}>
-              {NOTE_HIGHLIGHTS.map((color) => (
-                <button
-                  type="button"
-                  key={color.value}
-                  className={styles.noteInlineSwatch}
-                  style={{ backgroundColor: color.value }}
-                  onMouseDown={(event) => {
-                    event.preventDefault();
-                    onSaveEditorSelection();
-                  }}
-                  onClick={() => {
-                    onApplyHighlightColor(color.value);
-                    onSetHighlightPickerOpen(false);
-                  }}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
       {!isPro ? (
         <ProUnlockCard
           title="Full note styling"
@@ -1098,52 +984,42 @@ const MobileNoteEditorCard = memo(function MobileNoteEditorCard({
         className={styles.noteTitleInput}
       />
       <div className={styles.noteBodyShell} ref={noteBodyShellRef}>
-        {notesSyncStatus === "local-only" ? (
-          <div className={styles.noteSyncInlineNotice} role="status" aria-live="polite">
-            <span className={styles.noteSyncInlineDot} />
-            <span>
-              Saved locally — cloud sync pending.
-              {notesSyncMessage ? ` ${notesSyncMessage}` : ""}
-            </span>
-            <button
-              type="button"
-              className={sharedStyles.retrySyncButton}
-              style={{ marginLeft: 8 }}
-              onClick={() => void onRetrySync()}
-            >
-              {syncButtonLabel}
-            </button>
-          </div>
-        ) : null}
-        <div
+        <textarea
           ref={editorRef}
           className={styles.noteBodyInput}
-          contentEditable
-          suppressContentEditableWarning
+          spellCheck={false}
+          autoCorrect="off"
+          autoCapitalize="off"
+          data-gramm="false"
+          data-gramm_editor="false"
+          data-enable-grammarly="false"
           style={{
             fontFamily: selectedNote.fontFamily,
             fontSize: `${selectedNote.fontSizePx}px`,
           }}
           onInput={() => {
             onCaptureEditorDraft();
-            onSaveEditorSelection();
-            onUpdateEditorBandanaCaret();
           }}
-          onKeyUp={() => {
-            onSaveEditorSelection();
-            onUpdateEditorBandanaCaret();
-            onCheckEditorSelection();
+          onKeyUp={(event) => {
+            if (
+              event.shiftKey ||
+              event.metaKey ||
+              event.ctrlKey ||
+              event.altKey ||
+              NOTE_SELECTION_KEYS.has(event.key)
+            ) {
+              onSaveEditorSelection();
+              onCheckEditorSelection();
+            }
           }}
           onPaste={() => {
             window.setTimeout(() => {
               onCaptureEditorDraft();
               onSaveEditorSelection();
-              onUpdateEditorBandanaCaret();
             }, 0);
           }}
           onCompositionEnd={() => {
             onSaveEditorSelection();
-            onUpdateEditorBandanaCaret();
           }}
           onBlur={() => {
             onCaptureEditorDraft();
@@ -1152,29 +1028,14 @@ const MobileNoteEditorCard = memo(function MobileNoteEditorCard({
               current.visible ? { ...current, visible: false } : current,
             );
           }}
-          onMouseUp={() => {
+          onPointerUp={() => {
             onSaveEditorSelection();
-            onUpdateEditorBandanaCaret();
             onCheckEditorSelection();
           }}
           onFocus={() => {
             onSaveEditorSelection();
-            onUpdateEditorBandanaCaret();
           }}
-          onScroll={() => onUpdateEditorBandanaCaret()}
         />
-        {editorBandanaCaret.visible ? (
-          <img
-            className={styles.noteBandanaCaret}
-            src={bandanaCursorAssetPath(streakBandanaTier?.color, 256)}
-            srcSet={`${bandanaCursorAssetPath(streakBandanaTier?.color, 256)} 1x`}
-            alt=""
-            style={{
-              left: `${editorBandanaCaret.left}px`,
-              top: `${editorBandanaCaret.top}px`,
-            }}
-          />
-        ) : null}
         <div className={styles.noteEditorFooter}>
           <NoteAttachmentsSection
             note={selectedNote}
@@ -1190,6 +1051,15 @@ const MobileNoteEditorCard = memo(function MobileNoteEditorCard({
             {selectedNoteWordCount >= 33 ? " · streak writing met" : ""}
           </span>
           <span className={styles.noteSyncIndicator}>{syncStatusLabel}</span>
+          {notesSyncStatus === "local-only" ? (
+            <button
+              type="button"
+              className={sharedStyles.retrySyncButton}
+              onClick={() => void onRetrySync()}
+            >
+              {syncButtonLabel}
+            </button>
+          ) : null}
         </div>
       </div>
       <div className={sharedStyles.noteFooterActions}>
@@ -1755,6 +1625,7 @@ export default function NotesTab({
   onStartProPreview,
   onOpenUpgradeFlow,
 }: NotesTabProps) {
+  const [desktopNoteToolsOpen, setDesktopNoteToolsOpen] = useState(false);
   const syncStatusLabel =
     notesSyncStatus === "synced"
       ? "Synced to your account."
@@ -1774,6 +1645,10 @@ export default function NotesTab({
   };
   const showLibraryView = !selectedNote || (isMobileViewport && !mobileNotesEditorOpen);
 
+  useEffect(() => {
+    setDesktopNoteToolsOpen(false);
+  }, [isMobileViewport, selectedNoteId, showLibraryView]);
+
   return (
     <AnimatedTabSection className={styles.notesWorkspace} sectionRef={sectionRef}>
       <input
@@ -1784,36 +1659,38 @@ export default function NotesTab({
         className={styles.hiddenAttachmentInput}
         onChange={onNoteAttachmentInput}
       />
-      <div className={`${sharedStyles.cardsHeader} ${styles.notesFullWidth}`}>
-        <div>
-          <p className={sharedStyles.sectionLabel}>Notes + Cards</p>
-          <h2 className={sharedStyles.cardTitle}>Your writing studio</h2>
-          <p className={sharedStyles.accountMeta}>
-            Write freely, then turn your notes into flashcards for spaced-repetition review.
-          </p>
+      {!isMobileViewport ? (
+        <div className={`${sharedStyles.cardsHeader} ${styles.notesFullWidth}`}>
+          <div>
+            <p className={sharedStyles.sectionLabel}>Notes + Cards</p>
+            <h2 className={sharedStyles.cardTitle}>Your writing studio</h2>
+            <p className={sharedStyles.accountMeta}>
+              Write freely, then turn your notes into flashcards for spaced-repetition review.
+            </p>
+          </div>
+          <div className={sharedStyles.cardsHeaderActions}>
+            <button
+              type="button"
+              className={
+                notesSurface === "notes" ? sharedStyles.reportButton : sharedStyles.secondaryPlanButton
+              }
+              onClick={() => onSetNotesSurface("notes")}
+            >
+              Notes
+            </button>
+            <button
+              type="button"
+              data-tour="notes-cards-toggle"
+              className={
+                notesSurface === "cards" ? sharedStyles.reportButton : sharedStyles.secondaryPlanButton
+              }
+              onClick={() => onSetNotesSurface("cards")}
+            >
+              Cards
+            </button>
+          </div>
         </div>
-        <div className={sharedStyles.cardsHeaderActions}>
-          <button
-            type="button"
-            className={
-              notesSurface === "notes" ? sharedStyles.reportButton : sharedStyles.secondaryPlanButton
-            }
-            onClick={() => onSetNotesSurface("notes")}
-          >
-            Notes
-          </button>
-          <button
-            type="button"
-            data-tour="notes-cards-toggle"
-            className={
-              notesSurface === "cards" ? sharedStyles.reportButton : sharedStyles.secondaryPlanButton
-            }
-            onClick={() => onSetNotesSurface("cards")}
-          >
-            Cards
-          </button>
-        </div>
-      </div>
+      ) : null}
       {notesSurface === "cards" ? (
         <div className={styles.notesFullWidth}>
           <CardsTab uid={uid} onXPEarned={onCardsXPEarned} />
@@ -2152,342 +2029,97 @@ export default function NotesTab({
                   </div>
 
                   <div className={styles.noteEditorQuickActions}>
-                    <button
-                      type="button"
-                      className={styles.noteToolButton}
-                      onMouseDown={(event) => {
-                        event.preventDefault();
-                        onSaveEditorSelection();
-                      }}
-                      onClick={() => onApplyEditorCommand("bold")}
-                    >
-                      Bold
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.noteToolButton}
-                      onMouseDown={(event) => {
-                        event.preventDefault();
-                        onSaveEditorSelection();
-                      }}
-                      onClick={() => onApplyEditorCommand("italic")}
-                    >
-                      Italic
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.noteToolButton}
-                      onMouseDown={(event) => {
-                        event.preventDefault();
-                        onSaveEditorSelection();
-                      }}
-                      onClick={() => onApplyEditorCommand("underline")}
-                    >
-                      Underline
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.noteToolButton}
-                      onMouseDown={(event) => {
-                        event.preventDefault();
-                        onSaveEditorSelection();
-                      }}
-                      onClick={() => onApplyHighlightColor(NOTE_HIGHLIGHTS[0].value)}
-                    >
-                      Highlight
-                    </button>
+                    {NOTE_PRIMARY_TOOLBAR_ITEMS.map((item) => (
+                      <button
+                        key={item}
+                        type="button"
+                        className={`${styles.noteToolButton} ${
+                          desktopNoteToolsOpen ? styles.noteToolButtonActive : ""
+                        }`}
+                        onClick={() => setDesktopNoteToolsOpen((open) => !open)}
+                      >
+                        {item}
+                      </button>
+                    ))}
                   </div>
 
-                  <details className={styles.noteToolbarDisclosure}>
-                    <summary className={styles.noteToolbarDisclosureSummary}>
-                      More editing tools
-                    </summary>
+                  {isPro && desktopNoteToolsOpen ? (
                     <div className={styles.noteEditorToolbar}>
                       <div className={styles.noteToolbarSection}>
-                        <span className={styles.noteToolbarLabel}>Text</span>
+                        <span className={styles.noteToolbarLabel}>Typography</span>
                         <div className={styles.noteToolbarGroup}>
-                          <button
-                            type="button"
-                            className={styles.noteToolButton}
-                            onMouseDown={(event) => {
-                              event.preventDefault();
-                              onSaveEditorSelection();
+                          <select
+                            className={styles.noteToolSelect}
+                            value={selectedNote.fontFamily}
+                            onChange={(event) => {
+                              const nextFont = event.target.value;
+                              void onUpdateSelectedNote({ fontFamily: nextFont });
                             }}
-                            onClick={() => onApplyEditorCommand("removeFormat")}
                           >
-                            Clear
-                          </button>
+                            {NOTE_FONTS.map((font) => (
+                              <option key={font.label} value={font.value}>
+                                {font.label}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            className={styles.noteToolSelect}
+                            value={String(selectedNote.fontSizePx)}
+                            onChange={(event) => {
+                              const nextSize = Number(event.target.value);
+                              void onUpdateSelectedNote({ fontSizePx: nextSize });
+                            }}
+                          >
+                            {NOTE_FONT_SIZES.map((size) => (
+                              <option key={size.value} value={size.value}>
+                                {size.label}
+                              </option>
+                            ))}
+                          </select>
                         </div>
                       </div>
-
-                      <div className={styles.noteToolbarSection}>
-                        <span className={styles.noteToolbarLabel}>Structure</span>
-                        <div className={styles.noteToolbarGroup}>
-                          <button
-                            type="button"
-                            className={styles.noteToolButton}
-                            onMouseDown={(event) => {
-                              event.preventDefault();
-                              onSaveEditorSelection();
-                            }}
-                            onClick={() => onApplyEditorCommand("formatBlock", "H1")}
-                          >
-                            H1
-                          </button>
-                          <button
-                            type="button"
-                            className={styles.noteToolButton}
-                            onMouseDown={(event) => {
-                              event.preventDefault();
-                              onSaveEditorSelection();
-                            }}
-                            onClick={() => onApplyEditorCommand("formatBlock", "H2")}
-                          >
-                            H2
-                          </button>
-                          <button
-                            type="button"
-                            className={styles.noteToolButton}
-                            onMouseDown={(event) => {
-                              event.preventDefault();
-                              onSaveEditorSelection();
-                            }}
-                            onClick={() => onApplyEditorCommand("formatBlock", "BLOCKQUOTE")}
-                          >
-                            Quote
-                          </button>
-                          <button
-                            type="button"
-                            className={styles.noteToolButton}
-                            onMouseDown={(event) => {
-                              event.preventDefault();
-                              onSaveEditorSelection();
-                            }}
-                            onClick={() => onApplyEditorCommand("insertHorizontalRule")}
-                          >
-                            Divider
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className={styles.noteToolbarSection}>
-                        <span className={styles.noteToolbarLabel}>Layout</span>
-                        <div className={styles.noteToolbarGroup}>
-                          <button
-                            type="button"
-                            className={styles.noteToolButton}
-                            onMouseDown={(event) => {
-                              event.preventDefault();
-                              onSaveEditorSelection();
-                            }}
-                            onClick={() => onApplyEditorCommand("insertUnorderedList")}
-                          >
-                            Bullet
-                          </button>
-                          <button
-                            type="button"
-                            className={styles.noteToolButton}
-                            onMouseDown={(event) => {
-                              event.preventDefault();
-                              onSaveEditorSelection();
-                            }}
-                            onClick={() => onApplyEditorCommand("insertOrderedList")}
-                          >
-                            Number
-                          </button>
-                          <button
-                            type="button"
-                            className={styles.noteToolButton}
-                            onMouseDown={(event) => {
-                              event.preventDefault();
-                              onSaveEditorSelection();
-                            }}
-                            onClick={() => onApplyEditorCommand("justifyLeft")}
-                          >
-                            Left
-                          </button>
-                          <button
-                            type="button"
-                            className={styles.noteToolButton}
-                            onMouseDown={(event) => {
-                              event.preventDefault();
-                              onSaveEditorSelection();
-                            }}
-                            onClick={() => onApplyEditorCommand("justifyCenter")}
-                          >
-                            Center
-                          </button>
-                        </div>
-                      </div>
-
-                      {isPro ? (
-                        <div className={styles.noteToolbarSection}>
-                          <span className={styles.noteToolbarLabel}>Style</span>
-                          <div className={styles.noteToolbarGroup}>
-                            <select
-                              className={styles.noteToolSelect}
-                              value={selectedNote.fontFamily}
-                              onMouseDown={() => onSaveEditorSelection()}
-                              onChange={(event) => {
-                                const nextFont = event.target.value;
-                                onApplyEditorCommand("fontName", nextFont);
-                                void onUpdateSelectedNote({ fontFamily: nextFont });
-                              }}
-                            >
-                              {NOTE_FONTS.map((font) => (
-                                <option key={font.label} value={font.value}>
-                                  {font.label}
-                                </option>
-                              ))}
-                            </select>
-
-                            <select
-                              className={styles.noteToolSelect}
-                              value={String(selectedNote.fontSizePx)}
-                              onMouseDown={() => onSaveEditorSelection()}
-                              onChange={(event) => {
-                                const nextSize = Number(event.target.value);
-                                const option = NOTE_FONT_SIZES.find((item) => item.value === nextSize);
-                                onApplyEditorCommand("fontSize", option?.command ?? "4");
-                                void onUpdateSelectedNote({ fontSizePx: nextSize });
-                              }}
-                            >
-                              {NOTE_FONT_SIZES.map((size) => (
-                                <option key={size.value} value={size.value}>
-                                  {size.label}
-                                </option>
-                              ))}
-                            </select>
-
-                            <div className={styles.noteInlinePalette}>
-                              <button
-                                type="button"
-                                className={styles.noteToolButton}
-                                onMouseDown={(event) => {
-                                  event.preventDefault();
-                                  onSaveEditorSelection();
-                                }}
-                                onClick={() => {
-                                  onSetTextColorPickerOpen((open) => !open);
-                                  onSetHighlightPickerOpen(false);
-                                }}
-                              >
-                                Text color
-                              </button>
-                              {textColorPickerOpen && (
-                                <div className={styles.noteInlinePalettePopover}>
-                                  {NOTE_TEXT_COLORS.map((color) => (
-                                    <button
-                                      type="button"
-                                      key={color.value}
-                                      className={styles.noteInlineSwatch}
-                                      style={{ backgroundColor: color.value }}
-                                      title={color.label}
-                                      onMouseDown={(event) => {
-                                        event.preventDefault();
-                                        onSaveEditorSelection();
-                                      }}
-                                      onClick={() => {
-                                        onApplyEditorCommand("foreColor", color.value);
-                                        onSetTextColorPickerOpen(false);
-                                      }}
-                                    />
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-
-                            <div className={styles.noteInlinePalette}>
-                              <button
-                                type="button"
-                                className={styles.noteToolButton}
-                                onMouseDown={(event) => {
-                                  event.preventDefault();
-                                  onSaveEditorSelection();
-                                }}
-                                onClick={() => {
-                                  onSetHighlightPickerOpen((open) => !open);
-                                  onSetTextColorPickerOpen(false);
-                                }}
-                              >
-                                Highlight
-                              </button>
-                              {highlightPickerOpen && (
-                                <div className={styles.noteInlinePalettePopover}>
-                                  {NOTE_HIGHLIGHTS.map((color) => (
-                                    <button
-                                      type="button"
-                                      key={color.value}
-                                      className={styles.noteInlineSwatch}
-                                      style={{ backgroundColor: color.value }}
-                                      title={color.label}
-                                      onMouseDown={(event) => {
-                                        event.preventDefault();
-                                        onSaveEditorSelection();
-                                      }}
-                                      onClick={() => {
-                                        onApplyHighlightColor(color.value);
-                                        onSetHighlightPickerOpen(false);
-                                      }}
-                                    />
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ) : null}
                     </div>
-                  </details>
+                  ) : null}
 
                   <div className={styles.noteBodyShell} ref={noteBodyShellRef}>
-                    {notesSyncStatus === "local-only" ? (
-                      <div className={styles.noteSyncInlineNotice} role="status" aria-live="polite">
-                        <span className={styles.noteSyncInlineDot} />
-                        <span>
-                          Saved locally — cloud sync pending.
-                          {notesSyncMessage ? ` ${notesSyncMessage}` : ""}
-                        </span>
-                        <button
-                          type="button"
-                          className={sharedStyles.retrySyncButton}
-                          style={{ marginLeft: 8 }}
-                          onClick={() => void onRetrySync()}
-                        >
-                          {syncButtonLabel}
-                        </button>
-                      </div>
-                    ) : null}
-                    <div
+                    <textarea
                       ref={editorRef}
                       className={styles.noteBodyInput}
-                      contentEditable
-                      suppressContentEditableWarning
+                      spellCheck={false}
+                      autoCorrect="off"
+                      autoCapitalize="off"
+                      data-gramm="false"
+                      data-gramm_editor="false"
+                      data-enable-grammarly="false"
                       style={{
                         fontFamily: selectedNote.fontFamily,
                         fontSize: `${selectedNote.fontSizePx}px`,
                       }}
                     onInput={() => {
                       onCaptureEditorDraft();
-                      onSaveEditorSelection();
-                      onUpdateEditorBandanaCaret();
                     }}
-                    onKeyUp={() => {
-                      onSaveEditorSelection();
-                      onUpdateEditorBandanaCaret();
-                      onCheckEditorSelection();
+                    onKeyUp={(event) => {
+                      if (
+                        event.shiftKey ||
+                        event.metaKey ||
+                        event.ctrlKey ||
+                        event.altKey ||
+                        NOTE_SELECTION_KEYS.has(event.key)
+                      ) {
+                        onSaveEditorSelection();
+                        onUpdateEditorBandanaCaret();
+                        onCheckEditorSelection();
+                      }
                       }}
                       onPaste={() => {
                         window.setTimeout(() => {
                           onCaptureEditorDraft();
                           onSaveEditorSelection();
-                          onUpdateEditorBandanaCaret();
                         }, 0);
                       }}
-                    onCompositionEnd={() => {
-                      onSaveEditorSelection();
-                      onUpdateEditorBandanaCaret();
-                    }}
+                      onCompositionEnd={() => {
+                        onSaveEditorSelection();
+                      }}
                       onBlur={() => {
                         onCaptureEditorDraft();
                         void onFlushNoteDraft();
@@ -2495,29 +2127,14 @@ export default function NotesTab({
                           current.visible ? { ...current, visible: false } : current,
                         );
                       }}
-                      onMouseUp={() => {
+                      onPointerUp={() => {
                         onSaveEditorSelection();
-                        onUpdateEditorBandanaCaret();
                         onCheckEditorSelection();
                       }}
                       onFocus={() => {
                         onSaveEditorSelection();
-                        onUpdateEditorBandanaCaret();
                       }}
-                      onScroll={() => onUpdateEditorBandanaCaret()}
                     />
-                    {editorBandanaCaret.visible ? (
-                      <img
-                        className={styles.noteBandanaCaret}
-                        src={bandanaCursorAssetPath(streakBandanaTier?.color, 256)}
-                        srcSet={`${bandanaCursorAssetPath(streakBandanaTier?.color, 256)} 1x`}
-                        alt=""
-                        style={{
-                          left: `${editorBandanaCaret.left}px`,
-                          top: `${editorBandanaCaret.top}px`,
-                        }}
-                      />
-                    ) : null}
                     <div className={styles.noteEditorFooter}>
                       <NoteAttachmentsSection
                         note={selectedNote}
@@ -2528,7 +2145,16 @@ export default function NotesTab({
                         onOpen={onOpenNoteAttachment}
                         onRemove={(attachment) => void onRemoveNoteAttachment(attachment)}
                       />
-                      <span>{syncStatusLabel}</span>
+                      <span className={styles.noteSyncIndicator}>{syncStatusLabel}</span>
+                      {notesSyncStatus === "local-only" ? (
+                        <button
+                          type="button"
+                          className={sharedStyles.retrySyncButton}
+                          onClick={() => void onRetrySync()}
+                        >
+                          {syncButtonLabel}
+                        </button>
+                      ) : null}
                       <span className={styles.noteWordCount}>
                         {selectedNoteWordCount} word{selectedNoteWordCount === 1 ? "" : "s"}
                         {selectedNoteWordCount >= 33 ? " · streak writing met" : ""}

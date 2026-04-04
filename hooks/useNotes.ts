@@ -45,6 +45,7 @@ export type PendingNoteAttachment = {
 
 type UseNotesOptions = {
   isPro: boolean;
+  isMobileViewport: boolean;
   /** Called when a new note is created so the shell can navigate to the notes tab */
   onNavigateToNotes?: () => void;
 };
@@ -61,6 +62,7 @@ const NOTE_ATTACHMENT_UPLOAD_IDLE_TIMEOUT_MS = 15000;
 const NOTE_ATTACHMENT_UPLOAD_TOTAL_TIMEOUT_MS = 120000;
 const NOTE_TITLE_SYNC_DEBOUNCE_MS = 240;
 const NOTE_BODY_AUTOSAVE_DEBOUNCE_MS = 400;
+const NOTE_DRAFT_MIRROR_DEBOUNCE_MS = 120;
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function createNote(): WorkspaceNote {
@@ -160,6 +162,61 @@ function clearLocalNoteDraft(uid: string, noteId: string) {
   }
 }
 
+function escapeEditorHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function editorTextToStoredBody(value: string) {
+  if (!value) return "";
+  return escapeEditorHtml(value).replace(/\r\n?/g, "\n").replace(/\n/g, "<br/>");
+}
+
+function storedBodyToEditorText(body: string) {
+  if (!body) return "";
+  if (typeof document === "undefined") {
+    return body
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<\/(p|div|li|blockquote|h1|h2|h3)>/gi, "\n")
+      .replace(/<[^>]*>/g, "")
+      .replace(/&nbsp;/gi, " ");
+  }
+
+  const template = document.createElement("template");
+  template.innerHTML = normalizeBodyForEditor(body);
+  const blockSelectors = "p,div,li,blockquote,h1,h2,h3";
+  template.content.querySelectorAll(blockSelectors).forEach((element) => {
+    if (element.nextSibling) {
+      element.insertAdjacentText("afterend", "\n");
+    }
+  });
+  return (template.content.textContent ?? "").replace(/\u00a0/g, " ");
+}
+
+function prefixLines(value: string, prefix: string) {
+  return value
+    .split("\n")
+    .map((line) => (line.length > 0 ? `${prefix}${line}` : prefix.trimEnd()))
+    .join("\n");
+}
+
+function stripSimpleFormatting(value: string) {
+  return value
+    .replace(/^#{1,3}\s+/gm, "")
+    .replace(/^>\s?/gm, "")
+    .replace(/^\d+\.\s+/gm, "")
+    .replace(/^-\s+/gm, "")
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .replace(/\*(.*?)\*/g, "$1")
+    .replace(/__(.*?)__/g, "$1")
+    .replace(/==(.*?)==/g, "$1")
+    .replace(/\n---\n/g, "\n");
+}
+
 function normalizeBodyForEditor(body: string) {
   if (!body) return "";
   const hasHtmlTags = /<[a-z!/]/i.test(body);
@@ -237,32 +294,34 @@ function isEffectivelyEmptyEditorHtml(value: string) {
     .trim().length === 0;
 }
 
-function resolvePreferredEditorHtml(
+function resolvePreferredEditorText(
   uid: string | null,
   note: WorkspaceNote | null,
-  _fallbackHtml: string,
+  _fallbackText: string,
 ) {
   if (!note) return "";
 
-  let nextHtml = normalizeBodyForEditor(note.body || "");
-  if (!uid) return nextHtml;
+  let nextText = storedBodyToEditorText(note.body || "");
+  if (!uid) return nextText;
 
   const localDraft = readLocalNoteDraft(uid, note.id);
   if (localDraft && localDraft.updatedAtISO >= note.updatedAtISO) {
-    const localDraftHtml = normalizeBodyForEditor(localDraft.body);
-    const syncedNoteHasContent = !isEffectivelyEmptyEditorHtml(nextHtml);
-    const localDraftIsBlank = isEffectivelyEmptyEditorHtml(localDraftHtml);
+    const localDraftText = storedBodyToEditorText(localDraft.body);
+    const syncedNoteHasContent = nextText.trim().length > 0;
+    const localDraftIsBlank = localDraftText.trim().length === 0;
 
     if (!(localDraftIsBlank && syncedNoteHasContent)) {
-      nextHtml = localDraftHtml;
+      nextText = localDraftText;
     }
   }
 
-  return nextHtml;
+  return nextText;
 }
 
 function withPreferredDraftBody(uid: string | null, note: WorkspaceNote): WorkspaceNote {
-  const preferredBody = resolvePreferredEditorHtml(uid, note, note.body);
+  const preferredBody = uid
+    ? readLocalNoteDraft(uid, note.id)?.body ?? note.body
+    : note.body;
   return preferredBody === note.body ? note : { ...note, body: preferredBody };
 }
 
@@ -325,7 +384,7 @@ function notesMatch(a: WorkspaceNote[], b: WorkspaceNote[]) {
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
 
-export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
+export function useNotes({ isPro, isMobileViewport, onNavigateToNotes }: UseNotesOptions) {
   const initialUser = typeof window !== "undefined" ? auth.currentUser : null;
   const initialLocalNotes = initialUser ? readLocalNotes(initialUser.uid) : [];
 
@@ -363,10 +422,10 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
   const [pendingXpPop, setPendingXpPop] = useState<PendingNotesXpPop | null>(null);
 
   // ── Refs ───────────────────────────────────────────────────────────────────
-  const editorRef = useRef<HTMLDivElement | null>(null);
+  const editorRef = useRef<HTMLTextAreaElement | null>(null);
   const noteBodyShellRef = useRef<HTMLDivElement | null>(null);
   const noteAttachmentInputRef = useRef<HTMLInputElement | null>(null);
-  const savedSelectionRef = useRef<Range | null>(null);
+  const savedSelectionRef = useRef<{ start: number; end: number } | null>(null);
   const syncInFlightRef = useRef(false);
   const bodyDirtyRef = useRef(false);
   const bodyDirtyNoteIdRef = useRef<string | null>(null);
@@ -376,7 +435,9 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     title: string;
     updatedAtISO: string;
   } | null>(null);
+  const noteTitleOverrideRef = useRef<Map<string, { title: string; updatedAtISO: string }>>(new Map());
   const noteDraftMirrorTimeoutRef = useRef<number | null>(null);
+  const bodyAutosaveTimeoutRef = useRef<number | null>(null);
   const notesRef = useRef<WorkspaceNote[]>([]);
   const editorBodyDraftRef = useRef(editorBodyDraft);
   const notesSyncStatusRef = useRef<"synced" | "local-only" | "syncing">(
@@ -473,9 +534,10 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
 
   const syncEditorDraftFromNote = useCallback((note: WorkspaceNote | null, uid: string | null) => {
     if (!note) {
+      editorBodyDraftRef.current = "";
       if (editorBodyDraft !== "") setEditorBodyDraft("");
-      if (editorRef.current && editorRef.current.innerHTML !== "") {
-        editorRef.current.innerHTML = "";
+      if (editorRef.current && editorRef.current.value !== "") {
+        editorRef.current.value = "";
       }
       return;
     }
@@ -483,19 +545,44 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     if (bodyDirtyRef.current && bodyDirtyNoteIdRef.current === note.id) return;
     if (typeof document !== "undefined" && document.activeElement === editorRef.current) return;
 
-    const resolvedEditorHtml = resolvePreferredEditorHtml(
+    const resolvedEditorText = resolvePreferredEditorText(
       uid,
       note,
-      editorRef.current?.innerHTML ?? editorBodyDraft,
+      editorRef.current?.value ?? editorBodyDraft,
     );
 
-    if (resolvedEditorHtml !== editorBodyDraft) {
-      setEditorBodyDraft(resolvedEditorHtml);
+    if (resolvedEditorText !== editorBodyDraft) {
+      editorBodyDraftRef.current = resolvedEditorText;
+      setEditorBodyDraft(resolvedEditorText);
     }
-    if (editorRef.current && editorRef.current.innerHTML !== resolvedEditorHtml) {
-      editorRef.current.innerHTML = resolvedEditorHtml;
+    if (editorRef.current && editorRef.current.value !== resolvedEditorText) {
+      editorRef.current.value = resolvedEditorText;
     }
   }, [editorBodyDraft]);
+
+  const applyPendingTitleOverrides = useCallback((incomingNotes: WorkspaceNote[]) => {
+    if (noteTitleOverrideRef.current.size === 0) return incomingNotes;
+
+    let changed = false;
+    const nextNotes = incomingNotes.map((note) => {
+      const override = noteTitleOverrideRef.current.get(note.id);
+      if (!override) return note;
+
+      if (note.title === override.title) {
+        noteTitleOverrideRef.current.delete(note.id);
+        return note;
+      }
+
+      changed = true;
+      return {
+        ...note,
+        title: override.title,
+        updatedAtISO: override.updatedAtISO >= note.updatedAtISO ? override.updatedAtISO : note.updatedAtISO,
+      };
+    });
+
+    return changed ? nextNotes : incomingNotes;
+  }, []);
 
   // ── Sync refs ──────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -524,6 +611,17 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     [],
   );
 
+  const queueDraftMirror = useCallback((uid: string, noteId: string, body: string, updatedAtISO: string) => {
+    editorBodyDraftRef.current = body;
+    if (noteDraftMirrorTimeoutRef.current) {
+      window.clearTimeout(noteDraftMirrorTimeoutRef.current);
+    }
+    noteDraftMirrorTimeoutRef.current = window.setTimeout(() => {
+      noteDraftMirrorTimeoutRef.current = null;
+      writeLocalNoteDraft(uid, noteId, body, updatedAtISO);
+    }, NOTE_DRAFT_MIRROR_DEBOUNCE_MS);
+  }, []);
+
   // ── Clear selectedNoteId if note is no longer visible ──────────────────────
   useEffect(() => {
     if (selectedNoteId && !visibleNotes.some((note) => note.id === selectedNoteId)) {
@@ -537,12 +635,12 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     syncEditorDraftFromNote(selectedNote, currentUser?.uid ?? null);
   }, [selectedNote, syncEditorDraftFromNote]);
 
-  // ── Sync editorBodyDraft → editor.innerHTML ────────────────────────────────
+  // ── Sync editorBodyDraft → editor.value ────────────────────────────────────
   useEffect(() => {
     if (!editorRef.current) return;
     const editorNeedsHydration =
-      isEffectivelyEmptyEditorHtml(editorRef.current.innerHTML) &&
-      !isEffectivelyEmptyEditorHtml(editorBodyDraft);
+      editorRef.current.value.trim().length === 0 &&
+      editorBodyDraft.trim().length > 0;
     const editorIsFocused =
       typeof document !== "undefined" && document.activeElement === editorRef.current;
 
@@ -554,14 +652,18 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
       return;
     }
     if (editorIsFocused && !editorNeedsHydration) return;
-    if (editorRef.current.innerHTML !== editorBodyDraft) {
-      editorRef.current.innerHTML = editorBodyDraft;
+    if (editorRef.current.value !== editorBodyDraft) {
+      editorRef.current.value = editorBodyDraft;
     }
   }, [editorBodyDraft, selectedNoteId, mobileNotesEditorOpen]);
 
   // ── Selectionchange → bandana caret ───────────────────────────────────────
   useEffect(() => {
     if (!selectedNote) {
+      setEditorBandanaCaret((current) => (current.visible ? { ...current, visible: false } : current));
+      return;
+    }
+    if (isMobileViewport) {
       setEditorBandanaCaret((current) => (current.visible ? { ...current, visible: false } : current));
       return;
     }
@@ -580,7 +682,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     };
     // updateEditorBandanaCaret is stable (reads refs only), so it's safe to omit
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedNote, selectedNoteId]);
+  }, [isMobileViewport, selectedNote, selectedNoteId]);
 
   // ── Reset pickers when selected note changes ───────────────────────────────
   useEffect(() => {
@@ -590,26 +692,6 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     setNoteAttachmentStatus("");
     setPendingNoteAttachments([]);
   }, [selectedNoteId]);
-
-  // ── Fast debounce autosave ────────────────────────────────────────────────
-  useEffect(() => {
-    if (!selectedNote || !bodyDirtyRef.current) return;
-
-    const timeoutId = window.setTimeout(() => {
-      bodyDirtyRef.current = false;
-      bodyDirtyNoteIdRef.current = null;
-      console.log("[whelm] autosave body:", {
-        noteId: selectedNote.id,
-        bodyLength: editorBodyDraft.length,
-        preview: editorBodyDraft.slice(0, 80),
-      });
-      void updateSelectedNote({ body: editorBodyDraft });
-    }, NOTE_BODY_AUTOSAVE_DEBOUNCE_MS);
-
-    return () => window.clearTimeout(timeoutId);
-    // updateSelectedNote is a stable local function; editorBodyDraft and selectedNote are the real deps
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editorBodyDraft, selectedNote]);
 
   // ── Functions ──────────────────────────────────────────────────────────────
 
@@ -621,31 +703,32 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
 
     const refreshStartedAt = performance.now();
     const result = await loadNotes(currentUser);
+    const repairedNotes = applyPendingTitleOverrides(result.notes);
     console.info("[whelm:notes] refresh complete", {
       uid,
-      noteCount: result.notes.length,
+      noteCount: repairedNotes.length,
       synced: result.synced,
       durationMs: Math.round(performance.now() - refreshStartedAt),
       message: result.message ?? "",
       online: typeof navigator !== "undefined" ? navigator.onLine : undefined,
     });
-    result.notes.forEach((note) => {
+    repairedNotes.forEach((note) => {
       if (shouldClearLocalDraft(note, uid)) {
         clearLocalNoteDraft(uid, note.id);
       }
     });
-    setNotes(result.notes);
+    setNotes(repairedNotes);
     const nextSelectedNoteId =
-      selectedNoteIdRef.current && result.notes.some((note) => note.id === selectedNoteIdRef.current)
+      selectedNoteIdRef.current && repairedNotes.some((note) => note.id === selectedNoteIdRef.current)
         ? selectedNoteIdRef.current
         : null;
     setSelectedNoteId(nextSelectedNoteId);
     syncEditorDraftFromNote(
-      result.notes.find((note) => note.id === nextSelectedNoteId) ?? null,
+      repairedNotes.find((note) => note.id === nextSelectedNoteId) ?? null,
       uid,
     );
     setNotesSyncUi(result.synced ? "synced" : "local-only", result.message ?? "");
-  }, [setNotesSyncUi, syncEditorDraftFromNote]);
+  }, [applyPendingTitleOverrides, setNotesSyncUi, syncEditorDraftFromNote]);
 
   const handleUserSignedIn = useCallback((uid: string) => {
     try {
@@ -700,25 +783,26 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     const mergedNotes = uid
       ? filterNotesAgainstPendingDeletes(uid, mergeNotesPreferNewest(newestLocalNotes, filteredRemoteNotes))
       : mergeNotesPreferNewest(newestLocalNotes, filteredRemoteNotes);
+    const repairedMergedNotes = applyPendingTitleOverrides(mergedNotes);
     const selectedCandidateId = selectedNoteIdRef.current;
     const selectedStillExists = selectedCandidateId
-      ? mergedNotes.some((note) => note.id === selectedCandidateId)
+      ? repairedMergedNotes.some((note) => note.id === selectedCandidateId)
       : false;
-    const remoteWasStale = !notesMatch(mergedNotes, remoteNotes);
-    const mergedMatchesCurrent = notesMatch(mergedNotes, inMemoryNotes);
+    const remoteWasStale = !notesMatch(repairedMergedNotes, remoteNotes);
+    const mergedMatchesCurrent = notesMatch(repairedMergedNotes, inMemoryNotes);
     const nextSelectedNoteId = selectedStillExists ? selectedCandidateId : null;
     const selectedChanged = nextSelectedNoteId !== selectedNoteIdRef.current;
 
     if (!mergedMatchesCurrent) {
-      notesRef.current = mergedNotes;
-      setNotes(mergedNotes);
+      notesRef.current = repairedMergedNotes;
+      setNotes(repairedMergedNotes);
     }
     if (selectedChanged) {
       setSelectedNoteId(nextSelectedNoteId);
     }
     if (!mergedMatchesCurrent || selectedChanged) {
       syncEditorDraftFromNote(
-        mergedNotes.find((note) => note.id === nextSelectedNoteId) ?? null,
+        repairedMergedNotes.find((note) => note.id === nextSelectedNoteId) ?? null,
         uid ?? null,
       );
     }
@@ -729,8 +813,8 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
 
     if (!uid) return;
 
-    saveNotesLocally(uid, mergedNotes);
-    mergedNotes.forEach((note) => {
+    saveNotesLocally(uid, repairedMergedNotes);
+    repairedMergedNotes.forEach((note) => {
       if (shouldClearLocalDraft(note, uid)) {
         clearLocalNoteDraft(uid, note.id);
       }
@@ -739,7 +823,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     if (!currentUser || !remoteWasStale || syncInFlightRef.current) return;
 
     syncInFlightRef.current = true;
-    void retryNotesSync(currentUser, mergedNotes)
+    void retryNotesSync(currentUser, repairedMergedNotes)
       .then((result) => {
         setNotesSyncUi(
           result.synced ? "synced" : "local-only",
@@ -751,7 +835,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
       .finally(() => {
         syncInFlightRef.current = false;
       });
-  }, [setNotesSyncUi, syncEditorDraftFromNote]);
+  }, [applyPendingTitleOverrides, setNotesSyncUi, syncEditorDraftFromNote]);
 
   const clearPendingXpPop = useCallback(() => {
     setPendingXpPop(null);
@@ -774,6 +858,102 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     return nextNote.id;
   }
 
+  const persistSelectedNoteBody = useCallback(async (
+    noteId: string,
+    nextEditorText: string,
+    options?: { publishToState?: boolean; captureRevision?: boolean },
+  ) => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) return;
+    const currentNote = notesRef.current.find((note) => note.id === noteId);
+    if (!currentNote) return;
+    const nextBody = editorTextToStoredBody(nextEditorText);
+    if (nextBody === currentNote.body && !bodyDirtyRef.current && bodyDirtyNoteIdRef.current !== noteId) {
+      return;
+    }
+
+    if (
+      options?.captureRevision &&
+      !isEffectivelyEmptyEditorHtml(normalizeBodyForEditor(currentNote.body)) &&
+      nextBody !== currentNote.body
+    ) {
+      saveNoteRevisionSnapshot(currentUser.uid, currentNote, "body-update");
+    }
+
+    const prevWordCount = countWords(currentNote.body);
+    const nextWordCount = countWords(nextBody);
+    if (prevWordCount < XP_WRITING_ENTRY_THRESHOLD && nextWordCount >= XP_WRITING_ENTRY_THRESHOLD) {
+      setPendingXpPop({
+        id: `note-xp-${noteId}-${Date.now()}`,
+        amount: 5,
+      });
+    }
+
+    const now = new Date().toISOString();
+    const pendingTitleOverride = noteTitleOverrideRef.current.get(noteId);
+    const pendingTitlePayload = noteTitleSyncPayloadRef.current;
+    const bodyTitlePatch =
+      pendingTitlePayload?.noteId === noteId
+        ? { title: pendingTitlePayload.title }
+        : pendingTitleOverride
+          ? { title: pendingTitleOverride.title }
+          : {};
+
+    if (noteDraftMirrorTimeoutRef.current) {
+      window.clearTimeout(noteDraftMirrorTimeoutRef.current);
+      noteDraftMirrorTimeoutRef.current = null;
+    }
+    if (bodyAutosaveTimeoutRef.current) {
+      window.clearTimeout(bodyAutosaveTimeoutRef.current);
+      bodyAutosaveTimeoutRef.current = null;
+    }
+
+    bodyDirtyRef.current = false;
+    bodyDirtyNoteIdRef.current = null;
+    editorBodyDraftRef.current = nextEditorText;
+
+    const nextNotes = notesRef.current.map((note) =>
+      note.id === noteId ? { ...note, ...bodyTitlePatch, body: nextBody, updatedAtISO: now } : note,
+    );
+    notesRef.current = nextNotes;
+
+    if (options?.publishToState) {
+      setNotes(nextNotes);
+      setEditorBodyDraft((current) => (current === nextEditorText ? current : nextEditorText));
+      saveNotesLocally(currentUser.uid, nextNotes);
+    }
+
+    writeLocalNoteDraft(currentUser.uid, noteId, nextBody, now);
+
+    if (notesSyncStatusRef.current !== "local-only") {
+      setNotesSyncUi("syncing", "");
+    }
+
+    const result = await saveNotePatchToFirestore(currentUser.uid, noteId, {
+      ...bodyTitlePatch,
+      body: nextBody,
+      updatedAtISO: now,
+    });
+    if (result.synced) {
+      const syncedNote = nextNotes.find((note) => note.id === noteId);
+      if (syncedNote && shouldClearLocalDraft(syncedNote, currentUser.uid)) {
+        clearLocalNoteDraft(currentUser.uid, noteId);
+      }
+    }
+    setNotesSyncUi(result.synced ? "synced" : "local-only", result.message ?? "");
+  }, [setNotesSyncUi]);
+
+  const queueBodyAutosave = useCallback((noteId: string, body: string) => {
+    if (bodyAutosaveTimeoutRef.current) {
+      window.clearTimeout(bodyAutosaveTimeoutRef.current);
+    }
+    bodyAutosaveTimeoutRef.current = window.setTimeout(() => {
+      bodyAutosaveTimeoutRef.current = null;
+      if (!bodyDirtyRef.current || bodyDirtyNoteIdRef.current !== noteId) return;
+      void persistSelectedNoteBody(noteId, body, { publishToState: false, captureRevision: false });
+    }, NOTE_BODY_AUTOSAVE_DEBOUNCE_MS);
+  }, [persistSelectedNoteBody]);
+
   async function updateNoteById(
     noteId: string,
     patch: Partial<
@@ -795,8 +975,25 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
   ) {
     const currentUser = auth.currentUser;
     if (!currentUser) return;
+    const patchKeys = Object.keys(patch);
+    const isDirectBodyAutosave = patchKeys.length === 1 && patchKeys[0] === "body" && typeof patch.body === "string";
+    const pendingTitleOverride = noteTitleOverrideRef.current.get(noteId);
+    const pendingTitlePayload = noteTitleSyncPayloadRef.current;
+    const shouldApplyPendingTitle =
+      typeof patch.title !== "string" &&
+      (Boolean(pendingTitleOverride) || pendingTitlePayload?.noteId === noteId);
+    const titlePatch =
+      shouldApplyPendingTitle
+        ? {
+            title:
+              pendingTitlePayload?.noteId === noteId
+                ? pendingTitlePayload.title
+                : (pendingTitleOverride?.title ?? ""),
+          }
+        : {};
     const previousNote = notesRef.current.find((note) => note.id === noteId) ?? null;
     if (
+      !isDirectBodyAutosave &&
       previousNote &&
       typeof patch.body === "string" &&
       patch.body !== previousNote.body &&
@@ -807,16 +1004,19 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
 
     const now = new Date().toISOString();
     const nextNotes = notesRef.current.map((note) =>
-      note.id === noteId ? { ...note, ...patch, updatedAtISO: now } : note,
+      note.id === noteId ? { ...note, ...patch, ...titlePatch, updatedAtISO: now } : note,
     );
     notesRef.current = nextNotes;
     setNotes(nextNotes);
-    saveNotesLocally(currentUser.uid, nextNotes);
-    setNotesSyncStatus("syncing");
-    setNotesSyncMessage("");
+    if (!isDirectBodyAutosave) {
+      saveNotesLocally(currentUser.uid, nextNotes);
+    }
+    if (notesSyncStatusRef.current !== "local-only") {
+      setNotesSyncUi("syncing", "");
+    }
     const updatedNote = nextNotes.find((n) => n.id === noteId);
     const result = updatedNote
-      ? await saveNotePatchToFirestore(currentUser.uid, noteId, { ...patch, updatedAtISO: now })
+      ? await saveNotePatchToFirestore(currentUser.uid, noteId, { ...patch, ...titlePatch, updatedAtISO: now })
       : { synced: false, notes: [], message: "Note not found." };
     if (result.synced) {
       const syncedNote = nextNotes.find((note) => note.id === noteId);
@@ -824,8 +1024,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
         clearLocalNoteDraft(currentUser.uid, noteId);
       }
     }
-    setNotesSyncStatus(result.synced ? "synced" : "local-only");
-    setNotesSyncMessage(result.message ?? "");
+    setNotesSyncUi(result.synced ? "synced" : "local-only", result.message ?? "");
   }
 
   function scheduleTitleSync(noteId: string, title: string, updatedAtISO: string) {
@@ -848,8 +1047,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
           title: pending.title,
           updatedAtISO: pending.updatedAtISO,
         });
-        setNotesSyncStatus(result.synced ? "synced" : "local-only");
-        setNotesSyncMessage(result.message ?? "");
+        setNotesSyncUi(result.synced ? "synced" : "local-only", result.message ?? "");
       })();
     }, NOTE_TITLE_SYNC_DEBOUNCE_MS);
   }
@@ -869,8 +1067,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
       title: pending.title,
       updatedAtISO: pending.updatedAtISO,
     });
-    setNotesSyncStatus(result.synced ? "synced" : "local-only");
-    setNotesSyncMessage(result.message ?? "");
+    setNotesSyncUi(result.synced ? "synced" : "local-only", result.message ?? "");
   }
 
   async function updateSelectedNote(
@@ -900,14 +1097,16 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
       if (!currentUser) return;
       const nextTitle = typeof patch.title === "string" ? patch.title : "";
       const now = new Date().toISOString();
+      noteTitleOverrideRef.current.set(currentSelectedNoteId, {
+        title: nextTitle,
+        updatedAtISO: now,
+      });
       const nextNotes = notesRef.current.map((note) =>
         note.id === currentSelectedNoteId ? { ...note, title: nextTitle, updatedAtISO: now } : note,
       );
       notesRef.current = nextNotes;
       setNotes(nextNotes);
       saveNotesLocally(currentUser.uid, nextNotes);
-      setNotesSyncStatus("syncing");
-      setNotesSyncMessage("");
       scheduleTitleSync(currentSelectedNoteId, nextTitle, now);
       return;
     }
@@ -916,8 +1115,7 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
   }
 
   const flushSelectedNoteDraft = useCallback(async () => {
-    const currentUser = auth.currentUser;
-    if (!currentUser) return;
+    if (!auth.currentUser) return;
 
     const currentSelectedNoteId = selectedNoteIdRef.current;
     if (!currentSelectedNoteId) return;
@@ -925,59 +1123,26 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
     const currentNote = notesRef.current.find((note) => note.id === currentSelectedNoteId);
     if (!currentNote) return;
 
-    const editorHtml = normalizeBodyForEditor(editorRef.current?.innerHTML ?? "");
-    const draftBody = normalizeBodyForEditor(editorBodyDraftRef.current);
-    const currentBody = currentNote.body;
-    const nextBody =
-      isEffectivelyEmptyEditorHtml(editorHtml) &&
-      !isEffectivelyEmptyEditorHtml(draftBody) &&
-      !isEffectivelyEmptyEditorHtml(currentBody)
-        ? draftBody
-        : editorHtml || draftBody;
+    const editorText = editorRef.current?.value ?? "";
+    const draftText = editorBodyDraftRef.current;
+    const currentText = storedBodyToEditorText(currentNote.body);
+    const nextEditorText =
+      editorText.trim().length === 0 &&
+      draftText.trim().length > 0 &&
+      currentText.trim().length > 0
+        ? draftText
+        : editorText || draftText;
 
-    if (nextBody === currentNote.body && !bodyDirtyRef.current) return;
-    if (!isEffectivelyEmptyEditorHtml(normalizeBodyForEditor(currentNote.body)) && nextBody !== currentNote.body) {
-      saveNoteRevisionSnapshot(currentUser.uid, currentNote, "body-update");
+    if (editorText !== nextEditorText && editorRef.current) {
+      editorRef.current.value = nextEditorText;
     }
 
-    const prevWordCount = countWords(currentNote.body);
-    const nextWordCount = countWords(nextBody);
-    if (prevWordCount < XP_WRITING_ENTRY_THRESHOLD && nextWordCount >= XP_WRITING_ENTRY_THRESHOLD) {
-      setPendingXpPop({
-        id: `note-xp-${currentSelectedNoteId}-${Date.now()}`,
-        amount: 5,
-      });
-    }
-
-    const now = new Date().toISOString();
-    if (noteDraftMirrorTimeoutRef.current) {
-      window.clearTimeout(noteDraftMirrorTimeoutRef.current);
-      noteDraftMirrorTimeoutRef.current = null;
-    }
-    bodyDirtyRef.current = false;
-    bodyDirtyNoteIdRef.current = null;
-    const nextNotes = notesRef.current.map((note) =>
-      note.id === currentSelectedNoteId ? { ...note, body: nextBody, updatedAtISO: now } : note,
-    );
-    notesRef.current = nextNotes;
-    setNotes(nextNotes);
-    writeLocalNoteDraft(currentUser.uid, currentSelectedNoteId, nextBody, now);
-    setNotesSyncStatus("syncing");
-    setNotesSyncMessage("");
-    console.log("[whelm] flush body to Firestore:", { noteId: currentSelectedNoteId, bodyLength: nextBody.length });
-    const result = await saveNotePatchToFirestore(currentUser.uid, currentSelectedNoteId, {
-      body: nextBody,
-      updatedAtISO: now,
+    if (editorTextToStoredBody(nextEditorText) === currentNote.body && !bodyDirtyRef.current) return;
+    await persistSelectedNoteBody(currentSelectedNoteId, nextEditorText, {
+      publishToState: true,
+      captureRevision: true,
     });
-    if (result.synced) {
-      const syncedNote = nextNotes.find((note) => note.id === currentSelectedNoteId);
-      if (syncedNote && shouldClearLocalDraft(syncedNote, currentUser.uid)) {
-        clearLocalNoteDraft(currentUser.uid, currentSelectedNoteId);
-      }
-    }
-    setNotesSyncStatus(result.synced ? "synced" : "local-only");
-    setNotesSyncMessage(result.message ?? "");
-  }, []);
+  }, [persistSelectedNoteBody]);
 
   async function togglePinned(noteId: string) {
     const currentUser = auth.currentUser;
@@ -989,62 +1154,43 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
 
   function captureEditorDraft() {
     if (!editorRef.current) return;
-    const nextBody = normalizeBodyForEditor(editorRef.current.innerHTML);
-    setEditorBodyDraft(nextBody);
+    const nextEditorText = editorRef.current.value;
 
     const currentUser = auth.currentUser;
     const currentSelectedNoteId = selectedNoteIdRef.current;
     if (!currentUser || !currentSelectedNoteId) return;
 
     const currentNote = notesRef.current.find((note) => note.id === currentSelectedNoteId);
-    if (!currentNote || currentNote.body === nextBody) return;
+    if (!currentNote) return;
 
     const now = new Date().toISOString();
+    const nextBody = editorTextToStoredBody(nextEditorText);
+    queueDraftMirror(currentUser.uid, currentSelectedNoteId, nextBody, now);
+    if (currentNote.body === nextBody) {
+      bodyDirtyRef.current = false;
+      bodyDirtyNoteIdRef.current = null;
+      if (bodyAutosaveTimeoutRef.current) {
+        window.clearTimeout(bodyAutosaveTimeoutRef.current);
+        bodyAutosaveTimeoutRef.current = null;
+      }
+      return;
+    }
     bodyDirtyRef.current = true;
     bodyDirtyNoteIdRef.current = currentSelectedNoteId;
-    writeLocalNoteDraft(currentUser.uid, currentSelectedNoteId, nextBody, now);
-    if (noteDraftMirrorTimeoutRef.current) {
-      window.clearTimeout(noteDraftMirrorTimeoutRef.current);
-      noteDraftMirrorTimeoutRef.current = null;
-    }
+    queueBodyAutosave(currentSelectedNoteId, nextEditorText);
   }
 
   function saveEditorSelection() {
     const editor = editorRef.current;
-    const selection = window.getSelection();
-    if (!editor || !selection || selection.rangeCount === 0) return;
-
-    const range = selection.getRangeAt(0);
-    if (!editor.contains(range.startContainer) || !editor.contains(range.endContainer)) {
-      return;
-    }
-
-    savedSelectionRef.current = range.cloneRange();
+    if (!editor) return;
+    savedSelectionRef.current = {
+      start: editor.selectionStart ?? 0,
+      end: editor.selectionEnd ?? 0,
+    };
   }
 
   function checkEditorSelection() {
-    const editor = editorRef.current;
-    const selection = window.getSelection();
-    if (!editor || !selection || selection.isCollapsed || selection.rangeCount === 0) {
-      setSelectionPopup(null);
-      return;
-    }
-    const range = selection.getRangeAt(0);
-    if (!editor.contains(range.startContainer) || !editor.contains(range.endContainer)) {
-      setSelectionPopup(null);
-      return;
-    }
-    const text = selection.toString().trim();
-    if (text.length < 2) {
-      setSelectionPopup(null);
-      return;
-    }
-    const rect = range.getBoundingClientRect();
-    setSelectionPopup({
-      text,
-      x: rect.left + rect.width / 2,
-      y: rect.top - 8,
-    });
+    setSelectionPopup(null);
   }
 
   async function handleQuickCardSave() {
@@ -1062,84 +1208,152 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
   }
 
   function updateEditorBandanaCaret() {
-    const editor = editorRef.current;
-    const shell = noteBodyShellRef.current;
-    const selection = window.getSelection();
-    if (!editor || !shell || !selection || selection.rangeCount === 0 || !selection.isCollapsed) {
-      setEditorBandanaCaret((current) => (current.visible ? { ...current, visible: false } : current));
-      return;
-    }
-
-    const range = selection.getRangeAt(0);
-    if (!editor.contains(range.startContainer) || !editor.contains(range.endContainer)) {
-      setEditorBandanaCaret((current) => (current.visible ? { ...current, visible: false } : current));
-      return;
-    }
-
-    const measuredRange = range.cloneRange();
-    const marker = document.createElement("span");
-    marker.textContent = "\u200b";
-    marker.style.position = "relative";
-    marker.style.display = "inline-block";
-    marker.style.width = "1px";
-    marker.style.height = "1em";
-    marker.style.pointerEvents = "none";
-
-    measuredRange.insertNode(marker);
-    const rect = marker.getBoundingClientRect();
-    marker.parentNode?.removeChild(marker);
-    selection.removeAllRanges();
-    selection.addRange(range);
-
-    const shellRect = shell.getBoundingClientRect();
-    const top = rect.top - shellRect.top - 2;
-    const left = rect.left - shellRect.left - 2;
-
-    setEditorBandanaCaret({
-      left: Number.isFinite(left) ? left : 0,
-      top: Number.isFinite(top) ? top : 0,
-      visible: true,
-    });
+    setEditorBandanaCaret((current) => (current.visible ? { ...current, visible: false } : current));
   }
 
   function restoreEditorSelection() {
     const editor = editorRef.current;
-    const selection = window.getSelection();
     const savedRange = savedSelectionRef.current;
-    if (!editor || !selection || !savedRange) return false;
-    if (!editor.contains(savedRange.startContainer) || !editor.contains(savedRange.endContainer)) {
-      return false;
-    }
+    if (!editor || !savedRange) return false;
 
     editor.focus();
-    selection.removeAllRanges();
-    selection.addRange(savedRange);
-    updateEditorBandanaCaret();
+    editor.setSelectionRange(savedRange.start, savedRange.end);
     return true;
   }
 
-  function applyEditorCommand(command: string, value?: string) {
-    if (!selectedNote) return;
-    if (!restoreEditorSelection()) {
-      editorRef.current?.focus();
-    }
-    document.execCommand("styleWithCSS", false, "true");
-    document.execCommand(command, false, value);
-    saveEditorSelection();
-    updateEditorBandanaCaret();
+  function applyEditorTextTransformation(
+    transformer: (selectedText: string, fullText: string) => { nextText: string; selectionStart: number; selectionEnd: number },
+  ) {
+    const editor = editorRef.current;
+    if (!editor) return;
+    restoreEditorSelection();
+    const start = editor.selectionStart ?? 0;
+    const end = editor.selectionEnd ?? start;
+    const fullText = editor.value;
+    const selectedText = fullText.slice(start, end);
+    const { nextText, selectionStart, selectionEnd } = transformer(selectedText, fullText);
+    editor.value = nextText;
+    editor.focus();
+    editor.setSelectionRange(selectionStart, selectionEnd);
+    savedSelectionRef.current = { start: selectionStart, end: selectionEnd };
     captureEditorDraft();
   }
 
-  function applyHighlightColor(value: string) {
-    if (!selectedNote) return;
-    if (!restoreEditorSelection()) {
-      editorRef.current?.focus();
+  function applyEditorCommand(command: string, value?: string) {
+    void value;
+    switch (command) {
+      case "bold":
+        applyEditorTextTransformation((selectedText, fullText) => {
+          const editor = editorRef.current;
+          const start = editor?.selectionStart ?? 0;
+          const end = editor?.selectionEnd ?? start;
+          const wrapped = `**${selectedText || "bold text"}**`;
+          const nextText = `${fullText.slice(0, start)}${wrapped}${fullText.slice(end)}`;
+          const contentStart = start + 2;
+          const contentEnd = contentStart + (selectedText || "bold text").length;
+          return { nextText, selectionStart: contentStart, selectionEnd: contentEnd };
+        });
+        return;
+      case "italic":
+        applyEditorTextTransformation((selectedText, fullText) => {
+          const editor = editorRef.current;
+          const start = editor?.selectionStart ?? 0;
+          const end = editor?.selectionEnd ?? start;
+          const wrapped = `*${selectedText || "italic text"}*`;
+          const nextText = `${fullText.slice(0, start)}${wrapped}${fullText.slice(end)}`;
+          const contentStart = start + 1;
+          const contentEnd = contentStart + (selectedText || "italic text").length;
+          return { nextText, selectionStart: contentStart, selectionEnd: contentEnd };
+        });
+        return;
+      case "underline":
+        applyEditorTextTransformation((selectedText, fullText) => {
+          const editor = editorRef.current;
+          const start = editor?.selectionStart ?? 0;
+          const end = editor?.selectionEnd ?? start;
+          const wrapped = `__${selectedText || "underlined text"}__`;
+          const nextText = `${fullText.slice(0, start)}${wrapped}${fullText.slice(end)}`;
+          const contentStart = start + 2;
+          const contentEnd = contentStart + (selectedText || "underlined text").length;
+          return { nextText, selectionStart: contentStart, selectionEnd: contentEnd };
+        });
+        return;
+      case "removeFormat":
+        applyEditorTextTransformation((selectedText, fullText) => {
+          const editor = editorRef.current;
+          const start = editor?.selectionStart ?? 0;
+          const end = editor?.selectionEnd ?? start;
+          const replacement = stripSimpleFormatting(selectedText || fullText);
+          const nextText = selectedText
+            ? `${fullText.slice(0, start)}${replacement}${fullText.slice(end)}`
+            : replacement;
+          const nextEnd = selectedText ? start + replacement.length : replacement.length;
+          return { nextText, selectionStart: selectedText ? start : 0, selectionEnd: nextEnd };
+        });
+        return;
+      case "formatBlock": {
+        const prefix = value === "H1" ? "# " : value === "H2" ? "## " : value === "BLOCKQUOTE" ? "> " : "";
+        if (!prefix) return;
+        applyEditorTextTransformation((selectedText, fullText) => {
+          const editor = editorRef.current;
+          const start = editor?.selectionStart ?? 0;
+          const end = editor?.selectionEnd ?? start;
+          const target = selectedText || "";
+          const replacement = prefixLines(target || "New line", prefix);
+          const nextText = `${fullText.slice(0, start)}${replacement}${fullText.slice(end)}`;
+          return { nextText, selectionStart: start, selectionEnd: start + replacement.length };
+        });
+        return;
+      }
+      case "insertHorizontalRule":
+        applyEditorTextTransformation((_selectedText, fullText) => {
+          const editor = editorRef.current;
+          const start = editor?.selectionStart ?? 0;
+          const end = editor?.selectionEnd ?? start;
+          const replacement = "\n---\n";
+          const nextText = `${fullText.slice(0, start)}${replacement}${fullText.slice(end)}`;
+          const caret = start + replacement.length;
+          return { nextText, selectionStart: caret, selectionEnd: caret };
+        });
+        return;
+      case "insertUnorderedList":
+        applyEditorTextTransformation((selectedText, fullText) => {
+          const editor = editorRef.current;
+          const start = editor?.selectionStart ?? 0;
+          const end = editor?.selectionEnd ?? start;
+          const replacement = prefixLines(selectedText || "List item", "- ");
+          const nextText = `${fullText.slice(0, start)}${replacement}${fullText.slice(end)}`;
+          return { nextText, selectionStart: start, selectionEnd: start + replacement.length };
+        });
+        return;
+      case "insertOrderedList":
+        applyEditorTextTransformation((selectedText, fullText) => {
+          const editor = editorRef.current;
+          const start = editor?.selectionStart ?? 0;
+          const end = editor?.selectionEnd ?? start;
+          const source = (selectedText || "List item").split("\n");
+          const replacement = source.map((line, index) => `${index + 1}. ${line || "Item"}`).join("\n");
+          const nextText = `${fullText.slice(0, start)}${replacement}${fullText.slice(end)}`;
+          return { nextText, selectionStart: start, selectionEnd: start + replacement.length };
+        });
+        return;
+      default:
+        return;
     }
-    document.execCommand("styleWithCSS", false, "true");
-    document.execCommand("hiliteColor", false, value);
-    document.execCommand("backColor", false, value);
-    saveEditorSelection();
-    captureEditorDraft();
+  }
+
+  function applyHighlightColor(value: string) {
+    void value;
+    applyEditorTextTransformation((selectedText, fullText) => {
+      const editor = editorRef.current;
+      const start = editor?.selectionStart ?? 0;
+      const end = editor?.selectionEnd ?? start;
+      const wrapped = `==${selectedText || "highlight"}==`;
+      const nextText = `${fullText.slice(0, start)}${wrapped}${fullText.slice(end)}`;
+      const contentStart = start + 2;
+      const contentEnd = contentStart + (selectedText || "highlight").length;
+      return { nextText, selectionStart: contentStart, selectionEnd: contentEnd };
+    });
   }
 
   async function deleteNote(noteId: string) {
@@ -1210,18 +1424,18 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
           : null;
       setSelectedNoteId(nextSelectedNoteId);
 
-      const selectedAfterRetry =
-        result.notes.find((note) => note.id === nextSelectedNoteId) ?? null;
-      const repairedEditorHtml = resolvePreferredEditorHtml(
+        const selectedAfterRetry =
+          result.notes.find((note) => note.id === nextSelectedNoteId) ?? null;
+      const repairedEditorText = resolvePreferredEditorText(
         currentUser.uid,
         selectedAfterRetry,
-        editorRef.current?.innerHTML ?? editorBodyDraftRef.current,
+        editorRef.current?.value ?? editorBodyDraftRef.current,
       );
 
-      if (selectedAfterRetry && repairedEditorHtml !== editorBodyDraftRef.current) {
-        setEditorBodyDraft(repairedEditorHtml);
-        if (editorRef.current && editorRef.current.innerHTML !== repairedEditorHtml) {
-          editorRef.current.innerHTML = repairedEditorHtml;
+      if (selectedAfterRetry && repairedEditorText !== editorBodyDraftRef.current) {
+        setEditorBodyDraft(repairedEditorText);
+        if (editorRef.current && editorRef.current.value !== repairedEditorText) {
+          editorRef.current.value = repairedEditorText;
         }
       }
     }
@@ -1249,6 +1463,9 @@ export function useNotes({ isPro, onNavigateToNotes }: UseNotesOptions) {
       }
       if (noteDraftMirrorTimeoutRef.current) {
         window.clearTimeout(noteDraftMirrorTimeoutRef.current);
+      }
+      if (bodyAutosaveTimeoutRef.current) {
+        window.clearTimeout(bodyAutosaveTimeoutRef.current);
       }
     };
   }, []);
