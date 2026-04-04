@@ -25,7 +25,7 @@ export default function MobileMoreSheet({
     <div className={styles.feedbackOverlay} onClick={onClose}>
       <div className={styles.mobileMoreSheet} onClick={(event) => event.stopPropagation()}>
         <div className={styles.feedbackHeader}>
-          <h2 className={styles.feedbackTitle}>Quick links</h2>
+          <h2 className={styles.feedbackTitle}>More Features</h2>
           <button type="button" className={styles.feedbackClose} onClick={onClose}>
             Close
           </button>
