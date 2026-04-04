@@ -36,7 +36,6 @@ export default function ProfileSheet({
   nextAscentTitle,
   nextAscentBody,
   onOpenStreaks,
-  onOpenMoreTabs,
 }: {
   open: boolean;
   onClose: () => void;
@@ -54,7 +53,6 @@ export default function ProfileSheet({
   nextAscentTitle: string;
   nextAscentBody: string;
   onOpenStreaks: () => void;
-  onOpenMoreTabs: () => void;
 }) {
   if (!open) return null;
 
@@ -115,9 +113,6 @@ export default function ProfileSheet({
         <div className={styles.noteFooterActions}>
           <button type="button" className={styles.reportButton} onClick={onOpenStreaks}>
             Open Streaks
-          </button>
-          <button type="button" className={styles.secondaryPlanButton} onClick={onOpenMoreTabs}>
-            More tabs
           </button>
         </div>
       </div>

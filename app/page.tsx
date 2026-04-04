@@ -3618,10 +3618,6 @@ export default function HomePage() {
           setProfileOpen(false);
           setActiveTab("streaks");
         },
-        onOpenMoreTabs: () => {
-          setProfileOpen(false);
-          setMobileMoreOpen(true);
-        },
       },
       mobileMoreSheetProps: {
         open: mobileMoreOpen,
