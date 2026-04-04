@@ -101,7 +101,6 @@ body[data-theme="light"] {
 .pageShell {
   min-height: 100vh;
   padding: 28px 18px 106px;
-  overflow-x: clip;
   background: var(--wh-page-glow-1), var(--wh-page-glow-2), var(--wh-page-bg);
 }
 
