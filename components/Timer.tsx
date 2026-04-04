@@ -186,6 +186,12 @@ const TimerFacePanel = memo(function TimerFacePanel({
   onOpenSessionNotes?: () => void;
 }) {
   const identityTheme = FOCUS_IDENTITIES[focusIdentity];
+  const [showTimeEdit, setShowTimeEdit] = useState(false);
+
+  // Lock time editing once the timer starts
+  useEffect(() => {
+    if (running) setShowTimeEdit(false);
+  }, [running]);
 
   return (
     <>
@@ -220,25 +226,6 @@ const TimerFacePanel = memo(function TimerFacePanel({
             </Popover.Trigger>
             <Popover.Portal>
               <Popover.Content className={styles.faceSettingsMenu} sideOffset={8} align="end">
-                {mode === "countdown" && (
-                  <label className={styles.faceMinutesPicker}>
-                    <span>Minutes</span>
-                    <input
-                      type="number"
-                      min={1}
-                      max={480}
-                      value={configuredMinutes}
-                      onChange={(event) => {
-                        const next = Number(event.target.value);
-                        if (Number.isFinite(next)) {
-                          onSetConfiguredMinutes(Math.min(480, Math.max(1, next)));
-                        }
-                      }}
-                      disabled={running}
-                    />
-                  </label>
-                )}
-
                 <div className={styles.faceIdentityGroup}>
                   <p className={styles.faceSettingsLabel}>Focus Mode</p>
                   <div className={styles.faceIdentityOptions}>
@@ -290,6 +277,37 @@ const TimerFacePanel = memo(function TimerFacePanel({
           <div className={styles.time}>
             {String(mm).padStart(2, "0")}:{String(ss).padStart(2, "0")}
           </div>
+
+          {mode === "countdown" && !running && !done && (
+            <div className={styles.timeEditRow}>
+              {showTimeEdit ? (
+                <input
+                  type="number"
+                  min={1}
+                  max={480}
+                  value={configuredMinutes}
+                  className={styles.timeEditInput}
+                  autoFocus
+                  onChange={(event) => {
+                    const next = Number(event.target.value);
+                    if (Number.isFinite(next)) {
+                      onSetConfiguredMinutes(Math.min(480, Math.max(1, next)));
+                    }
+                  }}
+                  onBlur={() => setShowTimeEdit(false)}
+                />
+              ) : (
+                <button
+                  type="button"
+                  className={styles.timeEditToggle}
+                  onClick={() => setShowTimeEdit(true)}
+                >
+                  Edit time
+                </button>
+              )}
+            </div>
+          )}
+
           <div className={styles.faceWhelm}>
             {isPro ? (
               <div className={`${styles.faceWhelmFigure} ${running ? styles.faceWhelmFigurePulse : ""}`}>

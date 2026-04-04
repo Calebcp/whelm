@@ -312,6 +312,61 @@
   color: #f2f6ff;
 }
 
+/* Inline time edit — visible below the clock, hidden once running */
+.timeEditRow {
+  display: flex;
+  justify-content: center;
+  margin: 10px 0 2px;
+}
+
+.timeEditToggle {
+  border: 1px solid rgba(210, 225, 255, 0.2);
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: 999px;
+  padding: 6px 18px;
+  color: rgba(220, 232, 255, 0.72);
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease;
+}
+
+.timeEditToggle:hover {
+  background: rgba(255, 255, 255, 0.13);
+  border-color: rgba(210, 225, 255, 0.36);
+}
+
+.timeEditInput {
+  width: min(110px, 55%);
+  border: 1px solid rgba(210, 225, 255, 0.32);
+  border-radius: 12px;
+  padding: 7px 12px;
+  background: rgba(78, 101, 206, 0.28);
+  color: #f2f6ff;
+  font-size: 1.05rem;
+  font-weight: 600;
+  text-align: center;
+  outline: none;
+}
+
+.timeEditInput:focus {
+  border-color: rgba(210, 225, 255, 0.6);
+  background: rgba(78, 101, 206, 0.4);
+}
+
+/* Light mode overrides */
+.card:not([data-appearance="dark"]) .timeEditToggle {
+  border-color: rgba(36, 74, 114, 0.2);
+  background: rgba(36, 74, 114, 0.06);
+  color: rgba(36, 74, 114, 0.7);
+}
+
+.card:not([data-appearance="dark"]) .timeEditInput {
+  border-color: rgba(36, 74, 114, 0.24);
+  background: rgba(36, 74, 114, 0.08);
+  color: #102033;
+}
+
 .faceIdentityGroup {
   display: grid;
   gap: 8px;
