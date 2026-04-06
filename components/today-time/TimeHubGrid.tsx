@@ -37,12 +37,13 @@ type ToolCardProps = {
   imageSrc: string;
   imageAlt: string;
   imageClassName?: string;
+  dataTour?: string;
   onClick: () => void;
 };
 
-function ToolCard({ label, imageSrc, imageAlt, imageClassName, onClick }: ToolCardProps) {
+function ToolCard({ label, imageSrc, imageAlt, imageClassName, dataTour, onClick }: ToolCardProps) {
   return (
-    <button type="button" className={styles.timeToolCard} onClick={onClick}>
+    <button type="button" className={styles.timeToolCard} data-tour={dataTour} onClick={onClick}>
       <strong className={styles.timeToolName}>{label}</strong>
       <div className={styles.timeToolPreviewWrap} aria-hidden="true">
         <img
@@ -69,6 +70,7 @@ export default function TimeHubGrid({
           label="Timer"
           imageSrc={TIMER_PREVIEW_BY_COLOR[bandanaColor]}
           imageAlt=""
+          dataTour="time-hub-timer"
           onClick={onOpenTimer}
         />
         <ToolCard
@@ -76,6 +78,7 @@ export default function TimeHubGrid({
           imageSrc={BLOCK_PREVIEW}
           imageAlt=""
           imageClassName={styles.timeToolPreviewBlock}
+          dataTour="time-hub-block"
           onClick={onOpenBlock}
         />
         <ToolCard

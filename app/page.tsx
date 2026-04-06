@@ -1142,22 +1142,22 @@ const ONBOARDING_STEPS: OnboardingTourStep[] = [
   },
   {
     id: "block",
-    selector: '[data-tour="schedule-add-block"]',
+    selector: '[data-tour="time-hub-block"]',
     pose: "focus_action",
     color: "red",
     mobileContextPaddingX: 18,
-    mobileContextPaddingY: 18,
+    mobileContextPaddingY: 12,
     title: "Blocks are worth 10 XP",
     body:
       "Add a block here. Each completed block gives 10 XP, and block XP caps at 50 per day. This is the first half of protecting your day.",
   },
   {
     id: "timer",
-    selector: '[data-tour="today-timer"]',
+    selector: '[data-tour="time-hub-timer"]',
     pose: "ready_idle",
     color: "green",
-    mobileContextPaddingX: 14,
-    mobileContextPaddingY: 16,
+    mobileContextPaddingX: 18,
+    mobileContextPaddingY: 12,
     title: "Run the focus timer",
     body:
       "This is where execution happens. Every 30 minutes of focus gives 20 XP, 90+ minutes unlocks a deep work bonus, and the stopwatch Whelm art changes every 5 minutes while you are running.",

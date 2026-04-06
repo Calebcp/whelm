@@ -226,11 +226,27 @@ export default function OnboardingTour({
     const cardWidth = Math.min(420, viewportWidth - 32);
 
     if (isMobile) {
-      // Always anchor card to the bottom on mobile — no above/below guessing.
+      const sideInset = 12;
+      const safeBottom = 100; // above bottom nav
+      const safeTop = 60;    // below top app bar
+
+      // If the spotlight is in the bottom half, put the card at the top; otherwise bottom.
+      const spotlightMidY = spotlightRect.top + spotlightRect.height / 2;
+      const targetIsInBottomHalf = spotlightMidY > viewportHeight * 0.5;
+
+      if (targetIsInBottomHalf) {
+        return {
+          top: safeTop,
+          left: sideInset,
+          right: sideInset,
+          bottom: "auto" as const,
+          transform: "none",
+        };
+      }
       return {
-        bottom: 16,
-        left: 12,
-        right: 12,
+        bottom: safeBottom,
+        left: sideInset,
+        right: sideInset,
         top: "auto" as const,
         transform: "none",
       };
