@@ -193,10 +193,10 @@
   }
 
   .tourCard {
-    /* left/right/bottom set via inline style — no width needed */
+    /* left/right/top/bottom set via inline style — no width needed */
     width: auto;
     max-width: none;
-    max-height: min(52vh, 380px);
+    max-height: min(44vh, 340px);
     border-radius: 24px;
     padding: 14px;
     overflow-y: auto;

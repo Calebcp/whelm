@@ -227,27 +227,28 @@ export default function OnboardingTour({
 
     if (isMobile) {
       const sideInset = 12;
-      const safeBottom = 100; // above bottom nav
-      const safeTop = 60;    // below top app bar
+      const safeBottom = 110; // above bottom nav
+      const safeTop = 64;    // below top app bar
 
-      // If the spotlight is in the bottom half, put the card at the top; otherwise bottom.
+      // Only put card at bottom if the element is very high up (top 35% of screen).
+      // For anything else — middle or lower — put card at top so it never covers the element.
       const spotlightMidY = spotlightRect.top + spotlightRect.height / 2;
-      const targetIsInBottomHalf = spotlightMidY > viewportHeight * 0.5;
+      const targetIsVeryHighUp = spotlightMidY < viewportHeight * 0.35;
 
-      if (targetIsInBottomHalf) {
+      if (targetIsVeryHighUp) {
         return {
-          top: safeTop,
+          bottom: safeBottom,
           left: sideInset,
           right: sideInset,
-          bottom: "auto" as const,
+          top: "auto" as const,
           transform: "none",
         };
       }
       return {
-        bottom: safeBottom,
+        top: safeTop,
         left: sideInset,
         right: sideInset,
-        top: "auto" as const,
+        bottom: "auto" as const,
         transform: "none",
       };
     }
