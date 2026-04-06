@@ -1149,7 +1149,7 @@ const ONBOARDING_STEPS: OnboardingTourStep[] = [
     mobileContextPaddingY: 12,
     title: "Blocks are worth 10 XP",
     body:
-      "Add a block here. Each completed block gives 10 XP, and block XP caps at 50 per day. This is the first half of protecting your day.",
+      "Tap Block to schedule a task. Each completed block gives 10 XP and block XP caps at 50 per day — the first half of protecting your day.",
   },
   {
     id: "timer",
@@ -1160,7 +1160,7 @@ const ONBOARDING_STEPS: OnboardingTourStep[] = [
     mobileContextPaddingY: 12,
     title: "Run the focus timer",
     body:
-      "This is where execution happens. Every 30 minutes of focus gives 20 XP, 90+ minutes unlocks a deep work bonus, and the stopwatch Whelm art changes every 5 minutes while you are running.",
+      "Every 30 minutes of focus gives 20 XP. Hit 90+ minutes for a deep work bonus. The Whelm art changes every 5 minutes while running.",
   },
   {
     id: "xp",
@@ -1171,7 +1171,7 @@ const ONBOARDING_STEPS: OnboardingTourStep[] = [
     mobileContextPaddingY: 18,
     title: "Know the XP system",
     body:
-      "Your daily target is 120 XP and the hard max is 150. Complete one block plus 30 focused minutes or 33 written words to trigger the combo bonus and protect the streak.",
+      "Daily target is 120 XP, hard max 150. One block + 30 focused minutes or 33 written words triggers the combo bonus and protects your streak.",
   },
   {
     id: "notes",
@@ -1182,18 +1182,7 @@ const ONBOARDING_STEPS: OnboardingTourStep[] = [
     mobileContextPaddingY: 18,
     title: "Capture notes fast",
     body:
-      "Use Notes+ to keep ideas, plans, and session notes alive. Writing 33+ words starts a writing XP bonus, and 100+ words reaches the full daily writing reward.",
-  },
-  {
-    id: "cards",
-    selector: '[data-tour="notes-cards-toggle"]',
-    pose: "focus_action",
-    color: "black",
-    mobileContextPaddingX: 22,
-    mobileContextPaddingY: 18,
-    title: "Turn notes into flashcards",
-    body:
-      "Open Cards here to convert what matters into flashcards. Notes capture the idea. Cards train recall and keep the learning loop active.",
+      "Use Notes+ to keep ideas, plans, and session notes alive. 33+ words earns writing XP, 100+ words hits the full daily reward. Open Cards inside any note to turn it into flashcards.",
   },
   {
     id: "whelmboard",
@@ -1206,7 +1195,7 @@ const ONBOARDING_STEPS: OnboardingTourStep[] = [
     mobileContextPaddingY: 120,
     title: "Climb the Whelmboard",
     body:
-      "Track your global rank by XP or streak, add friends, accept requests, send nudges, and check Bandana Tiers to see who is holding each level.",
+      "Track your global rank by XP or streak, add friends, send nudges, and check Bandana Tiers to see who is holding each level.",
   },
   {
     id: "replay",
@@ -1215,7 +1204,7 @@ const ONBOARDING_STEPS: OnboardingTourStep[] = [
     color: "yellow",
     title: "Need a refresher later?",
     body:
-      "This replay tutorial button lives in Settings. The full tour only auto-shows once for a new user, but you can return here anytime to review the flow or the XP system.",
+      "This replay button lives in Settings. The tour only auto-shows once, but you can return here anytime to review the flow.",
   },
 ];
 
@@ -3574,15 +3563,42 @@ export default function HomePage() {
     setProfileOpen(false);
     setFeedbackOpen(false);
     setOnboardingStepIndex(0);
+    setActiveTab("calendar");
     setOnboardingOpen(true);
   }, [setFeedbackOpen, setMobileMoreOpen, setProfileOpen]);
+
+  const ONBOARDING_STEP_TABS: Record<string, AppTab> = {
+    schedule: "calendar",
+    block: "today",
+    timer: "today",
+    xp: "today",
+    notes: "notes",
+    whelmboard: "leaderboard",
+    replay: "settings",
+  };
 
   const handleOnboardingNext = useCallback(() => {
     if (onboardingStepIndex >= ONBOARDING_STEPS.length - 1) {
       closeOnboarding(true);
       return;
     }
-    setOnboardingStepIndex((current) => current + 1);
+    const nextIndex = onboardingStepIndex + 1;
+    const nextStep = ONBOARDING_STEPS[nextIndex];
+    const nextTab = nextStep ? ONBOARDING_STEP_TABS[nextStep.id] : undefined;
+    if (nextTab) {
+      setActiveTab(nextTab);
+    }
+    setOnboardingStepIndex(nextIndex);
+    // After state updates, scroll the target element into view so the user never has to scroll manually.
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        if (!nextStep) return;
+        const target = document.querySelector(nextStep.selector);
+        if (target instanceof HTMLElement) {
+          target.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }, 120);
+    });
   }, [closeOnboarding, onboardingStepIndex]);
 
   const overlayHostProps = useMemo(
