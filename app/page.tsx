@@ -1141,17 +1141,6 @@ const ONBOARDING_STEPS: OnboardingTourStep[] = [
       "This is your command map. Plan the day here first so Whelm is built around deliberate blocks, not random effort.",
   },
   {
-    id: "block",
-    selector: '[data-tour="time-hub-block"]',
-    pose: "focus_action",
-    color: "red",
-    mobileContextPaddingX: 18,
-    mobileContextPaddingY: 12,
-    title: "Blocks are worth 10 XP",
-    body:
-      "Tap Block to schedule a task. Each completed block gives 10 XP and block XP caps at 50 per day — the first half of protecting your day.",
-  },
-  {
     id: "timer",
     selector: '[data-tour="time-hub-timer"]',
     pose: "ready_idle",
@@ -1161,6 +1150,17 @@ const ONBOARDING_STEPS: OnboardingTourStep[] = [
     title: "Run the focus timer",
     body:
       "Every 30 minutes of focus gives 20 XP. Hit 90+ minutes for a deep work bonus. The Whelm art changes every 5 minutes while running.",
+  },
+  {
+    id: "block",
+    selector: '[data-tour="time-hub-block"]',
+    pose: "focus_action",
+    color: "red",
+    mobileContextPaddingX: 18,
+    mobileContextPaddingY: 12,
+    title: "Blocks are worth 10 XP",
+    body:
+      "Tap Block to schedule a task. Each completed block gives 10 XP and block XP caps at 50 per day — the first half of protecting your day.",
   },
   {
     id: "xp",
@@ -3569,8 +3569,8 @@ export default function HomePage() {
 
   const ONBOARDING_STEP_TABS: Record<string, AppTab> = {
     schedule: "calendar",
-    block: "today",
     timer: "today",
+    block: "today",
     xp: "today",
     notes: "notes",
     whelmboard: "leaderboard",
@@ -3589,16 +3589,14 @@ export default function HomePage() {
       setActiveTab(nextTab);
     }
     setOnboardingStepIndex(nextIndex);
-    // After state updates, scroll the target element into view so the user never has to scroll manually.
-    requestAnimationFrame(() => {
-      setTimeout(() => {
-        if (!nextStep) return;
-        const target = document.querySelector(nextStep.selector);
-        if (target instanceof HTMLElement) {
-          target.scrollIntoView({ behavior: "smooth", block: "center" });
-        }
-      }, 120);
-    });
+    // After tab switch renders, scroll the target element into view.
+    setTimeout(() => {
+      if (!nextStep) return;
+      const target = document.querySelector(nextStep.selector);
+      if (target instanceof HTMLElement) {
+        target.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }, 320);
   }, [closeOnboarding, onboardingStepIndex]);
 
   const overlayHostProps = useMemo(
