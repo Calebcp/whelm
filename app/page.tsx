@@ -1208,7 +1208,6 @@ const ONBOARDING_STEPS: OnboardingTourStep[] = [
   },
 ];
 
-const ONBOARDING_NEW_USER_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 function onboardingStorageKey(uid: string) {
   return `whelm:onboarding-tour:v1:${uid}`;
@@ -3971,16 +3970,8 @@ export default function HomePage() {
       // Ignore storage failures and fall through to showing the tour once.
     }
 
-    const createdAtMs = currentUserCreatedAtISO
-      ? new Date(currentUserCreatedAtISO).getTime()
-      : Number.NaN;
-    const accountAgeMs = Number.isFinite(createdAtMs) ? Date.now() - createdAtMs : Number.POSITIVE_INFINITY;
-    if (accountAgeMs > ONBOARDING_NEW_USER_WINDOW_MS) {
-      markOnboardingSeen();
-      return;
-    }
-
-    startOnboarding();
+    // Auto-start disabled — tour is available on demand from Settings only.
+    markOnboardingSeen();
   }, [
     authChecked,
     currentUserCreatedAtISO,
