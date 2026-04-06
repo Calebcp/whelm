@@ -61,7 +61,10 @@ export default function OnboardingTour({
   onSkip: () => void;
 }) {
   const [spotlightRect, setSpotlightRect] = useState<SpotlightRect | null>(null);
-  const [viewportSize, setViewportSize] = useState({ width: 1280, height: 800 });
+  const [viewportSize, setViewportSize] = useState(() => ({
+    width: typeof window !== "undefined" ? (window.visualViewport?.width ?? window.innerWidth) : 1280,
+    height: typeof window !== "undefined" ? (window.visualViewport?.height ?? window.innerHeight) : 800,
+  }));
   const [cardHeight, setCardHeight] = useState(280);
   const cardRef = useRef<HTMLElement | null>(null);
   const maskId = useId().replace(/:/g, "");
@@ -87,9 +90,13 @@ export default function OnboardingTour({
           return;
         }
         const rect = target.getBoundingClientRect();
+        // On mobile Safari, visualViewport may be offset from the layout viewport.
+        // position:fixed is relative to visualViewport, so we subtract the offset.
+        const vvOffsetTop = window.visualViewport?.offsetTop ?? 0;
+        const vvOffsetLeft = window.visualViewport?.offsetLeft ?? 0;
         setSpotlightRect({
-          top: Math.max(8, rect.top - 8),
-          left: Math.max(8, rect.left - 8),
+          top: Math.max(8, rect.top - vvOffsetTop - 8),
+          left: Math.max(8, rect.left - vvOffsetLeft - 8),
           width: Math.max(64, rect.width + 16),
           height: Math.max(48, rect.height + 16),
         });
@@ -216,42 +223,15 @@ export default function OnboardingTour({
     const viewportWidth = viewportSize.width;
     const viewportHeight = viewportSize.height;
     const isMobile = viewportWidth <= 760;
-    const cardWidth = Math.min(420, viewportWidth - (isMobile ? 24 : 32));
+    const cardWidth = Math.min(420, viewportWidth - 32);
 
     if (isMobile) {
-      const sideInset = 12;
-      const safeTop = 18;
-      const safeBottom = 16;
-      const contextTop = contextRect?.top ?? spotlightRect.top;
-      const contextBottom = contextRect ? contextRect.top + contextRect.height : spotlightRect.top + spotlightRect.height;
-      const spaceAbove = contextTop - safeTop;
-      const spaceBelow = viewportHeight - safeBottom - contextBottom;
-      const availableHeight = Math.max(0, viewportHeight - safeTop - safeBottom);
-      const effectiveCardHeight = Math.min(cardHeight, availableHeight);
-
-      let top = Math.max(safeTop, viewportHeight - safeBottom - effectiveCardHeight);
-      if (spaceAbove >= cardHeight + 8 && spaceAbove >= spaceBelow) {
-        top = safeTop;
-      } else if (spaceBelow >= cardHeight + 8) {
-        top = Math.max(safeTop, viewportHeight - safeBottom - effectiveCardHeight);
-      } else if (spaceAbove > spaceBelow) {
-        top = safeTop;
-      } else {
-        top = Math.min(
-          Math.max(safeTop, contextBottom + 8),
-          Math.max(safeTop, viewportHeight - safeBottom - effectiveCardHeight),
-        );
-      }
-
-      top = Math.min(
-        Math.max(safeTop, top),
-        Math.max(safeTop, viewportHeight - safeBottom - effectiveCardHeight),
-      );
-
+      // Always anchor card to the bottom on mobile — no above/below guessing.
       return {
-        top,
-        left: sideInset,
-        right: sideInset,
+        bottom: 16,
+        left: 12,
+        right: 12,
+        top: "auto" as const,
         transform: "none",
       };
     }
