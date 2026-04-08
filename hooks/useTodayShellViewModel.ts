@@ -21,6 +21,7 @@ export type TodayShellState = Omit<
   | "onSessionStart"
   | "onSessionAbandon"
   | "onSessionComplete"
+  | "onSaveSessionNote"
   | "onToggleMobileTodayOverview"
   | "onTodayPrimaryAction"
   | "onOpenNote"
@@ -43,6 +44,7 @@ export type TodayShellHandlers = Pick<
   | "onSessionStart"
   | "onSessionAbandon"
   | "onSessionComplete"
+  | "onSaveSessionNote"
   | "onToggleMobileTodayOverview"
   | "onTodayPrimaryAction"
   | "onOpenNote"
@@ -112,6 +114,7 @@ export function useTodayShellViewModel({
       handlers.onSessionStart,
       handlers.onSessionAbandon,
       handlers.onSessionComplete,
+      handlers.onSaveSessionNote,
       handlers.onToggleMobileTodayOverview,
       handlers.onTodayPrimaryAction,
       handlers.onOpenNote,

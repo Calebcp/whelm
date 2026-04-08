@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, type Dispatch, type SetStateAction } from "react";
 import type { User } from "firebase/auth";
 
-import { type CalendarTone, type PlannedBlock } from "@/hooks/usePlannedBlocks";
+import { resolveAccessibleCalendarTone, type CalendarTone } from "@/lib/calendar-tones";
+import { type PlannedBlock } from "@/hooks/usePlannedBlocks";
 
 type UseCalendarInteractionsOptions<
   TCalendarEntry extends { id: string },
@@ -142,10 +143,11 @@ export function useCalendarInteractions<
   }, [setSelectedPlanDetailId]);
 
   const applyDayTone = useCallback((dateKey: string, tone: CalendarTone | null) => {
-    if (!user || !isPro) return;
+    if (!user) return;
     const next = { ...dayTones };
-    if (tone) {
-      next[dateKey] = tone;
+    const accessibleTone = resolveAccessibleCalendarTone(tone, isPro);
+    if (accessibleTone) {
+      next[dateKey] = accessibleTone;
     } else {
       delete next[dateKey];
     }
@@ -154,10 +156,11 @@ export function useCalendarInteractions<
   }, [dayTones, isPro, persistDayTones, setDayTones, user]);
 
   const applyMonthTone = useCallback((monthKey: string, tone: CalendarTone | null) => {
-    if (!user || !isPro) return;
+    if (!user) return;
     const next = { ...monthTones };
-    if (tone) {
-      next[monthKey] = tone;
+    const accessibleTone = resolveAccessibleCalendarTone(tone, isPro);
+    if (accessibleTone) {
+      next[monthKey] = accessibleTone;
     } else {
       delete next[monthKey];
     }

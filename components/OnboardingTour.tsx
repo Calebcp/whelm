@@ -227,28 +227,40 @@ export default function OnboardingTour({
 
     if (isMobile) {
       const sideInset = 12;
-      const safeBottom = 110; // above bottom nav
-      const safeTop = 64;    // below top app bar
+      const gap = 14;
+      const safeBottom = 108;
+      const safeTop = 58;
+      const spotlightBottom = spotlightRect.top + spotlightRect.height;
+      const availableAbove = Math.max(0, spotlightRect.top - safeTop - gap);
+      const availableBelow = Math.max(0, viewportHeight - safeBottom - spotlightBottom - gap);
+      const fitsAbove = availableAbove >= cardHeight;
+      const fitsBelow = availableBelow >= cardHeight;
 
-      // Only put card at bottom if the element is very high up (top 35% of screen).
-      // For anything else — middle or lower — put card at top so it never covers the element.
-      const spotlightMidY = spotlightRect.top + spotlightRect.height / 2;
-      const targetIsVeryHighUp = spotlightMidY < viewportHeight * 0.35;
-
-      if (targetIsVeryHighUp) {
+      if (fitsBelow && (!fitsAbove || availableBelow >= availableAbove)) {
         return {
-          bottom: safeBottom,
+          top: Math.min(viewportHeight - safeBottom - cardHeight, spotlightBottom + gap),
           left: sideInset,
           right: sideInset,
-          top: "auto" as const,
+          bottom: "auto" as const,
           transform: "none",
         };
       }
+
+      if (fitsAbove || availableAbove >= availableBelow) {
+        return {
+          top: Math.max(safeTop, spotlightRect.top - cardHeight - gap),
+          left: sideInset,
+          right: sideInset,
+          bottom: "auto" as const,
+          transform: "none",
+        };
+      }
+
       return {
-        top: safeTop,
+        bottom: safeBottom,
         left: sideInset,
         right: sideInset,
-        bottom: "auto" as const,
+        top: "auto" as const,
         transform: "none",
       };
     }

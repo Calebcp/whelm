@@ -29,10 +29,6 @@ function normalizeTimeLabel(raw: string) {
   return parsed.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
-function alarmModeLabel(mode: AlarmDraft["mode"] | AlarmItem["mode"]) {
-  return mode === "hard" ? "Hard" : "Soft";
-}
-
 export default function AlarmScreen({
   alarms,
   draft,
@@ -83,24 +79,6 @@ export default function AlarmScreen({
               placeholder="Label"
               className={styles.planInput}
             />
-            <div className={styles.alarmModeRow}>
-              <button
-                type="button"
-                className={`${styles.alarmModeChip} ${draft.mode === "soft" ? styles.alarmModeChipActive : ""}`}
-                onClick={() => onChange({ mode: "soft" })}
-              >
-                <strong>Soft</strong>
-                <span>Gentle reminder</span>
-              </button>
-              <button
-                type="button"
-                className={`${styles.alarmModeChip} ${draft.mode === "hard" ? styles.alarmModeChipActive : ""}`}
-                onClick={() => onChange({ mode: "hard" })}
-              >
-                <strong>Hard</strong>
-                <span>Commitment signal</span>
-              </button>
-            </div>
             {attachableBlocks.length > 0 && (
               <div className={styles.alarmAttachSection}>
                 <p className={styles.sectionLabel}>Attach to block</p>
@@ -156,8 +134,7 @@ export default function AlarmScreen({
               <div className={styles.alarmRowMain}>
                 <strong className={styles.alarmTime}>Live now</strong>
                 <span className={styles.alarmLabel}>
-                  {activeInstance.linkedBlockTitle || activeInstance.alarmLabel} ·{" "}
-                  {activeInstance.alarmMode === "hard" ? "Hard" : "Soft"}
+                  {activeInstance.linkedBlockTitle || activeInstance.alarmLabel}
                 </span>
               </div>
               <div className={styles.alarmRowActions}>
@@ -173,8 +150,7 @@ export default function AlarmScreen({
               <div className={styles.alarmRowMain}>
                 <strong className={styles.alarmTime}>Missed</strong>
                 <span className={styles.alarmLabel}>
-                  {latestMissedInstance.linkedBlockTitle || latestMissedInstance.alarmLabel} ·{" "}
-                  {latestMissedInstance.alarmMode === "hard" ? "Hard" : "Soft"}
+                  {latestMissedInstance.linkedBlockTitle || latestMissedInstance.alarmLabel}
                 </span>
               </div>
               <div className={styles.alarmRowActions}>
@@ -194,7 +170,7 @@ export default function AlarmScreen({
                   <button type="button" className={styles.alarmRowMain} onClick={() => onEdit(alarm.id)}>
                     <strong className={styles.alarmTime}>{normalizeTimeLabel(alarm.timeOfDay)}</strong>
                     <span className={styles.alarmLabel}>
-                      {alarm.label || "Alarm"} · {alarmModeLabel(alarm.mode)}
+                      {alarm.label || "Alarm"}
                     </span>
                   </button>
                   <div className={styles.alarmRowActions}>

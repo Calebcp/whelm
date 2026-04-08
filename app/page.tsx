@@ -46,7 +46,11 @@ import {
   trackTaskCreated,
 } from "@/lib/analytics-tracker";
 import { resolveApiUrl } from "@/lib/api-base";
-import { getCalendarToneMeta, type CalendarTone } from "@/lib/calendar-tones";
+import {
+  getCalendarToneMeta,
+  resolveAccessibleCalendarTone,
+  type CalendarTone,
+} from "@/lib/calendar-tones";
 import { auth, db, storage } from "@/lib/firebase";
 import {
   type WorkspaceNote,
@@ -258,6 +262,57 @@ const NOTE_FONTS = [
   { label: "Verdana", value: "Verdana, Geneva, sans-serif" },
   { label: "Palatino", value: "Palatino, Book Antiqua, serif" },
 ] as const;
+
+function getScrollableAncestors(element: HTMLElement): Array<HTMLElement | Element> {
+  const ancestors: Array<HTMLElement | Element> = [];
+  let current = element.parentElement;
+  while (current) {
+    const style = window.getComputedStyle(current);
+    const overflowY = style.overflowY;
+    if (
+      (overflowY === "auto" || overflowY === "scroll" || overflowY === "overlay") &&
+      current.scrollHeight > current.clientHeight + 4
+    ) {
+      ancestors.push(current);
+    }
+    current = current.parentElement;
+  }
+
+  const scrollingElement = document.scrollingElement;
+  if (scrollingElement && !ancestors.includes(scrollingElement)) {
+    ancestors.push(scrollingElement);
+  }
+
+  return ancestors;
+}
+
+function centerOnboardingTarget(target: HTMLElement) {
+  const visualViewport = window.visualViewport;
+  const viewportHeight = visualViewport?.height ?? window.innerHeight;
+  const safeTop = 88;
+  const safeBottom = 156;
+  const visibleHeight = Math.max(120, viewportHeight - safeTop - safeBottom);
+  const targetRect = target.getBoundingClientRect();
+  const targetCenterY = targetRect.top + targetRect.height / 2;
+  const desiredViewportCenter = safeTop + visibleHeight / 2;
+  const delta = targetCenterY - desiredViewportCenter;
+
+  getScrollableAncestors(target).forEach((ancestor) => {
+    if (ancestor instanceof HTMLElement) {
+      ancestor.scrollTop += delta;
+      return;
+    }
+
+    if (ancestor === document.scrollingElement) {
+      window.scrollTo({
+        top: Math.max(0, window.scrollY + delta),
+        behavior: "auto",
+      });
+    }
+  });
+
+  target.scrollIntoView({ behavior: "auto", block: "center", inline: "nearest" });
+}
 
 const NOTE_FONT_SIZES = [
   { label: "Small", value: 14, command: "3" },
@@ -1480,6 +1535,7 @@ export default function HomePage() {
     handleUserSignedIn,
     handleUserSignedOut,
     createWorkspaceNote,
+    createWorkspaceNoteFromDraft,
     updateSelectedNote,
     flushPendingTitleSync,
     flushSelectedNoteDraft,
@@ -2387,7 +2443,7 @@ export default function HomePage() {
   }
 
   const selectedCalendarMonthKey = monthKeyLocal(calendarCursor);
-  const selectedMonthTone = isPro ? (monthTones[selectedCalendarMonthKey] ?? null) : null;
+  const selectedMonthTone = resolveAccessibleCalendarTone(monthTones[selectedCalendarMonthKey] ?? null, isPro);
   const calendarMonthLabel = calendarCursor.toLocaleDateString(undefined, {
     month: "long",
     year: "numeric",
@@ -2423,7 +2479,11 @@ export default function HomePage() {
         minutes,
         level: focusLevel(minutes),
         isCurrentMonth: true,
-        tone: isPro ? (dayTones[dateKey] ?? monthTones[selectedCalendarMonthKey]) : undefined,
+        tone:
+          resolveAccessibleCalendarTone(
+            dayTones[dateKey] ?? monthTones[selectedCalendarMonthKey] ?? null,
+            isPro,
+          ) ?? undefined,
       });
     }
 
@@ -3100,6 +3160,20 @@ export default function HomePage() {
           }
           return void completeSession(note, minutesSpent, sessionContext);
         },
+        onSaveSessionNote: async (note, sessionContext) => {
+          await createWorkspaceNoteFromDraft({
+            title: sessionContext?.targetMinutes
+              ? `${sessionContext.targetMinutes}m session note`
+              : "Session note",
+            body: note,
+            category:
+              sessionContext?.subjectMode === "school"
+                ? "school"
+                : sessionContext?.subjectMode === "work"
+                  ? "work"
+                  : "personal",
+          });
+        },
         onToggleMobileTodayOverview: () => setMobileTodayOverviewOpen((open) => !open),
         onTodayPrimaryAction: handleTodayPrimaryAction,
         onOpenNote: openSpecificNote,
@@ -3127,6 +3201,7 @@ export default function HomePage() {
       copyWeeklyReport,
       savePlannedBlock,
       createWorkspaceNote,
+      createWorkspaceNoteFromDraft,
       dueReminderNotes,
       focusMetrics.disciplineScore,
       focusMetrics.todayMinutes,
@@ -3588,14 +3663,6 @@ export default function HomePage() {
       setActiveTab(nextTab);
     }
     setOnboardingStepIndex(nextIndex);
-    // After tab switch renders, scroll the target element into view.
-    setTimeout(() => {
-      if (!nextStep) return;
-      const target = document.querySelector(nextStep.selector);
-      if (target instanceof HTMLElement) {
-        target.scrollIntoView({ behavior: "smooth", block: "center" });
-      }
-    }, 320);
   }, [closeOnboarding, onboardingStepIndex]);
 
   const overlayHostProps = useMemo(
@@ -3970,12 +4037,10 @@ export default function HomePage() {
       // Ignore storage failures and fall through to showing the tour once.
     }
 
-    // Auto-start disabled — tour is available on demand from Settings only.
-    markOnboardingSeen();
+    startOnboarding();
   }, [
     authChecked,
     currentUserCreatedAtISO,
-    markOnboardingSeen,
     showIntroSplash,
     startOnboarding,
     user,
@@ -3986,12 +4051,12 @@ export default function HomePage() {
 
     switch (onboardingStep.id) {
       case "schedule":
-      case "block":
         setActiveTab("calendar");
         setCalendarView("day");
         setSelectedCalendarDate(todayKey);
         setMobileMoreOpen(false);
         break;
+      case "block":
       case "timer":
       case "xp":
         setActiveTab("today");
@@ -4028,19 +4093,47 @@ export default function HomePage() {
         break;
     }
 
-    const timer = window.setTimeout(() => {
+    let cancelled = false;
+    let attempt = 0;
+    let timer: number | null = null;
+
+    const alignTarget = () => {
+      if (cancelled) return;
+
       const target = Array.from(document.querySelectorAll(onboardingStep.selector)).find((node) => {
         if (!(node instanceof HTMLElement)) return false;
         const rect = node.getBoundingClientRect();
         return rect.width > 0 && rect.height > 0;
       });
 
-      if (target instanceof HTMLElement) {
-        target.scrollIntoView({ behavior: "auto", block: "center", inline: "center" });
+      if (!(target instanceof HTMLElement)) {
+        if (attempt < 8) {
+          attempt += 1;
+          timer = window.setTimeout(alignTarget, 120);
+        }
+        return;
       }
-    }, 120);
 
-    return () => window.clearTimeout(timer);
+      centerOnboardingTarget(target);
+      const rect = target.getBoundingClientRect();
+      const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+      const targetTopVisible = rect.top >= 72;
+      const targetBottomVisible = rect.bottom <= viewportHeight - 116;
+
+      if ((!targetTopVisible || !targetBottomVisible) && attempt < 8) {
+        attempt += 1;
+        timer = window.setTimeout(alignTarget, 140);
+      }
+    };
+
+    timer = window.setTimeout(alignTarget, 180);
+
+    return () => {
+      cancelled = true;
+      if (timer !== null) {
+        window.clearTimeout(timer);
+      }
+    };
   }, [
     onboardingOpen,
     onboardingStep,

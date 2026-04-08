@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import type { CSSProperties } from "react";
 
+import type { CalendarTone } from "@/lib/calendar-tones";
 import { dayKeyLocal } from "@/lib/date-utils";
 import type { WorkspaceNote } from "@/lib/notes-store";
 import type { SessionDoc } from "@/lib/streak";
@@ -26,7 +27,7 @@ type PlannedBlockLike = {
   status: "active" | "completed" | "deleted";
   completedAtISO?: string;
   attachmentCount?: number;
-  tone?: "Clear" | "Push" | "Deep" | "Sharp" | "Steady" | "Recover";
+  tone?: CalendarTone;
 };
 
 type BackgroundSkinLike = {

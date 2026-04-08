@@ -12,8 +12,8 @@ type TimerScreenProps = {
   isPro: boolean;
   sessionNoteCount: number;
   onClose: () => void;
-  onChange: (patch: Partial<TimerDraft>) => void;
   onOpenSessionNotes: () => void;
+  onSaveSessionNote: (note: string, context?: TimerSessionContext) => Promise<void> | void;
   onSessionStart: (context: TimerSessionContext) => void;
   onSessionAbandon: (context: TimerSessionContext & { elapsedMinutes: number; abandonReason: "reset" | "route_change" | "component_unmount" | "unknown" }) => void;
   onComplete: (note: string, minutesSpent: number, context?: TimerSessionContext) => void;
@@ -33,8 +33,8 @@ export default function TimerScreen({
   isPro,
   sessionNoteCount,
   onClose,
-  onChange,
   onOpenSessionNotes,
+  onSaveSessionNote,
   onSessionStart,
   onSessionAbandon,
   onComplete,
@@ -58,24 +58,12 @@ export default function TimerScreen({
         isPro={isPro}
         sessionNoteCount={sessionNoteCount}
         onOpenSessionNotes={onOpenSessionNotes}
+        onSaveSessionNote={onSaveSessionNote}
         streakMinimumMinutes={30}
         onSessionStart={onSessionStart}
         onSessionAbandon={onSessionAbandon}
         onComplete={onComplete}
       />
-
-      <div className={styles.timerPresetStrip}>
-        {[15, 25, 30, 45, 60].map((minutes) => (
-          <button
-            key={minutes}
-            type="button"
-            className={`${styles.timeToolChip} ${draft.minutes === minutes ? styles.timeToolChipActive : ""}`}
-            onClick={() => onChange({ minutes })}
-          >
-            {minutes}m
-          </button>
-        ))}
-      </div>
     </div>
   );
 }

@@ -151,6 +151,7 @@ export type TodayTabProps = {
   onSessionAbandon: (context: TimerSessionContext & { elapsedMinutes: number; abandonReason: "reset" | "route_change" | "component_unmount" | "unknown" }) => void;
   userEmail: string;
   onSessionComplete: (note: string, minutesSpent: number, context?: TimerSessionContext) => void;
+  onSaveSessionNote: (note: string, context?: TimerSessionContext) => void | Promise<void>;
   onToggleMobileTodayOverview: () => void;
   onTodayPrimaryAction: () => void;
   onOpenNote: (id: string | null) => void;
@@ -207,6 +208,7 @@ export default function TodayTab({
   onSessionStart,
   onSessionAbandon,
   onSessionComplete,
+  onSaveSessionNote,
   onToggleMobileTodayOverview,
   onTodayPrimaryAction,
   onOpenNote,
@@ -234,8 +236,8 @@ export default function TodayTab({
               isPro={isPro}
               sessionNoteCount={todaySessionNoteCount}
               onClose={timeHub.actions.closeTool}
-              onChange={timeHub.actions.setTimerDraft}
               onOpenSessionNotes={onOpenSessionNotes}
+              onSaveSessionNote={onSaveSessionNote}
               onSessionStart={onSessionStart}
               onSessionAbandon={onSessionAbandon}
               onComplete={onSessionComplete}

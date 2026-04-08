@@ -1,4 +1,4 @@
-import type { CalendarTone } from "@/lib/calendar-tones";
+import { FREE_CALENDAR_TONES, type CalendarTone } from "@/lib/calendar-tones";
 
 export const WHELM_STANDARD_NAME = "Whelm Standard";
 export const WHELM_PRO_NAME = "Whelm Pro";
@@ -6,7 +6,7 @@ export const WHELM_STANDARD_HISTORY_DAYS = 14;
 export const WHELM_STANDARD_STREAK_SAVE_LIMIT = 2;
 export const WHELM_PRO_STREAK_SAVE_LIMIT = 5;
 
-export const STANDARD_CALENDAR_TONES: readonly CalendarTone[] = ["Clear", "Deep", "Steady"];
+export const STANDARD_CALENDAR_TONES: readonly CalendarTone[] = FREE_CALENDAR_TONES;
 
 export const STANDARD_NOTE_COLOR_VALUES = [
   "#f8fafc",

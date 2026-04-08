@@ -858,6 +858,33 @@ export function useNotes({ isPro, isMobileViewport, onNavigateToNotes }: UseNote
     return nextNote.id;
   }
 
+  async function createWorkspaceNoteFromDraft(input: {
+    title?: string;
+    body: string;
+    category?: NoteCategory;
+  }) {
+    const currentUser = auth.currentUser;
+    if (!currentUser) return null;
+
+    const body = input.body.trim();
+    if (!body) return null;
+
+    const nextNote = {
+      ...createNote(),
+      title: input.title?.trim() || "Session note",
+      body,
+      category: input.category ?? "personal",
+    } satisfies WorkspaceNote;
+    const nextNotes = [nextNote, ...notesRef.current];
+    notesRef.current = nextNotes;
+    setNotes(nextNotes);
+    saveNotesLocally(currentUser.uid, nextNotes);
+    setNotesSyncUi("syncing", "");
+    const result = await saveNoteToFirestore(currentUser.uid, nextNote);
+    setNotesSyncUi(result.synced ? "synced" : "local-only", result.message ?? "");
+    return nextNote.id;
+  }
+
   const persistSelectedNoteBody = useCallback(async (
     noteId: string,
     nextEditorText: string,
@@ -1739,6 +1766,7 @@ export function useNotes({ isPro, isMobileViewport, onNavigateToNotes }: UseNote
     handleUserSignedOut,
     applyNotesSnapshot,
     createWorkspaceNote,
+    createWorkspaceNoteFromDraft,
     updateNoteById,
     updateSelectedNote,
     flushPendingTitleSync,

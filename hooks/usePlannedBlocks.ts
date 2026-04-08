@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { auth } from "@/lib/firebase";
+import { canUseCalendarTone, type CalendarTone } from "@/lib/calendar-tones";
 import {
   loadPlannedBlocks as loadSyncedPlannedBlocks,
   mergeBlocksPreferNewest,
@@ -14,8 +15,6 @@ import { dayKeyLocal } from "@/lib/date-utils";
 const MIN_PLANNED_BLOCK_MINUTES = 15;
 const MAX_PLANNED_BLOCK_MINUTES = 240;
 const MIN_PLANNED_BLOCK_GAP_MINUTES = 10;
-
-export type CalendarTone = "Clear" | "Push" | "Deep" | "Sharp" | "Steady" | "Recover";
 
 export type PlannedBlock = {
   id: string;
@@ -586,7 +585,7 @@ export function usePlannedBlocks({
           title,
           note,
           attachmentCount: input.attachmentCount && input.attachmentCount > 0 ? input.attachmentCount : undefined,
-          tone: isPro ? input.tone ?? undefined : undefined,
+          tone: canUseCalendarTone(input.tone, isPro) ? (input.tone ?? undefined) : undefined,
           durationMinutes: input.durationMinutes,
           timeOfDay: nextTime,
           updatedAtISO: now,
@@ -597,7 +596,7 @@ export function usePlannedBlocks({
           title,
           note,
           attachmentCount: input.attachmentCount && input.attachmentCount > 0 ? input.attachmentCount : undefined,
-          tone: isPro ? input.tone ?? undefined : undefined,
+          tone: canUseCalendarTone(input.tone, isPro) ? (input.tone ?? undefined) : undefined,
           durationMinutes: input.durationMinutes,
           timeOfDay: nextTime,
           sortOrder: activeBlocksForDay.length === 0 ? 0 : Math.max(...activeBlocksForDay.map((item) => item.sortOrder)) + 1,
@@ -719,7 +718,7 @@ export function usePlannedBlocks({
   }, [persistPlannedBlocks, plannedBlocks, selectedDateKey]);
 
   const updatePlannedBlockTone = useCallback((id: string, tone: CalendarTone | null) => {
-    if (!isPro) return;
+    if (tone && !canUseCalendarTone(tone, isPro)) return;
     const updatedAtISO = new Date().toISOString();
     void persistPlannedBlocks(
       plannedBlocks.map((item) => (item.id === id ? { ...item, tone: tone ?? undefined, updatedAtISO } : item)),
@@ -762,7 +761,7 @@ export function usePlannedBlocks({
           title: draft.title.trim(),
           note: draft.note.trim(),
           attachmentCount: undefined,
-          tone: isPro ? draft.tone ?? undefined : undefined,
+          tone: canUseCalendarTone(draft.tone, isPro) ? (draft.tone ?? undefined) : undefined,
           durationMinutes: draft.durationMinutes,
           timeOfDay: draft.timeOfDay,
           sortOrder: claimedBlocksToday.length + index,

@@ -33,7 +33,7 @@ const WHELM_TIER_CARDS = [
     bullets: [
       `Core notes, blocks, sessions, and the last ${WHELM_STANDARD_HISTORY_DAYS} days of history`,
       "Basic note tones and limited calendar color control",
-      "Standard shell, core readouts, and no full archive export",
+      `${WHELM_STANDARD_NAME} shell, core readouts, and no full archive export`,
     ],
   },
 ] as const;

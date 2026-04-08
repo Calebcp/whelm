@@ -316,6 +316,9 @@
 .timeEditRow {
   display: flex;
   justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
   margin: 10px 0 2px;
 }
 
@@ -354,6 +357,16 @@
   background: rgba(78, 101, 206, 0.4);
 }
 
+.timeEditAction {
+  border: 1px solid rgba(210, 225, 255, 0.22);
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  padding: 7px 12px;
+  color: #eef3ff;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
 /* Light mode overrides */
 .card:not([data-appearance="dark"]) .timeEditToggle {
   border-color: rgba(36, 74, 114, 0.2);
@@ -364,6 +377,12 @@
 .card:not([data-appearance="dark"]) .timeEditInput {
   border-color: rgba(36, 74, 114, 0.24);
   background: rgba(36, 74, 114, 0.08);
+  color: #102033;
+}
+
+.card:not([data-appearance="dark"]) .timeEditAction {
+  border-color: rgba(36, 74, 114, 0.18);
+  background: rgba(36, 74, 114, 0.06);
   color: #102033;
 }
 

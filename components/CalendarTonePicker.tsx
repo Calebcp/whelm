@@ -4,8 +4,13 @@ import * as Popover from "@radix-ui/react-popover";
 import { memo, useMemo, useState } from "react";
 
 import styles from "@/app/page.module.css";
-import { CALENDAR_TONES, getCalendarToneStyle, type CalendarTone } from "@/lib/calendar-tones";
-import { STANDARD_CALENDAR_TONES, WHELM_PRO_NAME, WHELM_STANDARD_NAME } from "@/lib/whelm-plans";
+import {
+  CALENDAR_TONES,
+  getAccessibleCalendarTones,
+  getCalendarToneStyle,
+  type CalendarTone,
+} from "@/lib/calendar-tones";
+import { WHELM_PRO_NAME, WHELM_STANDARD_NAME } from "@/lib/whelm-plans";
 
 const CalendarTonePicker = memo(function CalendarTonePicker({
   label,
@@ -23,9 +28,7 @@ const CalendarTonePicker = memo(function CalendarTonePicker({
   const [open, setOpen] = useState(false);
   const selectedToneStyle = getCalendarToneStyle(selectedTone);
   const visibleTones = useMemo(
-    () => (isPro
-      ? CALENDAR_TONES
-      : CALENDAR_TONES.filter((tone) => STANDARD_CALENDAR_TONES.includes(tone.value))),
+    () => CALENDAR_TONES.filter((tone) => getAccessibleCalendarTones(isPro).includes(tone.value)),
     [isPro],
   );
 
@@ -105,13 +108,13 @@ const CalendarTonePicker = memo(function CalendarTonePicker({
                   >
                     <div className={styles.calendarToneLockedCardHead}>
                       <span>{label}</span>
-                      <strong>{WHELM_PRO_NAME} unlocks the full tone set</strong>
+                      <strong>{WHELM_PRO_NAME} unlocks 10 total tones</strong>
                     </div>
                     <div className={styles.calendarToneLockedCardPreview}>
                       <div className={styles.calendarToneLockedCardTime}>9:00 AM</div>
                       <div>
-                        <strong>Push, Sharp, and Recover stay in {WHELM_PRO_NAME}.</strong>
-                        <small>{WHELM_STANDARD_NAME} keeps a smaller planning palette.</small>
+                        <strong>Deep, Push, Recover, Sharp, Ember, Frost, Tide, and Dusk stay in {WHELM_PRO_NAME}.</strong>
+                        <small>{WHELM_STANDARD_NAME} keeps 2 core planning tones.</small>
                       </div>
                     </div>
                   </button>

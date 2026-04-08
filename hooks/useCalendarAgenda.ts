@@ -2,10 +2,9 @@
 
 import { useMemo } from "react";
 
+import { resolveAccessibleCalendarTone, type CalendarTone } from "@/lib/calendar-tones";
 import { dayKeyLocal } from "@/lib/date-utils";
 import type { SessionDoc } from "@/lib/streak";
-
-type CalendarTone = "Clear" | "Push" | "Deep" | "Sharp" | "Steady" | "Recover";
 
 type CalendarEntrySource = "plan" | "reminder" | "session";
 
@@ -189,8 +188,8 @@ export function useCalendarAgenda({
   isDateKeyBeforeToday,
   isDateKeyWithinRecentWindow,
 }: UseCalendarAgendaOptions) {
-  const selectedDateDayTone = isPro ? (dayTones[selectedDateKey] ?? null) : null;
-  const visiblePlanTone = (tone: CalendarTone | null | undefined) => (isPro ? (tone ?? null) : null);
+  const selectedDateDayTone = resolveAccessibleCalendarTone(dayTones[selectedDateKey] ?? null, isPro);
+  const visiblePlanTone = (tone: CalendarTone | null | undefined) => resolveAccessibleCalendarTone(tone, isPro);
   const { plannedBlockById, plannedBlocksByDate } = useMemo(() => {
     const byId = new Map<string, PlannedBlockLike>();
     const byDate = new Map<string, PlannedBlockLike[]>();

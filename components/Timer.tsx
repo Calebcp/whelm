@@ -187,11 +187,35 @@ const TimerFacePanel = memo(function TimerFacePanel({
 }) {
   const identityTheme = FOCUS_IDENTITIES[focusIdentity];
   const [showTimeEdit, setShowTimeEdit] = useState(false);
+  const [timeEditValue, setTimeEditValue] = useState(() => String(configuredMinutes));
 
   // Lock time editing once the timer starts
   useEffect(() => {
     if (running) setShowTimeEdit(false);
   }, [running]);
+
+  useEffect(() => {
+    if (!showTimeEdit) {
+      setTimeEditValue(String(configuredMinutes));
+    }
+  }, [configuredMinutes, showTimeEdit]);
+
+  function closeTimeEdit() {
+    setTimeEditValue(String(configuredMinutes));
+    setShowTimeEdit(false);
+  }
+
+  function applyTimeEdit() {
+    const next = Number.parseInt(timeEditValue.trim(), 10);
+    if (!Number.isFinite(next)) {
+      closeTimeEdit();
+      return;
+    }
+    const clamped = Math.min(480, Math.max(1, next));
+    onSetConfiguredMinutes(clamped);
+    setTimeEditValue(String(clamped));
+    setShowTimeEdit(false);
+  }
 
   return (
     <>
@@ -281,21 +305,36 @@ const TimerFacePanel = memo(function TimerFacePanel({
           {mode === "countdown" && !running && !done && (
             <div className={styles.timeEditRow}>
               {showTimeEdit ? (
-                <input
-                  type="number"
-                  min={1}
-                  max={480}
-                  value={configuredMinutes}
-                  className={styles.timeEditInput}
-                  autoFocus
-                  onChange={(event) => {
-                    const next = Number(event.target.value);
-                    if (Number.isFinite(next)) {
-                      onSetConfiguredMinutes(Math.min(480, Math.max(1, next)));
-                    }
-                  }}
-                  onBlur={() => setShowTimeEdit(false)}
-                />
+                <>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={timeEditValue}
+                    className={styles.timeEditInput}
+                    autoFocus
+                    placeholder="30"
+                    onChange={(event) => {
+                      const digitsOnly = event.target.value.replace(/[^\d]/g, "");
+                      setTimeEditValue(digitsOnly.slice(0, 3));
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        applyTimeEdit();
+                      }
+                      if (event.key === "Escape") {
+                        event.preventDefault();
+                        closeTimeEdit();
+                      }
+                    }}
+                  />
+                  <button type="button" className={styles.timeEditAction} onClick={() => setTimeEditValue("")}>
+                    Clear
+                  </button>
+                  <button type="button" className={styles.timeEditAction} onClick={applyTimeEdit}>
+                    Apply
+                  </button>
+                </>
               ) : (
                 <button
                   type="button"
@@ -390,6 +429,7 @@ const SessionNotebook = memo(function SessionNotebook({
   submitting,
   onSetNote,
   onComplete,
+  onSaveNote,
   onClose,
 }: {
   done: boolean;
@@ -399,6 +439,7 @@ const SessionNotebook = memo(function SessionNotebook({
   submitting: boolean;
   onSetNote: (value: string) => void;
   onComplete: () => void;
+  onSaveNote?: () => Promise<void> | void;
   onClose: () => void;
 }) {
   if (!done && !showNotebook) {
@@ -423,6 +464,11 @@ const SessionNotebook = memo(function SessionNotebook({
       />
 
       <div className={styles.notebookActions}>
+        {onSaveNote ? (
+          <button onClick={() => void onSaveNote()} className={styles.secondaryButton} disabled={submitting}>
+            Save note now
+          </button>
+        ) : null}
         <button onClick={onComplete} className={styles.completeButton} disabled={submitting}>
           {submitting ? "Saving..." : actionLabel}
         </button>
@@ -446,6 +492,7 @@ export default function Timer({
   onSessionAbandon,
   sessionNoteCount = 0,
   onOpenSessionNotes,
+  onSaveSessionNote,
   streakMinimumMinutes = 30,
   isPro = false,
   showHeaderCopy = true,
@@ -472,6 +519,7 @@ export default function Timer({
   ) => Promise<void> | void;
   sessionNoteCount?: number;
   onOpenSessionNotes?: () => void;
+  onSaveSessionNote?: (note: string, sessionContext?: TimerSessionContext) => Promise<void> | void;
   streakMinimumMinutes?: number;
   isPro?: boolean;
   showHeaderCopy?: boolean;
@@ -489,6 +537,7 @@ export default function Timer({
   const [showNotebookMenu, setShowNotebookMenu] = useState(false);
   const [showTimerSettings, setShowTimerSettings] = useState(false);
   const [note, setNote] = useState("");
+  const [savingNotebook, setSavingNotebook] = useState(false);
   const [focusIdentity, setFocusIdentity] = useState<FocusIdentity>("timer");
   const [entryModeLabel, setEntryModeLabel] = useState<string | null>(null);
   const [isOnline, setIsOnline] = useState(true);
@@ -807,6 +856,20 @@ export default function Timer({
     }
   }
 
+  async function handleSaveSessionNote() {
+    const trimmed = note.trim();
+    if (!trimmed || !onSaveSessionNote) return;
+    setSavingNotebook(true);
+    try {
+      await onSaveSessionNote(trimmed, sessionContextRef.current ?? undefined);
+      setNote("");
+      setShowNotebook(false);
+      setShowNotebookMenu(false);
+    } finally {
+      setSavingNotebook(false);
+    }
+  }
+
   function openNotebook() {
     setRunning(false);
     setShowNotebookMenu(false);
@@ -947,11 +1010,12 @@ export default function Timer({
         showNotebook={showNotebook}
         note={note}
         actionLabel={actionLabel}
-        submitting={submitting}
+        submitting={submitting || savingNotebook}
         onSetNote={setNote}
         onComplete={() => {
           void handleComplete();
         }}
+        onSaveNote={onSaveSessionNote ? handleSaveSessionNote : undefined}
         onClose={() => setShowNotebook(false)}
       />
 

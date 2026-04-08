@@ -12,6 +12,7 @@ import StreakBandana from "@/components/StreakBandana";
 import {
   getCalendarToneMeta,
   getCalendarToneStyle,
+  resolveAccessibleCalendarTone,
   type CalendarTone,
 } from "@/lib/calendar-tones";
 import { type WhelBandanaColor } from "@/lib/whelm-mascot";
@@ -621,6 +622,33 @@ const DayPortalPanel = memo(function DayPortalPanel({
   );
 });
 
+const MobileDayUtilityBar = memo(function MobileDayUtilityBar({
+  selectedDateDayTone,
+  selectedDateKey,
+  isPro,
+  onApplyDayTone,
+  onUpgrade,
+}: Pick<
+  ScheduleTabProps,
+  | "selectedDateDayTone"
+  | "selectedDateKey"
+  | "isPro"
+  | "onApplyDayTone"
+  | "onUpgrade"
+>) {
+  return (
+    <div className={styles.mobileDayUtilityBar}>
+      <CalendarTonePicker
+        label="Day tone"
+        selectedTone={selectedDateDayTone}
+        onSelectTone={(tone) => onApplyDayTone(selectedDateKey, tone)}
+        isPro={isPro}
+        onUpgrade={onUpgrade}
+      />
+    </div>
+  );
+});
+
 const CalendarAuxPanel = memo(function CalendarAuxPanel({
   calendarPlannerRef,
   calendarHeroRef,
@@ -654,7 +682,7 @@ const CalendarAuxPanel = memo(function CalendarAuxPanel({
   onUpdatePlannedBlockTime,
   onDeletePlannedBlock,
 }: CalendarAuxPanelProps) {
-  const visiblePlanTone = (tone: CalendarTone | null | undefined) => (isPro ? (tone ?? null) : null);
+  const visiblePlanTone = (tone: CalendarTone | null | undefined) => resolveAccessibleCalendarTone(tone, isPro);
 
   return (
     <article
@@ -1609,7 +1637,7 @@ function ScheduleTab({
   onSetMobileAgendaEntriesOpen,
   onUpgrade,
 }: ScheduleTabProps) {
-  const visiblePlanTone = (tone: CalendarTone | null | undefined) => (isPro ? (tone ?? null) : null);
+  const visiblePlanTone = (tone: CalendarTone | null | undefined) => resolveAccessibleCalendarTone(tone, isPro);
 
   return (
     <AnimatedTabSection className={styles.calendarGrid} sectionRef={sectionRef}>
@@ -1792,23 +1820,33 @@ function ScheduleTab({
           />
         ) : (
           <div className={styles.dayViewShell}>
-            <DayPortalPanel
-              selectedDateDayTone={selectedDateDayTone}
-              isSelectedDateToday={isSelectedDateToday}
-              selectedDateSummary={selectedDateSummary}
-              selectedDateCanAddBlocks={selectedDateCanAddBlocks}
-              isMobileViewport={isMobileViewport}
-              selectedDateFocusedMinutes={selectedDateFocusedMinutes}
-              selectedDatePlanGroups={selectedDatePlanGroups}
-              selectedDateEntries={selectedDateEntries}
-              selectedDateKey={selectedDateKey}
-              isPro={isPro}
-              bandanaColor={bandanaColor}
-              onSetCalendarView={onSetCalendarView}
-              onToggleMobileCalendarControls={onToggleMobileCalendarControls}
-              onApplyDayTone={onApplyDayTone}
-              onUpgrade={onUpgrade}
-            />
+            {isMobileViewport ? (
+              <MobileDayUtilityBar
+                selectedDateDayTone={selectedDateDayTone}
+                selectedDateKey={selectedDateKey}
+                isPro={isPro}
+                onApplyDayTone={onApplyDayTone}
+                onUpgrade={onUpgrade}
+              />
+            ) : (
+              <DayPortalPanel
+                selectedDateDayTone={selectedDateDayTone}
+                isSelectedDateToday={isSelectedDateToday}
+                selectedDateSummary={selectedDateSummary}
+                selectedDateCanAddBlocks={selectedDateCanAddBlocks}
+                isMobileViewport={isMobileViewport}
+                selectedDateFocusedMinutes={selectedDateFocusedMinutes}
+                selectedDatePlanGroups={selectedDatePlanGroups}
+                selectedDateEntries={selectedDateEntries}
+                selectedDateKey={selectedDateKey}
+                isPro={isPro}
+                bandanaColor={bandanaColor}
+                onSetCalendarView={onSetCalendarView}
+                onToggleMobileCalendarControls={onToggleMobileCalendarControls}
+                onApplyDayTone={onApplyDayTone}
+                onUpgrade={onUpgrade}
+              />
+            )}
             <DayTimelinePanel
               calendarTimelineRef={calendarTimelineRef}
               mobileDayTimelineScrollRef={mobileDayTimelineScrollRef}

@@ -1741,6 +1741,11 @@ body[data-theme="light"] {
   gap: 12px;
 }
 
+.mobileDayUtilityBar {
+  display: grid;
+  gap: 10px;
+}
+
 .dayPortalCard {
   border: 1px solid rgba(123, 138, 184, 0.18);
   border-radius: 22px;
@@ -9083,6 +9088,10 @@ body[data-theme="light"] {
 
   .dayPortalCard {
     padding: 14px;
+  }
+
+  .mobileDayUtilityBar {
+    gap: 8px;
   }
 
   .dayPortalCopy {

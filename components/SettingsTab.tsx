@@ -650,7 +650,7 @@ const SettingsDetailPanels = memo(function SettingsDetailPanels({
               <>
                 <SettingsActionRow
                   title="Compare plans"
-                  summary="See Standard versus Pro again."
+                  summary={`See ${WHELM_STANDARD_NAME} versus ${WHELM_PRO_NAME} again.`}
                   onClick={onStartProPreview}
                 />
                 <SettingsActionRow
