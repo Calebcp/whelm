@@ -119,3 +119,40 @@ test("mergeNotesPreferNewest keeps legacy-only notes alongside subcollection not
   assert.ok(merged.some((note) => note.id === "legacy-only"));
   assert.ok(merged.some((note) => note.id === "subcollection-only"));
 });
+
+test("notes editor interop restores plain line breaks from stored bodies", async () => {
+  process.env.NEXT_PUBLIC_FIREBASE_API_KEY = "demo-key";
+  process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN = "demo.firebaseapp.com";
+  process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID = "demo-project";
+  process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET = "demo.appspot.com";
+  process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID = "1234567890";
+  process.env.NEXT_PUBLIC_FIREBASE_APP_ID = "1:1234567890:web:abcdef";
+  process.env.FIREBASE_DATABASE_ID = "(default)";
+
+  const { __notesEditorInterop } = await import("@/hooks/useNotes");
+  const sourceText = "First line\n\nSecond line";
+
+  const stored = __notesEditorInterop.editorTextToStoredBody(sourceText);
+  const restored = __notesEditorInterop.storedBodyToEditorText(stored);
+
+  assert.equal(stored, "First line<br/><br/>Second line");
+  assert.equal(restored, sourceText);
+});
+
+test("notes editor interop converts escaped br text back into normal spacing", async () => {
+  process.env.NEXT_PUBLIC_FIREBASE_API_KEY = "demo-key";
+  process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN = "demo.firebaseapp.com";
+  process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID = "demo-project";
+  process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET = "demo.appspot.com";
+  process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID = "1234567890";
+  process.env.NEXT_PUBLIC_FIREBASE_APP_ID = "1:1234567890:web:abcdef";
+  process.env.FIREBASE_DATABASE_ID = "(default)";
+
+  const { __notesEditorInterop } = await import("@/hooks/useNotes");
+
+  const restored = __notesEditorInterop.storedBodyToEditorText(
+    "First line&lt;br/&gt;&lt;br/&gt;Second line",
+  );
+
+  assert.equal(restored, "First line\n\nSecond line");
+});

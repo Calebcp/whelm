@@ -87,6 +87,10 @@ function tabTitle(tab: AppTab): string {
 
 type TopAppBarProps = {
   activeTab: AppTab;
+  streakPrompt?: {
+    tone: "pending" | "reached";
+    text: string;
+  } | null;
   xpDockStyle: CSSProperties;
   currentLevel: number;
   progressToNextLevel: number;
@@ -106,6 +110,7 @@ type TopAppBarProps = {
 
 export default function TopAppBar({
   activeTab,
+  streakPrompt,
   xpDockStyle,
   currentLevel,
   progressToNextLevel,
@@ -130,9 +135,19 @@ export default function TopAppBar({
 
   return (
     <div className={styles.topAppBar} style={topBarStyle}>
-      <div>
+      <div className={styles.topAppBarHeading}>
         <p className={styles.topAppBarLabel}>Whelm Flow</p>
         <h2 className={styles.topAppBarTitle}>{tabTitle(activeTab)}</h2>
+        {streakPrompt ? (
+          <p
+            className={`${styles.topAppBarStatus} ${
+              streakPrompt.tone === "reached" ? styles.topAppBarStatusReached : styles.topAppBarStatusPending
+            }`}
+          >
+            <span className={styles.topAppBarStatusBullet} aria-hidden="true" />
+            <span>{streakPrompt.text}</span>
+          </p>
+        ) : null}
       </div>
       <div className={styles.topAppBarRight}>
         <span className={styles.topAppBarDate}>

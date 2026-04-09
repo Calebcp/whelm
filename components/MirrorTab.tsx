@@ -195,7 +195,7 @@ export default function MirrorTab({
           {!isPro && streakMirrorEntries.length > 2 ? (
             <ProUnlockCard
               title="Full Streak Mirror archive"
-              body={`${WHELM_PRO_POSITIONING} ${WHELM_STANDARD_NAME} keeps the 2 most recent mirror reflections visible. ${WHELM_PRO_NAME} keeps the full archive so patterns stay easy to trace.`}
+              body={`${WHELM_PRO_POSITIONING} ${WHELM_STANDARD_NAME} shows your 2 most recent mirror saves. ${WHELM_PRO_NAME} keeps every mirror save available so patterns stay easy to trace.`}
               open={proPanelMirrorOpen}
               onToggle={onToggleProMirrorPanel}
               onPreview={onStartProPreview}

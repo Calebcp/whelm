@@ -3160,7 +3160,7 @@ export default function HomePage() {
           }
           return void completeSession(note, minutesSpent, sessionContext);
         },
-        onSaveSessionNote: async (note, sessionContext) => {
+        onSaveSessionNote: async (note, minutesSpent, sessionContext) => {
           await createWorkspaceNoteFromDraft({
             title: sessionContext?.targetMinutes
               ? `${sessionContext.targetMinutes}m session note`
@@ -3173,6 +3173,10 @@ export default function HomePage() {
                   ? "work"
                   : "personal",
           });
+          if (activeTodayAlarmInstance) {
+            completeTodayAlarmInstance(activeTodayAlarmInstance.id);
+          }
+          await completeSession(note, minutesSpent, sessionContext);
         },
         onToggleMobileTodayOverview: () => setMobileTodayOverviewOpen((open) => !open),
         onTodayPrimaryAction: handleTodayPrimaryAction,
@@ -4190,6 +4194,22 @@ export default function HomePage() {
     // TODO: reconcile cards-earned XP with the derived xpByDay/lifetimeXpSummary flow before mutating parent XP state.
   }
 
+  const todayCompletedBlocksCount = completedBlocksByDay.get(todayKey) ?? 0;
+  const noteWordsLeftForStreak = Math.max(0, XP_WRITING_ENTRY_THRESHOLD - todayNoteWords);
+  const topBarStreakPrompt =
+    activeTab === "today"
+      ? todayCompletedBlocksCount >= 1
+        ? { tone: "reached" as const, text: "Block streak day reached" }
+        : { tone: "pending" as const, text: "Still need to make and complete block for streak day" }
+      : activeTab === "notes"
+        ? todayNoteWords >= XP_WRITING_ENTRY_THRESHOLD
+          ? { tone: "reached" as const, text: "33 words streak day reached" }
+          : {
+              tone: "pending" as const,
+              text: `Write ${noteWordsLeftForStreak} word${noteWordsLeftForStreak === 1 ? "" : "s"} left for streak day`,
+            }
+        : null;
+
   return (
     <>
       <HomeShellFrame
@@ -4201,6 +4221,7 @@ export default function HomePage() {
         mobileMoreOpen={mobileMoreOpen}
         onSelectTab={handleTabSelect}
         subtitle={`${WHELM_BRAND_THESIS} Plan the line, protect the streak, and keep the day under command.`}
+        streakPrompt={topBarStreakPrompt}
         xpDockStyle={xpDockStyle}
         currentLevel={lifetimeXpSummary.currentLevel}
         progressToNextLevel={lifetimeXpSummary.progressToNextLevel}

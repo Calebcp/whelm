@@ -1687,7 +1687,15 @@ function ScheduleTab({
             >
               Prev
             </button>
-            <strong className={styles.calendarMonthLabel}>{calendarMonthLabel}</strong>
+            <strong className={styles.calendarMonthLabel}>
+              {calendarView === "day"
+                ? new Date(`${selectedDateKey}T00:00:00`).toLocaleDateString(undefined, {
+                    month: "long",
+                    day: "numeric",
+                    year: "numeric",
+                  })
+                : calendarMonthLabel}
+            </strong>
             <button
               type="button"
               className={styles.secondaryPlanButton}

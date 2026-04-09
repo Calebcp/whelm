@@ -225,6 +225,10 @@ type HomeShellFrameProps = {
   mobileMoreOpen: boolean;
   onSelectTab: (tab: AppTab | "more") => void;
   subtitle: string;
+  streakPrompt?: {
+    tone: "pending" | "reached";
+    text: string;
+  } | null;
   xpDockStyle: CSSProperties;
   currentLevel: number;
   progressToNextLevel: number;
@@ -252,6 +256,7 @@ export default function HomeShellFrame({
   mobileMoreOpen,
   onSelectTab,
   subtitle,
+  streakPrompt,
   xpDockStyle,
   currentLevel,
   progressToNextLevel,
@@ -327,6 +332,7 @@ export default function HomeShellFrame({
         <section className={styles.screen}>
           <TopAppBar
             activeTab={activeTab}
+            streakPrompt={streakPrompt}
             xpDockStyle={xpDockStyle}
             currentLevel={currentLevel}
             progressToNextLevel={progressToNextLevel}

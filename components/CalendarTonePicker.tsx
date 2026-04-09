@@ -110,13 +110,6 @@ const CalendarTonePicker = memo(function CalendarTonePicker({
                       <span>{label}</span>
                       <strong>{WHELM_PRO_NAME} unlocks 10 total tones</strong>
                     </div>
-                    <div className={styles.calendarToneLockedCardPreview}>
-                      <div className={styles.calendarToneLockedCardTime}>9:00 AM</div>
-                      <div>
-                        <strong>Deep, Push, Recover, Sharp, Ember, Frost, Tide, and Dusk stay in {WHELM_PRO_NAME}.</strong>
-                        <small>{WHELM_STANDARD_NAME} keeps 2 core planning tones.</small>
-                      </div>
-                    </div>
                   </button>
                   <button
                     type="button"

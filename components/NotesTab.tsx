@@ -289,7 +289,8 @@ function NoteAttachmentsSection({
   onOpen: (attachment: NoteAttachment) => void;
   onRemove: (attachment: NoteAttachment) => void;
 }) {
-  const hasAttachments = note.attachments.length > 0;
+  const fileAttachments = note.attachments.filter((attachment) => attachment.kind !== "image");
+  const hasAttachments = fileAttachments.length > 0;
   const hasPendingUploads = pendingUploads.length > 0;
 
   return (
@@ -299,7 +300,7 @@ function NoteAttachmentsSection({
           <p className={styles.noteAttachmentsEyebrow}>Files</p>
           <strong className={styles.noteAttachmentsTitle}>
             {hasAttachments
-              ? `${note.attachments.length} attached`
+              ? `${fileAttachments.length} attached`
               : "Keep files with this note"}
           </strong>
         </div>
@@ -335,35 +336,19 @@ function NoteAttachmentsSection({
       ) : null}
       {hasAttachments ? (
         <div className={styles.noteAttachmentsRail}>
-          {note.attachments.map((attachment) => (
+          {fileAttachments.map((attachment) => (
             <article
               key={attachment.id}
-              className={`${styles.noteAttachmentCard} ${
-                attachment.kind === "image" ? styles.noteAttachmentCardImage : ""
-              }`}
+              className={styles.noteAttachmentCard}
             >
-              {attachment.kind === "image" ? (
-                <button
-                  type="button"
-                  className={styles.noteAttachmentPreviewButton}
-                  onClick={() => onOpen(attachment)}
-                >
-                  <img
-                    src={attachment.downloadUrl}
-                    alt={attachment.name}
-                    className={styles.noteAttachmentPreviewImage}
-                  />
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className={styles.noteAttachmentFileFace}
-                  onClick={() => onOpen(attachment)}
-                >
-                  <span className={styles.noteAttachmentGlyph}>{noteAttachmentGlyph(attachment)}</span>
-                  <span className={styles.noteAttachmentBadge}>{noteAttachmentBadgeLabel(attachment)}</span>
-                </button>
-              )}
+              <button
+                type="button"
+                className={styles.noteAttachmentFileFace}
+                onClick={() => onOpen(attachment)}
+              >
+                <span className={styles.noteAttachmentGlyph}>{noteAttachmentGlyph(attachment)}</span>
+                <span className={styles.noteAttachmentBadge}>{noteAttachmentBadgeLabel(attachment)}</span>
+              </button>
               <div className={styles.noteAttachmentMeta}>
                 <strong className={styles.noteAttachmentName}>{attachment.name}</strong>
                 <span className={styles.noteAttachmentInfo}>
@@ -396,6 +381,50 @@ function NoteAttachmentsSection({
         </span>
       )}
     </section>
+  );
+}
+
+function NoteInlineImageGallery({
+  attachments,
+  onOpen,
+  onRemove,
+}: {
+  attachments: NoteAttachment[];
+  onOpen: (attachment: NoteAttachment) => void;
+  onRemove: (attachment: NoteAttachment) => void;
+}) {
+  if (attachments.length === 0) return null;
+
+  return (
+    <div className={styles.noteInlineImageGallery}>
+      {attachments.map((attachment) => (
+        <article key={attachment.id} className={styles.noteInlineImageCard}>
+          <button
+            type="button"
+            className={styles.noteInlineImageButton}
+            onClick={() => onOpen(attachment)}
+            aria-label={`Open ${attachment.name}`}
+          >
+            <img
+              src={attachment.downloadUrl}
+              alt={attachment.name}
+              className={styles.noteInlineImage}
+            />
+          </button>
+          <div className={styles.noteInlineImageMeta}>
+            <span className={styles.noteInlineImageLabel}>Photo</span>
+            <strong className={styles.noteInlineImageName}>{attachment.name}</strong>
+            <button
+              type="button"
+              className={styles.noteInlineImageRemove}
+              onClick={() => onRemove(attachment)}
+            >
+              Remove
+            </button>
+          </div>
+        </article>
+      ))}
+    </div>
   );
 }
 
@@ -984,12 +1013,17 @@ const MobileNoteEditorCard = memo(function MobileNoteEditorCard({
         className={styles.noteTitleInput}
       />
       <div className={styles.noteBodyShell} ref={noteBodyShellRef}>
+        <NoteInlineImageGallery
+          attachments={selectedNote.attachments.filter((attachment) => attachment.kind === "image")}
+          onOpen={onOpenNoteAttachment}
+          onRemove={(attachment) => void onRemoveNoteAttachment(attachment)}
+        />
         <textarea
           ref={editorRef}
           className={styles.noteBodyInput}
-          spellCheck={false}
-          autoCorrect="off"
-          autoCapitalize="off"
+          spellCheck
+          autoCorrect="on"
+          autoCapitalize="sentences"
           data-gramm="false"
           data-gramm_editor="false"
           data-enable-grammarly="false"
@@ -1427,7 +1461,7 @@ const NoteLibraryView = memo(function NoteLibraryView({
           <p className={sharedStyles.sectionLabel}>Writing Library</p>
           <h2 className={styles.notesLibraryTitle}>Your notes, all in one place.</h2>
           <p className={styles.notesLibraryCopy}>
-            Search, reopen recent work, and keep drafts, inbox captures, and deleted notes close by.
+            Keep your recent notes, drafts, and quick captures easy to reach.
           </p>
         </div>
         <div className={styles.notesLibraryHeaderActions}>
@@ -1465,7 +1499,7 @@ const NoteLibraryView = memo(function NoteLibraryView({
       <div className={styles.notesLibraryCollections}>
         <NoteLibraryCollection
           title={isMobileViewport ? "Recent notes" : "Continue writing"}
-          description="Your latest notes, surfaced for quick re-entry."
+          description="Pick up where you left off."
           notes={recentNotes.slice(0, 4)}
           selectedNoteId={selectedNoteId}
           defaultOpen
@@ -1474,7 +1508,7 @@ const NoteLibraryView = memo(function NoteLibraryView({
         />
         <NoteLibraryCollection
           title="All notes"
-          description="The full writing shelf, shown as large document cards."
+          description="Everything you have written in one place."
           notes={filteredNotes}
           selectedNoteId={selectedNoteId}
           onOpenNote={onOpenNote}
@@ -1482,7 +1516,7 @@ const NoteLibraryView = memo(function NoteLibraryView({
         />
         <NoteLibraryCollection
           title="Pinned"
-          description="Important notes that should stay visible."
+          description="Keep your most important notes close."
           notes={pinnedNotes}
           selectedNoteId={selectedNoteId}
           onOpenNote={onOpenNote}
@@ -1490,7 +1524,7 @@ const NoteLibraryView = memo(function NoteLibraryView({
         />
         <NoteLibraryCollection
           title="Drafts"
-          description="Notes with enough substance to shape further."
+          description="Ideas worth coming back to."
           notes={draftNotes}
           selectedNoteId={selectedNoteId}
           onOpenNote={onOpenNote}
@@ -1498,7 +1532,7 @@ const NoteLibraryView = memo(function NoteLibraryView({
         />
         <NoteLibraryCollection
           title="Inbox"
-          description="Quick captures and rough starts that still need shape."
+          description="Quick captures and unfinished starts."
           notes={inboxNotes}
           selectedNoteId={selectedNoteId}
           onOpenNote={onOpenNote}
@@ -1628,10 +1662,10 @@ export default function NotesTab({
   const [desktopNoteToolsOpen, setDesktopNoteToolsOpen] = useState(false);
   const syncStatusLabel =
     notesSyncStatus === "synced"
-      ? "Synced to your account."
+      ? "All changes saved."
       : notesSyncStatus === "syncing"
-        ? "Saving in background..."
-        : "Using local notes while cloud sync catches up.";
+        ? "Saving..."
+        : "Saved on this device for now.";
   const syncButtonLabel = notesSyncStatus === "synced" ? "Sync now" : "Retry sync";
   const openLibraryNote = (noteId: string) => {
     if (isMobileViewport) {
@@ -2082,12 +2116,17 @@ export default function NotesTab({
                   ) : null}
 
                   <div className={styles.noteBodyShell} ref={noteBodyShellRef}>
+                    <NoteInlineImageGallery
+                      attachments={selectedNote.attachments.filter((attachment) => attachment.kind === "image")}
+                      onOpen={onOpenNoteAttachment}
+                      onRemove={(attachment) => void onRemoveNoteAttachment(attachment)}
+                    />
                     <textarea
                       ref={editorRef}
                       className={styles.noteBodyInput}
-                      spellCheck={false}
-                      autoCorrect="off"
-                      autoCapitalize="off"
+                      spellCheck
+                      autoCorrect="on"
+                      autoCapitalize="sentences"
                       data-gramm="false"
                       data-gramm_editor="false"
                       data-enable-grammarly="false"

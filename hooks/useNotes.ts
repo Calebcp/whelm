@@ -176,10 +176,19 @@ function editorTextToStoredBody(value: string) {
   return escapeEditorHtml(value).replace(/\r\n?/g, "\n").replace(/\n/g, "<br/>");
 }
 
+function decodeStoredBodyEntities(body: string) {
+  return body
+    .replace(/&lt;br\s*\/?&gt;/gi, "<br/>")
+    .replace(/&lt;\/?(div|p|li|blockquote|h1|h2|h3)&gt;/gi, (match) =>
+      match.startsWith("&lt;/") ? "\n" : "",
+    );
+}
+
 function storedBodyToEditorText(body: string) {
   if (!body) return "";
+  const normalizedBody = decodeStoredBodyEntities(body);
   if (typeof document === "undefined") {
-    return body
+    return normalizedBody
       .replace(/<br\s*\/?>/gi, "\n")
       .replace(/<\/(p|div|li|blockquote|h1|h2|h3)>/gi, "\n")
       .replace(/<[^>]*>/g, "")
@@ -187,7 +196,7 @@ function storedBodyToEditorText(body: string) {
   }
 
   const template = document.createElement("template");
-  template.innerHTML = normalizeBodyForEditor(body);
+  template.innerHTML = normalizeBodyForEditor(normalizedBody);
   const blockSelectors = "p,div,li,blockquote,h1,h2,h3";
   template.content.querySelectorAll(blockSelectors).forEach((element) => {
     if (element.nextSibling) {
@@ -381,6 +390,11 @@ function isDateKeyWithinRecentWindow(dateKey: string, days: number) {
 function notesMatch(a: WorkspaceNote[], b: WorkspaceNote[]) {
   return JSON.stringify(mergeNotesPreferNewest([], a)) === JSON.stringify(mergeNotesPreferNewest([], b));
 }
+
+export const __notesEditorInterop = {
+  editorTextToStoredBody,
+  storedBodyToEditorText,
+};
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
 

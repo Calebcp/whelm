@@ -201,18 +201,36 @@ export function useCalendarInteractions<
     const entry = calendarEntryById.get(pendingCalendarEntryFocusId);
     if (!entry) return;
 
-    const frame = window.requestAnimationFrame(() => {
+    let frame = 0;
+    let cancelled = false;
+    let attempts = 0;
+
+    const focusEntry = () => {
+      if (cancelled) return;
       const target = document.querySelector<HTMLElement>(
         `[data-calendar-entry-id="${pendingCalendarEntryFocusId}"]`,
       );
-      if (!target) return;
-      setCalendarPinnedEntryId(pendingCalendarEntryFocusId);
-      target.scrollIntoView({ behavior: "smooth", block: "center" });
+      if (!target) {
+        attempts += 1;
+        if (attempts < 24) {
+          frame = window.requestAnimationFrame(focusEntry);
+        } else {
+          setPendingCalendarEntryFocusId(null);
+        }
+        return;
+      }
+      setCalendarPinnedEntryId(null);
+      setCalendarHoverEntryId(null);
+      const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      target.scrollIntoView({
+        behavior: prefersReducedMotion ? "auto" : "smooth",
+        block: "center",
+        inline: "nearest",
+      });
       if (activatedCalendarEntryTimeoutRef.current !== null) {
         window.clearTimeout(activatedCalendarEntryTimeoutRef.current);
       }
       setActivatedCalendarEntryId(pendingCalendarEntryFocusId);
-      const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       activatedCalendarEntryTimeoutRef.current = window.setTimeout(() => {
         setActivatedCalendarEntryId((current) =>
           current === pendingCalendarEntryFocusId ? null : current,
@@ -220,14 +238,20 @@ export function useCalendarInteractions<
         activatedCalendarEntryTimeoutRef.current = null;
       }, prefersReducedMotion ? 900 : 1800);
       setPendingCalendarEntryFocusId(null);
-    });
+    };
 
-    return () => window.cancelAnimationFrame(frame);
+    frame = window.requestAnimationFrame(focusEntry);
+
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(frame);
+    };
   }, [
     calendarEntryById,
     calendarView,
     pendingCalendarEntryFocusId,
     setActivatedCalendarEntryId,
+    setCalendarHoverEntryId,
     setCalendarPinnedEntryId,
     setPendingCalendarEntryFocusId,
   ]);

@@ -13,7 +13,11 @@ type TimerScreenProps = {
   sessionNoteCount: number;
   onClose: () => void;
   onOpenSessionNotes: () => void;
-  onSaveSessionNote: (note: string, context?: TimerSessionContext) => Promise<void> | void;
+  onSaveSessionNote: (
+    note: string,
+    minutesSpent: number,
+    context?: TimerSessionContext,
+  ) => Promise<void> | void;
   onSessionStart: (context: TimerSessionContext) => void;
   onSessionAbandon: (context: TimerSessionContext & { elapsedMinutes: number; abandonReason: "reset" | "route_change" | "component_unmount" | "unknown" }) => void;
   onComplete: (note: string, minutesSpent: number, context?: TimerSessionContext) => void;

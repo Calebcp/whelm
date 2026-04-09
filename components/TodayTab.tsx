@@ -151,7 +151,11 @@ export type TodayTabProps = {
   onSessionAbandon: (context: TimerSessionContext & { elapsedMinutes: number; abandonReason: "reset" | "route_change" | "component_unmount" | "unknown" }) => void;
   userEmail: string;
   onSessionComplete: (note: string, minutesSpent: number, context?: TimerSessionContext) => void;
-  onSaveSessionNote: (note: string, context?: TimerSessionContext) => void | Promise<void>;
+  onSaveSessionNote: (
+    note: string,
+    minutesSpent: number,
+    context?: TimerSessionContext,
+  ) => void | Promise<void>;
   onToggleMobileTodayOverview: () => void;
   onTodayPrimaryAction: () => void;
   onOpenNote: (id: string | null) => void;

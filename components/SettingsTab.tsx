@@ -395,7 +395,7 @@ const SettingsIndexPanel = memo(function SettingsIndexPanel({
           onClick={() => onToggleSection("identity")}
         />
         <SettingsRow
-          title="Profile"
+          title="Account"
           summary={email || "Account details"}
           active={activeSection === "danger"}
           onClick={() => onToggleSection("danger")}
@@ -450,6 +450,16 @@ const SettingsIndexPanel = memo(function SettingsIndexPanel({
         <a href="/privacy" className={styles.settingsLegalLink}>Privacy Policy</a>
         <a href="/terms" className={styles.settingsLegalLink}>Terms of Service</a>
         <a href="/acknowledgements" className={styles.settingsLegalLink}>Acknowledgements</a>
+      </div>
+
+      <div className={styles.settingsIndexGroup}>
+        <p className={styles.settingsIndexLabel}>Danger zone</p>
+        <SettingsRow
+          title="Delete account"
+          summary="Permanently remove this account"
+          active={activeSection === "danger"}
+          onClick={() => onToggleSection("danger")}
+        />
       </div>
     </article>
   );
@@ -897,28 +907,11 @@ const SettingsDetailPanels = memo(function SettingsDetailPanels({
       {activeSection === "danger" ? (
         <article className={`${sharedStyles.card} ${styles.settingsDetailCard}`}>
           <SettingsDetailHeader
-            sectionLabel="Profile"
+            sectionLabel="Account"
             title={displayName || "Whelm user"}
             body={email || "Account details"}
             onBack={closeActiveSection}
           />
-          <div className={styles.settingsHeroHeader}>
-            <WhelmProfileAvatar
-              tierColor={streakBandanaTier?.color}
-              size="compact"
-              isPro={isPro}
-              photoUrl={photoUrl}
-            />
-            <div className={styles.settingsPills}>
-              <span className={styles.settingsPill}>{isPro ? WHELM_PRO_NAME : WHELM_STANDARD_NAME}</span>
-              <span className={styles.settingsPill}>Streak {streak}d</span>
-              {nextBandanaMilestone ? (
-                <span className={styles.settingsPill}>
-                  {nextBandanaMilestone.remainingDays}d to {nextBandanaMilestone.tier.label}
-                </span>
-              ) : null}
-            </div>
-          </div>
           <div className={styles.settingsDetailBlock}>
             <SettingsActionRow title="Sign out" summary="Leave this Whelm session." onClick={onSignOut} />
             <SettingsActionRow

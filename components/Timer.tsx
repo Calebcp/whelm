@@ -519,7 +519,11 @@ export default function Timer({
   ) => Promise<void> | void;
   sessionNoteCount?: number;
   onOpenSessionNotes?: () => void;
-  onSaveSessionNote?: (note: string, sessionContext?: TimerSessionContext) => Promise<void> | void;
+  onSaveSessionNote?: (
+    note: string,
+    minutesSpent: number,
+    sessionContext?: TimerSessionContext,
+  ) => Promise<void> | void;
   streakMinimumMinutes?: number;
   isPro?: boolean;
   showHeaderCopy?: boolean;
@@ -861,10 +865,14 @@ export default function Timer({
     if (!trimmed || !onSaveSessionNote) return;
     setSavingNotebook(true);
     try {
-      await onSaveSessionNote(trimmed, sessionContextRef.current ?? undefined);
-      setNote("");
-      setShowNotebook(false);
-      setShowNotebookMenu(false);
+      await onSaveSessionNote(
+        trimmed,
+        calculateMinutesSpent(),
+        sessionContextRef.current ?? undefined,
+      );
+      sessionContextRef.current = null;
+      reset();
+      return;
     } finally {
       setSavingNotebook(false);
     }

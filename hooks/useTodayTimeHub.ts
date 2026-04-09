@@ -173,9 +173,9 @@ export function useTodayTimeHub({
       durationMinutes: blockDraft.durationMinutes,
     });
     if (!saved) return false;
+    closeTool();
     onOpenScheduleDay(blockDraft.dateKey);
     resetBlockDraft(blockDraft.dateKey);
-    closeTool();
     return true;
   }, [blockDraft, closeTool, onOpenScheduleDay, resetBlockDraft, savePlannedBlock]);
 

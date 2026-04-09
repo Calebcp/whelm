@@ -38,6 +38,26 @@ const WHELM_TIER_CARDS = [
   },
 ] as const;
 
+function toUserFacingSubscriptionMessage(error: unknown) {
+  if (!(error instanceof Error)) {
+    return "Unable to load subscription details right now.";
+  }
+
+  const message = error.message.trim();
+  const lowered = message.toLowerCase();
+
+  if (
+    lowered.includes("revenuecat") ||
+    lowered.includes("api key") ||
+    lowered.includes("offering") ||
+    lowered.includes("configuration")
+  ) {
+    return "Subscription details are not available right now. Please try again shortly.";
+  }
+
+  return message || "Unable to load subscription details right now.";
+}
+
 type WhelmTierCardId = (typeof WHELM_TIER_CARDS)[number]["id"];
 
 function calculateSavingsLabel(monthlyPackage: PurchasesPackage | null, annualPackage: PurchasesPackage | null) {
@@ -94,7 +114,7 @@ export default function PaywallModal({
 
         const currentOffering = offerings.current;
         if (!currentOffering) {
-          throw new Error("No active RevenueCat offering is configured yet.");
+          throw new Error("Subscription details are not available right now.");
         }
 
         const nextAnnualPackage = currentOffering.annual;
@@ -110,9 +130,7 @@ export default function PaywallModal({
         );
       } catch (error: unknown) {
         if (!active) return;
-        setStatus(
-          error instanceof Error ? error.message : "Unable to load Whelm Pro pricing.",
-        );
+        setStatus(toUserFacingSubscriptionMessage(error));
       } finally {
         if (active) {
           setLoading(false);
@@ -323,7 +341,7 @@ export default function PaywallModal({
           </button>
         </div>
         <p className={styles.paywallHint}>
-          {status || subscriptionStatus || "Subscriptions are handled through the App Store via RevenueCat."}
+          {status || subscriptionStatus || "Subscriptions are handled through the App Store."}
         </p>
       </div>
     </div>

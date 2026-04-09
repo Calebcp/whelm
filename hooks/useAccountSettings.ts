@@ -42,6 +42,26 @@ type UseAccountSettingsOptions = {
   clearLocalAccountData: (uid: string) => void;
 };
 
+function toUserFacingSubscriptionMessage(error: unknown) {
+  if (!(error instanceof Error)) {
+    return "Unable to load subscription details right now.";
+  }
+
+  const message = error.message.trim();
+  const lowered = message.toLowerCase();
+
+  if (
+    lowered.includes("revenuecat") ||
+    lowered.includes("api key") ||
+    lowered.includes("offering") ||
+    lowered.includes("configuration")
+  ) {
+    return "Subscription details are not available right now. Please try again shortly.";
+  }
+
+  return message || "Unable to load subscription details right now.";
+}
+
 export function useAccountSettings({
   user,
   clearLocalAccountData,
@@ -154,9 +174,7 @@ export function useAccountSettings({
         setSubscriptionStatus("");
       } catch (error: unknown) {
         if (!active) return;
-        setSubscriptionStatus(
-          error instanceof Error ? error.message : "Unable to load Whelm Pro subscription status.",
-        );
+        setSubscriptionStatus(toUserFacingSubscriptionMessage(error));
       }
     })();
 
