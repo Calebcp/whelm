@@ -2275,7 +2275,7 @@ body[data-theme="light"] {
 }
 
 .calendarTonePopoverContent {
-  z-index: 50;
+  z-index: 120;
   width: min(320px, calc(100vw - 32px));
 }
 
@@ -2328,15 +2328,6 @@ body[data-theme="light"] {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-}
-
-.calendarToneDisclosureValue {
-  font-size: 0.74rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: rgba(223, 234, 255, 0.88);
 }
 
 .calendarToneDisclosureSwatch {
