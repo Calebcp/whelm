@@ -133,7 +133,6 @@ const TimerFacePanel = memo(function TimerFacePanel({
   done,
   submitting,
   focusIdentity,
-  showTimerSettings,
   entryModeLabel,
   isPro,
   timerFigure,
@@ -145,9 +144,7 @@ const TimerFacePanel = memo(function TimerFacePanel({
   showNotebookMenu,
   canResume,
   onSetMode,
-  onSetTimerSettingsOpen,
   onSetConfiguredMinutes,
-  onSetFocusIdentity,
   onStartSession,
   onPauseSession,
   onHandleComplete,
@@ -162,7 +159,6 @@ const TimerFacePanel = memo(function TimerFacePanel({
   done: boolean;
   submitting: boolean;
   focusIdentity: FocusIdentity;
-  showTimerSettings: boolean;
   entryModeLabel: string | null;
   isPro: boolean;
   timerFigure: (typeof TIMER_WHELM_ROTATION)[number];
@@ -174,9 +170,7 @@ const TimerFacePanel = memo(function TimerFacePanel({
   showNotebookMenu: boolean;
   canResume: boolean;
   onSetMode: (mode: "countdown" | "stopwatch") => void;
-  onSetTimerSettingsOpen: (open: boolean) => void;
   onSetConfiguredMinutes: (minutes: number) => void;
-  onSetFocusIdentity: (identity: FocusIdentity) => void;
   onStartSession: () => void;
   onPauseSession: () => void;
   onHandleComplete: () => void;
@@ -233,52 +227,6 @@ const TimerFacePanel = memo(function TimerFacePanel({
       </div>
 
       <div className={styles.timerFace} data-focus-mode={focusIdentity}>
-        <div className={styles.faceSettingsWrap}>
-          <Popover.Root open={showTimerSettings} onOpenChange={onSetTimerSettingsOpen}>
-            <Popover.Trigger asChild>
-              <button
-                type="button"
-                className={styles.faceSettingsButton}
-                disabled={running || submitting}
-                aria-label="Open timer settings"
-                aria-expanded={showTimerSettings}
-              >
-                <span />
-                <span />
-                <span />
-              </button>
-            </Popover.Trigger>
-            <Popover.Portal>
-              <Popover.Content className={styles.faceSettingsMenu} sideOffset={8} align="end">
-                <div className={styles.faceIdentityGroup}>
-                  <p className={styles.faceSettingsLabel}>Focus Mode</p>
-                  <div className={styles.faceIdentityOptions}>
-                    {(
-                      Object.entries(FOCUS_IDENTITIES) as Array<
-                        [FocusIdentity, (typeof FOCUS_IDENTITIES)[FocusIdentity]]
-                      >
-                    ).map(([identityKey, identity]) => (
-                      <button
-                        key={identityKey}
-                        type="button"
-                        className={`${styles.settingsMenuButton} ${
-                          focusIdentity === identityKey ? styles.settingsMenuButtonActive : ""
-                        }`}
-                        onClick={() => {
-                          onSetFocusIdentity(identityKey);
-                          onSetTimerSettingsOpen(false);
-                        }}
-                      >
-                        <span>{identity.label}</span>
-                        {identity.descriptor ? <span>{identity.descriptor}</span> : null}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </Popover.Content>
-            </Popover.Portal>
-          </Popover.Root>
-        </div>
         <div className={styles.faceAura} aria-hidden="true" />
         <div className={styles.faceGrid} aria-hidden="true">
           <span />
@@ -539,7 +487,6 @@ export default function Timer({
   const [submitting, setSubmitting] = useState(false);
   const [showNotebook, setShowNotebook] = useState(false);
   const [showNotebookMenu, setShowNotebookMenu] = useState(false);
-  const [showTimerSettings, setShowTimerSettings] = useState(false);
   const [note, setNote] = useState("");
   const [savingNotebook, setSavingNotebook] = useState(false);
   const [focusIdentity, setFocusIdentity] = useState<FocusIdentity>("timer");
@@ -558,6 +505,7 @@ export default function Timer({
   const secondsElapsedRef = useRef(secondsElapsed);
   const focusIdentityRef = useRef(focusIdentity);
   const noteRef = useRef(note);
+  const notebookCaptureMinutesRef = useRef<number | null>(null);
   const shouldPersistOnUnmountRef = useRef(true);
   const isRestoringPersistedTimerRef = useRef(false);
   const lastAutoStartTokenRef = useRef<string | null>(null);
@@ -832,9 +780,9 @@ export default function Timer({
     }
     setShowNotebook(false);
     setShowNotebookMenu(false);
-    setShowTimerSettings(false);
     setNote("");
     setPauseNotice(null);
+    notebookCaptureMinutesRef.current = null;
     sessionContextRef.current = null;
   }
 
@@ -865,11 +813,13 @@ export default function Timer({
     if (!trimmed || !onSaveSessionNote) return;
     setSavingNotebook(true);
     try {
+      const capturedMinutes = notebookCaptureMinutesRef.current ?? calculateMinutesSpent();
       await onSaveSessionNote(
         trimmed,
-        calculateMinutesSpent(),
+        capturedMinutes,
         sessionContextRef.current ?? undefined,
       );
+      notebookCaptureMinutesRef.current = null;
       sessionContextRef.current = null;
       reset();
       return;
@@ -879,6 +829,7 @@ export default function Timer({
   }
 
   function openNotebook() {
+    notebookCaptureMinutesRef.current = calculateMinutesSpent();
     setRunning(false);
     setShowNotebookMenu(false);
     setShowNotebook(true);
@@ -978,7 +929,6 @@ export default function Timer({
         done={done}
         submitting={submitting}
         focusIdentity={focusIdentity}
-        showTimerSettings={showTimerSettings}
         entryModeLabel={entryModeLabel}
         isPro={isPro}
         timerFigure={timerFigure}
@@ -990,12 +940,7 @@ export default function Timer({
         showNotebookMenu={showNotebookMenu}
         canResume={Boolean(sessionContextRef.current)}
         onSetMode={setMode}
-        onSetTimerSettingsOpen={setShowTimerSettings}
         onSetConfiguredMinutes={setConfiguredMinutes}
-        onSetFocusIdentity={(identity) => {
-          setFocusIdentity(identity);
-          setShowTimerSettings(false);
-        }}
         onStartSession={startSession}
         onPauseSession={pauseSession}
         onHandleComplete={() => {
@@ -1003,7 +948,6 @@ export default function Timer({
         }}
         onReset={reset}
         onSetNotebookMenuOpen={(open) => {
-          setRunning(false);
           setShowNotebookMenu(open);
         }}
         onOpenNotebook={openNotebook}

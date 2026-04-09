@@ -5896,6 +5896,45 @@ body[data-theme="light"] {
   font-weight: 700;
 }
 
+.paywallTierCardPro {
+  border-color: rgba(121, 152, 255, 0.26);
+  background:
+    radial-gradient(circle at top right, rgba(118, 203, 255, 0.18), transparent 34%),
+    radial-gradient(circle at top left, rgba(119, 116, 255, 0.16), transparent 30%),
+    linear-gradient(180deg, rgba(31, 40, 90, 0.96), rgba(20, 28, 68, 0.98));
+  box-shadow:
+    inset 0 1px 0 rgba(205, 229, 255, 0.08),
+    0 16px 30px rgba(17, 26, 69, 0.3);
+}
+
+.paywallTierCardStandard {
+  border-color: rgba(100, 116, 165, 0.2);
+  background: rgba(16, 21, 43, 0.86);
+}
+
+.paywallTierLabelPro {
+  color: #cfe8ff;
+  text-shadow:
+    0 0 14px rgba(76, 193, 255, 0.34),
+    0 0 26px rgba(101, 123, 255, 0.2);
+}
+
+.paywallTierLabelStandard {
+  color: #8e9ab7;
+}
+
+.paywallTierHeadingPro {
+  background: linear-gradient(180deg, #f7fbff 8%, #8bd4ff 58%, #6d87ff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 0 22px rgba(92, 187, 255, 0.18);
+}
+
+.paywallTierHeadingStandard {
+  color: #f2f6ff;
+}
+
 .paywallTierList {
   margin: 0;
   padding-left: 0;
@@ -5919,6 +5958,24 @@ body[data-theme="light"] {
   top: 0;
   color: #d9e6ff;
   font-weight: 700;
+}
+
+.paywallTierListPro li::before {
+  content: "+";
+  color: #d8e9ff;
+}
+
+.paywallTierListStandard {
+  list-style: disc;
+  padding-left: 18px;
+}
+
+.paywallTierListStandard li {
+  padding-left: 0;
+}
+
+.paywallTierListStandard li::before {
+  content: none;
 }
 
 .paywallActions {

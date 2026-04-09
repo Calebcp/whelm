@@ -33,6 +33,8 @@ type UseCalendarInteractionsOptions<
   setPendingCalendarEntryFocusId: Dispatch<SetStateAction<string | null>>;
   setActivatedCalendarEntryId: Dispatch<SetStateAction<string | null>>;
   setCalendarJumpDate: Dispatch<SetStateAction<string>>;
+  calendarSectionRef?: React.RefObject<HTMLElement | null>;
+  mobileDayTimelineScrollRef?: React.RefObject<HTMLDivElement | null>;
   persistDayTones: (uid: string, tones: Record<string, CalendarTone>) => void;
   persistMonthTones: (uid: string, tones: Record<string, CalendarTone>) => void;
 };
@@ -64,6 +66,8 @@ export function useCalendarInteractions<
   setPendingCalendarEntryFocusId,
   setActivatedCalendarEntryId,
   setCalendarJumpDate,
+  calendarSectionRef,
+  mobileDayTimelineScrollRef,
   persistDayTones,
   persistMonthTones,
 }: UseCalendarInteractionsOptions<TCalendarEntry, TDayViewItem>) {
@@ -202,10 +206,11 @@ export function useCalendarInteractions<
     if (!entry) return;
 
     let frame = 0;
+    let timer: number | null = null;
     let cancelled = false;
     let attempts = 0;
 
-    const focusEntry = () => {
+    const focusInnerTimeline = () => {
       if (cancelled) return;
       const target = document.querySelector<HTMLElement>(
         `[data-calendar-entry-id="${pendingCalendarEntryFocusId}"]`,
@@ -213,7 +218,7 @@ export function useCalendarInteractions<
       if (!target) {
         attempts += 1;
         if (attempts < 24) {
-          frame = window.requestAnimationFrame(focusEntry);
+          frame = window.requestAnimationFrame(focusInnerTimeline);
         } else {
           setPendingCalendarEntryFocusId(null);
         }
@@ -222,11 +227,27 @@ export function useCalendarInteractions<
       setCalendarPinnedEntryId(null);
       setCalendarHoverEntryId(null);
       const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      target.scrollIntoView({
-        behavior: prefersReducedMotion ? "auto" : "smooth",
-        block: "center",
-        inline: "nearest",
-      });
+      const scrollBehavior = prefersReducedMotion ? "auto" : "smooth";
+      const timelineScrollContainer = mobileDayTimelineScrollRef?.current;
+
+      if (timelineScrollContainer) {
+        const targetRect = target.getBoundingClientRect();
+        const containerRect = timelineScrollContainer.getBoundingClientRect();
+        const desiredTop =
+          timelineScrollContainer.scrollTop +
+          (targetRect.top - containerRect.top) -
+          Math.max(48, timelineScrollContainer.clientHeight * 0.38 - targetRect.height / 2);
+        timelineScrollContainer.scrollTo({
+          top: Math.max(0, desiredTop),
+          behavior: scrollBehavior,
+        });
+      } else {
+        target.scrollIntoView({
+          behavior: scrollBehavior,
+          block: "center",
+          inline: "nearest",
+        });
+      }
       if (activatedCalendarEntryTimeoutRef.current !== null) {
         window.clearTimeout(activatedCalendarEntryTimeoutRef.current);
       }
@@ -240,15 +261,61 @@ export function useCalendarInteractions<
       setPendingCalendarEntryFocusId(null);
     };
 
-    frame = window.requestAnimationFrame(focusEntry);
+    const stageOuterScheduleScroll = () => {
+      if (cancelled) return;
+      const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const scheduleChamber =
+        document.getElementById("calendar-day-chamber") ?? calendarSectionRef?.current ?? null;
+      const scrollBehavior = prefersReducedMotion ? "auto" : "smooth";
+      const mobileTimelineShell = mobileDayTimelineScrollRef?.current ?? null;
+      const outerAnchor = isMobileViewport && mobileTimelineShell ? mobileTimelineShell : scheduleChamber;
+      if (outerAnchor) {
+        if (isMobileViewport) {
+          const anchorRect = outerAnchor.getBoundingClientRect();
+          const topBarHeight =
+            document.querySelector<HTMLElement>("[class*='topAppBar']")?.getBoundingClientRect().height ?? 0;
+          const bottomTabsHeight =
+            document.querySelector<HTMLElement>("[class*='bottomTabs']")?.getBoundingClientRect().height ?? 0;
+          const topPadding = Math.max(20, topBarHeight + 12);
+          const bottomPadding = Math.max(24, bottomTabsHeight + 20);
+          const availableViewport = Math.max(120, window.innerHeight - topPadding - bottomPadding);
+          const desiredAnchorTop = topPadding + Math.min(48, availableViewport * 0.12);
+          const targetTop = Math.max(0, window.scrollY + anchorRect.top - desiredAnchorTop);
+          window.scrollTo({
+            top: targetTop,
+            behavior: scrollBehavior,
+          });
+        } else {
+          outerAnchor.scrollIntoView({
+            behavior: scrollBehavior,
+            block: "start",
+            inline: "nearest",
+          });
+        }
+      }
+      timer = window.setTimeout(
+        () => {
+          frame = window.requestAnimationFrame(focusInnerTimeline);
+        },
+        prefersReducedMotion ? 0 : 280,
+      );
+    };
+
+    frame = window.requestAnimationFrame(stageOuterScheduleScroll);
 
     return () => {
       cancelled = true;
+      if (timer !== null) {
+        window.clearTimeout(timer);
+      }
       window.cancelAnimationFrame(frame);
     };
   }, [
     calendarEntryById,
     calendarView,
+    calendarSectionRef,
+    isMobileViewport,
+    mobileDayTimelineScrollRef,
     pendingCalendarEntryFocusId,
     setActivatedCalendarEntryId,
     setCalendarHoverEntryId,

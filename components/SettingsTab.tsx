@@ -225,6 +225,7 @@ function SettingsActionRow({
 
 type SettingsSectionsOpen = {
   identity: boolean;
+  account: boolean;
   internalTools: boolean;
   protocol: boolean;
   appearance: boolean;
@@ -397,8 +398,8 @@ const SettingsIndexPanel = memo(function SettingsIndexPanel({
         <SettingsRow
           title="Account"
           summary={email || "Account details"}
-          active={activeSection === "danger"}
-          onClick={() => onToggleSection("danger")}
+          active={activeSection === "account"}
+          onClick={() => onToggleSection("account")}
         />
         <SettingsRow
           title="Notifications"
@@ -904,7 +905,7 @@ const SettingsDetailPanels = memo(function SettingsDetailPanels({
         </article>
       ) : null}
 
-      {activeSection === "danger" ? (
+      {activeSection === "account" ? (
         <article className={`${sharedStyles.card} ${styles.settingsDetailCard}`}>
           <SettingsDetailHeader
             sectionLabel="Account"
@@ -914,6 +915,19 @@ const SettingsDetailPanels = memo(function SettingsDetailPanels({
           />
           <div className={styles.settingsDetailBlock}>
             <SettingsActionRow title="Sign out" summary="Leave this Whelm session." onClick={onSignOut} />
+          </div>
+        </article>
+      ) : null}
+
+      {activeSection === "danger" ? (
+        <article className={`${sharedStyles.card} ${styles.settingsDetailCard}`}>
+          <SettingsDetailHeader
+            sectionLabel="Danger zone"
+            title="Delete account"
+            body="Permanently remove this Whelm account and its data."
+            onBack={closeActiveSection}
+          />
+          <div className={styles.settingsDetailBlock}>
             <SettingsActionRow
               title={deletingAccount ? "Deleting account..." : "Delete account permanently"}
               summary="This cannot be undone."

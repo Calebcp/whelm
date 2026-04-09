@@ -386,34 +386,44 @@ function NoteAttachmentsSection({
 
 function NoteInlineImageGallery({
   attachments,
-  onOpen,
   onRemove,
 }: {
   attachments: NoteAttachment[];
-  onOpen: (attachment: NoteAttachment) => void;
   onRemove: (attachment: NoteAttachment) => void;
 }) {
+  const [collapsedAttachmentIds, setCollapsedAttachmentIds] = useState<string[]>([]);
+
   if (attachments.length === 0) return null;
+
+  const collapsedAttachmentIdSet = new Set(collapsedAttachmentIds);
 
   return (
     <div className={styles.noteInlineImageGallery}>
       {attachments.map((attachment) => (
         <article key={attachment.id} className={styles.noteInlineImageCard}>
-          <button
-            type="button"
-            className={styles.noteInlineImageButton}
-            onClick={() => onOpen(attachment)}
-            aria-label={`Open ${attachment.name}`}
-          >
+          {!collapsedAttachmentIdSet.has(attachment.id) ? (
             <img
               src={attachment.downloadUrl}
               alt={attachment.name}
               className={styles.noteInlineImage}
             />
-          </button>
+          ) : null}
           <div className={styles.noteInlineImageMeta}>
             <span className={styles.noteInlineImageLabel}>Photo</span>
             <strong className={styles.noteInlineImageName}>{attachment.name}</strong>
+            <button
+              type="button"
+              className={styles.noteInlineImageToggle}
+              onClick={() => {
+                setCollapsedAttachmentIds((current) =>
+                  current.includes(attachment.id)
+                    ? current.filter((id) => id !== attachment.id)
+                    : [...current, attachment.id],
+                );
+              }}
+            >
+              {collapsedAttachmentIdSet.has(attachment.id) ? "Expand" : "Minimize"}
+            </button>
             <button
               type="button"
               className={styles.noteInlineImageRemove}
@@ -1013,11 +1023,6 @@ const MobileNoteEditorCard = memo(function MobileNoteEditorCard({
         className={styles.noteTitleInput}
       />
       <div className={styles.noteBodyShell} ref={noteBodyShellRef}>
-        <NoteInlineImageGallery
-          attachments={selectedNote.attachments.filter((attachment) => attachment.kind === "image")}
-          onOpen={onOpenNoteAttachment}
-          onRemove={(attachment) => void onRemoveNoteAttachment(attachment)}
-        />
         <textarea
           ref={editorRef}
           className={styles.noteBodyInput}
@@ -1069,6 +1074,10 @@ const MobileNoteEditorCard = memo(function MobileNoteEditorCard({
           onFocus={() => {
             onSaveEditorSelection();
           }}
+        />
+        <NoteInlineImageGallery
+          attachments={selectedNote.attachments.filter((attachment) => attachment.kind === "image")}
+          onRemove={(attachment) => void onRemoveNoteAttachment(attachment)}
         />
         <div className={styles.noteEditorFooter}>
           <NoteAttachmentsSection
@@ -2116,11 +2125,6 @@ export default function NotesTab({
                   ) : null}
 
                   <div className={styles.noteBodyShell} ref={noteBodyShellRef}>
-                    <NoteInlineImageGallery
-                      attachments={selectedNote.attachments.filter((attachment) => attachment.kind === "image")}
-                      onOpen={onOpenNoteAttachment}
-                      onRemove={(attachment) => void onRemoveNoteAttachment(attachment)}
-                    />
                     <textarea
                       ref={editorRef}
                       className={styles.noteBodyInput}
@@ -2173,6 +2177,10 @@ export default function NotesTab({
                       onFocus={() => {
                         onSaveEditorSelection();
                       }}
+                    />
+                    <NoteInlineImageGallery
+                      attachments={selectedNote.attachments.filter((attachment) => attachment.kind === "image")}
+                      onRemove={(attachment) => void onRemoveNoteAttachment(attachment)}
                     />
                     <div className={styles.noteEditorFooter}>
                       <NoteAttachmentsSection

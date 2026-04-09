@@ -1291,6 +1291,7 @@ export default function HomePage() {
   const [streakRulesOpen, setStreakRulesOpen] = useState(false);
   const [settingsSectionsOpen, setSettingsSectionsOpen] = useState({
     identity: false,
+    account: false,
     internalTools: false,
     protocol: false,
     appearance: false,
@@ -2656,6 +2657,8 @@ export default function HomePage() {
     setPendingCalendarEntryFocusId,
     setActivatedCalendarEntryId,
     setCalendarJumpDate,
+    calendarSectionRef,
+    mobileDayTimelineScrollRef,
     persistDayTones: saveDayTones,
     persistMonthTones: saveMonthTones,
   });
@@ -3461,6 +3464,7 @@ export default function HomePage() {
           const nextValue = !current[key];
           return {
             identity: false,
+            account: false,
             internalTools: false,
             protocol: false,
             appearance: false,
@@ -4081,6 +4085,7 @@ export default function HomePage() {
         setMobileMoreOpen(false);
         setSettingsSectionsOpen({
           identity: false,
+          account: false,
           internalTools: true,
           protocol: false,
           appearance: false,

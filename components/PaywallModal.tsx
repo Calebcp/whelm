@@ -250,14 +250,32 @@ export default function PaywallModal({
                 key={card.id}
                 className={`${styles.paywallTierCard} ${
                   card.id === "pro" ? styles.paywallTierCardFeatured : ""
-                } ${index === 0 ? styles.paywallTierCardPrimary : styles.paywallTierCardSecondary}`}
+                } ${card.id === "pro" ? styles.paywallTierCardPro : styles.paywallTierCardStandard} ${
+                  index === 0 ? styles.paywallTierCardPrimary : styles.paywallTierCardSecondary
+                }`}
               >
                 <div className={styles.paywallTierBadgeRow}>
-                  <p className={styles.paywallTierLabel}>{card.name}</p>
+                  <p
+                    className={`${styles.paywallTierLabel} ${
+                      card.id === "pro" ? styles.paywallTierLabelPro : styles.paywallTierLabelStandard
+                    }`}
+                  >
+                    {card.name}
+                  </p>
                   {card.id === "pro" ? <span className={styles.planBadge}>Best Value</span> : null}
                 </div>
-                <p className={styles.paywallTierHeading}>{card.headline}</p>
-                <ul className={styles.paywallTierList}>
+                <p
+                  className={`${styles.paywallTierHeading} ${
+                    card.id === "pro" ? styles.paywallTierHeadingPro : styles.paywallTierHeadingStandard
+                  }`}
+                >
+                  {card.headline}
+                </p>
+                <ul
+                  className={`${styles.paywallTierList} ${
+                    card.id === "pro" ? styles.paywallTierListPro : styles.paywallTierListStandard
+                  }`}
+                >
                   {card.bullets.map((bullet) => (
                     <li key={bullet}>{bullet}</li>
                   ))}
