@@ -56,7 +56,7 @@ export default function BlockComposerScreen({
             />
           </label>
           <label className={styles.planLabel}>
-            Time
+            Start
             <input
               type="time"
               value={draft.timeOfDay}
@@ -65,13 +65,11 @@ export default function BlockComposerScreen({
             />
           </label>
           <label className={styles.planLabel}>
-            Min
+            End
             <input
-              type="number"
-              min={15}
-              max={240}
-              value={draft.durationMinutes}
-              onChange={(event) => onChange({ durationMinutes: Number(event.target.value) || 25 })}
+              type="time"
+              value={draft.endTimeOfDay}
+              onChange={(event) => onChange({ endTimeOfDay: event.target.value })}
               className={styles.planControl}
             />
           </label>

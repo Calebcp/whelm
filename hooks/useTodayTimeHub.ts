@@ -16,6 +16,7 @@ export type BlockDraft = {
   title: string;
   note: string;
   timeOfDay: string;
+  endTimeOfDay: string;
   durationMinutes: number;
   dateKey: string;
 };
@@ -103,9 +104,33 @@ function createInitialBlockDraft(dateKey: string): BlockDraft {
     title: "",
     note: "",
     timeOfDay: "09:00",
+    endTimeOfDay: "09:25",
     durationMinutes: 25,
     dateKey,
   };
+}
+
+function parseTimeToMinutes(timeOfDay: string) {
+  const [hours, minutes] = timeOfDay.split(":").map((part) => Number(part));
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return 9 * 60;
+  return Math.min(24 * 60 - 1, Math.max(0, hours * 60 + minutes));
+}
+
+function minutesToTimeOfDay(totalMinutes: number) {
+  const clamped = Math.min(24 * 60 - 1, Math.max(0, totalMinutes));
+  const hours = Math.floor(clamped / 60);
+  const minutes = clamped % 60;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+}
+
+function computeEndTime(startTimeOfDay: string, durationMinutes: number) {
+  return minutesToTimeOfDay(parseTimeToMinutes(startTimeOfDay) + Math.max(15, durationMinutes));
+}
+
+function computeDurationMinutes(startTimeOfDay: string, endTimeOfDay: string) {
+  const startMinutes = parseTimeToMinutes(startTimeOfDay);
+  const endMinutes = parseTimeToMinutes(endTimeOfDay);
+  return Math.min(240, Math.max(15, endMinutes - startMinutes));
 }
 
 function createInitialAlarmDraft(): AlarmDraft {
@@ -156,7 +181,32 @@ export function useTodayTimeHub({
   }, []);
 
   const setBlockDraft = useCallback((patch: Partial<BlockDraft>) => {
-    setBlockDraftState((current) => ({ ...current, ...patch }));
+    setBlockDraftState((current) => {
+      const next = { ...current, ...patch };
+
+      if ("timeOfDay" in patch && !("endTimeOfDay" in patch) && !("durationMinutes" in patch)) {
+        return {
+          ...next,
+          endTimeOfDay: computeEndTime(next.timeOfDay, next.durationMinutes),
+        };
+      }
+
+      if ("endTimeOfDay" in patch && !("durationMinutes" in patch)) {
+        return {
+          ...next,
+          durationMinutes: computeDurationMinutes(next.timeOfDay, next.endTimeOfDay),
+        };
+      }
+
+      if ("durationMinutes" in patch && !("endTimeOfDay" in patch)) {
+        return {
+          ...next,
+          endTimeOfDay: computeEndTime(next.timeOfDay, next.durationMinutes),
+        };
+      }
+
+      return next;
+    });
   }, []);
 
   const resetBlockDraft = useCallback((dateKey?: string) => {
@@ -164,13 +214,14 @@ export function useTodayTimeHub({
   }, [liveTodayKey]);
 
   const saveBlock = useCallback(() => {
+    const durationMinutes = computeDurationMinutes(blockDraft.timeOfDay, blockDraft.endTimeOfDay);
     const saved = savePlannedBlock({
       id: blockDraft.editingBlockId ?? undefined,
       dateKey: blockDraft.dateKey,
       title: blockDraft.title,
       note: blockDraft.note,
       timeOfDay: blockDraft.timeOfDay,
-      durationMinutes: blockDraft.durationMinutes,
+      durationMinutes,
     });
     if (!saved) return false;
     closeTool();
@@ -275,12 +326,21 @@ export function useTodayTimeHub({
   useEffect(() => {
     if (!externalRequest) return;
     if (externalRequest.tool === "block") {
-      setBlockDraftState((current) => ({
-        ...createInitialBlockDraft(liveTodayKey),
-        ...current,
-        ...externalRequest.draft,
-        dateKey: externalRequest.draft?.dateKey ?? liveTodayKey,
-      }));
+      setBlockDraftState((current) => {
+        const next = {
+          ...createInitialBlockDraft(liveTodayKey),
+          ...current,
+          ...externalRequest.draft,
+          dateKey: externalRequest.draft?.dateKey ?? liveTodayKey,
+        };
+        return {
+          ...next,
+          endTimeOfDay: computeEndTime(
+            next.timeOfDay,
+            externalRequest.draft?.durationMinutes ?? next.durationMinutes,
+          ),
+        };
+      });
       setActiveTool("block");
       setIsFullscreen(true);
       setTimerAutoStartToken(null);
