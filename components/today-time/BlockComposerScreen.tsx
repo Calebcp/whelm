@@ -2,10 +2,13 @@
 
 import styles from "@/app/page.module.css";
 
+import CalendarTonePicker from "@/components/CalendarTonePicker";
 import type { BlockDraft } from "@/hooks/useTodayTimeHub";
 
 type BlockComposerScreenProps = {
   draft: BlockDraft;
+  isPro: boolean;
+  onUpgrade: () => void;
   onChange: (patch: Partial<BlockDraft>) => void;
   onClose: () => void;
   onSave: () => void;
@@ -13,6 +16,8 @@ type BlockComposerScreenProps = {
 
 export default function BlockComposerScreen({
   draft,
+  isPro,
+  onUpgrade,
   onChange,
   onClose,
   onSave,
@@ -74,6 +79,13 @@ export default function BlockComposerScreen({
             />
           </label>
         </div>
+        <CalendarTonePicker
+          label="Block tone"
+          selectedTone={draft.tone}
+          onSelectTone={(tone) => onChange({ tone })}
+          isPro={isPro}
+          onUpgrade={onUpgrade}
+        />
         <div className={styles.timeToolFooter}>
           <button type="button" className={styles.secondaryPlanButton} onClick={onClose}>
             Cancel

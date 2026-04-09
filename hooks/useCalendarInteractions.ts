@@ -143,6 +143,9 @@ export function useCalendarInteractions<
   }, [setSelectedPlanDetailId]);
 
   const closePlannedBlockDetail = useCallback(() => {
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
     setSelectedPlanDetailId(null);
   }, [setSelectedPlanDetailId]);
 

@@ -59,7 +59,12 @@ const CalendarTonePicker = memo(function CalendarTonePicker({
           </button>
         </Popover.Trigger>
         <Popover.Portal>
-          <Popover.Content className={styles.calendarTonePopoverContent} sideOffset={10} align="start">
+          <Popover.Content
+            className={styles.calendarTonePopoverContent}
+            sideOffset={10}
+            align="start"
+            onCloseAutoFocus={(event) => event.preventDefault()}
+          >
             <div className={styles.calendarToneLockedPreview}>
               <div className={styles.calendarToneSwatchRow}>
                 <button

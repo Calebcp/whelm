@@ -3709,34 +3709,36 @@ export default function HomePage() {
         onEdit: () => {
           if (!selectedPlanDetail || selectedPlanDetail.status !== "active") return;
           setActiveTab("today");
-          setTodayTimeHubRequest({
-            id: typeof crypto !== "undefined" ? crypto.randomUUID() : `edit-block-${selectedPlanDetail.id}`,
-            tool: "block",
-            draft: {
-              editingBlockId: selectedPlanDetail.id,
-              dateKey: selectedPlanDetail.dateKey,
-              title: selectedPlanDetail.title,
-              note: selectedPlanDetail.note,
-              timeOfDay: selectedPlanDetail.timeOfDay,
-              durationMinutes: selectedPlanDetail.durationMinutes,
-            },
-          });
+        setTodayTimeHubRequest({
+          id: typeof crypto !== "undefined" ? crypto.randomUUID() : `edit-block-${selectedPlanDetail.id}`,
+          tool: "block",
+          draft: {
+            editingBlockId: selectedPlanDetail.id,
+            dateKey: selectedPlanDetail.dateKey,
+            title: selectedPlanDetail.title,
+            note: selectedPlanDetail.note,
+            tone: selectedPlanDetail.tone ?? null,
+            timeOfDay: selectedPlanDetail.timeOfDay,
+            durationMinutes: selectedPlanDetail.durationMinutes,
+          },
+        });
           closePlannedBlockDetail();
         },
         onDuplicate: () => {
           if (!selectedPlanDetail || selectedPlanDetail.status !== "active") return;
           setActiveTab("today");
-          setTodayTimeHubRequest({
-            id: typeof crypto !== "undefined" ? crypto.randomUUID() : `duplicate-block-${selectedPlanDetail.id}`,
-            tool: "block",
-            draft: {
-              dateKey: selectedPlanDetail.dateKey,
-              title: selectedPlanDetail.title,
-              note: selectedPlanDetail.note,
-              timeOfDay: shiftBlockTime(selectedPlanDetail.timeOfDay, selectedPlanDetail.durationMinutes),
-              durationMinutes: selectedPlanDetail.durationMinutes,
-            },
-          });
+        setTodayTimeHubRequest({
+          id: typeof crypto !== "undefined" ? crypto.randomUUID() : `duplicate-block-${selectedPlanDetail.id}`,
+          tool: "block",
+          draft: {
+            dateKey: selectedPlanDetail.dateKey,
+            title: selectedPlanDetail.title,
+            note: selectedPlanDetail.note,
+            tone: selectedPlanDetail.tone ?? null,
+            timeOfDay: shiftBlockTime(selectedPlanDetail.timeOfDay, selectedPlanDetail.durationMinutes),
+            durationMinutes: selectedPlanDetail.durationMinutes,
+          },
+        });
           closePlannedBlockDetail();
         },
         onComplete: () => {

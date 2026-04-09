@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { SavePlannedBlockInput } from "@/hooks/usePlannedBlocks";
+import type { CalendarTone } from "@/lib/calendar-tones";
 import {
   readStoredTodayAlarms,
   type TodayAlarm,
@@ -15,6 +16,7 @@ export type BlockDraft = {
   editingBlockId?: string | null;
   title: string;
   note: string;
+  tone: CalendarTone | null;
   timeOfDay: string;
   endTimeOfDay: string;
   durationMinutes: number;
@@ -103,6 +105,7 @@ function createInitialBlockDraft(dateKey: string): BlockDraft {
     editingBlockId: null,
     title: "",
     note: "",
+    tone: null,
     timeOfDay: "09:00",
     endTimeOfDay: "09:25",
     durationMinutes: 25,
@@ -220,6 +223,7 @@ export function useTodayTimeHub({
       dateKey: blockDraft.dateKey,
       title: blockDraft.title,
       note: blockDraft.note,
+      tone: blockDraft.tone,
       timeOfDay: blockDraft.timeOfDay,
       durationMinutes,
     });

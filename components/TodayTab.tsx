@@ -249,6 +249,8 @@ export default function TodayTab({
           ) : timeHub.state.activeTool === "block" ? (
             <BlockComposerScreen
               draft={timeHub.state.blockDraft}
+              isPro={isPro}
+              onUpgrade={onUpgrade}
               onChange={timeHub.actions.setBlockDraft}
               onClose={timeHub.actions.closeTool}
               onSave={timeHub.actions.saveBlock}
