@@ -275,7 +275,8 @@ function withPreferredDraftBody(uid: string | null, note: WorkspaceNote): Worksp
   const preferredBody = uid
     ? readLocalNoteDraft(uid, note.id)?.body ?? note.body
     : note.body;
-  return preferredBody === note.body ? note : { ...note, body: preferredBody };
+  const editorBody = storedBodyToEditorText(preferredBody);
+  return editorBody === note.body ? note : { ...note, body: editorBody };
 }
 
 function shouldClearLocalDraft(note: WorkspaceNote, uid: string) {
@@ -830,7 +831,7 @@ export function useNotes({ isPro, isMobileViewport, onNavigateToNotes }: UseNote
     const nextNote = {
       ...createNote(),
       title: input.title?.trim() || "Session note",
-      body,
+      body: editorTextToStoredBody(body),
       category: input.category ?? "personal",
     } satisfies WorkspaceNote;
     const nextNotes = [nextNote, ...notesRef.current];

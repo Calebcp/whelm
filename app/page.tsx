@@ -618,7 +618,6 @@ function attachmentIndicatorLabel(count: number) {
 
 function summarizePlainText(value: string, maxChars = 120) {
   const plain = value
-    .replace(/<[^>]*>/g, " ")
     .replace(/\s+/g, " ")
     .trim();
   if (!plain) return "";

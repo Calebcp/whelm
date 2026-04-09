@@ -249,10 +249,6 @@ function formatAttachmentSize(sizeBytes: number) {
 
 function notePlainTextPreview(body: string) {
   return body
-    .replace(/<br\s*\/?>/gi, " ")
-    .replace(/<\/(p|div|li|blockquote|h1|h2|h3)>/gi, " ")
-    .replace(/<[^>]*>/g, " ")
-    .replace(/&nbsp;/gi, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
