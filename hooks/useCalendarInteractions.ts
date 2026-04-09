@@ -208,46 +208,13 @@ export function useCalendarInteractions<
     let frame = 0;
     let timer: number | null = null;
     let cancelled = false;
-    let attempts = 0;
+    let lookupAttempts = 0;
+    let outerAttempts = 0;
+    let innerAttempts = 0;
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const scrollBehavior = prefersReducedMotion ? "auto" : "smooth";
 
-    const focusInnerTimeline = () => {
-      if (cancelled) return;
-      const target = document.querySelector<HTMLElement>(
-        `[data-calendar-entry-id="${pendingCalendarEntryFocusId}"]`,
-      );
-      if (!target) {
-        attempts += 1;
-        if (attempts < 24) {
-          frame = window.requestAnimationFrame(focusInnerTimeline);
-        } else {
-          setPendingCalendarEntryFocusId(null);
-        }
-        return;
-      }
-      setCalendarPinnedEntryId(null);
-      setCalendarHoverEntryId(null);
-      const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      const scrollBehavior = prefersReducedMotion ? "auto" : "smooth";
-      const timelineScrollContainer = mobileDayTimelineScrollRef?.current;
-
-      if (timelineScrollContainer) {
-        const targetRect = target.getBoundingClientRect();
-        const containerRect = timelineScrollContainer.getBoundingClientRect();
-        const desiredTop =
-          timelineScrollContainer.scrollTop +
-          (targetRect.top - containerRect.top) -
-          Math.max(48, timelineScrollContainer.clientHeight * 0.38 - targetRect.height / 2);
-        timelineScrollContainer.scrollTo({
-          top: Math.max(0, desiredTop),
-          behavior: scrollBehavior,
-        });
-      } else {
-        target.scrollIntoView({
-          behavior: scrollBehavior,
-          block: "center",
-          inline: "nearest",
-        });
-      }
+    const completeJump = () => {
       if (activatedCalendarEntryTimeoutRef.current !== null) {
         window.clearTimeout(activatedCalendarEntryTimeoutRef.current);
       }
@@ -261,44 +228,141 @@ export function useCalendarInteractions<
       setPendingCalendarEntryFocusId(null);
     };
 
+    const startInnerStage = () => {
+      if (cancelled) return;
+      const target = document.querySelector<HTMLElement>(
+        `[data-calendar-entry-id="${pendingCalendarEntryFocusId}"]`,
+      );
+      if (!target) {
+        lookupAttempts += 1;
+        if (lookupAttempts < 36) {
+          frame = window.requestAnimationFrame(startInnerStage);
+        } else {
+          setPendingCalendarEntryFocusId(null);
+        }
+        return;
+      }
+
+      setCalendarPinnedEntryId(null);
+      setCalendarHoverEntryId(null);
+      const timelineScrollContainer = mobileDayTimelineScrollRef?.current;
+
+      if (!timelineScrollContainer) {
+        target.scrollIntoView({
+          behavior: scrollBehavior,
+          block: "center",
+          inline: "nearest",
+        });
+        completeJump();
+        return;
+      }
+
+      const settleInnerScroll = () => {
+        if (cancelled) return;
+        const latestTarget = document.querySelector<HTMLElement>(
+          `[data-calendar-entry-id="${pendingCalendarEntryFocusId}"]`,
+        );
+        if (!latestTarget) {
+          lookupAttempts += 1;
+          if (lookupAttempts < 36) {
+            frame = window.requestAnimationFrame(settleInnerScroll);
+          } else {
+            setPendingCalendarEntryFocusId(null);
+          }
+          return;
+        }
+
+        const targetRect = latestTarget.getBoundingClientRect();
+        const containerRect = timelineScrollContainer.getBoundingClientRect();
+        const desiredViewportTop = Math.max(42, timelineScrollContainer.clientHeight * 0.38 - targetRect.height / 2);
+        const desiredScrollTop =
+          timelineScrollContainer.scrollTop +
+          (targetRect.top - containerRect.top) -
+          desiredViewportTop;
+        const clampedTargetTop = Math.max(0, desiredScrollTop);
+        const delta = clampedTargetTop - timelineScrollContainer.scrollTop;
+
+        if (Math.abs(delta) <= 10 || innerAttempts >= 18 || prefersReducedMotion) {
+          if (prefersReducedMotion && Math.abs(delta) > 1) {
+            timelineScrollContainer.scrollTo({ top: clampedTargetTop, behavior: "auto" });
+          }
+          completeJump();
+          return;
+        }
+
+        timelineScrollContainer.scrollTo({
+          top: clampedTargetTop,
+          behavior: scrollBehavior,
+        });
+        innerAttempts += 1;
+        timer = window.setTimeout(() => {
+          frame = window.requestAnimationFrame(settleInnerScroll);
+        }, 140);
+      };
+
+      frame = window.requestAnimationFrame(settleInnerScroll);
+    };
+
     const stageOuterScheduleScroll = () => {
       if (cancelled) return;
-      const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       const scheduleChamber =
         document.getElementById("calendar-day-chamber") ?? calendarSectionRef?.current ?? null;
-      const scrollBehavior = prefersReducedMotion ? "auto" : "smooth";
       const mobileTimelineShell = mobileDayTimelineScrollRef?.current ?? null;
       const outerAnchor = isMobileViewport && mobileTimelineShell ? mobileTimelineShell : scheduleChamber;
-      if (outerAnchor) {
-        if (isMobileViewport) {
-          const anchorRect = outerAnchor.getBoundingClientRect();
-          const topBarHeight =
-            document.querySelector<HTMLElement>("[class*='topAppBar']")?.getBoundingClientRect().height ?? 0;
-          const bottomTabsHeight =
-            document.querySelector<HTMLElement>("[class*='bottomTabs']")?.getBoundingClientRect().height ?? 0;
-          const topPadding = Math.max(20, topBarHeight + 12);
-          const bottomPadding = Math.max(24, bottomTabsHeight + 20);
-          const availableViewport = Math.max(120, window.innerHeight - topPadding - bottomPadding);
-          const desiredAnchorTop = topPadding + Math.min(48, availableViewport * 0.12);
-          const targetTop = Math.max(0, window.scrollY + anchorRect.top - desiredAnchorTop);
-          window.scrollTo({
-            top: targetTop,
-            behavior: scrollBehavior,
-          });
-        } else {
-          outerAnchor.scrollIntoView({
-            behavior: scrollBehavior,
-            block: "start",
-            inline: "nearest",
-          });
-        }
+
+      if (!outerAnchor) {
+        frame = window.requestAnimationFrame(startInnerStage);
+        return;
       }
-      timer = window.setTimeout(
-        () => {
-          frame = window.requestAnimationFrame(focusInnerTimeline);
-        },
-        prefersReducedMotion ? 0 : 280,
-      );
+
+      if (!isMobileViewport) {
+        outerAnchor.scrollIntoView({
+          behavior: scrollBehavior,
+          block: "start",
+          inline: "nearest",
+        });
+        timer = window.setTimeout(() => {
+          frame = window.requestAnimationFrame(startInnerStage);
+        }, prefersReducedMotion ? 0 : 220);
+        return;
+      }
+
+      const settleOuterScroll = () => {
+        if (cancelled) return;
+        const latestOuterAnchor = mobileDayTimelineScrollRef?.current ?? outerAnchor;
+        const anchorRect = latestOuterAnchor.getBoundingClientRect();
+        const topBarHeight =
+          document.querySelector<HTMLElement>("[class*='topAppBar']")?.getBoundingClientRect().height ?? 0;
+        const bottomTabsHeight =
+          document.querySelector<HTMLElement>("[class*='bottomTabs']")?.getBoundingClientRect().height ?? 0;
+        const topPadding = Math.max(18, topBarHeight + 10);
+        const bottomPadding = Math.max(20, bottomTabsHeight + 18);
+        const availableViewport = Math.max(120, window.innerHeight - topPadding - bottomPadding);
+        const desiredAnchorTop = topPadding + Math.min(36, availableViewport * 0.08);
+        const targetWindowTop = Math.max(0, window.scrollY + anchorRect.top - desiredAnchorTop);
+        const anchorDelta = anchorRect.top - desiredAnchorTop;
+
+        if (Math.abs(anchorDelta) <= 18 || outerAttempts >= 18 || prefersReducedMotion) {
+          if (prefersReducedMotion && Math.abs(anchorDelta) > 1) {
+            window.scrollTo({ top: targetWindowTop, behavior: "auto" });
+          }
+          timer = window.setTimeout(() => {
+            frame = window.requestAnimationFrame(startInnerStage);
+          }, prefersReducedMotion ? 0 : 90);
+          return;
+        }
+
+        window.scrollTo({
+          top: targetWindowTop,
+          behavior: scrollBehavior,
+        });
+        outerAttempts += 1;
+        timer = window.setTimeout(() => {
+          frame = window.requestAnimationFrame(settleOuterScroll);
+        }, 140);
+      };
+
+      frame = window.requestAnimationFrame(settleOuterScroll);
     };
 
     frame = window.requestAnimationFrame(stageOuterScheduleScroll);
