@@ -616,29 +616,6 @@ function attachmentIndicatorLabel(count: number) {
   return `📎 ${count}`;
 }
 
-function normalizeBodyForEditor(body: string) {
-  if (!body) return "";
-
-  const hasHtmlTags = /<[a-z!/]/i.test(body);
-  if (!hasHtmlTags) {
-    // Plain text: convert newlines to br so the editor renders line breaks
-    return body.replaceAll("\n", "<br/>");
-  }
-
-  // HTML body: return as-is. The browser handles entity decoding when setting innerHTML.
-  // Do NOT run decodeHtmlEntities here — it uses textarea.value which strips all HTML
-  // elements, silently discarding every line after the first <div> or <br>.
-  return body;
-}
-
-function isEffectivelyEmptyEditorHtml(value: string) {
-  return value
-    .replace(/<br\s*\/?>/gi, "")
-    .replace(/&nbsp;/gi, "")
-    .replace(/<[^>]*>/g, "")
-    .trim().length === 0;
-}
-
 function summarizePlainText(value: string, maxChars = 120) {
   const plain = value
     .replace(/<[^>]*>/g, " ")

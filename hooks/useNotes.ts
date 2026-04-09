@@ -63,6 +63,7 @@ const NOTE_ATTACHMENT_UPLOAD_TOTAL_TIMEOUT_MS = 120000;
 const NOTE_TITLE_SYNC_DEBOUNCE_MS = 240;
 const NOTE_BODY_AUTOSAVE_DEBOUNCE_MS = 400;
 const NOTE_DRAFT_MIRROR_DEBOUNCE_MS = 120;
+const PLAIN_TEXT_NOTE_PREFIX = "__whelm_plain_text__:";
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function createNote(): WorkspaceNote {
@@ -162,18 +163,13 @@ function clearLocalNoteDraft(uid: string, noteId: string) {
   }
 }
 
-function escapeEditorHtml(value: string) {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
+function normalizeEditorText(value: string) {
+  return value.replace(/\r\n?/g, "\n");
 }
 
 function editorTextToStoredBody(value: string) {
   if (!value) return "";
-  return escapeEditorHtml(value).replace(/\r\n?/g, "\n").replace(/\n/g, "<br/>");
+  return `${PLAIN_TEXT_NOTE_PREFIX}${normalizeEditorText(value)}`;
 }
 
 function decodeStoredBodyEntities(body: string) {
@@ -186,24 +182,45 @@ function decodeStoredBodyEntities(body: string) {
 
 function storedBodyToEditorText(body: string) {
   if (!body) return "";
+  if (body.startsWith(PLAIN_TEXT_NOTE_PREFIX)) {
+    return normalizeEditorText(body.slice(PLAIN_TEXT_NOTE_PREFIX.length));
+  }
   const normalizedBody = decodeStoredBodyEntities(body);
+  const looksLikeLegacyHtml =
+    /<\/(p|div|li|blockquote|h1|h2|h3|strong|em|b|i|u|mark|ul|ol|a|span)>/i.test(normalizedBody) ||
+    /^\s*<(p|div|li|blockquote|h1|h2|h3|strong|em|b|i|u|mark|ul|ol|a|span|hr)(?=[\s/>])/i.test(normalizedBody) ||
+    /(^|[^\w])<br\s*\/?>([^\w]|$)/i.test(normalizedBody) ||
+    /&lt;(br|\/?(p|div|li|blockquote|h1|h2|h3))\s*\/?&gt;/i.test(body) ||
+    /&nbsp;/i.test(normalizedBody);
+  if (!looksLikeLegacyHtml) {
+    return normalizeEditorText(normalizedBody);
+  }
   if (typeof document === "undefined") {
-    return normalizedBody
+    return normalizeEditorText(
+      normalizedBody
       .replace(/<br\s*\/?>/gi, "\n")
       .replace(/<\/(p|div|li|blockquote|h1|h2|h3)>/gi, "\n")
       .replace(/<[^>]*>/g, "")
-      .replace(/&nbsp;/gi, " ");
+      .replace(/&nbsp;/gi, " ")
+      .replace(/&amp;/gi, "&")
+      .replace(/&quot;/gi, '"')
+      .replace(/&#39;/gi, "'")
+      .replace(/&lt;/gi, "<")
+      .replace(/&gt;/gi, ">"),
+    );
   }
 
   const template = document.createElement("template");
-  template.innerHTML = normalizeBodyForEditor(normalizedBody);
+  template.innerHTML = normalizedBody
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|li|blockquote|h1|h2|h3)>/gi, "\n");
   const blockSelectors = "p,div,li,blockquote,h1,h2,h3";
   template.content.querySelectorAll(blockSelectors).forEach((element) => {
     if (element.nextSibling) {
       element.insertAdjacentText("afterend", "\n");
     }
   });
-  return (template.content.textContent ?? "").replace(/\u00a0/g, " ");
+  return normalizeEditorText((template.content.textContent ?? "").replace(/\u00a0/g, " "));
 }
 
 function prefixLines(value: string, prefix: string) {
@@ -226,81 +243,8 @@ function stripSimpleFormatting(value: string) {
     .replace(/\n---\n/g, "\n");
 }
 
-function normalizeBodyForEditor(body: string) {
-  if (!body) return "";
-  const hasHtmlTags = /<[a-z!/]/i.test(body);
-  if (!hasHtmlTags) {
-    return body.replaceAll("\n", "<br/>");
-  }
-  if (typeof document === "undefined") return body;
-
-  const template = document.createElement("template");
-  template.innerHTML = body;
-  const allowedTags = new Set([
-    "A",
-    "B",
-    "BLOCKQUOTE",
-    "BR",
-    "DIV",
-    "EM",
-    "H1",
-    "H2",
-    "H3",
-    "HR",
-    "I",
-    "LI",
-    "MARK",
-    "OL",
-    "P",
-    "SPAN",
-    "STRONG",
-    "U",
-    "UL",
-  ]);
-
-  const sanitizeNode = (node: Node) => {
-    if (node.nodeType !== Node.ELEMENT_NODE) return;
-    const element = node as HTMLElement;
-
-    if (!allowedTags.has(element.tagName)) {
-      const parent = element.parentNode;
-      if (!parent) return;
-      const promotedChildren = [...element.childNodes];
-      for (const child of promotedChildren) {
-        parent.insertBefore(child, element);
-      }
-      parent.removeChild(element);
-      for (const child of promotedChildren) {
-        sanitizeNode(child);
-      }
-      return;
-    }
-
-    for (const attribute of [...element.attributes]) {
-      const keepHref = element.tagName === "A" && attribute.name === "href";
-      if (!keepHref) {
-        element.removeAttribute(attribute.name);
-      }
-    }
-
-    for (const child of [...element.childNodes]) {
-      sanitizeNode(child);
-    }
-  };
-
-  for (const child of [...template.content.childNodes]) {
-    sanitizeNode(child);
-  }
-
-  return template.innerHTML;
-}
-
-function isEffectivelyEmptyEditorHtml(value: string) {
-  return value
-    .replace(/<br\s*\/?>/gi, "")
-    .replace(/&nbsp;/gi, "")
-    .replace(/<[^>]*>/g, "")
-    .trim().length === 0;
+function isEffectivelyEmptyNoteText(value: string) {
+  return storedBodyToEditorText(value).trim().length === 0;
 }
 
 function resolvePreferredEditorText(
@@ -340,8 +284,8 @@ function shouldClearLocalDraft(note: WorkspaceNote, uid: string) {
 
   if (localDraft.body === note.body) return true;
 
-  const syncedNoteHasContent = !isEffectivelyEmptyEditorHtml(normalizeBodyForEditor(note.body));
-  const localDraftIsBlank = isEffectivelyEmptyEditorHtml(normalizeBodyForEditor(localDraft.body));
+  const syncedNoteHasContent = !isEffectivelyEmptyNoteText(note.body);
+  const localDraftIsBlank = isEffectivelyEmptyNoteText(localDraft.body);
   return localDraftIsBlank && syncedNoteHasContent;
 }
 
@@ -915,7 +859,7 @@ export function useNotes({ isPro, isMobileViewport, onNavigateToNotes }: UseNote
 
     if (
       options?.captureRevision &&
-      !isEffectivelyEmptyEditorHtml(normalizeBodyForEditor(currentNote.body)) &&
+      !isEffectivelyEmptyNoteText(currentNote.body) &&
       nextBody !== currentNote.body
     ) {
       saveNoteRevisionSnapshot(currentUser.uid, currentNote, "body-update");
@@ -1038,7 +982,7 @@ export function useNotes({ isPro, isMobileViewport, onNavigateToNotes }: UseNote
       previousNote &&
       typeof patch.body === "string" &&
       patch.body !== previousNote.body &&
-      !isEffectivelyEmptyEditorHtml(normalizeBodyForEditor(previousNote.body))
+      !isEffectivelyEmptyNoteText(previousNote.body)
     ) {
       saveNoteRevisionSnapshot(currentUser.uid, previousNote, "body-update");
     }

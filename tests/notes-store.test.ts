@@ -135,7 +135,7 @@ test("notes editor interop restores plain line breaks from stored bodies", async
   const stored = __notesEditorInterop.editorTextToStoredBody(sourceText);
   const restored = __notesEditorInterop.storedBodyToEditorText(stored);
 
-  assert.equal(stored, "First line<br/><br/>Second line");
+  assert.equal(stored, "__whelm_plain_text__:First line\n\nSecond line");
   assert.equal(restored, sourceText);
 });
 
@@ -155,4 +155,42 @@ test("notes editor interop converts escaped br text back into normal spacing", a
   );
 
   assert.equal(restored, "First line\n\nSecond line");
+});
+
+test("notes editor interop preserves stanza spacing exactly for plain text notes", async () => {
+  process.env.NEXT_PUBLIC_FIREBASE_API_KEY = "demo-key";
+  process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN = "demo.firebaseapp.com";
+  process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID = "demo-project";
+  process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET = "demo.appspot.com";
+  process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID = "1234567890";
+  process.env.NEXT_PUBLIC_FIREBASE_APP_ID = "1:1234567890:web:abcdef";
+  process.env.FIREBASE_DATABASE_ID = "(default)";
+
+  const { __notesEditorInterop } = await import("@/hooks/useNotes");
+  const sourceText = "Verse one\nline two\n\nVerse two\n\n\nFinal line";
+
+  const stored = __notesEditorInterop.editorTextToStoredBody(sourceText);
+  const restored = __notesEditorInterop.storedBodyToEditorText(stored);
+
+  assert.equal(stored, `__whelm_plain_text__:${sourceText}`);
+  assert.equal(restored, sourceText);
+});
+
+test("notes editor interop preserves literal angle-bracket text for plain text notes", async () => {
+  process.env.NEXT_PUBLIC_FIREBASE_API_KEY = "demo-key";
+  process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN = "demo.firebaseapp.com";
+  process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID = "demo-project";
+  process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET = "demo.appspot.com";
+  process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID = "1234567890";
+  process.env.NEXT_PUBLIC_FIREBASE_APP_ID = "1:1234567890:web:abcdef";
+  process.env.FIREBASE_DATABASE_ID = "(default)";
+
+  const { __notesEditorInterop } = await import("@/hooks/useNotes");
+  const sourceText = "Keep literal <div> text\nand literal <br> text.";
+
+  const stored = __notesEditorInterop.editorTextToStoredBody(sourceText);
+  const restored = __notesEditorInterop.storedBodyToEditorText(stored);
+
+  assert.equal(stored, `__whelm_plain_text__:${sourceText}`);
+  assert.equal(restored, sourceText);
 });
