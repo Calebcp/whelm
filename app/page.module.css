@@ -2328,6 +2328,15 @@ body[data-theme="light"] {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 8px;
+}
+
+.calendarToneDisclosureValue {
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(223, 234, 255, 0.88);
 }
 
 .calendarToneDisclosureSwatch {

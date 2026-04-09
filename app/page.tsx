@@ -2607,6 +2607,7 @@ export default function HomePage() {
     jumpToCalendarSection,
     openPlannedBlockDetail,
     closePlannedBlockDetail,
+    dismissPlannedBlockDetail,
     applyDayTone,
     applyMonthTone,
   } = useCalendarInteractions({
@@ -3694,7 +3695,7 @@ export default function HomePage() {
       blockDetailModalProps: {
         open: Boolean(selectedPlanDetail),
         selectedPlanDetail,
-        onClose: closePlannedBlockDetail,
+        onClose: dismissPlannedBlockDetail,
         normalizeTimeLabel,
         attachmentIndicatorLabel,
         tonePicker: selectedPlanDetail ? (

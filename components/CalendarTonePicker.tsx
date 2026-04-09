@@ -6,6 +6,7 @@ import { memo, useMemo, useState } from "react";
 import styles from "@/app/page.module.css";
 import {
   CALENDAR_TONES,
+  getCalendarToneMeta,
   getAccessibleCalendarTones,
   getCalendarToneStyle,
   type CalendarTone,
@@ -27,6 +28,7 @@ const CalendarTonePicker = memo(function CalendarTonePicker({
 }) {
   const [open, setOpen] = useState(false);
   const selectedToneStyle = getCalendarToneStyle(selectedTone);
+  const selectedToneLabel = getCalendarToneMeta(selectedTone)?.value ?? "Off";
   const visibleTones = useMemo(
     () => CALENDAR_TONES.filter((tone) => getAccessibleCalendarTones(isPro).includes(tone.value)),
     [isPro],
@@ -46,6 +48,7 @@ const CalendarTonePicker = memo(function CalendarTonePicker({
           >
             <span className={styles.calendarToneDisclosureLabel}>{label}</span>
             <span className={styles.calendarToneDisclosureMeta}>
+              <span className={styles.calendarToneDisclosureValue}>{selectedToneLabel}</span>
               <span
                 className={`${styles.calendarToneDisclosureSwatch} ${
                   !selectedTone ? styles.calendarToneDisclosureSwatchOff : ""

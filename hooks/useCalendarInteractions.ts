@@ -73,6 +73,11 @@ export function useCalendarInteractions<
 }: UseCalendarInteractionsOptions<TCalendarEntry, TDayViewItem>) {
   const activatedCalendarEntryTimeoutRef = useRef<number | null>(null);
   const calendarHoverPreviewTimeoutRef = useRef<number | null>(null);
+  const plannedBlockDetailViewportRef = useRef<{
+    blockId: string;
+    windowScrollY: number;
+    timelineScrollTop: number;
+  } | null>(null);
 
   const plannedBlockById = useMemo(
     () => new Map(plannedBlocks.map((item) => [item.id, item])),
@@ -139,8 +144,13 @@ export function useCalendarInteractions<
   }, []);
 
   const openPlannedBlockDetail = useCallback((blockId: string) => {
+    plannedBlockDetailViewportRef.current = {
+      blockId,
+      windowScrollY: window.scrollY,
+      timelineScrollTop: mobileDayTimelineScrollRef?.current?.scrollTop ?? 0,
+    };
     setSelectedPlanDetailId(blockId);
-  }, [setSelectedPlanDetailId]);
+  }, [mobileDayTimelineScrollRef, setSelectedPlanDetailId]);
 
   const closePlannedBlockDetail = useCallback(() => {
     if (document.activeElement instanceof HTMLElement) {
@@ -148,6 +158,31 @@ export function useCalendarInteractions<
     }
     setSelectedPlanDetailId(null);
   }, [setSelectedPlanDetailId]);
+
+  const dismissPlannedBlockDetail = useCallback(() => {
+    const snapshot = plannedBlockDetailViewportRef.current;
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+    setSelectedPlanDetailId(null);
+    if (!snapshot) return;
+
+    const restoreViewport = () => {
+      const timeline = mobileDayTimelineScrollRef?.current;
+      if (timeline) {
+        timeline.scrollTop = snapshot.timelineScrollTop;
+      }
+      window.scrollTo({ top: snapshot.windowScrollY, behavior: "auto" });
+    };
+
+    window.requestAnimationFrame(() => {
+      restoreViewport();
+      window.requestAnimationFrame(() => {
+        restoreViewport();
+        plannedBlockDetailViewportRef.current = null;
+      });
+    });
+  }, [mobileDayTimelineScrollRef, setSelectedPlanDetailId]);
 
   const applyDayTone = useCallback((dateKey: string, tone: CalendarTone | null) => {
     if (!user) return;
@@ -412,6 +447,7 @@ export function useCalendarInteractions<
     jumpToCalendarSection,
     openPlannedBlockDetail,
     closePlannedBlockDetail,
+    dismissPlannedBlockDetail,
     applyDayTone,
     applyMonthTone,
   };
