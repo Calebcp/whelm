@@ -396,8 +396,56 @@
   display: none;
 }
 
+.backgroundStorefront {
+  display: grid;
+  gap: 14px;
+}
+
+.backgroundUploadRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.backgroundUploadButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.backgroundUploadBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 68px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  color: #eef5ff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.backgroundSectionHeader {
+  display: grid;
+  gap: 4px;
+}
+
+.backgroundSectionHeader strong {
+  color: #f4f7ff;
+  font-size: 0.96rem;
+}
+
+.backgroundSectionHeader span {
+  color: #b8c7e6;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
 .backgroundPresetGrid {
-  margin-top: 12px;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
   gap: 10px;
@@ -443,6 +491,13 @@
 .backgroundSkinHeader strong {
   font-size: 0.98rem;
   color: #f4f7ff;
+}
+
+.backgroundSkinHeader {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .backgroundSkinControls {

@@ -1,16 +1,16 @@
 import type { CSSProperties } from "react";
 
 export const CALENDAR_TONES = [
-  { value: "Clear", ariaLabel: "Electric blue", accent: "#53b7ff" },
-  { value: "Push", ariaLabel: "Solar orange", accent: "#ff9b54" },
-  { value: "Deep", ariaLabel: "Voltage violet", accent: "#7c7cff" },
-  { value: "Sharp", ariaLabel: "Laser yellow", accent: "#ffe14d" },
-  { value: "Steady", ariaLabel: "Neon green", accent: "#47f59a" },
-  { value: "Recover", ariaLabel: "Hot pink", accent: "#ff6f9f" },
-  { value: "Ember", ariaLabel: "Crimson ember", accent: "#ff5a5f" },
-  { value: "Frost", ariaLabel: "Arctic cyan", accent: "#71e7ff" },
-  { value: "Tide", ariaLabel: "Ocean teal", accent: "#2dd4bf" },
-  { value: "Dusk", ariaLabel: "Midnight indigo", accent: "#5b6cff" },
+  { value: "Clear", ariaLabel: "Electric blue", accent: "#52bcff" },
+  { value: "Push", ariaLabel: "Solar orange", accent: "#ff9a4d" },
+  { value: "Deep", ariaLabel: "Voltage violet", accent: "#9275ff" },
+  { value: "Sharp", ariaLabel: "Signal gold", accent: "#ffd84a" },
+  { value: "Steady", ariaLabel: "Emerald green", accent: "#36ea8f" },
+  { value: "Recover", ariaLabel: "Hot pink", accent: "#ff5fab" },
+  { value: "Ember", ariaLabel: "Vermilion red", accent: "#ff5465" },
+  { value: "Frost", ariaLabel: "Arctic cyan", accent: "#5fe9ff" },
+  { value: "Tide", ariaLabel: "Teal surge", accent: "#19d2bc" },
+  { value: "Dusk", ariaLabel: "Indigo dusk", accent: "#6f7bff" },
 ] as const;
 
 export type CalendarTone = (typeof CALENDAR_TONES)[number]["value"];

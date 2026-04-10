@@ -1694,6 +1694,7 @@ export default function HomePage() {
     notificationSettings,
     effectiveBackgroundSetting,
     backgroundSkinActive,
+    backgroundSkinMatchesDefault,
     preferencesHydrated,
     setThemePromptOpen,
     applyPreferencesSnapshot,
@@ -1701,6 +1702,7 @@ export default function HomePage() {
     applyBackgroundSetting,
     applyCompanionStyle,
     updateBackgroundSkin,
+    resetBackgroundSkin,
     applyNotificationSettings,
     handleBackgroundUpload,
   } = usePreferences({
@@ -3480,6 +3482,8 @@ export default function HomePage() {
       onBackgroundUpload: handleBackgroundUpload,
       onApplyBackgroundSetting: applyBackgroundSetting,
       onUpdateBackgroundSkin: updateBackgroundSkin,
+      onResetBackgroundSkin: resetBackgroundSkin,
+      backgroundSkinMatchesDefault,
       proPanelBackgroundOpen: proPanelsOpen.background,
       onToggleProBackgroundPanel: () =>
         setProPanelsOpen((current) => ({ ...current, background: !current.background })),

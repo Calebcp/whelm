@@ -287,6 +287,8 @@ export type SettingsTabProps = {
   onBackgroundUpload: (e: ChangeEvent<HTMLInputElement>) => void;
   onApplyBackgroundSetting: (setting: PreferencesBackgroundSetting) => void;
   onUpdateBackgroundSkin: (skin: PreferencesBackgroundSkin) => void;
+  onResetBackgroundSkin: () => void;
+  backgroundSkinMatchesDefault: boolean;
   proPanelBackgroundOpen: boolean;
   onToggleProBackgroundPanel: () => void;
   archiveExportBusy: boolean;
@@ -390,8 +392,8 @@ const SettingsIndexPanel = memo(function SettingsIndexPanel({
       <div className={styles.settingsIndexGroup}>
         <p className={styles.settingsIndexLabel}>Account</p>
         <SettingsRow
-          title="Preferences"
-          summary="Theme, Whelm tone, shell, and behavior"
+          title="Background Themes"
+          summary="Theme, shell backgrounds, and surface behavior"
           active={preferencesActive}
           onClick={() => onToggleSection("identity")}
         />
@@ -487,6 +489,8 @@ const SettingsDetailPanels = memo(function SettingsDetailPanels({
   onApplyBackgroundSetting,
   backgroundSkin,
   onUpdateBackgroundSkin,
+  onResetBackgroundSkin,
+  backgroundSkinMatchesDefault,
   proPanelBackgroundOpen,
   onToggleProBackgroundPanel,
   onStartProPreview,
@@ -977,6 +981,8 @@ export default function SettingsTab({
   onBackgroundUpload,
   onApplyBackgroundSetting,
   onUpdateBackgroundSkin,
+  onResetBackgroundSkin,
+  backgroundSkinMatchesDefault,
   proPanelBackgroundOpen,
   onToggleProBackgroundPanel,
   archiveExportBusy,
@@ -1081,9 +1087,9 @@ export default function SettingsTab({
       {preferencesActive ? (
         <article className={`${sharedStyles.card} ${styles.settingsDetailCard}`}>
           <SettingsDetailHeader
-            sectionLabel="Preferences"
-            title="How Whelm feels"
-            body="Theme, Whelm tone, and shell behavior."
+            sectionLabel="Background Themes"
+            title="How Whelm looks"
+            body="Theme, shell backgrounds, and surface behavior."
             onBack={closeActiveSection}
           />
 
@@ -1121,139 +1127,182 @@ export default function SettingsTab({
 
           <div className={styles.settingsDetailBlock}>
             <div className={styles.settingsDetailHeader}>
-              <p className={styles.settingsIndexLabel}>Background</p>
+              <p className={styles.settingsIndexLabel}>Background Themes</p>
               <p className={sharedStyles.accountMeta}>
                 {isPro
-                  ? "Pick the shell background and how much it shows through."
-                  : "Custom shells and uploads live in Whelm Pro."}
+                  ? "Choose a Whelm background or upload your own, then tune how much of it shows through."
+                  : "See uploads first, then the built-in Whelm backgrounds below."}
               </p>
             </div>
-            {isPro ? (
-              <>
-                <input
-                  ref={backgroundUploadInputRef}
-                  type="file"
-                  accept="image/*"
-                  className={styles.backgroundUploadInput}
-                  onChange={onBackgroundUpload}
-                />
-                <div className={styles.backgroundPresetGrid}>
+            <input
+              ref={backgroundUploadInputRef}
+              type="file"
+              accept="image/*"
+              className={styles.backgroundUploadInput}
+              onChange={onBackgroundUpload}
+            />
+            <div className={styles.backgroundStorefront}>
+              <div className={styles.backgroundUploadRow}>
+                <button
+                  type="button"
+                  className={`${sharedStyles.reportButton} ${styles.backgroundUploadButton}`}
+                  onClick={() => (isPro ? backgroundUploadInputRef.current?.click() : onStartProPreview())}
+                >
+                  Upload backdrop
+                  {!isPro ? <span className={styles.backgroundUploadBadge}>{WHELM_PRO_NAME}</span> : null}
+                </button>
+                {isPro && appBackgroundSetting.kind === "upload" ? (
                   <button
                     type="button"
-                    className={`${styles.backgroundPresetButton} ${appBackgroundSetting.kind === "default" ? styles.backgroundPresetButtonActive : ""}`}
+                    className={sharedStyles.secondaryPlanButton}
                     onClick={() => onApplyBackgroundSetting({ kind: "default" })}
                   >
-                    <span className={styles.backgroundPresetSwatch} />
-                    <strong>Whelm Default</strong>
+                    Return to Whelm Default
                   </button>
-                  {PRO_BACKGROUND_PRESETS.map((preset) => (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      className={`${styles.backgroundPresetButton} ${
-                        appBackgroundSetting.kind === "preset" && appBackgroundSetting.value === preset.id
-                          ? styles.backgroundPresetButtonActive
-                          : ""
-                      }`}
-                      onClick={() => onApplyBackgroundSetting({ kind: "preset", value: preset.id })}
-                    >
-                      <span className={styles.backgroundPresetSwatch} style={{ background: preset.background }} />
-                      <strong>{preset.label}</strong>
-                    </button>
-                  ))}
-                </div>
-                <div className={sharedStyles.noteFooterActions}>
-                  <button
-                    type="button"
-                    className={sharedStyles.reportButton}
-                    onClick={() => backgroundUploadInputRef.current?.click()}
-                  >
-                    Upload backdrop
-                  </button>
-                  {appBackgroundSetting.kind === "upload" ? (
+                ) : null}
+              </div>
+
+              {isPro ? (
+                <>
+                  <div className={styles.backgroundSectionHeader}>
+                    <strong>Whelm backgrounds</strong>
+                    <span>Built-in shells you can tune safely.</span>
+                  </div>
+                  <div className={styles.backgroundPresetGrid}>
                     <button
                       type="button"
-                      className={sharedStyles.secondaryPlanButton}
+                      className={`${styles.backgroundPresetButton} ${appBackgroundSetting.kind === "default" ? styles.backgroundPresetButtonActive : ""}`}
                       onClick={() => onApplyBackgroundSetting({ kind: "default" })}
                     >
-                      Return to Whelm Default
+                      <span className={styles.backgroundPresetSwatch} />
+                      <strong>Whelm Default</strong>
                     </button>
-                  ) : null}
-                </div>
-                <div className={styles.backgroundSkinPanel}>
-                  <div className={styles.backgroundSkinHeader}>
-                    <div>
-                      <strong>Surface behavior</strong>
-                      <p className={sharedStyles.accountMeta}>
-                        Default keeps the standard Whelm shell. Adaptive glass opens the shell so your Whelm Pro background can breathe through.
-                      </p>
-                    </div>
-                  </div>
-                  <div className={styles.companionStyleRow}>
-                    {([{ key: "solid", label: "Standard shell" }, { key: "glass", label: "Adaptive glass" }] as const).map((option) => (
+                    {PRO_BACKGROUND_PRESETS.map((preset) => (
                       <button
-                        key={option.key}
+                        key={preset.id}
                         type="button"
-                        className={`${styles.companionStyleButton} ${backgroundSkin.mode === option.key ? styles.companionStyleButtonActive : ""}`}
-                        onClick={() => onUpdateBackgroundSkin({ ...backgroundSkin, mode: option.key })}
+                        className={`${styles.backgroundPresetButton} ${
+                          appBackgroundSetting.kind === "preset" && appBackgroundSetting.value === preset.id
+                            ? styles.backgroundPresetButtonActive
+                            : ""
+                        }`}
+                        onClick={() => onApplyBackgroundSetting({ kind: "preset", value: preset.id })}
                       >
-                        {option.label}
+                        <span className={styles.backgroundPresetSwatch} style={{ background: preset.background }} />
+                        <strong>{preset.label}</strong>
                       </button>
                     ))}
                   </div>
-                  {backgroundSkin.mode === "glass" ? (
-                    <div className={styles.backgroundSkinControls}>
-                      {appBackgroundSetting.kind === "upload" ? (
-                        <div className={styles.companionStyleRow}>
-                          {([{ key: "fit", label: "Fit image" }, { key: "fill", label: "Fill screen" }] as const).map((option) => (
-                            <button
-                              key={option.key}
-                              type="button"
-                              className={`${styles.companionStyleButton} ${backgroundSkin.imageFit === option.key ? styles.companionStyleButtonActive : ""}`}
-                              onClick={() => onUpdateBackgroundSkin({ ...backgroundSkin, imageFit: option.key })}
-                            >
-                              {option.label}
-                            </button>
-                          ))}
-                        </div>
-                      ) : null}
-                      <SettingsSliderRow
-                        title="Background prominence"
-                        valueLabel={`${Math.round((1 - backgroundSkin.dim) * 100)}%`}
-                        value={Math.round(backgroundSkin.dim * 100)}
-                        min={2}
-                        max={96}
-                        onValueChange={(next) => onUpdateBackgroundSkin({ ...backgroundSkin, dim: next / 100 })}
-                      />
-                      <SettingsSliderRow
-                        title="App surface opacity"
-                        valueLabel={`${Math.round(backgroundSkin.surfaceOpacity * 100)}%`}
-                        value={Math.round(backgroundSkin.surfaceOpacity * 100)}
-                        min={8}
-                        max={98}
-                        onValueChange={(next) => onUpdateBackgroundSkin({ ...backgroundSkin, surfaceOpacity: next / 100 })}
-                      />
-                      <SettingsSliderRow
-                        title="Glass blur"
-                        valueLabel={`${backgroundSkin.blur}px`}
-                        value={backgroundSkin.blur}
-                        min={0}
-                        max={40}
-                        onValueChange={(next) => onUpdateBackgroundSkin({ ...backgroundSkin, blur: next })}
-                      />
+                  <div className={styles.backgroundSkinPanel}>
+                    <div className={styles.backgroundSkinHeader}>
+                      <div>
+                        <strong>Surface behavior</strong>
+                        <p className={sharedStyles.accountMeta}>
+                          Default keeps the standard Whelm shell. Adaptive glass opens the shell so your background can breathe through.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        className={sharedStyles.secondaryPlanButton}
+                        onClick={onResetBackgroundSkin}
+                        disabled={backgroundSkinMatchesDefault}
+                      >
+                        Reset background
+                      </button>
                     </div>
-                  ) : null}
-                </div>
-              </>
-            ) : (
-              <ProUnlockCard
-                title="Custom backgrounds and uploads"
-                body={`${WHELM_PRO_POSITIONING} ${WHELM_PRO_NAME} includes alternate full-app background designs, uploaded backdrops, and adaptive glass controls.`}
-                open={proPanelBackgroundOpen}
-                onToggle={onToggleProBackgroundPanel}
-                onPreview={onStartProPreview}
-              />
-            )}
+                    <div className={styles.companionStyleRow}>
+                      {([{ key: "solid", label: "Standard shell" }, { key: "glass", label: "Adaptive glass" }] as const).map((option) => (
+                        <button
+                          key={option.key}
+                          type="button"
+                          className={`${styles.companionStyleButton} ${backgroundSkin.mode === option.key ? styles.companionStyleButtonActive : ""}`}
+                          onClick={() => onUpdateBackgroundSkin({ ...backgroundSkin, mode: option.key })}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                    {backgroundSkin.mode === "glass" ? (
+                      <div className={styles.backgroundSkinControls}>
+                        {appBackgroundSetting.kind === "upload" ? (
+                          <div className={styles.companionStyleRow}>
+                            {([{ key: "fit", label: "Fit image" }, { key: "fill", label: "Fill screen" }] as const).map((option) => (
+                              <button
+                                key={option.key}
+                                type="button"
+                                className={`${styles.companionStyleButton} ${backgroundSkin.imageFit === option.key ? styles.companionStyleButtonActive : ""}`}
+                                onClick={() => onUpdateBackgroundSkin({ ...backgroundSkin, imageFit: option.key })}
+                              >
+                                {option.label}
+                              </button>
+                            ))}
+                          </div>
+                        ) : null}
+                        <SettingsSliderRow
+                          title="Background prominence"
+                          valueLabel={`${Math.round((1 - backgroundSkin.dim) * 100)}%`}
+                          value={Math.round(backgroundSkin.dim * 100)}
+                          min={2}
+                          max={96}
+                          onValueChange={(next) => onUpdateBackgroundSkin({ ...backgroundSkin, dim: next / 100 })}
+                        />
+                        <SettingsSliderRow
+                          title="App surface opacity"
+                          valueLabel={`${Math.round(backgroundSkin.surfaceOpacity * 100)}%`}
+                          value={Math.round(backgroundSkin.surfaceOpacity * 100)}
+                          min={8}
+                          max={98}
+                          onValueChange={(next) => onUpdateBackgroundSkin({ ...backgroundSkin, surfaceOpacity: next / 100 })}
+                        />
+                        <SettingsSliderRow
+                          title="Glass blur"
+                          valueLabel={`${backgroundSkin.blur}px`}
+                          value={backgroundSkin.blur}
+                          min={0}
+                          max={40}
+                          onValueChange={(next) => onUpdateBackgroundSkin({ ...backgroundSkin, blur: next })}
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className={styles.backgroundSectionHeader}>
+                    <strong>Whelm backgrounds</strong>
+                    <span>Built-in shells are ready now. Uploads and adaptive glass unlock with {WHELM_PRO_NAME}.</span>
+                  </div>
+                  <div className={styles.backgroundPresetGrid}>
+                    <button
+                      type="button"
+                      className={`${styles.backgroundPresetButton} ${appBackgroundSetting.kind === "default" ? styles.backgroundPresetButtonActive : ""}`}
+                      onClick={() => onApplyBackgroundSetting({ kind: "default" })}
+                    >
+                      <span className={styles.backgroundPresetSwatch} />
+                      <strong>Whelm Default</strong>
+                    </button>
+                    {PRO_BACKGROUND_PRESETS.map((preset) => (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        className={styles.backgroundPresetButton}
+                        onClick={onStartProPreview}
+                      >
+                        <span className={styles.backgroundPresetSwatch} style={{ background: preset.background }} />
+                        <strong>{preset.label}</strong>
+                      </button>
+                    ))}
+                  </div>
+                  <ProUnlockCard
+                    title="Custom backgrounds and uploads"
+                    body={`${WHELM_PRO_POSITIONING} ${WHELM_PRO_NAME} includes alternate full-app background designs, uploaded backdrops, and adaptive glass controls.`}
+                    open={proPanelBackgroundOpen}
+                    onToggle={onToggleProBackgroundPanel}
+                    onPreview={onStartProPreview}
+                  />
+                </>
+              )}
+            </div>
           </div>
         </article>
       ) : null}
@@ -1279,6 +1328,8 @@ export default function SettingsTab({
         onApplyBackgroundSetting={onApplyBackgroundSetting}
         backgroundSkin={backgroundSkin}
         onUpdateBackgroundSkin={onUpdateBackgroundSkin}
+        onResetBackgroundSkin={onResetBackgroundSkin}
+        backgroundSkinMatchesDefault={backgroundSkinMatchesDefault}
         proPanelBackgroundOpen={proPanelBackgroundOpen}
         onToggleProBackgroundPanel={onToggleProBackgroundPanel}
         onStartProPreview={onStartProPreview}

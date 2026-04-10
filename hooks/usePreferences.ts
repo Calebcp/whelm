@@ -199,6 +199,30 @@ export function usePreferences({
     });
   }, [appBackgroundSetting, companionStyle, isPro, notificationSettings, persistPreferencesState, proState, themeMode]);
 
+  const resetBackgroundSkin = useCallback(() => {
+    if (!isPro) {
+      return;
+    }
+
+    void persistPreferencesState({
+      companionStyle,
+      themeMode,
+      backgroundSetting: appBackgroundSetting,
+      backgroundSkin: defaultBackgroundSkin,
+      notificationSettings,
+      proState,
+    });
+  }, [
+    appBackgroundSetting,
+    companionStyle,
+    defaultBackgroundSkin,
+    isPro,
+    notificationSettings,
+    persistPreferencesState,
+    proState,
+    themeMode,
+  ]);
+
   const applyNotificationSettings = useCallback((nextSettings: PreferencesNotificationSettings) => {
     void persistPreferencesState({
       companionStyle,
@@ -253,6 +277,12 @@ export function usePreferences({
   );
   const backgroundSkinActive =
     isPro && effectiveBackgroundSetting.kind !== "default" && backgroundSkin.mode === "glass";
+  const backgroundSkinMatchesDefault =
+    backgroundSkin.mode === defaultBackgroundSkin.mode &&
+    Math.abs(backgroundSkin.dim - defaultBackgroundSkin.dim) < 0.0001 &&
+    Math.abs(backgroundSkin.surfaceOpacity - defaultBackgroundSkin.surfaceOpacity) < 0.0001 &&
+    backgroundSkin.blur === defaultBackgroundSkin.blur &&
+    backgroundSkin.imageFit === defaultBackgroundSkin.imageFit;
 
   return {
     companionStyle,
@@ -264,6 +294,7 @@ export function usePreferences({
     notificationSettings,
     effectiveBackgroundSetting,
     backgroundSkinActive,
+    backgroundSkinMatchesDefault,
     preferencesHydrated,
     setThemePromptOpen,
     applyPreferencesSnapshot,
@@ -271,6 +302,7 @@ export function usePreferences({
     applyBackgroundSetting,
     applyCompanionStyle,
     updateBackgroundSkin,
+    resetBackgroundSkin,
     applyNotificationSettings,
     handleBackgroundUpload,
   };

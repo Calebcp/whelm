@@ -2221,6 +2221,34 @@ body[data-theme="light"] {
   border-color: rgba(218, 202, 255, 0.62);
 }
 
+.dayViewEventEmber,
+.monthEntryEmber {
+  background: rgba(188, 57, 69, 0.9);
+  color: #fff1f2;
+  border-color: rgba(255, 195, 201, 0.64);
+}
+
+.dayViewEventFrost,
+.monthEntryFrost {
+  background: rgba(34, 132, 176, 0.9);
+  color: #effcff;
+  border-color: rgba(182, 244, 255, 0.64);
+}
+
+.dayViewEventTide,
+.monthEntryTide {
+  background: rgba(18, 135, 121, 0.9);
+  color: #ecfffb;
+  border-color: rgba(171, 255, 236, 0.64);
+}
+
+.dayViewEventDusk,
+.monthEntryDusk {
+  background: rgba(80, 92, 196, 0.9);
+  color: #f1f3ff;
+  border-color: rgba(203, 210, 255, 0.64);
+}
+
 .calendarToneSurfaceBlock {
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.2),
@@ -2598,6 +2626,38 @@ body[data-theme="light"] {
     radial-gradient(circle at 84% 82%, rgba(124, 124, 255, 0.22), transparent 34%),
     linear-gradient(180deg, rgba(96, 74, 214, 0.9), rgba(55, 39, 134, 0.94));
   border-color: rgba(208, 195, 255, 0.58);
+}
+
+.calendarToneSurfaceEmber {
+  background:
+    radial-gradient(circle at 16% 14%, rgba(255, 255, 255, 0.18), transparent 30%),
+    radial-gradient(circle at 84% 82%, rgba(255, 84, 101, 0.24), transparent 34%),
+    linear-gradient(180deg, rgba(212, 66, 79, 0.92), rgba(128, 25, 39, 0.95));
+  border-color: rgba(255, 196, 202, 0.58);
+}
+
+.calendarToneSurfaceFrost {
+  background:
+    radial-gradient(circle at 16% 14%, rgba(255, 255, 255, 0.2), transparent 30%),
+    radial-gradient(circle at 84% 82%, rgba(95, 233, 255, 0.26), transparent 34%),
+    linear-gradient(180deg, rgba(49, 170, 214, 0.92), rgba(20, 80, 126, 0.95));
+  border-color: rgba(191, 245, 255, 0.58);
+}
+
+.calendarToneSurfaceTide {
+  background:
+    radial-gradient(circle at 16% 14%, rgba(255, 255, 255, 0.18), transparent 30%),
+    radial-gradient(circle at 84% 82%, rgba(25, 210, 188, 0.24), transparent 34%),
+    linear-gradient(180deg, rgba(21, 168, 149, 0.92), rgba(13, 92, 82, 0.95));
+  border-color: rgba(176, 255, 236, 0.58);
+}
+
+.calendarToneSurfaceDusk {
+  background:
+    radial-gradient(circle at 16% 14%, rgba(255, 255, 255, 0.18), transparent 30%),
+    radial-gradient(circle at 84% 82%, rgba(111, 123, 255, 0.24), transparent 34%),
+    linear-gradient(180deg, rgba(94, 110, 226, 0.92), rgba(43, 51, 141, 0.95));
+  border-color: rgba(201, 208, 255, 0.58);
 }
 
 .calendarEntryPopoverPinned {
@@ -7145,6 +7205,38 @@ body[data-theme="light"] {
   border-color: rgba(141, 126, 197, 0.5);
 }
 
+.themeLight .calendarToneSurfaceEmber {
+  background:
+    radial-gradient(circle at 14% 14%, rgba(255, 255, 255, 0.48), transparent 28%),
+    radial-gradient(circle at 82% 84%, rgba(255, 84, 101, 0.16), transparent 34%),
+    linear-gradient(180deg, rgba(255, 178, 186, 0.92), rgba(240, 122, 137, 0.9));
+  border-color: rgba(194, 118, 131, 0.56);
+}
+
+.themeLight .calendarToneSurfaceFrost {
+  background:
+    radial-gradient(circle at 14% 14%, rgba(255, 255, 255, 0.5), transparent 28%),
+    radial-gradient(circle at 82% 84%, rgba(95, 233, 255, 0.16), transparent 34%),
+    linear-gradient(180deg, rgba(178, 238, 249, 0.92), rgba(127, 213, 235, 0.9));
+  border-color: rgba(110, 172, 189, 0.54);
+}
+
+.themeLight .calendarToneSurfaceTide {
+  background:
+    radial-gradient(circle at 14% 14%, rgba(255, 255, 255, 0.48), transparent 28%),
+    radial-gradient(circle at 82% 84%, rgba(25, 210, 188, 0.14), transparent 34%),
+    linear-gradient(180deg, rgba(163, 242, 229, 0.92), rgba(106, 218, 197, 0.9));
+  border-color: rgba(96, 170, 156, 0.54);
+}
+
+.themeLight .calendarToneSurfaceDusk {
+  background:
+    radial-gradient(circle at 14% 14%, rgba(255, 255, 255, 0.48), transparent 28%),
+    radial-gradient(circle at 82% 84%, rgba(111, 123, 255, 0.14), transparent 34%),
+    linear-gradient(180deg, rgba(188, 196, 255, 0.92), rgba(148, 160, 242, 0.9));
+  border-color: rgba(130, 139, 197, 0.54);
+}
+
 .themeLight .profileStatCard,
 .themeLight .profileProgressCard {
   background:
@@ -7397,6 +7489,34 @@ body[data-theme="light"] {
   color: #604ca8;
   border-color: rgba(129, 109, 194, 0.18);
   box-shadow: 0 8px 18px rgba(128, 111, 182, 0.12);
+}
+
+.themeLight .dayViewEventEmber {
+  background: linear-gradient(135deg, rgba(252, 224, 228, 0.98), rgba(246, 210, 216, 0.98));
+  color: #9f4451;
+  border-color: rgba(193, 118, 132, 0.18);
+  box-shadow: 0 8px 18px rgba(185, 114, 128, 0.12);
+}
+
+.themeLight .dayViewEventFrost {
+  background: linear-gradient(135deg, rgba(226, 246, 251, 0.98), rgba(213, 239, 247, 0.98));
+  color: #2f7691;
+  border-color: rgba(111, 171, 191, 0.18);
+  box-shadow: 0 8px 18px rgba(112, 173, 193, 0.12);
+}
+
+.themeLight .dayViewEventTide {
+  background: linear-gradient(135deg, rgba(222, 246, 241, 0.98), rgba(210, 239, 232, 0.98));
+  color: #23786c;
+  border-color: rgba(90, 154, 141, 0.18);
+  box-shadow: 0 8px 18px rgba(103, 163, 150, 0.12);
+}
+
+.themeLight .dayViewEventDusk {
+  background: linear-gradient(135deg, rgba(229, 233, 251, 0.98), rgba(218, 224, 248, 0.98));
+  color: #5667b7;
+  border-color: rgba(121, 131, 194, 0.18);
+  box-shadow: 0 8px 18px rgba(119, 129, 191, 0.12);
 }
 
 .themeLight .calendarEntryPopover {
