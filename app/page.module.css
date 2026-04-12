@@ -3453,6 +3453,7 @@ body[data-theme="light"] {
   grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 6px;
   align-items: stretch;
+  position: relative;
 }
 
 .streakCalendarFooter {
@@ -3499,6 +3500,76 @@ body[data-theme="light"] {
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.03),
     0 6px 14px rgba(9, 7, 28, 0.08);
+  z-index: 2;
+}
+
+.streakMonthRunBand {
+  min-height: 72px;
+  display: flex;
+  border-radius: 18px;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 1;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 -10px 24px rgba(18, 30, 84, 0.18),
+    0 12px 22px rgba(22, 34, 86, 0.18);
+}
+
+.streakMonthRunSegment {
+  flex: 1 1 0;
+  min-width: 0;
+  background:
+    radial-gradient(circle at 50% 38%, rgba(122, 235, 255, 0.18), transparent 54%),
+    radial-gradient(circle at center, rgba(110, 126, 255, 0.22), transparent 70%),
+    linear-gradient(180deg, rgba(72, 80, 200, 0.96), rgba(83, 89, 221, 0.94));
+  box-shadow: none;
+  border: 0;
+}
+
+.streakMonthRunSegmentToday {
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.88),
+    inset 0 0 0 3px rgba(145, 222, 255, 0.2);
+}
+
+.streakMonthRunSegment.streakMonthCellTierYellow,
+.streakMonthRunSegment.streakMonthCellTierRed,
+.streakMonthRunSegment.streakMonthCellTierGreen,
+.streakMonthRunSegment.streakMonthCellTierPurple,
+.streakMonthRunSegment.streakMonthCellTierBlue,
+.streakMonthRunSegment.streakMonthCellTierBlack,
+.streakMonthRunSegment.streakMonthCellTierWhite {
+  box-shadow: none;
+  border: 0;
+}
+
+.streakMonthRunSegment.streakMonthCellTierYellow {
+  background: linear-gradient(180deg, rgba(244, 173, 24, 0.98), rgba(223, 146, 12, 0.96));
+}
+
+.streakMonthRunSegment.streakMonthCellTierRed {
+  background: linear-gradient(180deg, rgba(224, 67, 67, 0.98), rgba(189, 36, 36, 0.96));
+}
+
+.streakMonthRunSegment.streakMonthCellTierGreen {
+  background: linear-gradient(180deg, rgba(46, 184, 80, 0.98), rgba(24, 138, 56, 0.96));
+}
+
+.streakMonthRunSegment.streakMonthCellTierPurple {
+  background: linear-gradient(180deg, rgba(153, 76, 232, 0.98), rgba(114, 41, 196, 0.96));
+}
+
+.streakMonthRunSegment.streakMonthCellTierBlue {
+  background: linear-gradient(180deg, rgba(48, 145, 230, 0.98), rgba(25, 111, 196, 0.96));
+}
+
+.streakMonthRunSegment.streakMonthCellTierBlack {
+  background: linear-gradient(180deg, rgba(40, 42, 66, 0.98), rgba(20, 24, 40, 0.96));
+}
+
+.streakMonthRunSegment.streakMonthCellTierWhite {
+  background: linear-gradient(180deg, rgba(224, 230, 255, 0.98), rgba(197, 208, 246, 0.96));
 }
 
 .streakMonthCellDot {
@@ -3521,16 +3592,9 @@ body[data-theme="light"] {
 }
 
 .streakMonthCellActive {
-  border-color: rgba(117, 143, 255, 0.3);
-  background:
-    radial-gradient(circle at 50% 38%, rgba(122, 235, 255, 0.18), transparent 54%),
-    radial-gradient(circle at center, rgba(110, 126, 255, 0.22), transparent 70%),
-    linear-gradient(180deg, rgba(72, 80, 200, 0.96), rgba(83, 89, 221, 0.94));
-  box-shadow:
-    inset 0 1px 0 rgba(230, 243, 255, 0.2),
-    inset 0 -10px 24px rgba(43, 63, 151, 0.18),
-    0 12px 22px rgba(47, 72, 178, 0.16);
-  z-index: 2;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
 }
 
 .streakMonthCellTierYellow {
@@ -3617,48 +3681,8 @@ body[data-theme="light"] {
     0 10px 22px rgba(173, 186, 231, 0.24);
 }
 
-.streakMonthCellToday {
-  box-shadow:
-    inset 0 0 0 2px rgba(255, 255, 255, 0.9),
-    0 0 0 1px rgba(145, 222, 255, 0.22),
-    0 10px 24px rgba(88, 118, 255, 0.18);
-}
-
 .streakMonthCellSaved {
   border-style: solid;
-}
-
-.streakMonthCellConnectLeft {
-  margin-left: -4px;
-  border-top-left-radius: 0;
-  border-bottom-left-radius: 0;
-}
-
-.streakMonthCellConnectRight {
-  margin-right: -4px;
-  border-top-right-radius: 0;
-  border-bottom-right-radius: 0;
-}
-
-.streakMonthCellConnectLeft::before,
-.streakMonthCellConnectRight::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 8px;
-  background: inherit;
-  border-top: inherit;
-  border-bottom: inherit;
-  z-index: -1;
-}
-
-.streakMonthCellConnectLeft::before {
-  left: -4px;
-}
-
-.streakMonthCellConnectRight::after {
-  right: -4px;
 }
 
 .streakMonthCellSaved .streakMonthBandana {
@@ -6828,16 +6852,55 @@ body[data-theme="light"] {
 }
 
 .themeLight .streakMonthCellActive {
-  border-color: rgba(99, 119, 205, 0.28);
-  --streak-cell-bridge-bg: linear-gradient(180deg, rgba(116, 142, 238, 0.98), rgba(97, 123, 226, 0.98));
-  background:
-    radial-gradient(circle at 50% 40%, rgba(208, 242, 255, 0.34), transparent 56%),
-    radial-gradient(circle at center, rgba(158, 176, 242, 0.36), transparent 72%),
-    linear-gradient(180deg, rgba(115, 142, 241, 0.98), rgba(95, 123, 228, 0.96));
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.themeLight .streakMonthRunBand {
   box-shadow:
-    inset 0 1px 0 rgba(249, 252, 255, 0.88),
-    inset 0 -10px 24px rgba(84, 102, 184, 0.18),
-    0 10px 18px rgba(103, 117, 189, 0.18);
+    inset 0 1px 0 rgba(255, 255, 255, 0.78),
+    inset 0 -10px 24px rgba(132, 149, 211, 0.18),
+    0 10px 18px rgba(127, 139, 184, 0.18);
+}
+
+.themeLight .streakMonthRunSegment.streakMonthCellTierYellow,
+.themeLight .streakMonthRunSegment.streakMonthCellTierRed,
+.themeLight .streakMonthRunSegment.streakMonthCellTierGreen,
+.themeLight .streakMonthRunSegment.streakMonthCellTierPurple,
+.themeLight .streakMonthRunSegment.streakMonthCellTierBlue,
+.themeLight .streakMonthRunSegment.streakMonthCellTierBlack,
+.themeLight .streakMonthRunSegment.streakMonthCellTierWhite {
+  box-shadow: none;
+  border: 0;
+}
+
+.themeLight .streakMonthRunSegment.streakMonthCellTierYellow {
+  background: linear-gradient(180deg, rgba(250, 219, 129, 0.98), rgba(236, 187, 77, 0.96));
+}
+
+.themeLight .streakMonthRunSegment.streakMonthCellTierRed {
+  background: linear-gradient(180deg, rgba(251, 171, 171, 0.98), rgba(235, 110, 110, 0.96));
+}
+
+.themeLight .streakMonthRunSegment.streakMonthCellTierGreen {
+  background: linear-gradient(180deg, rgba(177, 244, 183, 0.98), rgba(92, 209, 115, 0.96));
+}
+
+.themeLight .streakMonthRunSegment.streakMonthCellTierPurple {
+  background: linear-gradient(180deg, rgba(222, 188, 252, 0.98), rgba(180, 122, 240, 0.96));
+}
+
+.themeLight .streakMonthRunSegment.streakMonthCellTierBlue {
+  background: linear-gradient(180deg, rgba(176, 219, 253, 0.98), rgba(107, 176, 241, 0.96));
+}
+
+.themeLight .streakMonthRunSegment.streakMonthCellTierBlack {
+  background: linear-gradient(180deg, rgba(101, 108, 135, 0.98), rgba(66, 73, 101, 0.96));
+}
+
+.themeLight .streakMonthRunSegment.streakMonthCellTierWhite {
+  background: linear-gradient(180deg, rgba(247, 249, 255, 0.98), rgba(225, 231, 245, 0.96));
 }
 
 .themeLight .streakMonthCellTierYellow {
@@ -9447,25 +9510,9 @@ body[data-theme="light"] {
     padding: 4px;
   }
 
-  .streakMonthCellConnectLeft {
-    margin-left: -2px;
-  }
-
-  .streakMonthCellConnectRight {
-    margin-right: -2px;
-  }
-
-  .streakMonthCellConnectLeft::before,
-  .streakMonthCellConnectRight::after {
-    width: 4px;
-  }
-
-  .streakMonthCellConnectLeft::before {
-    left: -2px;
-  }
-
-  .streakMonthCellConnectRight::after {
-    right: -2px;
+  .streakMonthRunBand {
+    min-height: 58px;
+    border-radius: 16px;
   }
 
   .streakMonthCellDot {

@@ -25,6 +25,13 @@ type SickDaySave = {
   dateKey: string;
 };
 
+type StreakRowRun = {
+  key: string;
+  startIndex: number;
+  endIndex: number;
+  cells: StreakMonthCell[];
+};
+
 export type StreaksTabProps = {
   sectionRef?: Ref<HTMLElement>;
   primaryRef?: Ref<HTMLElement>;
@@ -117,6 +124,44 @@ export default function StreaksTab({
     }
     return rows;
   }, [streakMonthCalendar]);
+
+  const weekRowRuns = useMemo(
+    () =>
+      weekRows.map((row, rowIndex) => {
+        const runs: StreakRowRun[] = [];
+        let currentStart = -1;
+
+        for (let cellIndex = 0; cellIndex <= row.length; cellIndex += 1) {
+          const cell = row[cellIndex];
+          const isActive = Boolean(cell?.dayNumber && cell?.streakLength > 0);
+
+          if (isActive && currentStart === -1) {
+            currentStart = cellIndex;
+            continue;
+          }
+
+          if (!isActive && currentStart !== -1) {
+            const cells = row.slice(currentStart, cellIndex);
+            runs.push({
+              key: `streak-run-${rowIndex}-${currentStart}-${cellIndex - 1}`,
+              startIndex: currentStart,
+              endIndex: cellIndex - 1,
+              cells,
+            });
+            currentStart = -1;
+          }
+        }
+
+        return runs;
+      }),
+    [weekRows],
+  );
+
+  const tierClassForColor = (color: string | null) =>
+    color
+      ? styles[`streakMonthCellTier${color.charAt(0).toUpperCase()}${color.slice(1)}`]
+      : "";
+
   return (
     <AnimatedTabSection className={styles.streaksShell} sectionRef={sectionRef}>
       <motion.article
@@ -156,7 +201,31 @@ export default function StreaksTab({
         <div className={styles.streakMonthRows}>
           {weekRows.map((row, rowIndex) => (
             <div key={`streak-week-${rowIndex}`} className={styles.streakMonthRow}>
-              {row.map((cell) => {
+              {weekRowRuns[rowIndex]?.map((run) => (
+                <div
+                  key={run.key}
+                  className={styles.streakMonthRunBand}
+                  style={{
+                    gridColumn: `${run.startIndex + 1} / ${run.endIndex + 2}`,
+                    gridRow: 1,
+                  }}
+                  aria-hidden="true"
+                >
+                  {run.cells.map((cell) => (
+                    <span
+                      key={`${run.key}-${cell.key}`}
+                      className={[
+                        styles.streakMonthRunSegment,
+                        tierClassForColor(cell.streakTierColor),
+                        cell.isToday ? styles.streakMonthRunSegmentToday : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                    />
+                  ))}
+                </div>
+              ))}
+              {row.map((cell, cellIndex) => {
             const cellFocusMinutes = cell.dateKey ? sessionMinutesByDay.get(cell.dateKey) ?? 0 : 0;
             const cellCompletedBlocks = cell.dateKey ? completedBlocksByDay.get(cell.dateKey) ?? 0 : 0;
             const cellNoteWords = cell.dateKey ? noteWordsByDay.get(cell.dateKey) ?? 0 : 0;
@@ -185,17 +254,15 @@ export default function StreaksTab({
                       styles.streakMonthCell,
                       cell.dayNumber ? "" : styles.streakMonthCellEmpty,
                       cell.streakLength > 0 ? styles.streakMonthCellActive : "",
-                      cell.streakTierColor
-                        ? styles[`streakMonthCellTier${cell.streakTierColor.charAt(0).toUpperCase()}${cell.streakTierColor.slice(1)}`]
-                        : "",
                       cell.isSaved ? styles.streakMonthCellSaved : "",
-                      cell.leftConnected ? styles.streakMonthCellConnectLeft : "",
-                      cell.rightConnected ? styles.streakMonthCellConnectRight : "",
-                      cell.isToday ? styles.streakMonthCellToday : "",
                       !cell.isCurrentMonth ? styles.streakMonthCellOutside : "",
                     ]
                       .filter(Boolean)
                       .join(" ")}
+                    style={{
+                      gridColumn: cellIndex + 1,
+                      gridRow: 1,
+                    }}
                     title={title}
                   >
                     {cell.dayNumber ? (
