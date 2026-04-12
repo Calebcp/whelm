@@ -98,6 +98,11 @@
   gap: 18px;
 }
 
+.tourImagePreview {
+  display: grid;
+  gap: 16px;
+}
+
 .tourRankPyramid {
   display: grid;
   gap: 12px;
@@ -146,6 +151,29 @@
   text-transform: uppercase;
   color: rgba(234, 242, 255, 0.92);
   white-space: nowrap;
+}
+
+.tourPreviewFrame {
+  display: grid;
+  justify-items: center;
+  padding: 10px;
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at top, rgba(117, 184, 255, 0.18), transparent 34%),
+    linear-gradient(180deg, rgba(15, 22, 45, 0.82), rgba(10, 15, 30, 0.9));
+  border: 1px solid rgba(130, 170, 242, 0.16);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 14px 28px rgba(0, 0, 0, 0.18);
+}
+
+.tourPreviewImage {
+  display: block;
+  width: min(100%, 320px);
+  max-height: 340px;
+  object-fit: contain;
+  border-radius: 22px;
+  box-shadow: 0 16px 26px rgba(0, 0, 0, 0.24);
 }
 
 .tourEyebrow {
@@ -303,6 +331,10 @@
     gap: 14px;
   }
 
+  .tourImagePreview {
+    gap: 12px;
+  }
+
   .tourRankPyramid {
     gap: 10px;
     padding: 10px 8px 4px;
@@ -330,6 +362,17 @@
   .tourRankDayLabel {
     font-size: 0.68rem;
     letter-spacing: 0.05em;
+  }
+
+  .tourPreviewFrame {
+    padding: 8px;
+    border-radius: 20px;
+  }
+
+  .tourPreviewImage {
+    width: min(100%, 252px);
+    max-height: 250px;
+    border-radius: 18px;
   }
 
   .tourSecondary,

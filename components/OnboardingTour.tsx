@@ -14,7 +14,9 @@ export type OnboardingTourStep = {
   selector?: string;
   pose: WhelPose;
   color: WhelBandanaColor;
-  variant?: "spotlight" | "rank_ladder";
+  variant?: "spotlight" | "rank_ladder" | "image_preview";
+  imageSrc?: string;
+  eyebrow?: string;
   contextPaddingX?: number;
   contextPaddingY?: number;
   mobileContextPaddingX?: number;
@@ -73,6 +75,7 @@ export default function OnboardingTour({
 
   useEffect(() => {
     if (!open || !step.selector) return;
+    const selector = step.selector;
 
     let frameId: number | null = null;
     const updateRect = () => {
@@ -80,7 +83,7 @@ export default function OnboardingTour({
         window.cancelAnimationFrame(frameId);
       }
       frameId = window.requestAnimationFrame(() => {
-        const targets = Array.from(document.querySelectorAll(step.selector));
+        const targets = Array.from(document.querySelectorAll(selector));
         const target = targets.find((node) => {
           if (!(node instanceof HTMLElement)) return false;
           const rect = node.getBoundingClientRect();
@@ -161,8 +164,9 @@ export default function OnboardingTour({
 
   useEffect(() => {
     if (!open || !step.selector) return;
+    const selector = step.selector;
 
-    const targets = Array.from(document.querySelectorAll(step.selector)).filter(
+    const targets = Array.from(document.querySelectorAll(selector)).filter(
       (node): node is HTMLElement => node instanceof HTMLElement,
     );
     targets.forEach((target) => target.setAttribute("data-tour-active", "true"));
@@ -373,7 +377,9 @@ export default function OnboardingTour({
         ref={cardRef}
         className={[
           styles.tourCard,
-          step.variant === "rank_ladder" ? styles.tourCardRankLadder : "",
+          step.variant === "rank_ladder" || step.variant === "image_preview"
+            ? styles.tourCardRankLadder
+            : "",
         ]
           .filter(Boolean)
           .join(" ")}
@@ -385,7 +391,7 @@ export default function OnboardingTour({
         {step.variant === "rank_ladder" ? (
           <div className={styles.tourRankIntro}>
             <div className={styles.tourCopy}>
-              <p className={styles.tourEyebrow}>Whelm Rank</p>
+              <p className={styles.tourEyebrow}>{step.eyebrow ?? "Whelm Rank"}</p>
               <h2 className={styles.tourTitle}>{step.title}</h2>
               <p className={styles.tourBody}>{step.body}</p>
               <p className={styles.tourProgress}>
@@ -430,6 +436,27 @@ export default function OnboardingTour({
                 ))}
               </div>
             </div>
+          </div>
+        ) : step.variant === "image_preview" ? (
+          <div className={styles.tourImagePreview}>
+            <div className={styles.tourCopy}>
+              <p className={styles.tourEyebrow}>{step.eyebrow ?? "Preview"}</p>
+              <h2 className={styles.tourTitle}>{step.title}</h2>
+              <p className={styles.tourBody}>{step.body}</p>
+              <p className={styles.tourProgress}>
+                Step {stepIndex + 1} of {totalSteps}
+              </p>
+            </div>
+            {step.imageSrc ? (
+              <div className={styles.tourPreviewFrame}>
+                <img
+                  src={step.imageSrc}
+                  alt=""
+                  aria-hidden="true"
+                  className={styles.tourPreviewImage}
+                />
+              </div>
+            ) : null}
           </div>
         ) : (
           <div className={styles.tourCardTop}>

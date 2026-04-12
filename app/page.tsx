@@ -1165,9 +1165,21 @@ const ONBOARDING_STEPS: OnboardingTourStep[] = [
     variant: "rank_ladder",
     pose: "alert_discipline",
     color: "yellow",
+    eyebrow: "Whelm Rank",
     title: "Start at Day 1. Climb toward Black and White.",
     body:
       "Every streak tier changes your Whelm rank. Hold the run, level the bandana, and push toward the top.",
+  },
+  {
+    id: "streak-preview",
+    variant: "image_preview",
+    pose: "focus_action",
+    color: "green",
+    eyebrow: "Streak",
+    title: "This is your run.",
+    body:
+      "Your streak calendar shows the days you held the line. Protect the run, watch the bandanas evolve, and keep the chain moving forward.",
+    imageSrc: "/onboarding/streak-preview.jpeg",
   },
   {
     id: "schedule",
@@ -4100,6 +4112,7 @@ export default function HomePage() {
 
     const alignTarget = () => {
       if (cancelled) return;
+      if (!onboardingStep.selector) return;
 
       const target = Array.from(document.querySelectorAll(onboardingStep.selector)).find((node) => {
         if (!(node instanceof HTMLElement)) return false;
