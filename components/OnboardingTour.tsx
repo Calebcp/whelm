@@ -74,7 +74,11 @@ export default function OnboardingTour({
   const maskId = useId().replace(/:/g, "");
 
   useEffect(() => {
-    if (!open || !step.selector) return;
+    if (!open) return;
+    if (!step.selector) {
+      setSpotlightRect(null);
+      return;
+    }
     const selector = step.selector;
 
     let frameId: number | null = null;
@@ -222,6 +226,8 @@ export default function OnboardingTour({
       return {
         top: "50%",
         left: "50%",
+        right: "auto" as const,
+        bottom: "auto" as const,
         transform: "translate(-50%, -50%)",
       };
     }
