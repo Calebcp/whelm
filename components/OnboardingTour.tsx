@@ -3,6 +3,7 @@
 import { motion } from "motion/react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 
+import { STREAK_BANDANA_TIERS } from "@/lib/streak-bandanas";
 import { getWhelImagePath, type WhelBandanaColor, type WhelPose } from "@/lib/whelm-mascot";
 import styles from "@/components/OnboardingTour.module.css";
 
@@ -10,9 +11,10 @@ export type OnboardingTourStep = {
   id: string;
   title: string;
   body: string;
-  selector: string;
+  selector?: string;
   pose: WhelPose;
   color: WhelBandanaColor;
+  variant?: "spotlight" | "rank_ladder";
   contextPaddingX?: number;
   contextPaddingY?: number;
   mobileContextPaddingX?: number;
@@ -70,7 +72,7 @@ export default function OnboardingTour({
   const maskId = useId().replace(/:/g, "");
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || !step.selector) return;
 
     let frameId: number | null = null;
     const updateRect = () => {
@@ -158,7 +160,7 @@ export default function OnboardingTour({
   }, [open, step.body, step.title, stepIndex]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || !step.selector) return;
 
     const targets = Array.from(document.querySelectorAll(step.selector)).filter(
       (node): node is HTMLElement => node instanceof HTMLElement,
@@ -369,30 +371,86 @@ export default function OnboardingTour({
 
       <motion.section
         ref={cardRef}
-        className={styles.tourCard}
+        className={[
+          styles.tourCard,
+          step.variant === "rank_ladder" ? styles.tourCardRankLadder : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
         initial={{ opacity: 0, y: 18, scale: 0.97 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
         style={cardPosition}
       >
-        <div className={styles.tourCardTop}>
-          <motion.img
-            src={getWhelImagePath(step.pose, step.color)}
-            alt=""
-            aria-hidden="true"
-            className={styles.tourMascot}
-            animate={{ y: [0, -6, 0], rotate: [0, -2, 2, 0] }}
-            transition={{ duration: 2.8, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
-          />
-          <div className={styles.tourCopy}>
-            <p className={styles.tourEyebrow}>Whelm Tour</p>
-            <h2 className={styles.tourTitle}>{step.title}</h2>
-            <p className={styles.tourBody}>{step.body}</p>
-            <p className={styles.tourProgress}>
-              Step {stepIndex + 1} of {totalSteps}
-            </p>
+        {step.variant === "rank_ladder" ? (
+          <div className={styles.tourRankIntro}>
+            <div className={styles.tourCopy}>
+              <p className={styles.tourEyebrow}>Whelm Rank</p>
+              <h2 className={styles.tourTitle}>{step.title}</h2>
+              <p className={styles.tourBody}>{step.body}</p>
+              <p className={styles.tourProgress}>
+                Step {stepIndex + 1} of {totalSteps}
+              </p>
+            </div>
+            <div className={styles.tourRankPyramid} aria-hidden="true">
+              <div className={styles.tourRankPyramidTop}>
+                {STREAK_BANDANA_TIERS.slice(-2).map((tier) => (
+                  <div key={tier.id} className={styles.tourRankBadge}>
+                    <img
+                      src={getWhelImagePath("alert_discipline", tier.color as WhelBandanaColor)}
+                      alt=""
+                      className={styles.tourRankImage}
+                    />
+                    <span className={styles.tourRankDayLabel}>Day {tier.minDays}</span>
+                  </div>
+                ))}
+              </div>
+              <div className={styles.tourRankPyramidMiddle}>
+                {STREAK_BANDANA_TIERS.slice(2, 5).map((tier) => (
+                  <div key={tier.id} className={styles.tourRankBadge}>
+                    <img
+                      src={getWhelImagePath("alert_discipline", tier.color as WhelBandanaColor)}
+                      alt=""
+                      className={styles.tourRankImage}
+                    />
+                    <span className={styles.tourRankDayLabel}>Day {tier.minDays}</span>
+                  </div>
+                ))}
+              </div>
+              <div className={styles.tourRankPyramidBottom}>
+                {STREAK_BANDANA_TIERS.slice(0, 2).map((tier) => (
+                  <div key={tier.id} className={styles.tourRankBadge}>
+                    <img
+                      src={getWhelImagePath("alert_discipline", tier.color as WhelBandanaColor)}
+                      alt=""
+                      className={styles.tourRankImage}
+                    />
+                    <span className={styles.tourRankDayLabel}>Day {tier.minDays}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className={styles.tourCardTop}>
+            <motion.img
+              src={getWhelImagePath(step.pose, step.color)}
+              alt=""
+              aria-hidden="true"
+              className={styles.tourMascot}
+              animate={{ y: [0, -6, 0], rotate: [0, -2, 2, 0] }}
+              transition={{ duration: 2.8, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
+            />
+            <div className={styles.tourCopy}>
+              <p className={styles.tourEyebrow}>Whelm Tour</p>
+              <h2 className={styles.tourTitle}>{step.title}</h2>
+              <p className={styles.tourBody}>{step.body}</p>
+              <p className={styles.tourProgress}>
+                Step {stepIndex + 1} of {totalSteps}
+              </p>
+            </div>
+          </div>
+        )}
         <div className={styles.tourActions}>
           <button type="button" className={styles.tourSecondary} onClick={onSkip}>
             Skip

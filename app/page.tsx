@@ -1161,6 +1161,15 @@ function getPageShellBackgroundStyle(
 
 const ONBOARDING_STEPS: OnboardingTourStep[] = [
   {
+    id: "rank-ladder",
+    variant: "rank_ladder",
+    pose: "alert_discipline",
+    color: "yellow",
+    title: "Start at Day 1. Climb toward Black and White.",
+    body:
+      "Every streak tier changes your Whelm rank. Hold the run, level the bandana, and push toward the top.",
+  },
+  {
     id: "schedule",
     selector: '[data-tour="nav-schedule"]',
     pose: "thinking_idea",

@@ -69,6 +69,11 @@
   overflow: auto;
 }
 
+.tourCardRankLadder {
+  width: min(520px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+}
+
 .tourCardTop {
   display: flex;
   gap: 14px;
@@ -86,6 +91,61 @@
 .tourCopy {
   min-width: 0;
   overflow-wrap: anywhere;
+}
+
+.tourRankIntro {
+  display: grid;
+  gap: 18px;
+}
+
+.tourRankPyramid {
+  display: grid;
+  gap: 12px;
+  padding: 12px 10px 6px;
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at top, rgba(117, 184, 255, 0.18), transparent 34%),
+    linear-gradient(180deg, rgba(15, 22, 45, 0.82), rgba(10, 15, 30, 0.9));
+  border: 1px solid rgba(130, 170, 242, 0.16);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 14px 28px rgba(0, 0, 0, 0.18);
+}
+
+.tourRankPyramidTop,
+.tourRankPyramidMiddle,
+.tourRankPyramidBottom {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.tourRankBadge {
+  flex: 0 1 96px;
+  min-width: 0;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 8px 6px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(18, 29, 58, 0.72), rgba(11, 18, 39, 0.82));
+  border: 1px solid rgba(136, 176, 247, 0.14);
+}
+
+.tourRankImage {
+  width: clamp(56px, 12vw, 82px);
+  height: clamp(56px, 12vw, 82px);
+  object-fit: contain;
+  filter: drop-shadow(0 10px 16px rgba(25, 117, 255, 0.16));
+}
+
+.tourRankDayLabel {
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(234, 242, 255, 0.92);
+  white-space: nowrap;
 }
 
 .tourEyebrow {
@@ -203,6 +263,12 @@
     overscroll-behavior: contain;
   }
 
+  .tourCardRankLadder {
+    width: auto;
+    max-width: none;
+    max-height: min(calc(100dvh - 132px), 420px);
+  }
+
   .tourCardTop {
     gap: 12px;
     align-items: flex-start;
@@ -231,6 +297,39 @@
   .tourActions {
     margin-top: 12px;
     justify-content: stretch;
+  }
+
+  .tourRankIntro {
+    gap: 14px;
+  }
+
+  .tourRankPyramid {
+    gap: 10px;
+    padding: 10px 8px 4px;
+    border-radius: 20px;
+  }
+
+  .tourRankPyramidTop,
+  .tourRankPyramidMiddle,
+  .tourRankPyramidBottom {
+    gap: 6px;
+  }
+
+  .tourRankBadge {
+    flex-basis: 72px;
+    gap: 4px;
+    padding: 6px 4px;
+    border-radius: 16px;
+  }
+
+  .tourRankImage {
+    width: clamp(44px, 14vw, 64px);
+    height: clamp(44px, 14vw, 64px);
+  }
+
+  .tourRankDayLabel {
+    font-size: 0.68rem;
+    letter-spacing: 0.05em;
   }
 
   .tourSecondary,
