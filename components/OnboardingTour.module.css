@@ -74,6 +74,10 @@
   max-width: calc(100vw - 32px);
 }
 
+.tourCardStandaloneIntro {
+  max-height: calc(100vh - 140px);
+}
+
 .tourCardTop {
   display: flex;
   gap: 14px;
@@ -297,6 +301,11 @@
     max-height: min(calc(100dvh - 132px), 420px);
   }
 
+  .tourCardStandaloneIntro {
+    max-height: min(calc(100dvh - 136px), 390px);
+    padding: 12px 12px 12px;
+  }
+
   .tourCardTop {
     gap: 12px;
     align-items: flex-start;
@@ -312,33 +321,33 @@
   }
 
   .tourBody {
-    margin-top: 8px;
-    font-size: 0.84rem;
-    line-height: 1.35;
+    margin-top: 6px;
+    font-size: 0.8rem;
+    line-height: 1.3;
   }
 
   .tourProgress {
-    margin-top: 10px;
-    font-size: 0.72rem;
+    margin-top: 8px;
+    font-size: 0.68rem;
   }
 
   .tourActions {
-    margin-top: 12px;
+    margin-top: 10px;
     justify-content: stretch;
   }
 
   .tourRankIntro {
-    gap: 14px;
+    gap: 10px;
   }
 
   .tourImagePreview {
-    gap: 12px;
+    gap: 10px;
   }
 
   .tourRankPyramid {
-    gap: 10px;
-    padding: 10px 8px 4px;
-    border-radius: 20px;
+    gap: 8px;
+    padding: 8px 6px 2px;
+    border-radius: 18px;
   }
 
   .tourRankPyramidTop,
@@ -349,35 +358,35 @@
 
   .tourRankBadge {
     flex-basis: 72px;
-    gap: 4px;
-    padding: 6px 4px;
-    border-radius: 16px;
+    gap: 3px;
+    padding: 5px 3px;
+    border-radius: 14px;
   }
 
   .tourRankImage {
-    width: clamp(44px, 14vw, 64px);
-    height: clamp(44px, 14vw, 64px);
+    width: clamp(38px, 12vw, 56px);
+    height: clamp(38px, 12vw, 56px);
   }
 
   .tourRankDayLabel {
-    font-size: 0.68rem;
-    letter-spacing: 0.05em;
+    font-size: 0.62rem;
+    letter-spacing: 0.04em;
   }
 
   .tourPreviewFrame {
-    padding: 8px;
-    border-radius: 20px;
+    padding: 6px;
+    border-radius: 18px;
   }
 
   .tourPreviewImage {
-    width: min(100%, 252px);
-    max-height: 250px;
-    border-radius: 18px;
+    width: min(100%, 220px);
+    max-height: 200px;
+    border-radius: 16px;
   }
 
   .tourSecondary,
   .tourPrimary {
     flex: 1 1 0;
-    padding: 10px 14px;
+    padding: 9px 12px;
   }
 }

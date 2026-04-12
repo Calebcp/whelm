@@ -64,6 +64,8 @@ export default function OnboardingTour({
   onNext: () => void;
   onSkip: () => void;
 }) {
+  const isStandaloneIntro =
+    step.variant === "rank_ladder" || step.variant === "image_preview";
   const [spotlightRect, setSpotlightRect] = useState<SpotlightRect | null>(null);
   const [viewportSize, setViewportSize] = useState(() => ({
     width: typeof window !== "undefined" ? (window.visualViewport?.width ?? window.innerWidth) : 1280,
@@ -75,7 +77,7 @@ export default function OnboardingTour({
 
   useEffect(() => {
     if (!open) return;
-    if (!step.selector) {
+    if (isStandaloneIntro || !step.selector) {
       setSpotlightRect(null);
       return;
     }
@@ -124,7 +126,7 @@ export default function OnboardingTour({
       window.removeEventListener("resize", updateRect);
       window.removeEventListener("scroll", updateRect, true);
     };
-  }, [open, step.selector]);
+  }, [isStandaloneIntro, open, step.selector]);
 
   useEffect(() => {
     if (!open) return;
@@ -167,7 +169,7 @@ export default function OnboardingTour({
   }, [open, step.body, step.title, stepIndex]);
 
   useEffect(() => {
-    if (!open || !step.selector) return;
+    if (!open || isStandaloneIntro || !step.selector) return;
     const selector = step.selector;
 
     const targets = Array.from(document.querySelectorAll(selector)).filter(
@@ -178,7 +180,7 @@ export default function OnboardingTour({
     return () => {
       targets.forEach((target) => target.removeAttribute("data-tour-active"));
     };
-  }, [open, step.selector]);
+  }, [isStandaloneIntro, open, step.selector]);
 
   useEffect(() => {
     if (!open) return;
@@ -199,7 +201,7 @@ export default function OnboardingTour({
   }, [open]);
 
   const contextRect = useMemo(() => {
-    if (!spotlightRect) return null;
+    if (isStandaloneIntro || !spotlightRect) return null;
 
     const isMobile = viewportSize.width <= 760;
     return expandRect(
@@ -213,6 +215,7 @@ export default function OnboardingTour({
         : (step.contextPaddingY ?? 110),
     );
   }, [
+    isStandaloneIntro,
     spotlightRect,
     step.contextPaddingX,
     step.contextPaddingY,
@@ -222,6 +225,26 @@ export default function OnboardingTour({
   ]);
 
   const cardPosition = useMemo(() => {
+    if (isStandaloneIntro) {
+      if (viewportSize.width <= 760) {
+        return {
+          top: 68,
+          left: 16,
+          right: 16,
+          bottom: "auto" as const,
+          transform: "none",
+        };
+      }
+
+      return {
+        top: "50%",
+        left: "50%",
+        right: "auto" as const,
+        bottom: "auto" as const,
+        transform: "translate(-50%, -50%)",
+      };
+    }
+
     if (!spotlightRect) {
       return {
         top: "50%",
@@ -308,13 +331,13 @@ export default function OnboardingTour({
       left,
       transform: "none",
     };
-  }, [cardHeight, contextRect, spotlightRect, viewportSize.height, viewportSize.width]);
+  }, [cardHeight, contextRect, isStandaloneIntro, spotlightRect, viewportSize.height, viewportSize.width]);
 
   if (!open) return null;
 
   return (
     <div className={styles.tourOverlay} aria-live="polite">
-      {contextRect ? (
+      {!isStandaloneIntro && contextRect ? (
         <svg
           className={styles.tourMask}
           viewBox={`0 0 ${viewportSize.width} ${viewportSize.height}`}
@@ -353,7 +376,7 @@ export default function OnboardingTour({
           }}
         />
       )}
-      {contextRect ? (
+      {!isStandaloneIntro && contextRect ? (
         <div
           className={styles.tourContextFrame}
           style={{
@@ -364,7 +387,7 @@ export default function OnboardingTour({
           }}
         />
       ) : null}
-      {spotlightRect ? (
+      {!isStandaloneIntro && spotlightRect ? (
         <motion.div
           className={styles.tourFocus}
           initial={{ opacity: 0.6, scale: 0.96 }}
@@ -383,9 +406,8 @@ export default function OnboardingTour({
         ref={cardRef}
         className={[
           styles.tourCard,
-          step.variant === "rank_ladder" || step.variant === "image_preview"
-            ? styles.tourCardRankLadder
-            : "",
+          isStandaloneIntro ? styles.tourCardRankLadder : "",
+          isStandaloneIntro ? styles.tourCardStandaloneIntro : "",
         ]
           .filter(Boolean)
           .join(" ")}
