@@ -1166,9 +1166,9 @@ const ONBOARDING_STEPS: OnboardingTourStep[] = [
     pose: "alert_discipline",
     color: "yellow",
     eyebrow: "Whelm Rank",
-    title: "Start at Day 1. Climb toward Black and White.",
+    title: "Start at Day 1. Climb toward Black and White bandanas.",
     body:
-      "Every streak tier changes your Whelm rank. Hold the run, level the bandana, and push toward the top.",
+      "Your streak changes your Whelm rank. Hold the run and climb the bandanas.",
   },
   {
     id: "streak-preview",
@@ -1178,7 +1178,7 @@ const ONBOARDING_STEPS: OnboardingTourStep[] = [
     eyebrow: "Streak",
     title: "This is your run.",
     body:
-      "Your streak calendar shows the days you held the line. Protect the run, watch the bandanas evolve, and keep the chain moving forward.",
+      "Your streak calendar shows the days you held the line. Protect the run and keep the chain alive.",
     imageSrc: "/onboarding/streak-preview.jpeg",
   },
   {
