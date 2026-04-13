@@ -7,6 +7,21 @@ function jsonError(message: string, status = 500) {
   return NextResponse.json({ error: message }, { status });
 }
 
+function describeStageError(stage: string, error: unknown) {
+  const message = error instanceof Error ? error.message : String(error ?? "Unknown error");
+  return `${stage}: ${message}`;
+}
+
+function isFirestoreNotFoundError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  return (
+    message.includes("5 NOT_FOUND") ||
+    message.includes("NOT_FOUND") ||
+    message.includes("not found") ||
+    message.includes("The database") && message.includes("does not exist")
+  );
+}
+
 function getBearerToken(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
   return authHeader?.startsWith("Bearer ") ? authHeader.slice("Bearer ".length) : null;
@@ -177,8 +192,11 @@ async function deleteUserStorage(uid: string) {
 }
 
 export async function DELETE(request: NextRequest) {
+  let stage = "authorization";
+
   try {
     const uid = await requireAuthorizedUid(request);
+    stage = "admin-auth";
     const adminAuth = getAdminAuth();
     const databaseIds = firestoreCleanupDatabaseIds();
 
@@ -200,49 +218,71 @@ export async function DELETE(request: NextRequest) {
       storageFilesDeleted: 0,
     };
 
+    let completedDatabasePass = 0;
+
     for (const databaseId of databaseIds) {
+      stage = `firestore-${databaseId}-connect`;
       const db = getAdminDb(databaseId);
       if (!db) {
         return jsonError("Firebase admin configuration is required for full account deletion.", 500);
       }
 
-      const notesSummary = await deleteUserNotes(db, uid);
-      const relationshipSummary = await deleteUserRelationships(db, uid);
+      try {
+        stage = `firestore-${databaseId}-notes`;
+        const notesSummary = await deleteUserNotes(db, uid);
+        stage = `firestore-${databaseId}-relationships`;
+        const relationshipSummary = await deleteUserRelationships(db, uid);
 
-      const [
-        sessionsDeleted,
-        analyticsEventsDeleted,
-        analyticsDailyMetricsDeleted,
-        leaderboardSnapshotsDeleted,
-      ] = await Promise.all([
-        deleteQueryInBatches(db, db.collection("sessions").where("uid", "==", uid)),
-        deleteQueryInBatches(db, db.collection("analyticsEvents").where("userId", "==", uid)),
-        deleteQueryInBatches(db, db.collection("analyticsDailyMetrics").where("userId", "==", uid)),
-        deleteQueryInBatches(db, db.collection("leaderboardDailySnapshots").where("userId", "==", uid)),
-      ]);
+        stage = `firestore-${databaseId}-queries`;
+        const [
+          sessionsDeleted,
+          analyticsEventsDeleted,
+          analyticsDailyMetricsDeleted,
+          leaderboardSnapshotsDeleted,
+        ] = await Promise.all([
+          deleteQueryInBatches(db, db.collection("sessions").where("uid", "==", uid)),
+          deleteQueryInBatches(db, db.collection("analyticsEvents").where("userId", "==", uid)),
+          deleteQueryInBatches(db, db.collection("analyticsDailyMetrics").where("userId", "==", uid)),
+          deleteQueryInBatches(db, db.collection("leaderboardDailySnapshots").where("userId", "==", uid)),
+        ]);
 
-      await Promise.all([
-        db.collection("userPlannedBlocks").doc(uid).delete().catch(() => undefined),
-        db.collection("userPreferences").doc(uid).delete().catch(() => undefined),
-        db.collection("userReflectionState").doc(uid).delete().catch(() => undefined),
-        db.collection("userCards").doc(uid).delete().catch(() => undefined),
-        db.collection("leaderboardProfiles").doc(uid).delete().catch(() => undefined),
-      ]);
+        stage = `firestore-${databaseId}-documents`;
+        await Promise.all([
+          db.collection("userPlannedBlocks").doc(uid).delete().catch(() => undefined),
+          db.collection("userPreferences").doc(uid).delete().catch(() => undefined),
+          db.collection("userReflectionState").doc(uid).delete().catch(() => undefined),
+          db.collection("userCards").doc(uid).delete().catch(() => undefined),
+          db.collection("leaderboardProfiles").doc(uid).delete().catch(() => undefined),
+        ]);
 
-      summary.notesDeleted += notesSummary.notesDeleted;
-      summary.noteRevisionsDeleted += notesSummary.noteRevisionsDeleted;
-      summary.friendsDeleted += relationshipSummary.friendsDeleted;
-      summary.incomingRequestsDeleted += relationshipSummary.incomingRequestsDeleted;
-      summary.outgoingRequestsDeleted += relationshipSummary.outgoingRequestsDeleted;
-      summary.reciprocalDeletes += relationshipSummary.reciprocalDeletes;
-      summary.sessionsDeleted += sessionsDeleted;
-      summary.analyticsEventsDeleted += analyticsEventsDeleted;
-      summary.analyticsDailyMetricsDeleted += analyticsDailyMetricsDeleted;
-      summary.leaderboardSnapshotsDeleted += leaderboardSnapshotsDeleted;
+        summary.notesDeleted += notesSummary.notesDeleted;
+        summary.noteRevisionsDeleted += notesSummary.noteRevisionsDeleted;
+        summary.friendsDeleted += relationshipSummary.friendsDeleted;
+        summary.incomingRequestsDeleted += relationshipSummary.incomingRequestsDeleted;
+        summary.outgoingRequestsDeleted += relationshipSummary.outgoingRequestsDeleted;
+        summary.reciprocalDeletes += relationshipSummary.reciprocalDeletes;
+        summary.sessionsDeleted += sessionsDeleted;
+        summary.analyticsEventsDeleted += analyticsEventsDeleted;
+        summary.analyticsDailyMetricsDeleted += analyticsDailyMetricsDeleted;
+        summary.leaderboardSnapshotsDeleted += leaderboardSnapshotsDeleted;
+        completedDatabasePass += 1;
+      } catch (error) {
+        const isFallbackDatabase = databaseId === "(default)" && databaseIds.length > 1;
+        if (isFallbackDatabase && isFirestoreNotFoundError(error)) {
+          continue;
+        }
+        throw error;
+      }
     }
 
+    if (completedDatabasePass === 0) {
+      throw new Error("Account deletion could not reach a valid Firestore database.");
+    }
+
+    stage = "storage-cleanup";
     summary.storageFilesDeleted = await deleteUserStorage(uid);
 
+    stage = "auth-user-delete";
     await adminAuth.deleteUser(uid);
 
     return NextResponse.json({
@@ -250,6 +290,6 @@ export async function DELETE(request: NextRequest) {
       summary,
     });
   } catch (error: unknown) {
-    return jsonError(error instanceof Error ? error.message : "Failed to delete account.");
+    return jsonError(describeStageError(`Delete failed at ${stage}`, error));
   }
 }
