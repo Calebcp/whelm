@@ -47,18 +47,34 @@ export type LocalStreakSnapshot = {
 
 export function clearLocalAccountData(uid: string) {
   try {
-    window.localStorage.removeItem(`whelm:notes:${uid}`);
-    window.localStorage.removeItem(`whelm:sessions:${uid}`);
-    window.localStorage.removeItem(plannedBlocksStorageKey(uid));
-    window.localStorage.removeItem(`whelm:preferences:${uid}`);
-    window.localStorage.removeItem(dayToneStorageKey(uid));
-    window.localStorage.removeItem(monthToneStorageKey(uid));
-    window.localStorage.removeItem(senseiStyleStorageKey(uid));
-    window.localStorage.removeItem(streakMirrorStorageKey(uid));
-    window.localStorage.removeItem(sickDaySaveStorageKey(uid));
-    window.localStorage.removeItem(sickDaySaveDismissalsStorageKey(uid));
-    window.localStorage.removeItem(streakSnapshotStorageKey(uid));
-    window.localStorage.removeItem("whelm-pro-state-v1");
+    const keysToRemove = [
+      `whelm:notes:${uid}`,
+      `whelm:sessions:${uid}`,
+      plannedBlocksStorageKey(uid),
+      `whelm:preferences:${uid}`,
+      dayToneStorageKey(uid),
+      monthToneStorageKey(uid),
+      senseiStyleStorageKey(uid),
+      streakMirrorStorageKey(uid),
+      sickDaySaveStorageKey(uid),
+      sickDaySaveDismissalsStorageKey(uid),
+      streakSnapshotStorageKey(uid),
+      `whelm_cards_${uid}`,
+      `whelm:cards:${uid}`,
+      "whelm-pro-state-v1",
+    ];
+
+    keysToRemove.forEach((key) => window.localStorage.removeItem(key));
+
+    const prefixedKeys = Array.from({ length: window.localStorage.length }, (_, index) => window.localStorage.key(index))
+      .filter((key): key is string => Boolean(key))
+      .filter(
+        (key) =>
+          key.startsWith(`whelm:notes:pending-delete:${uid}`) ||
+          key.startsWith(`whelm:notes:revisions:${uid}:`),
+      );
+
+    prefixedKeys.forEach((key) => window.localStorage.removeItem(key));
   } catch {
     // Ignore storage cleanup failures in private / constrained webviews.
   }

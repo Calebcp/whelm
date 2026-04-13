@@ -1,6 +1,7 @@
 import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
+import { getStorage } from "firebase-admin/storage";
 import { resolveFirestoreDatabaseId } from "@/lib/firestore-database";
 
 function decodeCompactPrivateKey(compactKey: string) {
@@ -46,14 +47,20 @@ function getAdminApp() {
   });
 }
 
-export function getAdminDb() {
+export function getAdminDb(databaseId = resolveFirestoreDatabaseId()) {
   const app = getAdminApp();
   if (!app) return null;
-  return getFirestore(app, resolveFirestoreDatabaseId());
+  return getFirestore(app, databaseId);
 }
 
 export function getAdminAuth() {
   const app = getAdminApp();
   if (!app) return null;
   return getAuth(app);
+}
+
+export function getAdminStorageBucket() {
+  const app = getAdminApp();
+  if (!app) return null;
+  return getStorage(app).bucket(process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET);
 }

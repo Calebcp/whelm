@@ -1025,6 +1025,7 @@ export default function SettingsTab({
   const activeSection = useMemo<keyof SettingsSectionsOpen | null>(() => {
     const ordered: Array<keyof SettingsSectionsOpen> = [
       "identity",
+      "account",
       "notifications",
       "sync",
       "archive",

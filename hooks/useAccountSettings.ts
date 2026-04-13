@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   EmailAuthProvider,
-  deleteUser,
   reauthenticateWithCredential,
   signOut,
   type User,
@@ -386,33 +385,21 @@ export function useAccountSettings({
           Authorization: `Bearer ${token}`,
         };
 
-        const endpoints = [
-          ["/api/notes", "Failed to delete saved notes."],
-          ["/api/sessions", "Failed to delete saved sessions."],
-          ["/api/planned-blocks", "Failed to delete saved planned blocks."],
-          ["/api/reflection-state", "Failed to delete saved reflection state."],
-          ["/api/preferences", "Failed to delete saved preferences."],
-        ] as const;
+        const response = await fetch(resolveApiUrl("/api/account"), {
+          method: "DELETE",
+          headers,
+        });
 
-        for (const [path, fallbackMessage] of endpoints) {
-          const response = await fetch(
-            resolveApiUrl(`${path}?uid=${encodeURIComponent(currentUser.uid)}`),
-            {
-              method: "DELETE",
-              headers,
-            },
-          );
-
-          if (!response.ok) {
-            const body = (await response.json().catch(() => null)) as
-              | { error?: string }
-              | null;
-            throw new Error(body?.error || fallbackMessage);
-          }
+        if (!response.ok) {
+          const body = (await response.json().catch(() => null)) as
+            | { error?: string }
+            | null;
+          throw new Error(body?.error || "Failed to delete your Whelm account.");
         }
 
         clearLocalAccountData(currentUser.uid);
-        await deleteUser(currentUser);
+        await logOutRevenueCat().catch(() => undefined);
+        await signOut(auth).catch(() => undefined);
       };
 
       try {
