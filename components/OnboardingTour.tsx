@@ -225,48 +225,52 @@ export default function OnboardingTour({
   ]);
 
   const cardPosition = useMemo(() => {
+    const viewportWidth = viewportSize.width;
+    const viewportHeight = viewportSize.height;
+
     if (isStandaloneIntro) {
+      const standaloneCardWidth =
+        viewportWidth >= 900
+          ? Math.min(820, viewportWidth - 120)
+          : Math.min(680, viewportWidth - 72);
+      const centeredLeft = Math.max(16, Math.round((viewportWidth - standaloneCardWidth) / 2));
+
       if (viewportSize.width <= 760) {
         return {
           top: 68,
           left: 16,
           right: 16,
           bottom: "auto" as const,
-          transform: "none",
         };
       }
 
       if (viewportSize.width >= 900) {
         return {
-          top: "45%",
-          left: "50%",
+          top: Math.max(36, Math.round(viewportHeight * 0.16)),
+          left: centeredLeft,
           right: "auto" as const,
           bottom: "auto" as const,
-          transform: "translate(-50%, -50%)",
         };
       }
 
       return {
-        top: "47%",
-        left: "50%",
+        top: Math.max(32, Math.round(viewportHeight * 0.18)),
+        left: centeredLeft,
         right: "auto" as const,
         bottom: "auto" as const,
-        transform: "translate(-50%, -50%)",
       };
     }
 
     if (!spotlightRect) {
+      const cardWidth = Math.min(420, viewportWidth - 32);
       return {
-        top: "50%",
-        left: "50%",
+        top: Math.max(24, Math.round((viewportHeight - cardHeight) / 2)),
+        left: Math.max(16, Math.round((viewportWidth - cardWidth) / 2)),
         right: "auto" as const,
         bottom: "auto" as const,
-        transform: "translate(-50%, -50%)",
       };
     }
 
-    const viewportWidth = viewportSize.width;
-    const viewportHeight = viewportSize.height;
     const isMobile = viewportWidth <= 760;
     const cardWidth = Math.min(420, viewportWidth - 32);
 
@@ -287,7 +291,6 @@ export default function OnboardingTour({
           left: sideInset,
           right: sideInset,
           bottom: "auto" as const,
-          transform: "none",
         };
       }
 
@@ -297,7 +300,6 @@ export default function OnboardingTour({
           left: sideInset,
           right: sideInset,
           bottom: "auto" as const,
-          transform: "none",
         };
       }
 
@@ -306,7 +308,6 @@ export default function OnboardingTour({
         left: sideInset,
         right: sideInset,
         top: "auto" as const,
-        transform: "none",
       };
     }
 
@@ -339,7 +340,6 @@ export default function OnboardingTour({
     return {
       top,
       left,
-      transform: "none",
     };
   }, [cardHeight, contextRect, isStandaloneIntro, spotlightRect, viewportSize.height, viewportSize.width]);
 
@@ -421,101 +421,103 @@ export default function OnboardingTour({
         ]
           .filter(Boolean)
           .join(" ")}
-        initial={{ opacity: 0, y: 18, scale: 0.97 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
         transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
         style={cardPosition}
       >
-        {step.variant === "rank_ladder" ? (
-          <div className={styles.tourRankIntro}>
-            <div className={styles.tourCopy}>
-              <p className={styles.tourEyebrow}>{step.eyebrow ?? "Whelm Rank"}</p>
-              <h2 className={styles.tourTitle}>{step.title}</h2>
-              <p className={styles.tourBody}>{step.body}</p>
-              <p className={styles.tourProgress}>
-                Step {stepIndex + 1} of {totalSteps}
-              </p>
-            </div>
-            <div className={styles.tourRankPyramid} aria-hidden="true">
-              <div className={styles.tourRankPyramidTop}>
-                {STREAK_BANDANA_TIERS.slice(-2).map((tier) => (
-                  <div key={tier.id} className={styles.tourRankBadge}>
-                    <img
-                      src={getWhelImagePath("alert_discipline", tier.color as WhelBandanaColor)}
-                      alt=""
-                      className={styles.tourRankImage}
-                    />
-                    <span className={styles.tourRankDayLabel}>Day {tier.minDays}</span>
-                  </div>
-                ))}
+        <div className={styles.tourCardContent}>
+          {step.variant === "rank_ladder" ? (
+            <div className={styles.tourRankIntro}>
+              <div className={styles.tourCopy}>
+                <p className={styles.tourEyebrow}>{step.eyebrow ?? "Whelm Rank"}</p>
+                <h2 className={styles.tourTitle}>{step.title}</h2>
+                <p className={styles.tourBody}>{step.body}</p>
+                <p className={styles.tourProgress}>
+                  Step {stepIndex + 1} of {totalSteps}
+                </p>
               </div>
-              <div className={styles.tourRankPyramidMiddle}>
-                {STREAK_BANDANA_TIERS.slice(2, 5).map((tier) => (
-                  <div key={tier.id} className={styles.tourRankBadge}>
-                    <img
-                      src={getWhelImagePath("alert_discipline", tier.color as WhelBandanaColor)}
-                      alt=""
-                      className={styles.tourRankImage}
-                    />
-                    <span className={styles.tourRankDayLabel}>Day {tier.minDays}</span>
-                  </div>
-                ))}
-              </div>
-              <div className={styles.tourRankPyramidBottom}>
-                {STREAK_BANDANA_TIERS.slice(0, 2).map((tier) => (
-                  <div key={tier.id} className={styles.tourRankBadge}>
-                    <img
-                      src={getWhelImagePath("alert_discipline", tier.color as WhelBandanaColor)}
-                      alt=""
-                      className={styles.tourRankImage}
-                    />
-                    <span className={styles.tourRankDayLabel}>Day {tier.minDays}</span>
-                  </div>
-                ))}
+              <div className={styles.tourRankPyramid} aria-hidden="true">
+                <div className={styles.tourRankPyramidTop}>
+                  {STREAK_BANDANA_TIERS.slice(-2).map((tier) => (
+                    <div key={tier.id} className={styles.tourRankBadge}>
+                      <img
+                        src={getWhelImagePath("alert_discipline", tier.color as WhelBandanaColor)}
+                        alt=""
+                        className={styles.tourRankImage}
+                      />
+                      <span className={styles.tourRankDayLabel}>Day {tier.minDays}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className={styles.tourRankPyramidMiddle}>
+                  {STREAK_BANDANA_TIERS.slice(2, 5).map((tier) => (
+                    <div key={tier.id} className={styles.tourRankBadge}>
+                      <img
+                        src={getWhelImagePath("alert_discipline", tier.color as WhelBandanaColor)}
+                        alt=""
+                        className={styles.tourRankImage}
+                      />
+                      <span className={styles.tourRankDayLabel}>Day {tier.minDays}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className={styles.tourRankPyramidBottom}>
+                  {STREAK_BANDANA_TIERS.slice(0, 2).map((tier) => (
+                    <div key={tier.id} className={styles.tourRankBadge}>
+                      <img
+                        src={getWhelImagePath("alert_discipline", tier.color as WhelBandanaColor)}
+                        alt=""
+                        className={styles.tourRankImage}
+                      />
+                      <span className={styles.tourRankDayLabel}>Day {tier.minDays}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
-        ) : step.variant === "image_preview" ? (
-          <div className={styles.tourImagePreview}>
-            <div className={styles.tourCopy}>
-              <p className={styles.tourEyebrow}>{step.eyebrow ?? "Preview"}</p>
-              <h2 className={styles.tourTitle}>{step.title}</h2>
-              <p className={styles.tourBody}>{step.body}</p>
-              <p className={styles.tourProgress}>
-                Step {stepIndex + 1} of {totalSteps}
-              </p>
-            </div>
-            {step.imageSrc ? (
-              <div className={styles.tourPreviewFrame}>
-                <img
-                  src={step.imageSrc}
-                  alt=""
-                  aria-hidden="true"
-                  className={styles.tourPreviewImage}
-                />
+          ) : step.variant === "image_preview" ? (
+            <div className={styles.tourImagePreview}>
+              <div className={styles.tourCopy}>
+                <p className={styles.tourEyebrow}>{step.eyebrow ?? "Preview"}</p>
+                <h2 className={styles.tourTitle}>{step.title}</h2>
+                <p className={styles.tourBody}>{step.body}</p>
+                <p className={styles.tourProgress}>
+                  Step {stepIndex + 1} of {totalSteps}
+                </p>
               </div>
-            ) : null}
-          </div>
-        ) : (
-          <div className={styles.tourCardTop}>
-            <motion.img
-              src={getWhelImagePath(step.pose, step.color)}
-              alt=""
-              aria-hidden="true"
-              className={styles.tourMascot}
-              animate={{ y: [0, -6, 0], rotate: [0, -2, 2, 0] }}
-              transition={{ duration: 2.8, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
-            />
-            <div className={styles.tourCopy}>
-              <p className={styles.tourEyebrow}>Whelm Tour</p>
-              <h2 className={styles.tourTitle}>{step.title}</h2>
-              <p className={styles.tourBody}>{step.body}</p>
-              <p className={styles.tourProgress}>
-                Step {stepIndex + 1} of {totalSteps}
-              </p>
+              {step.imageSrc ? (
+                <div className={styles.tourPreviewFrame}>
+                  <img
+                    src={step.imageSrc}
+                    alt=""
+                    aria-hidden="true"
+                    className={styles.tourPreviewImage}
+                  />
+                </div>
+              ) : null}
             </div>
-          </div>
-        )}
+          ) : (
+            <div className={styles.tourCardTop}>
+              <motion.img
+                src={getWhelImagePath(step.pose, step.color)}
+                alt=""
+                aria-hidden="true"
+                className={styles.tourMascot}
+                animate={{ y: [0, -6, 0], rotate: [0, -2, 2, 0] }}
+                transition={{ duration: 2.8, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
+              />
+              <div className={styles.tourCopy}>
+                <p className={styles.tourEyebrow}>Whelm Tour</p>
+                <h2 className={styles.tourTitle}>{step.title}</h2>
+                <p className={styles.tourBody}>{step.body}</p>
+                <p className={styles.tourProgress}>
+                  Step {stepIndex + 1} of {totalSteps}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
         <div className={styles.tourActions}>
           <button type="button" className={styles.tourSecondary} onClick={onSkip}>
             Skip

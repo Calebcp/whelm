@@ -50,6 +50,8 @@
 
 .tourCard {
   position: fixed;
+  display: flex;
+  flex-direction: column;
   width: min(420px, calc(100vw - 32px));
   max-width: calc(100vw - 32px);
   max-height: calc(100vh - 32px);
@@ -66,7 +68,15 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
   color: #f4f8ff;
   pointer-events: auto;
-  overflow: auto;
+  overflow: hidden;
+}
+
+.tourCardContent {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 2px;
 }
 
 .tourCardRankLadder {
@@ -228,11 +238,15 @@
 }
 
 .tourActions {
+  flex: 0 0 auto;
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
   justify-content: flex-end;
-  margin-top: 16px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(132, 184, 255, 0.16);
+  background: linear-gradient(180deg, rgba(10, 15, 30, 0), rgba(10, 15, 30, 0.92) 42%);
 }
 
 .tourSecondary,
@@ -354,14 +368,11 @@
   }
 
   .tourCard {
-    /* left/right/top/bottom set via inline style — no width needed */
     width: auto;
     max-width: none;
     max-height: min(calc(100dvh - 176px), 340px);
     border-radius: 24px;
     padding: 14px;
-    overflow-y: auto;
-    overscroll-behavior: contain;
   }
 
   .tourCardRankLadder {
@@ -373,7 +384,6 @@
   .tourCardStandaloneIntro {
     max-height: min(calc(100dvh - 136px), 390px);
     padding: 10px 10px 10px;
-    overflow: hidden;
   }
 
   .tourCardTop {
@@ -403,6 +413,7 @@
 
   .tourActions {
     margin-top: 8px;
+    padding-top: 8px;
     justify-content: stretch;
   }
 
