@@ -75,6 +75,8 @@
 }
 
 .tourCardStandaloneIntro {
+  width: min(760px, calc(100vw - 96px));
+  max-width: calc(100vw - 96px);
   max-height: calc(100vh - 140px);
   background:
     radial-gradient(circle at 14% 0%, rgba(81, 186, 255, 0.22), transparent 26%),
@@ -265,6 +267,59 @@
   color: #ffffff;
   box-shadow: 0 10px 22px rgba(41, 167, 255, 0.24);
   animation: tourButtonGlow 1.8s ease-in-out infinite;
+}
+
+@media (min-width: 900px) {
+  .tourCardStandaloneIntro {
+    width: min(820px, calc(100vw - 120px));
+    max-width: calc(100vw - 120px);
+    max-height: min(calc(100dvh - 112px), 620px);
+    padding: 22px 22px 18px;
+    overflow: hidden;
+  }
+
+  .tourRankIntro {
+    grid-template-columns: minmax(0, 0.92fr) minmax(340px, 1.08fr);
+    align-items: start;
+    gap: 22px;
+  }
+
+  .tourImagePreview {
+    grid-template-columns: minmax(0, 0.9fr) minmax(320px, 1.1fr);
+    align-items: center;
+    gap: 22px;
+  }
+
+  .tourPreviewFrame {
+    padding: 14px;
+  }
+
+  .tourPreviewImage {
+    width: min(100%, 360px);
+    max-height: 420px;
+  }
+
+  .tourTitle {
+    font-size: 1.28rem;
+  }
+
+  .tourBody {
+    font-size: 0.98rem;
+    line-height: 1.5;
+  }
+}
+
+@media (min-width: 761px) and (max-width: 899px) {
+  .tourCardStandaloneIntro {
+    width: min(680px, calc(100vw - 72px));
+    max-width: calc(100vw - 72px);
+    max-height: min(calc(100dvh - 108px), 560px);
+    overflow: hidden;
+  }
+
+  .tourPreviewImage {
+    max-height: 360px;
+  }
 }
 
 @keyframes tourFocusPulse {

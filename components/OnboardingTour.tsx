@@ -236,8 +236,18 @@ export default function OnboardingTour({
         };
       }
 
+      if (viewportSize.width >= 900) {
+        return {
+          top: "45%",
+          left: "50%",
+          right: "auto" as const,
+          bottom: "auto" as const,
+          transform: "translate(-50%, -50%)",
+        };
+      }
+
       return {
-        top: "50%",
+        top: "47%",
         left: "50%",
         right: "auto" as const,
         bottom: "auto" as const,
