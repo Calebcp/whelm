@@ -87,6 +87,7 @@ export default function PaywallModal({
 }) {
   const [monthlyPackage, setMonthlyPackage] = useState<PurchasesPackage | null>(null);
   const [annualPackage, setAnnualPackage] = useState<PurchasesPackage | null>(null);
+  const [fallbackPackages, setFallbackPackages] = useState<PurchasesPackage[]>([]);
   const [selectedPackageId, setSelectedPackageId] = useState("");
   const [loading, setLoading] = useState(false);
   const [purchaseBusy, setPurchaseBusy] = useState(false);
@@ -119,13 +120,28 @@ export default function PaywallModal({
 
         const nextAnnualPackage = currentOffering.annual;
         const nextMonthlyPackage = currentOffering.monthly;
+        const nextFallbackPackages = currentOffering.availablePackages.filter(
+          (pkg) =>
+            pkg.identifier !== nextAnnualPackage?.identifier &&
+            pkg.identifier !== nextMonthlyPackage?.identifier,
+        );
 
         setAnnualPackage(nextAnnualPackage);
         setMonthlyPackage(nextMonthlyPackage);
+        setFallbackPackages(nextFallbackPackages);
+
+        if (
+          !nextAnnualPackage &&
+          !nextMonthlyPackage &&
+          nextFallbackPackages.length === 0
+        ) {
+          throw new Error("Subscription details are not available right now.");
+        }
+
         setSelectedPackageId(
           nextAnnualPackage?.identifier ??
             nextMonthlyPackage?.identifier ??
-            currentOffering.availablePackages[0]?.identifier ??
+            nextFallbackPackages[0]?.identifier ??
             "",
         );
       } catch (error: unknown) {
@@ -172,8 +188,12 @@ export default function PaywallModal({
   }, [open]);
 
   const selectedPackage = useMemo(() => {
-    return [annualPackage, monthlyPackage].find((item) => item?.identifier === selectedPackageId) ?? null;
-  }, [annualPackage, monthlyPackage, selectedPackageId]);
+    return (
+      [annualPackage, monthlyPackage, ...fallbackPackages].find(
+        (item) => item?.identifier === selectedPackageId,
+      ) ?? null
+    );
+  }, [annualPackage, fallbackPackages, monthlyPackage, selectedPackageId]);
 
   const annualSavingsLabel = useMemo(
     () => calculateSavingsLabel(monthlyPackage, annualPackage),
@@ -331,6 +351,28 @@ export default function PaywallModal({
               </button>
             </article>
           ) : null}
+          {fallbackPackages.map((pkg) => (
+            <article
+              key={pkg.identifier}
+              className={`${styles.planCard} ${
+                selectedPackageId === pkg.identifier ? styles.planCardSelected : ""
+              }`}
+            >
+              <button
+                type="button"
+                className={styles.planCardButton}
+                onClick={() => setSelectedPackageId(pkg.identifier)}
+              >
+                <div className={styles.planBadgeRow}>
+                  <p className={styles.planName}>{pkg.product.title || WHELM_PRO_NAME}</p>
+                </div>
+                <p className={styles.planPrice}>
+                  {pkg.product.priceString}
+                </p>
+                <p className={styles.planMeta}>Available App Store subscription</p>
+              </button>
+            </article>
+          ))}
         </div>
         <div className={styles.paywallActions}>
           <button
@@ -345,7 +387,9 @@ export default function PaywallModal({
                 ? "Switch plan"
                 : selectedPackage === annualPackage
                   ? "Start 1-week free trial"
-                  : "Continue with monthly"}
+                  : monthlyPackage && selectedPackage === monthlyPackage
+                    ? "Continue with monthly"
+                    : "Continue with subscription"}
           </button>
           <button
             type="button"
