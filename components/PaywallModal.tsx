@@ -85,6 +85,8 @@ export default function PaywallModal({
   onClose: () => void;
   onRestorePurchases: () => void;
 }) {
+  const revenueCatSupport = getRevenueCatSupportState();
+  const purchaseFlowSupported = revenueCatSupport.supported;
   const [monthlyPackage, setMonthlyPackage] = useState<PurchasesPackage | null>(null);
   const [annualPackage, setAnnualPackage] = useState<PurchasesPackage | null>(null);
   const [fallbackPackages, setFallbackPackages] = useState<PurchasesPackage[]>([]);
@@ -98,9 +100,8 @@ export default function PaywallModal({
   useEffect(() => {
     if (!open) return;
 
-    const support = getRevenueCatSupportState();
-    if (!support.supported) {
-      setStatus(support.reason);
+    if (!purchaseFlowSupported) {
+      setStatus(revenueCatSupport.reason);
       return;
     }
 
@@ -157,7 +158,7 @@ export default function PaywallModal({
     return () => {
       active = false;
     };
-  }, [open, userId]);
+  }, [open, purchaseFlowSupported, revenueCatSupport.reason, userId]);
 
   useEffect(() => {
     if (!open) return;
@@ -304,106 +305,116 @@ export default function PaywallModal({
             ))}
           </div>
         </section>
-        <div className={styles.planGrid}>
-          {annualPackage ? (
-            <article
-              className={`${styles.planCard} ${styles.planCardFeatured} ${
-                selectedPackageId === annualPackage.identifier ? styles.planCardSelected : ""
-              }`}
-            >
-              <button
-                type="button"
-                className={styles.planCardButton}
-                onClick={() => setSelectedPackageId(annualPackage.identifier)}
+        {purchaseFlowSupported ? (
+          <div className={styles.planGrid}>
+            {annualPackage ? (
+              <article
+                className={`${styles.planCard} ${styles.planCardFeatured} ${
+                  selectedPackageId === annualPackage.identifier ? styles.planCardSelected : ""
+                }`}
               >
-                <div className={styles.planBadgeRow}>
-                  <p className={styles.planName}>{WHELM_PRO_NAME} Yearly</p>
-                  <span className={styles.planBadge}>Best Value</span>
-                </div>
-                <p className={styles.planPrice}>{annualPackage.product.priceString} / year</p>
-                <p className={styles.planMeta}>
-                  {annualSavingsLabel} • 2 months free • 1-week free trial
-                </p>
-                {annualPackage.product.pricePerMonthString ? (
-                  <p className={styles.planSubmeta}>
-                    {annualPackage.product.pricePerMonthString} / month effective
+                <button
+                  type="button"
+                  className={styles.planCardButton}
+                  onClick={() => setSelectedPackageId(annualPackage.identifier)}
+                >
+                  <div className={styles.planBadgeRow}>
+                    <p className={styles.planName}>{WHELM_PRO_NAME} Yearly</p>
+                    <span className={styles.planBadge}>Best Value</span>
+                  </div>
+                  <p className={styles.planPrice}>{annualPackage.product.priceString} / year</p>
+                  <p className={styles.planMeta}>
+                    {annualSavingsLabel} • 2 months free • 1-week free trial
                   </p>
-                ) : null}
-              </button>
-            </article>
-          ) : null}
-          {monthlyPackage ? (
-            <article
-              className={`${styles.planCard} ${
-                selectedPackageId === monthlyPackage.identifier ? styles.planCardSelected : ""
-              }`}
-            >
-              <button
-                type="button"
-                className={styles.planCardButton}
-                onClick={() => setSelectedPackageId(monthlyPackage.identifier)}
+                  {annualPackage.product.pricePerMonthString ? (
+                    <p className={styles.planSubmeta}>
+                      {annualPackage.product.pricePerMonthString} / month effective
+                    </p>
+                  ) : null}
+                </button>
+              </article>
+            ) : null}
+            {monthlyPackage ? (
+              <article
+                className={`${styles.planCard} ${
+                  selectedPackageId === monthlyPackage.identifier ? styles.planCardSelected : ""
+                }`}
               >
-                <div className={styles.planBadgeRow}>
-                  <p className={styles.planName}>{WHELM_PRO_NAME} Monthly</p>
-                </div>
-                <p className={styles.planPrice}>{monthlyPackage.product.priceString} / month</p>
-                <p className={styles.planMeta}>Flexible monthly billing</p>
-              </button>
-            </article>
-          ) : null}
-          {fallbackPackages.map((pkg) => (
-            <article
-              key={pkg.identifier}
-              className={`${styles.planCard} ${
-                selectedPackageId === pkg.identifier ? styles.planCardSelected : ""
-              }`}
-            >
-              <button
-                type="button"
-                className={styles.planCardButton}
-                onClick={() => setSelectedPackageId(pkg.identifier)}
+                <button
+                  type="button"
+                  className={styles.planCardButton}
+                  onClick={() => setSelectedPackageId(monthlyPackage.identifier)}
+                >
+                  <div className={styles.planBadgeRow}>
+                    <p className={styles.planName}>{WHELM_PRO_NAME} Monthly</p>
+                  </div>
+                  <p className={styles.planPrice}>{monthlyPackage.product.priceString} / month</p>
+                  <p className={styles.planMeta}>Flexible monthly billing</p>
+                </button>
+              </article>
+            ) : null}
+            {fallbackPackages.map((pkg) => (
+              <article
+                key={pkg.identifier}
+                className={`${styles.planCard} ${
+                  selectedPackageId === pkg.identifier ? styles.planCardSelected : ""
+                }`}
               >
-                <div className={styles.planBadgeRow}>
-                  <p className={styles.planName}>{pkg.product.title || WHELM_PRO_NAME}</p>
-                </div>
-                <p className={styles.planPrice}>
-                  {pkg.product.priceString}
-                </p>
-                <p className={styles.planMeta}>Available App Store subscription</p>
-              </button>
-            </article>
-          ))}
-        </div>
+                <button
+                  type="button"
+                  className={styles.planCardButton}
+                  onClick={() => setSelectedPackageId(pkg.identifier)}
+                >
+                  <div className={styles.planBadgeRow}>
+                    <p className={styles.planName}>{pkg.product.title || WHELM_PRO_NAME}</p>
+                  </div>
+                  <p className={styles.planPrice}>
+                    {pkg.product.priceString}
+                  </p>
+                  <p className={styles.planMeta}>Available App Store subscription</p>
+                </button>
+              </article>
+            ))}
+          </div>
+        ) : null}
         <div className={styles.paywallActions}>
-          <button
-            type="button"
-            className={styles.feedbackSubmit}
-            onClick={() => void handlePurchase()}
-            disabled={!selectedPackage || loading || purchaseBusy}
-          >
-            {purchaseBusy
-              ? "Processing..."
-              : isPro
-                ? "Switch plan"
-                : selectedPackage === annualPackage
-                  ? "Start 1-week free trial"
-                  : monthlyPackage && selectedPackage === monthlyPackage
-                    ? "Continue with monthly"
-                    : "Continue with subscription"}
-          </button>
-          <button
-            type="button"
-            className={styles.secondaryPlanButton}
-            onClick={onRestorePurchases}
-          >
-            Restore purchases
-          </button>
+          {purchaseFlowSupported ? (
+            <>
+              <button
+                type="button"
+                className={styles.feedbackSubmit}
+                onClick={() => void handlePurchase()}
+                disabled={!selectedPackage || loading || purchaseBusy}
+              >
+                {purchaseBusy
+                  ? "Processing..."
+                  : isPro
+                    ? "Switch plan"
+                    : selectedPackage === annualPackage
+                      ? "Start 1-week free trial"
+                      : monthlyPackage && selectedPackage === monthlyPackage
+                        ? "Continue with monthly"
+                        : "Continue with subscription"}
+              </button>
+              <button
+                type="button"
+                className={styles.secondaryPlanButton}
+                onClick={onRestorePurchases}
+              >
+                Restore purchases
+              </button>
+            </>
+          ) : null}
           <button type="button" className={styles.secondaryPlanButton} onClick={onClose}>
             Stay in {WHELM_STANDARD_NAME}
           </button>
         </div>
         <p className={styles.paywallHint}>
-          {status || subscriptionStatus || "Subscriptions are handled through the App Store."}
+          {status ||
+            subscriptionStatus ||
+            (purchaseFlowSupported
+              ? "Subscriptions are handled through the App Store."
+              : "Install the iOS app or open the latest TestFlight build to view live monthly, yearly, and free-trial options.")}
         </p>
       </div>
     </div>

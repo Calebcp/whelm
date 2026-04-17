@@ -22,17 +22,17 @@ export type RevenueCatSupportState = {
 };
 
 export function getRevenueCatSupportState(): RevenueCatSupportState {
-  if (!REVENUECAT_APPLE_API_KEY) {
-    return {
-      supported: false,
-      reason: "Missing NEXT_PUBLIC_REVENUECAT_APPLE_API_KEY.",
-    };
-  }
-
   if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== "ios") {
     return {
       supported: false,
-      reason: "RevenueCat purchases are only enabled in the native iOS app.",
+      reason: "App Store subscriptions are only available in the native iOS app.",
+    };
+  }
+
+  if (!REVENUECAT_APPLE_API_KEY) {
+    return {
+      supported: false,
+      reason: "RevenueCat is not configured for this build yet.",
     };
   }
 
