@@ -70,6 +70,16 @@ function calculateSavingsLabel(monthlyPackage: PurchasesPackage | null, annualPa
   return savingsPercent > 0 ? `Save ${savingsPercent}%` : "Best Value";
 }
 
+function selectReviewableOffering(offerings: Awaited<ReturnType<typeof getRevenueCatOfferings>>) {
+  if (offerings.current?.availablePackages?.length) {
+    return offerings.current;
+  }
+
+  return (
+    Object.values(offerings.all).find((offering) => offering.availablePackages.length > 0) ?? null
+  );
+}
+
 export default function PaywallModal({
   open,
   userId,
@@ -114,7 +124,7 @@ export default function PaywallModal({
         const offerings = await getRevenueCatOfferings(userId);
         if (!active) return;
 
-        const currentOffering = offerings.current;
+        const currentOffering = selectReviewableOffering(offerings);
         if (!currentOffering) {
           throw new Error("Subscription details are not available right now.");
         }
@@ -388,11 +398,13 @@ export default function PaywallModal({
               >
                 {purchaseBusy
                   ? "Processing..."
+                  : !selectedPackage
+                    ? "Subscription details unavailable"
                   : isPro
                     ? "Switch plan"
-                    : selectedPackage === annualPackage
+                    : annualPackage && selectedPackage.identifier === annualPackage.identifier
                       ? "Start 1-week free trial"
-                      : monthlyPackage && selectedPackage === monthlyPackage
+                      : monthlyPackage && selectedPackage.identifier === monthlyPackage.identifier
                         ? "Continue with monthly"
                         : "Continue with subscription"}
               </button>
