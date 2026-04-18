@@ -18,7 +18,7 @@ import { resolveApiUrl } from "@/lib/api-base";
 import { validateUsername } from "@/lib/username";
 import styles from "./page.module.css";
 
-const AUTH_REQUEST_TIMEOUT_MS = 15000;
+const SIGNUP_REQUEST_TIMEOUT_MS = 20000;
 
 export default function LoginPage() {
   const router = useRouter();
@@ -114,17 +114,21 @@ export default function LoginPage() {
             })()
           : signInWithEmailAndPassword(auth, trimmedEmail, password);
 
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        window.setTimeout(() => {
-          reject(
-            new Error(
-              "Authentication timed out. Check connection and confirm the deployed site is live.",
-            ),
-          );
-        }, AUTH_REQUEST_TIMEOUT_MS);
-      });
+      if (mode === "signup") {
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          window.setTimeout(() => {
+            reject(
+              new Error(
+                "Account setup timed out while contacting Whelm services. Check your connection and try again.",
+              ),
+            );
+          }, SIGNUP_REQUEST_TIMEOUT_MS);
+        });
 
-      await Promise.race([authRequest, timeoutPromise]);
+        await Promise.race([authRequest, timeoutPromise]);
+      } else {
+        await authRequest;
+      }
 
       setStatus("Opening your workspace...");
       router.replace("/");
