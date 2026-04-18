@@ -68,14 +68,14 @@
 
 .settingsIndexRowSubscription {
   position: relative;
-  border-color: rgba(108, 210, 255, 0.28);
+  border-color: rgba(118, 215, 255, 0.38);
   background:
-    radial-gradient(circle at 82% 50%, rgba(111, 222, 255, 0.14), transparent 18%),
-    radial-gradient(circle at top right, rgba(115, 104, 255, 0.2), transparent 30%),
-    linear-gradient(135deg, rgba(24, 28, 56, 0.98), rgba(19, 24, 47, 0.95));
+    radial-gradient(circle at 84% 50%, rgba(111, 222, 255, 0.24), transparent 18%),
+    radial-gradient(circle at top right, rgba(115, 104, 255, 0.28), transparent 30%),
+    linear-gradient(135deg, rgba(31, 38, 76, 0.99), rgba(21, 27, 56, 0.97));
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.03),
-    0 16px 34px rgba(6, 10, 24, 0.24);
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 18px 38px rgba(6, 10, 24, 0.28);
 }
 
 .settingsIndexRowSubscription::after {
@@ -83,15 +83,25 @@
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(90deg, transparent 56%, rgba(116, 228, 255, 0.045) 76%, transparent 100%);
+    linear-gradient(90deg, rgba(112, 173, 255, 0.08) 0%, transparent 24%, transparent 58%, rgba(116, 228, 255, 0.08) 80%, transparent 100%);
   pointer-events: none;
 }
 
+.settingsIndexRowSubscription::before {
+  content: "";
+  position: absolute;
+  inset: 10px auto 10px 0;
+  width: 3px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(92, 214, 255, 0.92), rgba(122, 115, 255, 0.88));
+  box-shadow: 0 0 18px rgba(95, 201, 255, 0.36);
+}
+
 .settingsIndexRowSubscription:hover {
-  border-color: rgba(124, 220, 255, 0.44);
+  border-color: rgba(130, 224, 255, 0.52);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.04),
-    0 18px 38px rgba(8, 14, 30, 0.28);
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 20px 42px rgba(8, 14, 30, 0.32);
 }
 
 .settingsIndexRowSubscription .settingsIndexCopy strong {
@@ -151,7 +161,15 @@
   justify-content: center;
   pointer-events: none;
   opacity: 0.96;
-  filter: drop-shadow(0 10px 18px rgba(24, 36, 84, 0.22));
+  padding: 4px;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.16), transparent 42%),
+    linear-gradient(180deg, rgba(41, 53, 102, 0.7), rgba(27, 34, 74, 0.78));
+  border: 1px solid rgba(141, 187, 255, 0.24);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 10px 18px rgba(24, 36, 84, 0.22);
 }
 
 .settingsIndexRowSubscription .settingsIndexMascot {
@@ -738,11 +756,11 @@
 }
 
 :global(.themeLight) .settingsIndexRowSubscription {
-  border-color: rgba(87, 121, 225, 0.22);
+  border-color: rgba(87, 121, 225, 0.3);
   background:
-    radial-gradient(circle at 84% 50%, rgba(105, 213, 255, 0.14), transparent 18%),
-    radial-gradient(circle at top right, rgba(123, 110, 255, 0.14), transparent 30%),
-    linear-gradient(135deg, rgba(242, 247, 255, 0.98), rgba(232, 239, 252, 0.97));
+    radial-gradient(circle at 84% 50%, rgba(105, 213, 255, 0.18), transparent 18%),
+    radial-gradient(circle at top right, rgba(123, 110, 255, 0.18), transparent 30%),
+    linear-gradient(135deg, rgba(242, 247, 255, 0.99), rgba(229, 237, 252, 0.98));
 }
 
 :global(.themeLight) .settingsIndexRowSubscription .settingsIndexCopy strong {
@@ -755,6 +773,16 @@
 
 :global(.themeLight) .settingsIndexRowSubscription .settingsIndexChevron {
   color: #3858d7;
+}
+
+:global(.themeLight) .settingsIndexMascot {
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.66), transparent 42%),
+    linear-gradient(180deg, rgba(234, 241, 255, 0.96), rgba(220, 229, 250, 0.94));
+  border-color: rgba(113, 138, 212, 0.22);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 10px 18px rgba(102, 119, 165, 0.18);
 }
 
 :global(.themeLight) .settingsIndexCopy strong {

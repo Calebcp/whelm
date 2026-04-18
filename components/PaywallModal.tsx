@@ -437,7 +437,9 @@ export default function PaywallModal({
               {WEB_PRO_PLANS.map((plan) => (
                 <article
                   key={plan.id}
-                  className={`${styles.planCard} ${plan.featured ? styles.planCardFeatured : ""}`}
+                  className={`${styles.planCard} ${
+                    plan.featured ? styles.planCardFeatured : styles.planCardPremiumAlt
+                  }`}
                 >
                   <div className={styles.planCardButton}>
                     <div className={styles.planBadgeRow}>
