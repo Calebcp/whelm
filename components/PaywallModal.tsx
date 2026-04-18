@@ -392,7 +392,7 @@ export default function PaywallModal({
               ) : null}
               {monthlyPackage ? (
                 <article
-                  className={`${styles.planCard} ${
+                  className={`${styles.planCard} ${styles.planCardPremiumAlt} ${
                     selectedPackageId === monthlyPackage.identifier ? styles.planCardSelected : ""
                   }`}
                 >

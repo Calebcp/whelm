@@ -7,6 +7,7 @@ import { memo, useId, useMemo, type ChangeEvent, type Ref, type RefObject } from
 import sharedStyles from "@/app/page.module.css";
 import AnimatedTabSection from "@/components/AnimatedTabSection";
 import ProUnlockCard from "@/components/ProUnlockCard";
+import SenseiFigure from "@/components/SenseiFigure";
 import styles from "@/components/SettingsTab.module.css";
 import WhelmProfileAvatar from "@/components/WhelmProfileAvatar";
 import type { SenseiVariant } from "@/components/SenseiFigure";
@@ -62,23 +63,41 @@ function SettingsRow({
   summary,
   active,
   onClick,
+  accent = "default",
+  mascotVariant,
+  mascotBandanaColor = "yellow",
 }: {
   title: string;
   summary?: string;
   active: boolean;
   onClick: () => void;
+  accent?: "default" | "subscription";
+  mascotVariant?: SenseiVariant;
+  mascotBandanaColor?: WhelBandanaColor;
 }) {
   return (
     <button
       type="button"
-      className={`${styles.settingsIndexRow} ${active ? styles.settingsIndexRowActive : ""}`}
+      className={`${styles.settingsIndexRow} ${active ? styles.settingsIndexRowActive : ""} ${accent === "subscription" ? styles.settingsIndexRowSubscription : ""}`}
       onClick={onClick}
     >
       <div className={styles.settingsIndexCopy}>
         <strong>{title}</strong>
         {summary ? <span>{summary}</span> : null}
       </div>
-      <span className={styles.settingsIndexChevron}>{active ? "−" : "›"}</span>
+      <div className={styles.settingsIndexAside}>
+        {mascotVariant ? (
+          <div className={styles.settingsIndexMascot} aria-hidden="true">
+            <SenseiFigure
+              variant={mascotVariant}
+              bandanaColor={mascotBandanaColor}
+              size="badge"
+              align="right"
+            />
+          </div>
+        ) : null}
+        <span className={styles.settingsIndexChevron}>{active ? "−" : "›"}</span>
+      </div>
     </button>
   );
 }
@@ -418,6 +437,9 @@ const SettingsIndexPanel = memo(function SettingsIndexPanel({
           summary={isPro ? `${WHELM_PRO_NAME} active` : `Using ${WHELM_STANDARD_NAME}`}
           active={activeSection === "sync"}
           onClick={() => onToggleSection("sync")}
+          accent="subscription"
+          mascotVariant={isPro ? "anchor" : "scholar"}
+          mascotBandanaColor={(streakBandanaTier?.color as WhelBandanaColor | undefined) ?? "yellow"}
         />
         <SettingsRow
           title="Archive"

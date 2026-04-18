@@ -50,6 +50,7 @@
     transform 140ms ease,
     background 140ms ease,
     box-shadow 140ms ease;
+  overflow: hidden;
 }
 
 .settingsIndexRow:hover {
@@ -65,10 +66,49 @@
   box-shadow: 0 14px 28px rgba(7, 11, 24, 0.22);
 }
 
+.settingsIndexRowSubscription {
+  position: relative;
+  border-color: rgba(108, 210, 255, 0.28);
+  background:
+    radial-gradient(circle at 82% 50%, rgba(111, 222, 255, 0.14), transparent 18%),
+    radial-gradient(circle at top right, rgba(115, 104, 255, 0.2), transparent 30%),
+    linear-gradient(135deg, rgba(24, 28, 56, 0.98), rgba(19, 24, 47, 0.95));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.03),
+    0 16px 34px rgba(6, 10, 24, 0.24);
+}
+
+.settingsIndexRowSubscription::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, transparent 56%, rgba(116, 228, 255, 0.045) 76%, transparent 100%);
+  pointer-events: none;
+}
+
+.settingsIndexRowSubscription:hover {
+  border-color: rgba(124, 220, 255, 0.44);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 18px 38px rgba(8, 14, 30, 0.28);
+}
+
+.settingsIndexRowSubscription .settingsIndexCopy strong {
+  color: #f7fbff;
+}
+
+.settingsIndexRowSubscription .settingsIndexCopy span {
+  color: #c8d8ff;
+}
+
 .settingsIndexCopy {
+  flex: 1 1 auto;
   min-width: 0;
   display: grid;
   gap: 4px;
+  position: relative;
+  z-index: 1;
 }
 
 .settingsIndexCopy strong {
@@ -88,6 +128,49 @@
   font-size: 1.1rem;
   font-weight: 700;
   color: #9eb5ff;
+  position: relative;
+  z-index: 1;
+}
+
+.settingsIndexAside {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: clamp(60px, 12vw, 76px);
+  margin-left: auto;
+}
+
+.settingsIndexMascot {
+  position: relative;
+  z-index: 1;
+  width: clamp(34px, 7vw, 44px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  opacity: 0.96;
+  filter: drop-shadow(0 10px 18px rgba(24, 36, 84, 0.22));
+}
+
+.settingsIndexRowSubscription .settingsIndexMascot {
+  transform: translateX(2px);
+}
+
+.settingsIndexRowSubscription .settingsIndexChevron {
+  color: #d7e8ff;
+}
+
+@media (min-width: 900px) {
+  .settingsIndexAside {
+    min-width: 84px;
+    gap: 10px;
+  }
+
+  .settingsIndexMascot {
+    width: 48px;
+  }
 }
 
 .settingsLegalLinks {
@@ -654,6 +737,26 @@
     linear-gradient(180deg, rgba(246, 242, 255, 0.98), rgba(239, 235, 251, 0.96));
 }
 
+:global(.themeLight) .settingsIndexRowSubscription {
+  border-color: rgba(87, 121, 225, 0.22);
+  background:
+    radial-gradient(circle at 84% 50%, rgba(105, 213, 255, 0.14), transparent 18%),
+    radial-gradient(circle at top right, rgba(123, 110, 255, 0.14), transparent 30%),
+    linear-gradient(135deg, rgba(242, 247, 255, 0.98), rgba(232, 239, 252, 0.97));
+}
+
+:global(.themeLight) .settingsIndexRowSubscription .settingsIndexCopy strong {
+  color: #17315a;
+}
+
+:global(.themeLight) .settingsIndexRowSubscription .settingsIndexCopy span {
+  color: #536b96;
+}
+
+:global(.themeLight) .settingsIndexRowSubscription .settingsIndexChevron {
+  color: #3858d7;
+}
+
 :global(.themeLight) .settingsIndexCopy strong {
   color: #102033;
 }
@@ -802,6 +905,15 @@
   .settingsIndexRow {
     padding: 13px 14px;
     border-radius: 16px;
+  }
+
+  .settingsIndexAside {
+    min-width: 64px;
+    gap: 6px;
+  }
+
+  .settingsIndexMascot {
+    width: 36px;
   }
 
   .settingsIndexCopy strong {
