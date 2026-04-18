@@ -15,6 +15,25 @@ import { WHELM_PRO_NAME, WHELM_STANDARD_HISTORY_DAYS, WHELM_STANDARD_NAME } from
 const WHELM_PRO_POSITIONING =
   "Keep your full system available with unlimited history, full customization, and deeper reports.";
 
+const WEB_PRO_PLANS = [
+  {
+    id: "yearly",
+    name: `${WHELM_PRO_NAME} Yearly`,
+    price: "$39.99 / year",
+    meta: "Save 33% • 1-week free trial",
+    submeta: "$3.33 / month billed annually",
+    featured: true,
+  },
+  {
+    id: "monthly",
+    name: `${WHELM_PRO_NAME} Monthly`,
+    price: "$4.99 / month",
+    meta: "Monthly access, billed every month",
+    submeta: "",
+    featured: false,
+  },
+] as const;
+
 const WHELM_TIER_CARDS = [
   {
     id: "pro",
@@ -56,6 +75,24 @@ function toUserFacingSubscriptionMessage(error: unknown) {
   }
 
   return message || "Unable to load subscription details right now.";
+}
+
+function describeOfferingPackages(offerings: Awaited<ReturnType<typeof getRevenueCatOfferings>>) {
+  const current = offerings.current;
+  const allOfferings = Object.values(offerings.all);
+  const summaries = allOfferings.map((offering) => {
+    const packageSummary = offering.availablePackages
+      .map((pkg) => `${pkg.packageType}:${pkg.product.identifier}`)
+      .join(", ");
+    return `${offering.identifier}[${offering.availablePackages.length}]${packageSummary ? ` ${packageSummary}` : ""}`;
+  });
+
+  return {
+    currentIdentifier: current?.identifier ?? "none",
+    currentPackageCount: current?.availablePackages.length ?? 0,
+    offeringCount: allOfferings.length,
+    summary: summaries.join(" | ") || "no-offerings",
+  };
 }
 
 type WhelmTierCardId = (typeof WHELM_TIER_CARDS)[number]["id"];
@@ -124,9 +161,14 @@ export default function PaywallModal({
         const offerings = await getRevenueCatOfferings(userId);
         if (!active) return;
 
+        const diagnostic = describeOfferingPackages(offerings);
+        console.info("[whelm:paywall] RevenueCat offerings", diagnostic);
+
         const currentOffering = selectReviewableOffering(offerings);
         if (!currentOffering) {
-          throw new Error("Subscription details are not available right now.");
+          throw new Error(
+            `Subscription details are not available right now. RevenueCat returned ${diagnostic.offeringCount} offering(s); current=${diagnostic.currentIdentifier}; packages=${diagnostic.currentPackageCount}.`,
+          );
         }
 
         const nextAnnualPackage = currentOffering.annual;
@@ -146,7 +188,9 @@ export default function PaywallModal({
           !nextMonthlyPackage &&
           nextFallbackPackages.length === 0
         ) {
-          throw new Error("Subscription details are not available right now.");
+          throw new Error(
+            `Subscription details are not available right now. Offering "${currentOffering.identifier}" returned no usable packages. Available: ${diagnostic.summary}.`,
+          );
         }
 
         setSelectedPackageId(
@@ -211,10 +255,8 @@ export default function PaywallModal({
     [annualPackage, monthlyPackage],
   );
 
-  const orderedTierCards = useMemo(() => {
-    const primary = WHELM_TIER_CARDS.find((card) => card.id === comparisonFocus) ?? WHELM_TIER_CARDS[0];
-    const secondary = WHELM_TIER_CARDS.find((card) => card.id !== comparisonFocus) ?? WHELM_TIER_CARDS[1];
-    return [primary, secondary];
+  const focusedTierCard = useMemo(() => {
+    return WHELM_TIER_CARDS.find((card) => card.id === comparisonFocus) ?? WHELM_TIER_CARDS[0];
   }, [comparisonFocus]);
 
   function handleComparisonFocus(next: WhelmTierCardId) {
@@ -276,117 +318,141 @@ export default function PaywallModal({
             ))}
           </div>
           <div className={styles.paywallTierDeck}>
-            {orderedTierCards.map((card, index) => (
-              <article
-                key={card.id}
-                className={`${styles.paywallTierCard} ${
-                  card.id === "pro" ? styles.paywallTierCardFeatured : ""
-                } ${card.id === "pro" ? styles.paywallTierCardPro : styles.paywallTierCardStandard} ${
-                  index === 0 ? styles.paywallTierCardPrimary : styles.paywallTierCardSecondary
+            <article
+              className={`${styles.paywallTierCard} ${
+                focusedTierCard.id === "pro" ? styles.paywallTierCardFeatured : ""
+              } ${focusedTierCard.id === "pro" ? styles.paywallTierCardPro : styles.paywallTierCardStandard} ${
+                styles.paywallTierCardPrimary
+              }`}
+            >
+              <div className={styles.paywallTierBadgeRow}>
+                <p
+                  className={`${styles.paywallTierLabel} ${
+                    focusedTierCard.id === "pro"
+                      ? styles.paywallTierLabelPro
+                      : styles.paywallTierLabelStandard
+                  }`}
+                >
+                  {focusedTierCard.name}
+                </p>
+                {focusedTierCard.id === "pro" ? <span className={styles.planBadge}>Best Value</span> : null}
+              </div>
+              <p
+                className={`${styles.paywallTierHeading} ${
+                  focusedTierCard.id === "pro"
+                    ? styles.paywallTierHeadingPro
+                    : styles.paywallTierHeadingStandard
                 }`}
               >
-                <div className={styles.paywallTierBadgeRow}>
-                  <p
-                    className={`${styles.paywallTierLabel} ${
-                      card.id === "pro" ? styles.paywallTierLabelPro : styles.paywallTierLabelStandard
-                    }`}
-                  >
-                    {card.name}
-                  </p>
-                  {card.id === "pro" ? <span className={styles.planBadge}>Best Value</span> : null}
-                </div>
-                <p
-                  className={`${styles.paywallTierHeading} ${
-                    card.id === "pro" ? styles.paywallTierHeadingPro : styles.paywallTierHeadingStandard
-                  }`}
-                >
-                  {card.headline}
-                </p>
-                <ul
-                  className={`${styles.paywallTierList} ${
-                    card.id === "pro" ? styles.paywallTierListPro : styles.paywallTierListStandard
-                  }`}
-                >
-                  {card.bullets.map((bullet) => (
-                    <li key={bullet}>{bullet}</li>
-                  ))}
-                </ul>
-              </article>
-            ))}
+                {focusedTierCard.headline}
+              </p>
+              <ul
+                className={`${styles.paywallTierList} ${
+                  focusedTierCard.id === "pro"
+                    ? styles.paywallTierListPro
+                    : styles.paywallTierListStandard
+                }`}
+              >
+                {focusedTierCard.bullets.map((bullet) => (
+                  <li key={bullet}>{bullet}</li>
+                ))}
+              </ul>
+            </article>
           </div>
         </section>
-        {purchaseFlowSupported ? (
-          <div className={styles.planGrid}>
-            {annualPackage ? (
-              <article
-                className={`${styles.planCard} ${styles.planCardFeatured} ${
-                  selectedPackageId === annualPackage.identifier ? styles.planCardSelected : ""
-                }`}
-              >
-                <button
-                  type="button"
-                  className={styles.planCardButton}
-                  onClick={() => setSelectedPackageId(annualPackage.identifier)}
+        <div className={styles.planGrid}>
+          {purchaseFlowSupported ? (
+            <>
+              {annualPackage ? (
+                <article
+                  className={`${styles.planCard} ${styles.planCardFeatured} ${
+                    selectedPackageId === annualPackage.identifier ? styles.planCardSelected : ""
+                  }`}
                 >
-                  <div className={styles.planBadgeRow}>
-                    <p className={styles.planName}>{WHELM_PRO_NAME} Yearly</p>
-                    <span className={styles.planBadge}>Best Value</span>
-                  </div>
+                  <button
+                    type="button"
+                    className={styles.planCardButton}
+                    onClick={() => setSelectedPackageId(annualPackage.identifier)}
+                  >
+                    <div className={styles.planBadgeRow}>
+                      <p className={styles.planName}>{WHELM_PRO_NAME} Yearly</p>
+                      <span className={styles.planBadge}>Best Value</span>
+                    </div>
                   <p className={styles.planPrice}>{annualPackage.product.priceString} / year</p>
                   <p className={styles.planMeta}>
-                    {annualSavingsLabel} • 2 months free • 1-week free trial
+                    {annualSavingsLabel} • 1-week free trial
                   </p>
                   {annualPackage.product.pricePerMonthString ? (
                     <p className={styles.planSubmeta}>
-                      {annualPackage.product.pricePerMonthString} / month effective
+                      {annualPackage.product.pricePerMonthString} / month billed annually
                     </p>
                   ) : null}
-                </button>
-              </article>
-            ) : null}
-            {monthlyPackage ? (
-              <article
-                className={`${styles.planCard} ${
-                  selectedPackageId === monthlyPackage.identifier ? styles.planCardSelected : ""
-                }`}
-              >
-                <button
-                  type="button"
-                  className={styles.planCardButton}
-                  onClick={() => setSelectedPackageId(monthlyPackage.identifier)}
+                  </button>
+                </article>
+              ) : null}
+              {monthlyPackage ? (
+                <article
+                  className={`${styles.planCard} ${
+                    selectedPackageId === monthlyPackage.identifier ? styles.planCardSelected : ""
+                  }`}
                 >
+                  <button
+                    type="button"
+                    className={styles.planCardButton}
+                    onClick={() => setSelectedPackageId(monthlyPackage.identifier)}
+                  >
                   <div className={styles.planBadgeRow}>
                     <p className={styles.planName}>{WHELM_PRO_NAME} Monthly</p>
                   </div>
                   <p className={styles.planPrice}>{monthlyPackage.product.priceString} / month</p>
-                  <p className={styles.planMeta}>Flexible monthly billing</p>
+                  <p className={styles.planMeta}>Monthly access, billed every month</p>
                 </button>
               </article>
-            ) : null}
-            {fallbackPackages.map((pkg) => (
-              <article
-                key={pkg.identifier}
-                className={`${styles.planCard} ${
-                  selectedPackageId === pkg.identifier ? styles.planCardSelected : ""
-                }`}
-              >
-                <button
-                  type="button"
-                  className={styles.planCardButton}
-                  onClick={() => setSelectedPackageId(pkg.identifier)}
+              ) : null}
+              {fallbackPackages.map((pkg) => (
+                <article
+                  key={pkg.identifier}
+                  className={`${styles.planCard} ${
+                    selectedPackageId === pkg.identifier ? styles.planCardSelected : ""
+                  }`}
                 >
-                  <div className={styles.planBadgeRow}>
-                    <p className={styles.planName}>{pkg.product.title || WHELM_PRO_NAME}</p>
+                  <button
+                    type="button"
+                    className={styles.planCardButton}
+                    onClick={() => setSelectedPackageId(pkg.identifier)}
+                  >
+                    <div className={styles.planBadgeRow}>
+                      <p className={styles.planName}>{pkg.product.title || WHELM_PRO_NAME}</p>
+                    </div>
+                    <p className={styles.planPrice}>
+                      {pkg.product.priceString}
+                    </p>
+                    <p className={styles.planMeta}>Available App Store subscription</p>
+                  </button>
+                </article>
+              ))}
+            </>
+          ) : (
+            <>
+              {WEB_PRO_PLANS.map((plan) => (
+                <article
+                  key={plan.id}
+                  className={`${styles.planCard} ${plan.featured ? styles.planCardFeatured : ""}`}
+                >
+                  <div className={styles.planCardButton}>
+                    <div className={styles.planBadgeRow}>
+                      <p className={styles.planName}>{plan.name}</p>
+                      {plan.featured ? <span className={styles.planBadge}>Best Value</span> : null}
+                    </div>
+                    <p className={styles.planPrice}>{plan.price}</p>
+                    <p className={styles.planMeta}>{plan.meta}</p>
+                    {plan.submeta ? <p className={styles.planSubmeta}>{plan.submeta}</p> : null}
                   </div>
-                  <p className={styles.planPrice}>
-                    {pkg.product.priceString}
-                  </p>
-                  <p className={styles.planMeta}>Available App Store subscription</p>
-                </button>
-              </article>
-            ))}
-          </div>
-        ) : null}
+                </article>
+              ))}
+            </>
+          )}
+        </div>
         <div className={styles.paywallActions}>
           {purchaseFlowSupported ? (
             <>
@@ -426,7 +492,7 @@ export default function PaywallModal({
             subscriptionStatus ||
             (purchaseFlowSupported
               ? "Subscriptions are handled through the App Store."
-              : "Install the iOS app or open the latest TestFlight build to view live monthly, yearly, and free-trial options.")}
+              : "Whelm Pro subscriptions are currently available in the native iOS app. Install the iPhone app to start a trial, restore purchases, or manage your plan with Apple.")}
         </p>
       </div>
     </div>
