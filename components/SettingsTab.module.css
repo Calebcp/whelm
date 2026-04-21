@@ -471,6 +471,34 @@
   gap: 8px;
 }
 
+.settingsSubscriptionPanel {
+  margin-top: 16px;
+  border: 1px solid rgba(123, 138, 184, 0.16);
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at top right, rgba(107, 92, 255, 0.12), transparent 34%),
+    radial-gradient(circle at top left, rgba(70, 120, 255, 0.12), transparent 28%),
+    rgba(8, 12, 26, 0.88);
+  padding: 14px;
+}
+
+.settingsSubscriptionHeader {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 14px;
+}
+
+.settingsSubscriptionHeader strong {
+  color: #f2f6ff;
+  font-size: 0.96rem;
+}
+
+.settingsSubscriptionHeader span {
+  color: #b9c6e2;
+  font-size: 0.83rem;
+  line-height: 1.45;
+}
+
 .companionStyleRow {
   display: flex;
   flex-wrap: wrap;

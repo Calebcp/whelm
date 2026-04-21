@@ -9,6 +9,7 @@ import AnimatedTabSection from "@/components/AnimatedTabSection";
 import ProUnlockCard from "@/components/ProUnlockCard";
 import SenseiFigure from "@/components/SenseiFigure";
 import styles from "@/components/SettingsTab.module.css";
+import SubscriptionPlansPanel from "@/components/SubscriptionPlansPanel";
 import WhelmProfileAvatar from "@/components/WhelmProfileAvatar";
 import type { SenseiVariant } from "@/components/SenseiFigure";
 import type { WhelBandanaColor } from "@/lib/whelm-mascot";
@@ -295,6 +296,7 @@ export type SettingsTabProps = {
   onStartProPreview: () => void;
   onManageSubscription: () => void;
   onRestorePurchases: () => void;
+  subscriptionUserId: string;
   subscriptionBusy: boolean;
   subscriptionStatus: string;
   onSignOut: () => void;
@@ -527,6 +529,7 @@ const SettingsDetailPanels = memo(function SettingsDetailPanels({
   notificationStatus,
   subscriptionBusy,
   subscriptionStatus,
+  subscriptionUserId,
   onRestorePurchases,
   onManageSubscription,
   archiveImportInputRef,
@@ -660,7 +663,11 @@ const SettingsDetailPanels = memo(function SettingsDetailPanels({
           <SettingsDetailHeader
             sectionLabel="Subscription"
             title="Plan and access"
-            body={isPro ? "You’re in the deeper Whelm layer." : "Upgrade when you want longer memory and fuller control."}
+            body={
+              isPro
+                ? "Your current plan, available App Store pricing, and subscription controls are all right here."
+                : "Choose a Whelm Pro plan directly here without digging through another screen."
+            }
             onBack={closeActiveSection}
           />
           <ul className={styles.settingsList}>
@@ -668,41 +675,36 @@ const SettingsDetailPanels = memo(function SettingsDetailPanels({
             <li><span>Status</span><strong>{proSource === "preview" ? `${WHELM_PRO_NAME} Access` : isPro ? `${WHELM_PRO_NAME} Active` : WHELM_STANDARD_NAME}</strong></li>
             <li><span>Streak</span><strong>{streak}d</strong></li>
           </ul>
+          <div className={styles.settingsSubscriptionPanel}>
+            <div className={styles.settingsSubscriptionHeader}>
+              <strong>Plans and pricing</strong>
+              <span>Monthly and yearly App Store subscriptions are shown below for Apple review and everyday use.</span>
+            </div>
+            <SubscriptionPlansPanel
+              userId={subscriptionUserId}
+              isPro={isPro}
+              subscriptionBusy={subscriptionBusy}
+              subscriptionStatus={subscriptionStatus}
+              onRestorePurchases={onRestorePurchases}
+              onManageSubscription={onManageSubscription}
+            />
+          </div>
           <div className={styles.settingsDetailBlock}>
-            {!isPro ? (
-              <>
-                <SettingsActionRow
-                  title="Upgrade to Whelm Pro"
-                  summary="See the full comparison and unlocks."
-                  onClick={onStartProPreview}
-                />
-                <SettingsActionRow
-                  title={subscriptionBusy ? "Restoring..." : "Restore purchases"}
-                  summary="Reconnect your App Store purchases."
-                  onClick={onRestorePurchases}
-                  disabled={subscriptionBusy}
-                />
-              </>
-            ) : (
-              <>
-                <SettingsActionRow
-                  title="Compare plans"
-                  summary={`See ${WHELM_STANDARD_NAME} versus ${WHELM_PRO_NAME} again.`}
-                  onClick={onStartProPreview}
-                />
-                <SettingsActionRow
-                  title="Manage subscription"
-                  summary="Open Apple subscription controls."
-                  onClick={onManageSubscription}
-                />
-                <SettingsActionRow
-                  title={subscriptionBusy ? "Checking..." : "Restore purchases"}
-                  summary="Refresh this device’s purchase state."
-                  onClick={onRestorePurchases}
-                  disabled={subscriptionBusy}
-                />
-              </>
-            )}
+            <SettingsActionRow
+              title="View plans and pricing"
+              summary={
+                isPro
+                  ? `Open the full comparison view for ${WHELM_STANDARD_NAME} and ${WHELM_PRO_NAME}.`
+                  : "Open the focused upgrade view with the same App Store options."
+              }
+              onClick={onStartProPreview}
+            />
+            <SettingsActionRow
+              title={subscriptionBusy ? (isPro ? "Checking..." : "Restoring...") : "Restore purchases"}
+              summary={isPro ? "Refresh this device’s purchase state." : "Reconnect your App Store purchases."}
+              onClick={onRestorePurchases}
+              disabled={subscriptionBusy}
+            />
           </div>
           {subscriptionStatus ? <p className={sharedStyles.accountMeta}>{subscriptionStatus}</p> : null}
         </article>
@@ -992,6 +994,7 @@ export default function SettingsTab({
   onStartProPreview,
   onManageSubscription,
   onRestorePurchases,
+  subscriptionUserId,
   subscriptionBusy,
   subscriptionStatus,
   onSignOut,
@@ -1367,6 +1370,7 @@ export default function SettingsTab({
         notificationStatus={notificationStatus}
         subscriptionBusy={subscriptionBusy}
         subscriptionStatus={subscriptionStatus}
+        subscriptionUserId={subscriptionUserId}
         onRestorePurchases={onRestorePurchases}
         onManageSubscription={onManageSubscription}
         archiveImportInputRef={archiveImportInputRef}
