@@ -425,6 +425,15 @@ const SettingsIndexPanel = memo(function SettingsIndexPanel({
           onClick={() => onToggleSection("account")}
         />
         <SettingsRow
+          title="Subscription"
+          summary={`Current plan: ${isPro ? WHELM_PRO_NAME : WHELM_STANDARD_NAME}`}
+          active={activeSection === "sync"}
+          onClick={() => onToggleSection("sync")}
+          accent="subscription"
+          mascotVariant={isPro ? "anchor" : "scholar"}
+          mascotBandanaColor={(streakBandanaTier?.color as WhelBandanaColor | undefined) ?? "yellow"}
+        />
+        <SettingsRow
           title="Notifications"
           summary={normalizedNotificationSettings.enabled ? "Whelm nudges active" : "Notifications off"}
           active={activeSection === "notifications"}
@@ -433,16 +442,7 @@ const SettingsIndexPanel = memo(function SettingsIndexPanel({
       </div>
 
       <div className={styles.settingsIndexGroup}>
-        <p className={styles.settingsIndexLabel}>Subscription</p>
-        <SettingsRow
-          title="Subscription"
-          summary={isPro ? `${WHELM_PRO_NAME} active` : `Using ${WHELM_STANDARD_NAME}`}
-          active={activeSection === "sync"}
-          onClick={() => onToggleSection("sync")}
-          accent="subscription"
-          mascotVariant={isPro ? "anchor" : "scholar"}
-          mascotBandanaColor={(streakBandanaTier?.color as WhelBandanaColor | undefined) ?? "yellow"}
-        />
+        <p className={styles.settingsIndexLabel}>Library</p>
         <SettingsRow
           title="Archive"
           summary="Export and restore your Whelm"
@@ -663,22 +663,17 @@ const SettingsDetailPanels = memo(function SettingsDetailPanels({
           <SettingsDetailHeader
             sectionLabel="Subscription"
             title="Plan and access"
-            body={
-              isPro
-                ? "Your current plan, available App Store pricing, and subscription controls are all right here."
-                : "Choose a Whelm Pro plan directly here without digging through another screen."
-            }
+            body={isPro ? "Manage your plan and billing." : "Choose a plan and upgrade when you are ready."}
             onBack={closeActiveSection}
           />
           <ul className={styles.settingsList}>
             <li><span>Plan</span><strong>{isPro ? WHELM_PRO_NAME : WHELM_STANDARD_NAME}</strong></li>
-            <li><span>Status</span><strong>{proSource === "preview" ? `${WHELM_PRO_NAME} Access` : isPro ? `${WHELM_PRO_NAME} Active` : WHELM_STANDARD_NAME}</strong></li>
-            <li><span>Streak</span><strong>{streak}d</strong></li>
+            <li><span>Status</span><strong>{proSource === "preview" ? `${WHELM_PRO_NAME} Access` : isPro ? `${WHELM_PRO_NAME} Active` : "Available to upgrade"}</strong></li>
           </ul>
           <div className={styles.settingsSubscriptionPanel}>
             <div className={styles.settingsSubscriptionHeader}>
               <strong>Plans and pricing</strong>
-              <span>Monthly and yearly App Store subscriptions are shown below for Apple review and everyday use.</span>
+              <span>Choose monthly or yearly billing, then manage or restore from the same place.</span>
             </div>
             <SubscriptionPlansPanel
               userId={subscriptionUserId}
@@ -687,23 +682,7 @@ const SettingsDetailPanels = memo(function SettingsDetailPanels({
               subscriptionStatus={subscriptionStatus}
               onRestorePurchases={onRestorePurchases}
               onManageSubscription={onManageSubscription}
-            />
-          </div>
-          <div className={styles.settingsDetailBlock}>
-            <SettingsActionRow
-              title="View plans and pricing"
-              summary={
-                isPro
-                  ? `Open the full comparison view for ${WHELM_STANDARD_NAME} and ${WHELM_PRO_NAME}.`
-                  : "Open the focused upgrade view with the same App Store options."
-              }
-              onClick={onStartProPreview}
-            />
-            <SettingsActionRow
-              title={subscriptionBusy ? (isPro ? "Checking..." : "Restoring...") : "Restore purchases"}
-              summary={isPro ? "Refresh this device’s purchase state." : "Reconnect your App Store purchases."}
-              onClick={onRestorePurchases}
-              disabled={subscriptionBusy}
+              compact
             />
           </div>
           {subscriptionStatus ? <p className={sharedStyles.accountMeta}>{subscriptionStatus}</p> : null}

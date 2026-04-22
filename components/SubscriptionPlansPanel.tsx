@@ -67,6 +67,7 @@ export type SubscriptionPlansPanelProps = {
   showStayOnStandard?: boolean;
   onStayOnStandard?: () => void;
   className?: string;
+  compact?: boolean;
 };
 
 function toUserFacingSubscriptionMessage(error: unknown) {
@@ -138,6 +139,7 @@ export default function SubscriptionPlansPanel({
   showStayOnStandard = false,
   onStayOnStandard,
   className,
+  compact = false,
 }: SubscriptionPlansPanelProps) {
   const revenueCatSupport = getRevenueCatSupportState();
   const purchaseFlowSupported = revenueCatSupport.supported;
@@ -149,6 +151,7 @@ export default function SubscriptionPlansPanel({
   const [purchaseBusy, setPurchaseBusy] = useState(false);
   const [status, setStatus] = useState("");
   const [comparisonFocus, setComparisonFocus] = useState<WhelmTierCardId>("pro");
+  const [comparisonExpanded, setComparisonExpanded] = useState(false);
 
   useEffect(() => {
     if (!purchaseFlowSupported) {
@@ -262,64 +265,148 @@ export default function SubscriptionPlansPanel({
 
   return (
     <div className={className}>
-      <section className={styles.paywallCompare}>
-        <div className={styles.paywallCompareSwitch}>
-          {WHELM_TIER_CARDS.map((card) => (
-            <button
-              key={card.id}
-              type="button"
-              className={`${styles.paywallCompareSwitchButton} ${
-                comparisonFocus === card.id ? styles.paywallCompareSwitchButtonActive : ""
+      {!compact ? (
+        <section className={styles.paywallCompare}>
+          <div className={styles.paywallCompareSwitch}>
+            {WHELM_TIER_CARDS.map((card) => (
+              <button
+                key={card.id}
+                type="button"
+                className={`${styles.paywallCompareSwitchButton} ${
+                  comparisonFocus === card.id ? styles.paywallCompareSwitchButtonActive : ""
+                }`}
+                onClick={() => setComparisonFocus(card.id)}
+              >
+                {card.name}
+              </button>
+            ))}
+          </div>
+          <div className={styles.paywallTierDeck}>
+            <article
+              className={`${styles.paywallTierCard} ${
+                focusedTierCard.id === "pro" ? styles.paywallTierCardFeatured : ""
+              } ${focusedTierCard.id === "pro" ? styles.paywallTierCardPro : styles.paywallTierCardStandard} ${
+                styles.paywallTierCardPrimary
               }`}
-              onClick={() => setComparisonFocus(card.id)}
             >
-              {card.name}
-            </button>
-          ))}
-        </div>
-        <div className={styles.paywallTierDeck}>
-          <article
-            className={`${styles.paywallTierCard} ${
-              focusedTierCard.id === "pro" ? styles.paywallTierCardFeatured : ""
-            } ${focusedTierCard.id === "pro" ? styles.paywallTierCardPro : styles.paywallTierCardStandard} ${
-              styles.paywallTierCardPrimary
-            }`}
-          >
-            <div className={styles.paywallTierBadgeRow}>
+              <div className={styles.paywallTierBadgeRow}>
+                <p
+                  className={`${styles.paywallTierLabel} ${
+                    focusedTierCard.id === "pro"
+                      ? styles.paywallTierLabelPro
+                      : styles.paywallTierLabelStandard
+                  }`}
+                >
+                  {focusedTierCard.name}
+                </p>
+                {focusedTierCard.id === "pro" ? <span className={styles.planBadge}>Best Value</span> : null}
+              </div>
               <p
-                className={`${styles.paywallTierLabel} ${
+                className={`${styles.paywallTierHeading} ${
                   focusedTierCard.id === "pro"
-                    ? styles.paywallTierLabelPro
-                    : styles.paywallTierLabelStandard
+                    ? styles.paywallTierHeadingPro
+                    : styles.paywallTierHeadingStandard
                 }`}
               >
-                {focusedTierCard.name}
+                {focusedTierCard.headline}
               </p>
-              {focusedTierCard.id === "pro" ? <span className={styles.planBadge}>Best Value</span> : null}
-            </div>
-            <p
-              className={`${styles.paywallTierHeading} ${
-                focusedTierCard.id === "pro"
-                  ? styles.paywallTierHeadingPro
-                  : styles.paywallTierHeadingStandard
+              <ul
+                className={`${styles.paywallTierList} ${
+                  focusedTierCard.id === "pro"
+                    ? styles.paywallTierListPro
+                    : styles.paywallTierListStandard
+                }`}
+              >
+                {focusedTierCard.bullets.map((bullet) => (
+                  <li key={bullet}>{bullet}</li>
+                ))}
+              </ul>
+            </article>
+          </div>
+        </section>
+      ) : (
+        <section className={styles.paywallCompactIntro}>
+          <p className={styles.paywallCompactLabel}>{isPro ? "Current plan" : "Upgrade option"}</p>
+          <strong className={styles.paywallCompactTitle}>
+            {isPro ? "You are on Whelm Pro." : "Whelm Pro adds deeper history and customization."}
+          </strong>
+          <span className={styles.paywallCompactBody}>
+            {isPro
+              ? "Switch billing, restore purchases, or manage your subscription below."
+              : "Pick monthly or yearly billing below. Restore and App Store controls stay on this screen."}
+          </span>
+          <span className={styles.paywallCompactComparisonHint}>
+            Compare {WHELM_PRO_NAME} and {WHELM_STANDARD_NAME} before choosing a plan.
+          </span>
+          <button
+            type="button"
+            className={styles.paywallCompactToggle}
+            onClick={() => setComparisonExpanded((current) => !current)}
+          >
+            {comparisonExpanded ? "− Hide full comparison" : "+ View full comparison"}
+          </button>
+        </section>
+      )}
+      {compact && comparisonExpanded ? (
+        <section className={styles.paywallCompare}>
+          <div className={styles.paywallCompareSwitch}>
+            {WHELM_TIER_CARDS.map((card) => (
+              <button
+                key={card.id}
+                type="button"
+                className={`${styles.paywallCompareSwitchButton} ${
+                  comparisonFocus === card.id ? styles.paywallCompareSwitchButtonActive : ""
+                }`}
+                onClick={() => setComparisonFocus(card.id)}
+              >
+                {card.name}
+              </button>
+            ))}
+          </div>
+          <div className={styles.paywallTierDeck}>
+            <article
+              className={`${styles.paywallTierCard} ${
+                focusedTierCard.id === "pro" ? styles.paywallTierCardFeatured : ""
+              } ${focusedTierCard.id === "pro" ? styles.paywallTierCardPro : styles.paywallTierCardStandard} ${
+                styles.paywallTierCardPrimary
               }`}
             >
-              {focusedTierCard.headline}
-            </p>
-            <ul
-              className={`${styles.paywallTierList} ${
-                focusedTierCard.id === "pro"
-                  ? styles.paywallTierListPro
-                  : styles.paywallTierListStandard
-              }`}
-            >
-              {focusedTierCard.bullets.map((bullet) => (
-                <li key={bullet}>{bullet}</li>
-              ))}
-            </ul>
-          </article>
-        </div>
-      </section>
+              <div className={styles.paywallTierBadgeRow}>
+                <p
+                  className={`${styles.paywallTierLabel} ${
+                    focusedTierCard.id === "pro"
+                      ? styles.paywallTierLabelPro
+                      : styles.paywallTierLabelStandard
+                  }`}
+                >
+                  {focusedTierCard.name}
+                </p>
+                {focusedTierCard.id === "pro" ? <span className={styles.planBadge}>Best Value</span> : null}
+              </div>
+              <p
+                className={`${styles.paywallTierHeading} ${
+                  focusedTierCard.id === "pro"
+                    ? styles.paywallTierHeadingPro
+                    : styles.paywallTierHeadingStandard
+                }`}
+              >
+                {focusedTierCard.headline}
+              </p>
+              <ul
+                className={`${styles.paywallTierList} ${
+                  focusedTierCard.id === "pro"
+                    ? styles.paywallTierListPro
+                    : styles.paywallTierListStandard
+                }`}
+              >
+                {focusedTierCard.bullets.map((bullet) => (
+                  <li key={bullet}>{bullet}</li>
+                ))}
+              </ul>
+            </article>
+          </div>
+        </section>
+      ) : null}
       <div className={styles.planGrid}>
         {purchaseFlowSupported ? (
           <>
@@ -464,7 +551,9 @@ export default function SubscriptionPlansPanel({
         {status ||
           subscriptionStatus ||
           (purchaseFlowSupported
-            ? "Subscriptions are handled through the App Store."
+            ? compact
+              ? "Subscriptions are handled through the App Store."
+              : "Subscriptions are handled through the App Store."
             : "Whelm Pro subscriptions are currently available in the native iOS app. Install the iPhone app to start a trial, restore purchases, or manage your plan with Apple.")}
       </p>
     </div>

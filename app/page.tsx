@@ -3717,6 +3717,7 @@ export default function HomePage() {
         onSelectTab: (tab: string) => handleTabSelect(tab as AppTab),
         renderIcon: (tab: string) => renderAppNavIcon(tab as AppTab),
         getTitle: (tab: string) => tabTitle(tab as AppTab),
+        currentPlanLabel: isPro ? "Whelm Pro" : "Whelm Standard",
       },
       blockDetailModalProps: {
         open: Boolean(selectedPlanDetail),

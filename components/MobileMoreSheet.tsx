@@ -11,6 +11,7 @@ export default function MobileMoreSheet({
   onSelectTab,
   renderIcon,
   getTitle,
+  currentPlanLabel,
 }: {
   open: boolean;
   onClose: () => void;
@@ -18,6 +19,7 @@ export default function MobileMoreSheet({
   onSelectTab: (tab: string) => void;
   renderIcon: (tab: string) => ReactNode;
   getTitle: (tab: string) => string;
+  currentPlanLabel?: string;
 }) {
   if (!open) return null;
 
@@ -25,7 +27,10 @@ export default function MobileMoreSheet({
     <div className={styles.feedbackOverlay} onClick={onClose}>
       <div className={styles.mobileMoreSheet} onClick={(event) => event.stopPropagation()}>
         <div className={styles.feedbackHeader}>
-          <h2 className={styles.feedbackTitle}>More Features</h2>
+          <div className={styles.mobileMoreHeaderCopy}>
+            <h2 className={styles.feedbackTitle}>More</h2>
+            {currentPlanLabel ? <p className={styles.mobileMorePlanNote}>Current plan: {currentPlanLabel}</p> : null}
+          </div>
           <button type="button" className={styles.feedbackClose} onClick={onClose}>
             Close
           </button>
