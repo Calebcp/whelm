@@ -153,3 +153,34 @@ test("mergeLeaderboardProfiles accepts incoming data when it advances progress",
   assert.equal(merged.totalFocusHours, 22);
   assert.equal(merged.bestStreak, 13);
 });
+
+test("mergeLeaderboardProfiles preserves a higher existing streak even when incoming XP is higher", () => {
+  const existing = buildLeaderboardProfile({
+    userId: "user-1",
+    username: "CalebR",
+    totalXp: 4503,
+    currentStreak: 13,
+    level: 8,
+    createdAtISO: "2026-01-01T00:00:00.000Z",
+    bestStreak: 13,
+    totalFocusHours: 20,
+    weeklyXp: 556,
+  });
+  const incoming = buildLeaderboardProfile({
+    userId: "user-1",
+    username: "CalebR",
+    totalXp: 4587,
+    currentStreak: 0,
+    level: 8,
+    createdAtISO: "2026-01-01T00:00:00.000Z",
+    bestStreak: 13,
+    totalFocusHours: 22,
+    weeklyXp: 640,
+  });
+
+  const merged = mergeLeaderboardProfiles(existing, incoming);
+
+  assert.equal(merged.totalXp, 4587);
+  assert.equal(merged.currentStreak, 13);
+  assert.equal(merged.weeklyXp, 640);
+});

@@ -124,12 +124,10 @@ export function mergeLeaderboardProfiles(existing: LeaderboardProfile | null, in
   const mergedCreatedAtISO =
     existing.createdAtISO <= incoming.createdAtISO ? existing.createdAtISO : incoming.createdAtISO;
   const mergedTotalXp = Math.max(existing.totalXp, incoming.totalXp);
-  const mergedCurrentStreak =
-    incoming.totalXp > existing.totalXp
-      ? incoming.currentStreak
-      : incoming.totalXp < existing.totalXp
-        ? existing.currentStreak
-        : Math.max(existing.currentStreak, incoming.currentStreak);
+  // Streak regressions are too destructive to trust from one client write.
+  // Preserve the highest observed streak until we have a more authoritative
+  // server-side streak source.
+  const mergedCurrentStreak = Math.max(existing.currentStreak, incoming.currentStreak);
   const mergedWeeklyXp =
     incoming.totalXp > existing.totalXp
       ? incoming.weeklyXp
