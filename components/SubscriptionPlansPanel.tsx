@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { PurchasesPackage } from "@revenuecat/purchases-capacitor";
 
 import styles from "@/app/page.module.css";
@@ -147,29 +147,49 @@ export default function SubscriptionPlansPanel({
   const [annualPackage, setAnnualPackage] = useState<PurchasesPackage | null>(null);
   const [fallbackPackages, setFallbackPackages] = useState<PurchasesPackage[]>([]);
   const [selectedPackageId, setSelectedPackageId] = useState("");
+  const [reloadNonce, setReloadNonce] = useState(0);
   const [loading, setLoading] = useState(false);
   const [purchaseBusy, setPurchaseBusy] = useState(false);
   const [status, setStatus] = useState("");
   const [comparisonFocus, setComparisonFocus] = useState<WhelmTierCardId>("pro");
   const [comparisonExpanded, setComparisonExpanded] = useState(false);
 
+  const clearPackages = useCallback(() => {
+    setAnnualPackage(null);
+    setMonthlyPackage(null);
+    setFallbackPackages([]);
+    setSelectedPackageId("");
+  }, []);
+
+  const retryLoadingPlans = useCallback(() => {
+    setReloadNonce((current) => current + 1);
+  }, []);
+
   useEffect(() => {
     if (!purchaseFlowSupported) {
+      clearPackages();
       setStatus(revenueCatSupport.reason);
       return;
     }
 
     if (!userId) {
+      clearPackages();
       setStatus("Sign in to view App Store subscription options.");
       return;
     }
 
     let active = true;
+    clearPackages();
     setLoading(true);
     setStatus("");
 
     void (async () => {
-      try {
+      const pauseBeforeRetry = () =>
+        new Promise<void>((resolve) => {
+          window.setTimeout(resolve, 1200);
+        });
+
+      const loadPackages = async () => {
         const offerings = await getRevenueCatOfferings(userId);
         if (!active) return;
 
@@ -191,25 +211,37 @@ export default function SubscriptionPlansPanel({
             pkg.identifier !== nextMonthlyPackage?.identifier,
         );
 
-        setAnnualPackage(nextAnnualPackage);
-        setMonthlyPackage(nextMonthlyPackage);
-        setFallbackPackages(nextFallbackPackages);
-
         if (!nextAnnualPackage && !nextMonthlyPackage && nextFallbackPackages.length === 0) {
           throw new Error(
             `Subscription details are not available right now. Offering "${currentOffering.identifier}" returned no usable packages. Available: ${diagnostic.summary}.`,
           );
         }
 
+        setAnnualPackage(nextAnnualPackage);
+        setMonthlyPackage(nextMonthlyPackage);
+        setFallbackPackages(nextFallbackPackages);
         setSelectedPackageId(
           nextAnnualPackage?.identifier ??
             nextMonthlyPackage?.identifier ??
             nextFallbackPackages[0]?.identifier ??
             "",
         );
-      } catch (error: unknown) {
+      };
+
+      try {
+        await loadPackages();
+      } catch (firstError: unknown) {
         if (!active) return;
-        setStatus(toUserFacingSubscriptionMessage(error));
+
+        try {
+          await pauseBeforeRetry();
+          if (!active) return;
+          await loadPackages();
+        } catch (secondError: unknown) {
+          if (!active) return;
+          clearPackages();
+          setStatus(toUserFacingSubscriptionMessage(secondError ?? firstError));
+        }
       } finally {
         if (active) {
           setLoading(false);
@@ -220,7 +252,7 @@ export default function SubscriptionPlansPanel({
     return () => {
       active = false;
     };
-  }, [purchaseFlowSupported, revenueCatSupport.reason, userId]);
+  }, [clearPackages, purchaseFlowSupported, reloadNonce, revenueCatSupport.reason, userId]);
 
   const selectedPackage = useMemo(() => {
     return (
@@ -504,15 +536,21 @@ export default function SubscriptionPlansPanel({
             <button
               type="button"
               className={styles.feedbackSubmit}
-              onClick={() => void handlePurchase()}
-              disabled={!selectedPackage || loading || purchaseBusy || !userId}
+              onClick={() => {
+                if (!selectedPackage) {
+                  retryLoadingPlans();
+                  return;
+                }
+                void handlePurchase();
+              }}
+              disabled={loading || purchaseBusy || (!selectedPackage && !userId)}
             >
               {purchaseBusy
                 ? "Processing..."
                 : loading
                   ? "Loading plans..."
                   : !selectedPackage
-                    ? "Subscription details unavailable"
+                    ? "Retry loading plans"
                     : isPro
                       ? "Switch plan"
                       : annualPackage && selectedPackage.identifier === annualPackage.identifier
