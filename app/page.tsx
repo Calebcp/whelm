@@ -2880,6 +2880,30 @@ export default function HomePage() {
     nextAscentTitle: shellNextAscentTitle,
     nextAscentBody: shellNextAscentBody,
   } = shellStreakRecord.summary;
+  const leaderboardCurrentUserEntry = useMemo(
+    () =>
+      leaderboardAroundRows.find((row) => row.entry.isCurrentUser)?.entry ??
+      leaderboardRows.find((row) => row.entry.isCurrentUser)?.entry ??
+      null,
+    [leaderboardAroundRows, leaderboardRows],
+  );
+  const leaderboardTopBarSummary = useMemo(() => {
+    if (activeTab !== "leaderboard" || leaderboardSource !== "snapshot" || !leaderboardCurrentUserEntry) {
+      return null;
+    }
+
+    const remoteXpSummary = getLifetimeXpSummary(leaderboardCurrentUserEntry.totalXp, 0);
+    return {
+      currentLevel: remoteXpSummary.currentLevel,
+      progressToNextLevel: remoteXpSummary.progressToNextLevel,
+      todayXp: 0,
+      dailyCap: remoteXpSummary.dailyCap,
+      formattedLifetimeXp: leaderboardCurrentUserEntry.totalXp.toLocaleString(),
+      formattedXpToNextLevel: Math.max(0, remoteXpSummary.nextLevelXp - leaderboardCurrentUserEntry.totalXp).toLocaleString(),
+      tierColor: getStreakBandanaTier(leaderboardCurrentUserEntry.currentStreak)?.color ?? shellTierColor,
+      identityReady: true,
+    };
+  }, [activeTab, leaderboardCurrentUserEntry, leaderboardSource, shellTierColor]);
   const handleCalendarPrevMonth = useCallback(() => {
     setCalendarCursor((current) => shiftMonth(current, -1));
   }, [setCalendarCursor]);
@@ -4236,14 +4260,14 @@ export default function HomePage() {
         subtitle={`${WHELM_BRAND_THESIS} Plan the line, protect the streak, and keep the day under command.`}
         streakPrompt={topBarStreakPrompt}
         xpDockStyle={xpDockStyle}
-        currentLevel={lifetimeXpSummary.currentLevel}
-        progressToNextLevel={lifetimeXpSummary.progressToNextLevel}
-        todayXp={lifetimeXpSummary.todayXp}
-        dailyCap={lifetimeXpSummary.dailyCap}
-        formattedLifetimeXp={formattedLifetimeXp}
-        formattedXpToNextLevel={formattedXpToNextLevel}
-        tierColor={shellTierColor}
-        identityReady={shellStreakRecord.summary.isReady}
+        currentLevel={leaderboardTopBarSummary?.currentLevel ?? lifetimeXpSummary.currentLevel}
+        progressToNextLevel={leaderboardTopBarSummary?.progressToNextLevel ?? lifetimeXpSummary.progressToNextLevel}
+        todayXp={leaderboardTopBarSummary?.todayXp ?? lifetimeXpSummary.todayXp}
+        dailyCap={leaderboardTopBarSummary?.dailyCap ?? lifetimeXpSummary.dailyCap}
+        formattedLifetimeXp={leaderboardTopBarSummary?.formattedLifetimeXp ?? formattedLifetimeXp}
+        formattedXpToNextLevel={leaderboardTopBarSummary?.formattedXpToNextLevel ?? formattedXpToNextLevel}
+        tierColor={leaderboardTopBarSummary?.tierColor ?? shellTierColor}
+        identityReady={leaderboardTopBarSummary?.identityReady ?? shellStreakRecord.summary.isReady}
         isPro={isPro}
         photoUrl={currentUserPhotoUrl}
         isMobileViewport={isMobileViewport}

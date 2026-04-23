@@ -41,10 +41,10 @@ export default function SupportPage() {
 
         <h2>Policy Links</h2>
         <p>
-          Privacy Policy: <a href="/privacy">whelmproductivity.com/privacy</a>
+          Privacy Policy: <a href="https://www.whelmproductivity.com/privacy">www.whelmproductivity.com/privacy</a>
         </p>
         <p>
-          Terms of Use: <a href="/terms">whelmproductivity.com/terms</a>
+          Terms of Use: <a href="https://www.whelmproductivity.com/terms">www.whelmproductivity.com/terms</a>
         </p>
       </article>
     </main>

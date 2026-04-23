@@ -8,7 +8,7 @@ export default function robots(): MetadataRoute.Robots {
       userAgent: "*",
       allow: "/",
     },
-    sitemap: "https://whelmproductivity.com/sitemap.xml",
-    host: "https://whelmproductivity.com",
+    sitemap: "https://www.whelmproductivity.com/sitemap.xml",
+    host: "https://www.whelmproductivity.com",
   };
 }

@@ -72,6 +72,33 @@ function formatLeaderboardXp(totalXp: number) {
   return `${totalXp.toLocaleString()} XP`;
 }
 
+function leaderboardStatusCopy(input: {
+  leaderboardIsLive: boolean;
+  leaderboardSource: string;
+  leaderboardLoading: boolean;
+  leaderboardError: string;
+}) {
+  if (input.leaderboardLoading) {
+    return null;
+  }
+
+  if (input.leaderboardIsLive && input.leaderboardSource === "snapshot") {
+    return {
+      tone: "live" as const,
+      title: "Live standings",
+      body: "These rankings are coming from the current shared leaderboard.",
+    };
+  }
+
+  return {
+    tone: "fallback" as const,
+    title: "Fallback standings",
+    body: input.leaderboardError
+      ? "Live standings could not be reached, so this screen is showing fallback data and may be stale."
+      : "This screen is showing fallback data until the live leaderboard is available.",
+  };
+}
+
 function getLeaderboardBandanaMeta(streak: number) {
   const tier = getStreakBandanaTier(streak);
   const theme = getStreakTierColorTheme(tier?.color);
@@ -375,6 +402,12 @@ export default function WhelmboardTab({
 }: WhelmboardTabProps) {
   const [surfaceTab, setSurfaceTab] = useState<WhelmboardSurfaceTab>("global");
   const [requestInboxOpen, setRequestInboxOpen] = useState(false);
+  const statusCopy = leaderboardStatusCopy({
+    leaderboardIsLive,
+    leaderboardSource,
+    leaderboardLoading,
+    leaderboardError,
+  });
 
   return (
     <AnimatedTabSection
@@ -579,6 +612,19 @@ export default function WhelmboardTab({
                 {(leaderboardSource === "snapshot" ? leaderboardTotalEntries : leaderboardRows.length)} Whelmers
               </span>
             </div>
+
+            {statusCopy ? (
+              <div
+                className={`${styles.wbStatusBanner} ${
+                  statusCopy.tone === "live" ? styles.wbStatusBannerLive : styles.wbStatusBannerFallback
+                }`}
+                role="status"
+                aria-live="polite"
+              >
+                <strong>{statusCopy.title}</strong>
+                <span>{statusCopy.body}</span>
+              </div>
+            ) : null}
 
             {leaderboardError ? (
               <p className={sharedStyles.analyticsEmptyState}>{leaderboardError}</p>

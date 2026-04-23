@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://whelmproductivity.com"),
+  metadataBase: new URL("https://www.whelmproductivity.com"),
   title: {
     default: "Whelm Productivity",
     template: "%s | Whelm Productivity",
@@ -19,7 +19,7 @@ export const metadata: Metadata = {
     title: "Whelm Productivity",
     description:
       "Mobile-first focus timer, planning calendar, notes, and accountability in one system.",
-    url: "https://whelmproductivity.com",
+    url: "https://www.whelmproductivity.com",
     siteName: "Whelm Productivity",
     type: "website",
   },

@@ -3,6 +3,7 @@ import {
   compareLeaderboardProfiles,
   decodeCursor,
   encodeCursor,
+  mergeLeaderboardProfiles,
   movementDirection,
   snapshotEntryDocId,
   snapshotRunDocId,
@@ -222,6 +223,12 @@ function snapshotRunFields(snapshotDate: string, metric: LeaderboardMetric, tota
 }
 
 export async function saveLeaderboardProfile(authHeader: string, profile: LeaderboardProfile) {
+  const existingDocument = await getDocument(
+    authHeader,
+    `leaderboardProfiles/${encodeURIComponent(profile.userId)}`,
+  );
+  const existingProfile = existingDocument ? decodeProfile(existingDocument) : null;
+  const mergedProfile = mergeLeaderboardProfiles(existingProfile, profile);
   const { apiKey } = requireConfig();
   const response = await fetch(
     `${documentsBaseUrl()}/leaderboardProfiles/${encodeURIComponent(profile.userId)}?key=${apiKey}`,
@@ -234,7 +241,7 @@ export async function saveLeaderboardProfile(authHeader: string, profile: Leader
       cache: "no-store",
       body: JSON.stringify({
         fields: Object.fromEntries(
-          Object.entries(profile).map(([key, value]) => [key, encodeFirestoreValue(value)]),
+          Object.entries(mergedProfile).map(([key, value]) => [key, encodeFirestoreValue(value)]),
         ),
       }),
     },
@@ -247,7 +254,7 @@ export async function saveLeaderboardProfile(authHeader: string, profile: Leader
     throw new Error(body?.error?.message || body?.error?.status || "Failed to save leaderboard profile.");
   }
 
-  return profile;
+  return mergedProfile;
 }
 
 async function listAllProfiles(authHeader: string) {

@@ -1,6 +1,6 @@
 "use client";
 
-const DEFAULT_API_BASE_URL = "https://whelmproductivity.com";
+const DEFAULT_API_BASE_URL = "https://www.whelmproductivity.com";
 
 function trimTrailingSlash(value: string) {
   return value.replace(/\/+$/, "");

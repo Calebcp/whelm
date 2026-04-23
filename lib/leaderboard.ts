@@ -115,6 +115,42 @@ export function buildLeaderboardProfile(input: {
   };
 }
 
+export function mergeLeaderboardProfiles(existing: LeaderboardProfile | null, incoming: LeaderboardProfile) {
+  if (!existing) {
+    return incoming;
+  }
+
+  const incomingWinsOnProgress = incoming.totalXp > existing.totalXp;
+  const mergedCreatedAtISO =
+    existing.createdAtISO <= incoming.createdAtISO ? existing.createdAtISO : incoming.createdAtISO;
+  const mergedTotalXp = Math.max(existing.totalXp, incoming.totalXp);
+  const mergedCurrentStreak =
+    incoming.totalXp > existing.totalXp
+      ? incoming.currentStreak
+      : incoming.totalXp < existing.totalXp
+        ? existing.currentStreak
+        : Math.max(existing.currentStreak, incoming.currentStreak);
+  const mergedWeeklyXp =
+    incoming.totalXp > existing.totalXp
+      ? incoming.weeklyXp
+      : incoming.totalXp < existing.totalXp
+        ? existing.weeklyXp
+        : Math.max(existing.weeklyXp, incoming.weeklyXp);
+
+  return buildLeaderboardProfile({
+    userId: existing.userId || incoming.userId,
+    username: incoming.username || existing.username,
+    totalXp: mergedTotalXp,
+    currentStreak: mergedCurrentStreak,
+    level: incomingWinsOnProgress ? incoming.level : Math.max(existing.level, incoming.level),
+    createdAtISO: mergedCreatedAtISO,
+    updatedAtISO: new Date().toISOString(),
+    bestStreak: Math.max(existing.bestStreak, incoming.bestStreak),
+    totalFocusHours: Math.max(existing.totalFocusHours, incoming.totalFocusHours),
+    weeklyXp: mergedWeeklyXp,
+  });
+}
+
 export function snapshotRunDocId(snapshotDate: string, metric: LeaderboardMetric) {
   return `${snapshotDate}_${metric}`;
 }
